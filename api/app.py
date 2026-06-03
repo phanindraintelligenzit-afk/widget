@@ -17,10 +17,15 @@ Adapters are looked up by name via the ingestion registry.
 """
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from contract import AgentObservation, Rating, Settings
@@ -41,6 +46,28 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
+
+# CORS so the widget can be embedded cross-origin. WIDGET_ALLOWED_ORIGINS
+# can be set to a comma-separated allowlist in prod; the demo defaults to *.
+_allowed = os.environ.get("WIDGET_ALLOWED_ORIGINS", "*")
+_origins = ["*"] if _allowed == "*" else [o.strip() for o in _allowed.split(",") if o.strip()]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_origins,
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Static serving of the embeddable widget.
+_WIDGET_DIR = Path(__file__).resolve().parent.parent / "widget"
+if _WIDGET_DIR.exists():
+    app.mount("/widget", StaticFiles(directory=str(_WIDGET_DIR)), name="widget")
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    return RedirectResponse(url="/widget/demo.html")
 
 
 # ---- liveness + adapter discovery ----------------------------------------
