@@ -1,0 +1,19 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Arize model monitoring breaches + quality scores",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "agents": [
+    {
+      "agent_id": "agent-multi-001",
+      "model_inferences": 1200,
+      "monitor_breaches": [
+        {"monitor": "drift.embedding_l2", "at": "2026-06-01T09:00:00Z"}
+      ],
+      "quality": {
+        "accuracy": 0.93,
+        "consistency": 0.91,
+        "hallucination_rate": 0.05
+      }
+    }
+  ]
+}

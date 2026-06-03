@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from contract import AgentBaseline, AgentObservation, Settings
+from contract import AgentBaseline, AgentObservation, PartialObservation, Settings
 
 
 def compute_P(ai_output_per_period: float, human_baseline: float) -> float:
@@ -107,4 +107,62 @@ def metrics_from_observation(
         settings.utilization,
     )
 
+    return {"P": P, "Q": Q, "E": E, "G": G, "R": R, "V": V, "C": C}
+
+
+def metrics_from_partial(
+    partial: PartialObservation,
+    settings: Settings,
+    baseline: AgentBaseline,
+) -> dict[str, Optional[float]]:
+    """Compute metrics from a partial. Dimensions never supplied stay None.
+
+    The engine's composite redistributes weight away from None metrics,
+    so a fresh agent with only a Cost partial gets a C-dominated score
+    (rather than zeros pulling everything down).
+    """
+    P = (
+        compute_P(partial.tasks.completed, baseline.human_output_per_period)
+        if partial.tasks is not None
+        else None
+    )
+    Q = (
+        compute_Q(
+            partial.quality.accuracy,
+            partial.quality.consistency,
+            partial.quality.hallucination_rate,
+            settings.q_sub_weights,
+        )
+        if partial.quality is not None
+        else None
+    )
+    E = (
+        compute_E(partial.executions.successful, partial.executions.attempts)
+        if partial.executions is not None
+        else None
+    )
+    G = (
+        compute_G(len(partial.policy.violations), partial.policy.total_actions)
+        if partial.policy is not None
+        else None
+    )
+    R = (
+        compute_R(partial.incidents, settings.r_max)
+        if partial.incidents is not None
+        else None
+    )
+    V = (
+        compute_V(partial.validation.validated_components, partial.validation.required_components)
+        if partial.validation is not None
+        else None
+    )
+    C = (
+        compute_C(
+            settings.human_cost_per_output,
+            partial.cost.ai_cost_per_output,
+            settings.utilization,
+        )
+        if partial.cost is not None
+        else None
+    )
     return {"P": P, "Q": Q, "E": E, "G": G, "R": R, "V": V, "C": C}

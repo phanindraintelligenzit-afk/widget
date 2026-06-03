@@ -43,3 +43,11 @@ def mapping_path(name: str) -> Path:
 def load_otel_spans(name: str = "spans") -> list[dict]:
     """Load OTel span fixtures."""
     return json.loads((_DIR / f"otel_{name}.json").read_text())
+
+
+def load_source(name: str) -> Any:
+    """Load a source-adapter payload fixture (e.g. 'aws_cost', 'jira')."""
+    data = json.loads((_DIR / f"source_{name}.json").read_text())
+    if isinstance(data, dict):
+        data.pop("_label", None)
+    return data

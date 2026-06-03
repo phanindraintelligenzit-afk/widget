@@ -10,6 +10,7 @@ from .metrics import (
     compute_R,
     compute_V,
     metrics_from_observation,
+    metrics_from_partial,
 )
 from .rate import rate
 from .score import composite
@@ -28,5 +29,6 @@ __all__ = [
     "compute_V",
     "gate_check",
     "metrics_from_observation",
+    "metrics_from_partial",
     "rate",
 ]

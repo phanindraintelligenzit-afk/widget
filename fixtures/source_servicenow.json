@@ -1,0 +1,10 @@
+{
+  "_label": "SYNTHETIC FIXTURE — ServiceNow incident records (u_agent_id custom field)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "tickets": [
+    {"number": "INC0010001", "u_agent_id": "agent-multi-001", "impact": 2, "opened_at": "2026-06-01T08:11:00Z"},
+    {"number": "INC0010002", "u_agent_id": "agent-multi-001", "impact": 3, "opened_at": "2026-06-01T13:42:00Z"},
+    {"number": "INC0010003", "u_agent_id": "another-agent",   "impact": 1, "opened_at": "2026-06-01T20:00:00Z"}
+  ]
+}

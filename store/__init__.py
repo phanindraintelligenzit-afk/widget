@@ -4,6 +4,7 @@ from .db import Base, configure, get_engine, get_session_factory, init_db, reset
 from .models import (
     AgentRow,
     ObservationRow,
+    PartialObservationRow,
     ScoreRow,
     SettingsRow,
     SMERatingRow,
@@ -13,6 +14,7 @@ __all__ = [
     "AgentRow",
     "Base",
     "ObservationRow",
+    "PartialObservationRow",
     "ScoreRow",
     "SettingsRow",
     "SMERatingRow",

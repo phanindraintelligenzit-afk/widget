@@ -31,12 +31,14 @@ from sqlalchemy.orm import Session
 from contract import AgentObservation, Rating, Settings
 from ingestion import get as get_adapter
 from ingestion import list_adapters
+from ingestion.sources import get as get_source
+from ingestion.sources import list_sources
 from store import repo
 
 from .bootstrap import bootstrap
 from .dependencies import db_session
 from .schemas import AdapterInfo, AgentSummary, BoardRow, HistoryPoint, SMERatingIn
-from .scoring import score_and_persist
+from .scoring import ingest_partials, score_and_persist
 
 
 @asynccontextmanager
@@ -82,6 +84,12 @@ def adapters() -> list[AdapterInfo]:
     return [AdapterInfo(name=n) for n in list_adapters()]
 
 
+@app.get("/sources", response_model=list[AdapterInfo])
+def sources() -> list[AdapterInfo]:
+    """Source adapters — one per source system, each emitting partials."""
+    return [AdapterInfo(name=n) for n in list_sources()]
+
+
 # ---- ingestion -----------------------------------------------------------
 
 @app.post("/ingest", response_model=Rating)
@@ -101,6 +109,27 @@ def ingest_via_adapter(
         raise HTTPException(status_code=404, detail=str(e))
     observations = adapter.to_observations(payload)
     return [score_and_persist(s, o) for o in observations]
+
+
+@app.post("/ingest/source/{source_name}", response_model=list[Rating])
+def ingest_via_source(
+    source_name: str,
+    payload: Any = Body(...),
+    s: Session = Depends(db_session),
+) -> list[Rating]:
+    """Source-specific adapters emit PartialObservation per agent.
+
+    Partials accumulate; the API re-merges latest-per-dimension and
+    re-scores every agent the payload touched. An agent reported by
+    only one source (e.g. AWS cost) gets a C-dominated score with the
+    other dimensions deferred — never zero.
+    """
+    try:
+        adapter = get_source(source_name)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    partials = adapter.to_partials(payload)
+    return ingest_partials(s, partials)
 
 
 # ---- agents + scores -----------------------------------------------------

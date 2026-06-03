@@ -16,6 +16,9 @@ from ingestion import (
 def register_stock_adapters() -> None:
     if "otel" not in list_adapters():
         register(OTelAdapter())
+    # All source adapters self-register; idempotent.
+    from ingestion.sources import register_all
+    register_all()
 
 
 def register_mappings_from_dir(directory: str | Path) -> list[str]:

@@ -1,0 +1,16 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Puvi noise/safety scanner alerts",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "agents": [
+    {
+      "agent_id": "agent-multi-001",
+      "policy_evaluations": 200,
+      "alerts": [
+        {"rule": "pii.email_redaction",  "timestamp": "2026-06-01T03:14:00Z"},
+        {"rule": "pii.phone_redaction",  "timestamp": "2026-06-01T11:22:00Z"},
+        {"rule": "prompt_injection.indirect", "timestamp": "2026-06-01T17:42:00Z"}
+      ]
+    }
+  ]
+}

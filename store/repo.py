@@ -11,9 +11,16 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from contract import AgentObservation, Rating, Settings
+from contract import AgentObservation, PartialObservation, Rating, Settings
 
-from .models import AgentRow, ObservationRow, ScoreRow, SettingsRow, SMERatingRow
+from .models import (
+    AgentRow,
+    ObservationRow,
+    PartialObservationRow,
+    ScoreRow,
+    SettingsRow,
+    SMERatingRow,
+)
 
 
 def _utcnow() -> datetime:
@@ -62,6 +69,33 @@ def save_observation(s: Session, obs: AgentObservation) -> ObservationRow:
     s.add(row)
     s.flush()
     return row
+
+
+# ---- partial observations -----------------------------------------------
+
+def save_partial(s: Session, partial: PartialObservation) -> PartialObservationRow:
+    row = PartialObservationRow(
+        agent_id=partial.agent_id,
+        source=partial.source,
+        period_start=partial.period_start,
+        period_end=partial.period_end,
+        payload=partial.model_dump(mode="json"),
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def partials_for_agent(s: Session, agent_id: str) -> list[PartialObservation]:
+    """Return all stored partials for an agent in chronological order."""
+    rows = list(
+        s.scalars(
+            select(PartialObservationRow)
+            .where(PartialObservationRow.agent_id == agent_id)
+            .order_by(PartialObservationRow.received_at.asc(), PartialObservationRow.id.asc())
+        )
+    )
+    return [PartialObservation.model_validate(r.payload) for r in rows]
 
 
 # ---- score history -------------------------------------------------------

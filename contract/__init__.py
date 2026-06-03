@@ -9,6 +9,7 @@ from .models import (
     TaskStats,
     Validation,
 )
+from .partial import PartialObservation, merge_partials
 from .rating import Rating
 from .settings import (
     AgentBaseline,
@@ -27,6 +28,7 @@ __all__ = [
     "DEFAULT_WEIGHTS",
     "Executions",
     "Incident",
+    "PartialObservation",
     "Policy",
     "PolicyViolation",
     "Quality",
@@ -34,4 +36,5 @@ __all__ = [
     "Settings",
     "TaskStats",
     "Validation",
+    "merge_partials",
 ]

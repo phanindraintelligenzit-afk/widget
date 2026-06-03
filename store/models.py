@@ -65,6 +65,24 @@ class SettingsRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
+class PartialObservationRow(Base):
+    """One source's contribution to an agent over a period.
+
+    Stored separately from canonical observations so source streams can
+    accumulate independently; the API merges latest-per-dimension at
+    score time.
+    """
+    __tablename__ = "partial_observations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    source: Mapped[str] = mapped_column(String(64), index=True)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+
+
 class SMERatingRow(Base):
     """SME / QA conversational quality capture — input to Q for M6."""
     __tablename__ = "sme_ratings"

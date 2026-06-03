@@ -16,10 +16,11 @@ def client(monkeypatch):
     db_mod.configure("sqlite:///:memory:")
     db_mod.init_db()
 
-    # Reset the ingestion registry — bootstrap will re-register OTel and
-    # any YAML mappings under MAPPINGS_DIR.
+    # Reset both ingestion registries — bootstrap re-registers everything.
     from ingestion import clear
+    from ingestion.sources import clear as clear_sources
     clear()
+    clear_sources()
 
     # Point bootstrap at fixtures/ so mapping_acme.yaml gets auto-registered
     # as `webhook:acme` during app startup.

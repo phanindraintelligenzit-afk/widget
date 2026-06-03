@@ -1,0 +1,55 @@
+"""Source-specific adapters — one per source system, each owning a
+narrow slice of the canonical contract.
+"""
+from .arize import ArizeAdapter
+from .aws_cost import AwsCostAdapter
+from .base import SourceAdapter
+from .jira import JiraAdapter
+from .puvi_noise import PuviNoiseAdapter
+from .registry import clear, get, list_sources, register
+from .servicenow import ServiceNowAdapter
+from .stubs import (
+    ALL_STUBS,
+    BedrockAdapter,
+    BmcAdapter,
+    LangGraphAdapter,
+    RayAdapter,
+    SapHrAdapter,
+)
+
+REAL_ADAPTERS = (
+    AwsCostAdapter,
+    PuviNoiseAdapter,
+    ArizeAdapter,
+    ServiceNowAdapter,
+    JiraAdapter,
+)
+
+
+def register_all() -> None:
+    """Register every source adapter (real + stub). Idempotent."""
+    for cls in (*REAL_ADAPTERS, *ALL_STUBS):
+        if cls().name not in list_sources():
+            register(cls())
+
+
+__all__ = [
+    "ALL_STUBS",
+    "ArizeAdapter",
+    "AwsCostAdapter",
+    "BedrockAdapter",
+    "BmcAdapter",
+    "JiraAdapter",
+    "LangGraphAdapter",
+    "PuviNoiseAdapter",
+    "RayAdapter",
+    "REAL_ADAPTERS",
+    "SapHrAdapter",
+    "ServiceNowAdapter",
+    "SourceAdapter",
+    "clear",
+    "get",
+    "list_sources",
+    "register",
+    "register_all",
+]
