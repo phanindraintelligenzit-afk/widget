@@ -1,0 +1,183 @@
+"""FastAPI app — the demo surface for the widget to poll.
+
+Routes:
+    GET  /healthz                          — liveness
+    GET  /adapters                         — registered adapters
+    POST /ingest                           — canonical AgentObservation
+    POST /ingest/{adapter_name}            — raw payload via a registered adapter
+    GET  /agents                           — list agents
+    GET  /agents/{id}/score                — latest Rating
+    GET  /agents/{id}/history              — score history (Newest first)
+    GET  /ratings                          — board view: latest per agent
+    GET  /settings, PUT /settings          — tunables
+    POST /agents/{id}/sme-rating           — record an SME quality capture (M6 input)
+
+The engine is never imported here directly — only via api/scoring.py.
+Adapters are looked up by name via the ingestion registry.
+"""
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+from typing import Any
+
+from fastapi import Body, Depends, FastAPI, HTTPException
+from sqlalchemy.orm import Session
+
+from contract import AgentObservation, Rating, Settings
+from ingestion import get as get_adapter
+from ingestion import list_adapters
+from store import repo
+
+from .bootstrap import bootstrap
+from .dependencies import db_session
+from .schemas import AdapterInfo, AgentSummary, BoardRow, HistoryPoint, SMERatingIn
+from .scoring import score_and_persist
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    bootstrap()
+    yield
+
+
+app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
+
+
+# ---- liveness + adapter discovery ----------------------------------------
+
+@app.get("/healthz")
+def healthz() -> dict[str, bool]:
+    return {"ok": True}
+
+
+@app.get("/adapters", response_model=list[AdapterInfo])
+def adapters() -> list[AdapterInfo]:
+    return [AdapterInfo(name=n) for n in list_adapters()]
+
+
+# ---- ingestion -----------------------------------------------------------
+
+@app.post("/ingest", response_model=Rating)
+def ingest(obs: AgentObservation, s: Session = Depends(db_session)) -> Rating:
+    return score_and_persist(s, obs)
+
+
+@app.post("/ingest/{adapter_name}", response_model=list[Rating])
+def ingest_via_adapter(
+    adapter_name: str,
+    payload: Any = Body(...),
+    s: Session = Depends(db_session),
+) -> list[Rating]:
+    try:
+        adapter = get_adapter(adapter_name)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    observations = adapter.to_observations(payload)
+    return [score_and_persist(s, o) for o in observations]
+
+
+# ---- agents + scores -----------------------------------------------------
+
+@app.get("/agents", response_model=list[AgentSummary])
+def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
+    return [
+        AgentSummary(
+            agent_id=row.id,
+            agent_name=row.name,
+            baseline_human_output=row.baseline_human_output,
+            first_seen=row.first_seen,
+            last_seen=row.last_seen,
+        )
+        for row in repo.list_agents(s)
+    ]
+
+
+def _score_row_to_rating(row) -> Rating:
+    return Rating(
+        score=row.score,
+        raw_score=row.raw_score,
+        band=row.band,
+        unsafe=row.unsafe,
+        gate_failures=list(row.gate_failures or []),
+        metrics=dict(row.metrics or {}),
+        missing=list(row.missing or []),
+    )
+
+
+@app.get("/agents/{agent_id}/score", response_model=Rating)
+def agent_score(agent_id: str, s: Session = Depends(db_session)) -> Rating:
+    row = repo.latest_score(s, agent_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"No score for agent '{agent_id}'")
+    return _score_row_to_rating(row)
+
+
+@app.get("/agents/{agent_id}/history", response_model=list[HistoryPoint])
+def agent_history(
+    agent_id: str,
+    limit: int = 100,
+    s: Session = Depends(db_session),
+) -> list[HistoryPoint]:
+    return [
+        HistoryPoint(
+            score=r.score,
+            raw_score=r.raw_score,
+            band=r.band,
+            unsafe=r.unsafe,
+            computed_at=r.computed_at,
+        )
+        for r in repo.score_history(s, agent_id, limit=limit)
+    ]
+
+
+@app.get("/ratings", response_model=list[BoardRow])
+def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
+    out: list[BoardRow] = []
+    for agent, score in repo.latest_scores_for_all(s):
+        if score is None:
+            continue
+        out.append(
+            BoardRow(
+                agent_id=agent.id,
+                agent_name=agent.name,
+                score=score.score,
+                band=score.band,
+                unsafe=score.unsafe,
+                computed_at=score.computed_at,
+            )
+        )
+    return out
+
+
+# ---- settings ------------------------------------------------------------
+
+@app.get("/settings", response_model=Settings)
+def get_settings(s: Session = Depends(db_session)) -> Settings:
+    return repo.get_settings(s)
+
+
+@app.put("/settings", response_model=Settings)
+def update_settings(payload: Settings, s: Session = Depends(db_session)) -> Settings:
+    repo.save_settings(s, payload)
+    return payload
+
+
+# ---- SME quality capture (stub for M6) -----------------------------------
+
+@app.post("/agents/{agent_id}/sme-rating")
+def submit_sme_rating(
+    agent_id: str,
+    body: SMERatingIn,
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    if body.agent_id != agent_id:
+        raise HTTPException(status_code=400, detail="agent_id mismatch")
+    row = repo.save_sme_rating(
+        s,
+        agent_id=agent_id,
+        accuracy=body.accuracy,
+        consistency=body.consistency,
+        hallucination_rate=body.hallucination_rate,
+        submitted_by=body.submitted_by,
+    )
+    return {"id": row.id, "submitted_at": row.submitted_at.isoformat()}
