@@ -1,0 +1,51 @@
+# Declarative mapping: Acme AgentOps payload -> canonical AgentObservation.
+# Onboarding Acme = writing this file. No engine changes, no Python code.
+
+constants:
+  source: acme_agentops
+
+agent_id:    $.agent.id
+agent_name:  $.agent.display
+period_start: $.window.from
+period_end:   $.window.to
+
+tasks:
+  assigned:          $.kpis.tasks_assigned
+  completed:         $.kpis.tasks_completed
+  failed:            $.kpis.tasks_failed
+  pending_approval:  $.kpis.pending
+  blocked_no_access: $.kpis.blocked
+
+executions:
+  attempts:   $.kpis.attempts
+  successful: $.kpis.successes
+
+policy:
+  total_actions: $.kpis.actions
+  violations:
+    _each: $.policy.breaches[*]
+    rule:  $.kind
+    when:  $.timestamp
+
+incidents:
+  _each: $.alerts[*]
+  severity_weight: $.severity
+  frequency:       $.count
+  source:          $.system
+
+quality:
+  _optional: true
+  accuracy:           $.quality.accuracy
+  consistency:        $.quality.consistency
+  hallucination_rate: $.quality.hallucination
+
+validation:
+  required_components:  $.validation.required
+  validated_components: $.validation.validated
+  audit_ready:          $.validation.audit_ready
+
+cost:
+  ai_cost_per_output: $.cost.per_output
+  tokens:             $.cost.tokens
+  cloud_cost:         $.cost.cloud
+  systems_accessed:   $.cost.systems

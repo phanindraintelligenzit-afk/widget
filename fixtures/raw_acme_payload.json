@@ -1,0 +1,42 @@
+{
+  "_label": "SYNTHETIC FIXTURE — payload from a fictional Acme AgentOps runtime, deliberately non-canonical shape",
+  "tenant": "acme",
+  "agent": {"id": "acme-triage-42", "display": "Acme Triage Bot"},
+  "window": {"from": "2026-06-01T00:00:00Z", "to": "2026-06-02T00:00:00Z"},
+  "kpis": {
+    "tasks_assigned": 100,
+    "tasks_completed": 88,
+    "tasks_failed": 6,
+    "pending": 4,
+    "blocked": 2,
+    "attempts": 120,
+    "successes": 110,
+    "actions": 200
+  },
+  "policy": {
+    "breaches": [
+      {"kind": "pii.email_redaction", "timestamp": "2026-06-01T03:14:00Z"},
+      {"kind": "pii.email_redaction", "timestamp": "2026-06-01T17:42:00Z"}
+    ]
+  },
+  "alerts": [
+    {"severity": 0.3, "count": 1, "system": "servicenow"},
+    {"severity": 0.5, "count": 1, "system": "jira"}
+  ],
+  "quality": {
+    "accuracy": 0.91,
+    "consistency": 0.88,
+    "hallucination": 0.05
+  },
+  "validation": {
+    "required": 10,
+    "validated": 9,
+    "audit_ready": true
+  },
+  "cost": {
+    "per_output": 0.35,
+    "tokens": 540000,
+    "cloud": 18.4,
+    "systems": 5
+  }
+}

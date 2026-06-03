@@ -1,0 +1,73 @@
+[
+  {
+    "name": "agent.task",
+    "start_time": "2026-06-01T00:00:00Z",
+    "end_time":   "2026-06-01T00:00:04Z",
+    "status": {"code": "OK"},
+    "resource": {"agent.id": "otel-agent-007", "agent.name": "OTel Demo Agent"},
+    "attributes": {
+      "gen_ai.task": true,
+      "gen_ai.usage.input_tokens": 1200,
+      "gen_ai.usage.output_tokens": 400,
+      "policy.action": true,
+      "policy.violation": false,
+      "cost.usd": 0.012,
+      "quality.accuracy": 0.93,
+      "quality.consistency": 0.91,
+      "quality.hallucination_rate": 0.05,
+      "validation.required": 10,
+      "validation.validated": 9,
+      "cost.systems_accessed": 4
+    }
+  },
+  {
+    "name": "agent.task",
+    "start_time": "2026-06-01T00:01:00Z",
+    "end_time":   "2026-06-01T00:01:06Z",
+    "status": {"code": "OK"},
+    "resource": {"agent.id": "otel-agent-007"},
+    "attributes": {
+      "gen_ai.task": true,
+      "gen_ai.usage.input_tokens": 900,
+      "gen_ai.usage.output_tokens": 350,
+      "policy.action": true,
+      "cost.usd": 0.009
+    }
+  },
+  {
+    "name": "agent.task",
+    "start_time": "2026-06-01T00:02:00Z",
+    "end_time":   "2026-06-01T00:02:03Z",
+    "status": {"code": "ERROR"},
+    "resource": {"agent.id": "otel-agent-007"},
+    "attributes": {
+      "gen_ai.task": true,
+      "policy.action": true,
+      "cost.usd": 0.004
+    }
+  },
+  {
+    "name": "agent.policy",
+    "start_time": "2026-06-01T00:03:00Z",
+    "end_time":   "2026-06-01T00:03:01Z",
+    "status": {"code": "OK"},
+    "resource": {"agent.id": "otel-agent-007"},
+    "attributes": {
+      "policy.action": true,
+      "policy.violation": true,
+      "policy.violation.rule": "pii.email_redaction"
+    }
+  },
+  {
+    "name": "agent.incident",
+    "start_time": "2026-06-01T00:04:00Z",
+    "end_time":   "2026-06-01T00:04:01Z",
+    "status": {"code": "OK"},
+    "resource": {"agent.id": "otel-agent-007"},
+    "attributes": {
+      "incident.severity": 0.4,
+      "incident.frequency": 1,
+      "incident.source": "servicenow"
+    }
+  }
+]
