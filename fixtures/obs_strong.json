@@ -1,0 +1,23 @@
+{
+  "_label": "SYNTHETIC FIXTURE — exceptional agent, clean compliance",
+  "agent_id": "agent-strong-001",
+  "agent_name": "ITSM Triage Agent (synthetic)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end": "2026-06-02T00:00:00Z",
+  "tasks": {
+    "assigned": 120,
+    "completed": 110,
+    "failed": 4,
+    "pending_approval": 5,
+    "blocked_no_access": 1
+  },
+  "executions": {"attempts": 130, "successful": 122},
+  "policy": {"total_actions": 200, "violations": []},
+  "incidents": [
+    {"severity_weight": 0.2, "frequency": 1, "source": "servicenow"}
+  ],
+  "quality": {"accuracy": 0.94, "consistency": 0.92, "hallucination_rate": 0.04},
+  "validation": {"required_components": 10, "validated_components": 10, "audit_ready": true},
+  "cost": {"ai_cost_per_output": 0.30, "tokens": 480000, "cloud_cost": 12.40, "systems_accessed": 4},
+  "source": "fixture"
+}

@@ -1,0 +1,30 @@
+{
+  "_label": "SYNTHETIC FIXTURE — middling agent, no Quality block (needs SME capture)",
+  "agent_id": "agent-baseline-002",
+  "agent_name": "Customer Replies Agent (synthetic)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end": "2026-06-02T00:00:00Z",
+  "tasks": {
+    "assigned": 80,
+    "completed": 60,
+    "failed": 12,
+    "pending_approval": 8,
+    "blocked_no_access": 0
+  },
+  "executions": {"attempts": 95, "successful": 72},
+  "policy": {
+    "total_actions": 150,
+    "violations": [
+      {"rule": "pii.email_redaction", "when": "2026-06-01T03:14:00Z"},
+      {"rule": "pii.email_redaction", "when": "2026-06-01T17:42:00Z"}
+    ]
+  },
+  "incidents": [
+    {"severity_weight": 0.5, "frequency": 2, "source": "jira"},
+    {"severity_weight": 0.2, "frequency": 1, "source": "servicenow"}
+  ],
+  "quality": null,
+  "validation": {"required_components": 10, "validated_components": 7, "audit_ready": false},
+  "cost": {"ai_cost_per_output": 0.80, "tokens": 1100000, "cloud_cost": 41.00, "systems_accessed": 6},
+  "source": "fixture"
+}
