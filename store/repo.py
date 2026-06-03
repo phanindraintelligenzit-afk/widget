@@ -19,6 +19,7 @@ from .models import (
     PartialObservationRow,
     ScoreRow,
     SettingsRow,
+    SMEFlowSessionRow,
     SMERatingRow,
 )
 
@@ -197,3 +198,28 @@ def latest_sme_rating(s: Session, agent_id: str) -> Optional[SMERatingRow]:
         .order_by(SMERatingRow.submitted_at.desc(), SMERatingRow.id.desc())
         .limit(1)
     ).first()
+
+
+# ---- SME flow sessions ---------------------------------------------------
+
+def create_sme_session(
+    s: Session, session_id: str, agent_id: str, state_payload: dict
+) -> SMEFlowSessionRow:
+    row = SMEFlowSessionRow(id=session_id, agent_id=agent_id, state=state_payload)
+    s.add(row)
+    s.flush()
+    return row
+
+
+def get_sme_session(s: Session, session_id: str) -> Optional[SMEFlowSessionRow]:
+    return s.get(SMEFlowSessionRow, session_id)
+
+
+def update_sme_session(s: Session, session_id: str, state_payload: dict) -> SMEFlowSessionRow:
+    row = s.get(SMEFlowSessionRow, session_id)
+    if row is None:
+        raise KeyError(f"SME flow session '{session_id}' not found")
+    row.state = state_payload
+    row.updated_at = _utcnow()
+    s.flush()
+    return row

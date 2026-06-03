@@ -83,6 +83,22 @@ class PartialObservationRow(Base):
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
 
 
+class SMEFlowSessionRow(Base):
+    """In-progress conversational SME rating session.
+
+    The state machine is in engine/sme_flow.py and stays pure; this row
+    persists state across API calls so the conversation survives worker
+    restarts.
+    """
+    __tablename__ = "sme_flow_sessions"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    state: Mapped[dict[str, Any]] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 class SMERatingRow(Base):
     """SME / QA conversational quality capture — input to Q for M6."""
     __tablename__ = "sme_ratings"

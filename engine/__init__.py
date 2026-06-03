@@ -1,4 +1,5 @@
 """Pure scoring engine. No I/O. No framework imports."""
+from . import sme_flow
 from .bands import band
 from .gates import NEEDS_OPT_CAP, apply_gate, gate_check
 from .metrics import (
@@ -31,4 +32,5 @@ __all__ = [
     "metrics_from_observation",
     "metrics_from_partial",
     "rate",
+    "sme_flow",
 ]

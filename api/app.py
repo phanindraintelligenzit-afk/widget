@@ -35,10 +35,22 @@ from ingestion.sources import get as get_source
 from ingestion.sources import list_sources
 from store import repo
 
+from engine import sme_flow
+
 from .bootstrap import bootstrap
 from .dependencies import db_session
-from .schemas import AdapterInfo, AgentSummary, BoardRow, HistoryPoint, SMERatingIn
+from .schemas import (
+    AdapterInfo,
+    AgentSummary,
+    BoardRow,
+    HistoryPoint,
+    SMEFlowRespond,
+    SMEFlowStart,
+    SMEFlowStatus,
+    SMERatingIn,
+)
 from .scoring import ingest_partials, score_and_persist
+from .sme_orchestration import advance_session, start_session
 
 
 @asynccontextmanager
@@ -218,7 +230,45 @@ def update_settings(payload: Settings, s: Session = Depends(db_session)) -> Sett
     return payload
 
 
-# ---- SME quality capture (stub for M6) -----------------------------------
+# ---- SME conversational quality capture ---------------------------------
+
+def _flow_status(session_id: str, state: sme_flow.SMEFlowState, rating=None) -> SMEFlowStatus:
+    return SMEFlowStatus(
+        session_id=session_id,
+        agent_id=state.agent_id,
+        step=state.step,
+        prompt=sme_flow.current_prompt(state),
+        complete=sme_flow.is_complete(state),
+        committed=sme_flow.is_committed(state),
+        error=state.error,
+        captured=sme_flow.review_summary(state),
+        rating=rating,
+    )
+
+
+@app.post("/sme-flow/start", response_model=SMEFlowStatus)
+def sme_flow_start(body: SMEFlowStart, s: Session = Depends(db_session)) -> SMEFlowStatus:
+    try:
+        session_id, state = start_session(s, body.agent_id, body.submitted_by)
+    except sme_flow.SMEFlowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return _flow_status(session_id, state)
+
+
+@app.post("/sme-flow/{session_id}/respond", response_model=SMEFlowStatus)
+def sme_flow_respond(
+    session_id: str,
+    body: SMEFlowRespond,
+    s: Session = Depends(db_session),
+) -> SMEFlowStatus:
+    try:
+        state, rating = advance_session(s, session_id, body.response)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return _flow_status(session_id, state, rating=rating)
+
+
+# ---- Legacy direct SME rating capture (kept for callers / audit) --------
 
 @app.post("/agents/{agent_id}/sme-rating")
 def submit_sme_rating(

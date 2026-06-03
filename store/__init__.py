@@ -7,6 +7,7 @@ from .models import (
     PartialObservationRow,
     ScoreRow,
     SettingsRow,
+    SMEFlowSessionRow,
     SMERatingRow,
 )
 
@@ -17,6 +18,7 @@ __all__ = [
     "PartialObservationRow",
     "ScoreRow",
     "SettingsRow",
+    "SMEFlowSessionRow",
     "SMERatingRow",
     "configure",
     "get_engine",

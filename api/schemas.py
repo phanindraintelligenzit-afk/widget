@@ -44,3 +44,29 @@ class SMERatingIn(BaseModel):
 
 class AdapterInfo(BaseModel):
     name: str
+
+
+class SMEFlowStart(BaseModel):
+    agent_id: str
+    submitted_by: str
+
+
+class SMEFlowRespond(BaseModel):
+    response: str
+
+
+class SMEFlowStatus(BaseModel):
+    session_id: str
+    agent_id: str
+    step: str                              # ask_accuracy | … | done
+    prompt: str
+    complete: bool
+    committed: bool                        # True once review = yes + persisted
+    error: Optional[str] = None
+    captured: dict[str, Optional[float]]   # the running review summary
+    rating: Optional["Rating"] = None      # set when commit happens
+
+
+# Forward ref import avoids circular load.
+from contract import Rating  # noqa: E402
+SMEFlowStatus.model_rebuild()
