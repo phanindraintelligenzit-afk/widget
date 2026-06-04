@@ -37,6 +37,12 @@ class Settings(BaseModel):
     human_cost_per_output: float = 1.0
     utilization: float = 1.0
 
+    # Coverage cap. The composite redistributes weight off None metrics, so an
+    # agent with only 1–2 dimensions reported could otherwise score 100. This
+    # threshold caps the band at "Needs Optimization" when coverage is below
+    # the floor, with the reason surfaced on the Rating.
+    min_dimensions_for_full_band: int = 5
+
 
 class AgentBaseline(BaseModel):
     """Per-agent productivity baseline used for P."""

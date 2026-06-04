@@ -1,4 +1,4 @@
-"""Jira incidents → R (reliability dimension).
+"""Jira incidents → R (risk dimension).
 
 Jira's priority taxonomy is Highest/High/Medium/Low/Lowest. Mapped to
 severity_weight 1.0 / 0.75 / 0.5 / 0.3 / 0.15. The agent is tagged

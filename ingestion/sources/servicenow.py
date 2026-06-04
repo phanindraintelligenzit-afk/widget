@@ -1,4 +1,4 @@
-"""ServiceNow incident tickets → R (reliability dimension).
+"""ServiceNow incident tickets → R (risk dimension).
 
 ServiceNow uses an `impact` field (1=high, 3=low). We map that to the
 severity_weight the engine expects (1.0 / 0.6 / 0.3 for impact 1/2/3,

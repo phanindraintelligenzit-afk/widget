@@ -117,6 +117,10 @@ def save_score(
         gate_failures=list(rating.gate_failures),
         metrics=dict(rating.metrics),
         missing=list(rating.missing),
+        dimensions_measured=list(rating.dimensions_measured),
+        coverage=rating.coverage,
+        coverage_capped=rating.coverage_capped,
+        cap_reasons=list(rating.cap_reasons),
     )
     s.add(row)
     s.flush()

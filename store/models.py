@@ -53,6 +53,10 @@ class ScoreRow(Base):
     gate_failures: Mapped[list[str]] = mapped_column(JSON)
     metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
     missing: Mapped[list[str]] = mapped_column(JSON)
+    dimensions_measured: Mapped[list[str]] = mapped_column(JSON, default=list)
+    coverage: Mapped[int] = mapped_column(Integer, default=0)
+    coverage_capped: Mapped[bool] = mapped_column(Boolean, default=False)
+    cap_reasons: Mapped[list[str]] = mapped_column(JSON, default=list)
     computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
 
 

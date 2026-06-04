@@ -30,7 +30,7 @@
     Q: "Quality",
     E: "Execution",
     G: "Governance",
-    R: "Reliability",
+    R: "Risk",
     V: "Validation",
     C: "Cost",
   };
@@ -168,6 +168,14 @@
     </div>`;
   }
 
+  function coverageBadge(rating) {
+    const cov = Number.isFinite(rating.coverage) ? rating.coverage : 0;
+    const capped = !!rating.coverage_capped;
+    const fg = capped ? "#a16207" : (cov === 7 ? "#15803d" : "#374151");
+    const bg = capped ? "#fef3c7" : (cov === 7 ? "#dcfce7" : "#f3f4f6");
+    return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped — below coverage floor" : ""}">measured ${cov}/7${capped ? " · capped" : ""}</span>`;
+  }
+
   function agentCardHtml(rating) {
     const metrics = ["P", "Q", "E", "G", "R", "V", "C"]
       .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null))
@@ -175,16 +183,24 @@
     const unsafeBanner = rating.unsafe
       ? `<div class="unsafe">⚠ Unsafe — failing gates: ${(rating.gate_failures || []).map(escapeHtml).join(", ") || "—"}</div>`
       : "";
+    const capReasons = (rating.cap_reasons || []).filter(r => !r.startsWith("compliance"));
+    const capNote = (rating.coverage_capped && capReasons.length)
+      ? `<div class="missing-note" style="color:#a16207">${escapeHtml(capReasons[0])}</div>`
+      : "";
     const missing = (rating.missing || []).length
-      ? `<div class="missing-note">Pending SME input: ${rating.missing.map(escapeHtml).join(", ")}</div>`
+      ? `<div class="missing-note">Pending SME / source input: ${rating.missing.map(escapeHtml).join(", ")}</div>`
       : "";
     return `
       <div class="card" part="card">
         <div class="head">
           <div class="score">${fmtScore(rating.score)}</div>
-          ${bandPill(rating.band)}
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+            ${bandPill(rating.band)}
+            ${coverageBadge(rating)}
+          </div>
         </div>
         ${unsafeBanner}
+        ${capNote}
         <div class="metrics">${metrics}</div>
         ${missing}
       </div>
@@ -528,7 +544,7 @@
             <div class="field"><label>V threshold</label>${num("gt_V", s.gate_thresholds.V)}</div>
           </div>
 
-          <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em">Cost &amp; reliability</h3>
+          <h3 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;color:var(--muted);letter-spacing:0.05em">Cost &amp; risk</h3>
           <div class="field-grid">
             <div class="field"><label>R_max</label>${num("r_max", s.r_max, { step: 1 })}</div>
             <div class="field"><label>Utilization</label>${num("utilization", s.utilization)}</div>

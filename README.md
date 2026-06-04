@@ -78,7 +78,7 @@ Each sub-metric normalises to [0, 1]:
 | **Q** — Quality | `0.70·Accuracy + 0.20·Consistency + 0.10·(1 − Hallucination)` |
 | **E** — Execution | `successful_executions / attempts` |
 | **G** — Governance | `1 − (policy_violations / total_actions)` |
-| **R** — Reliability | `1 − min(1, Σ(freq × severity) / R_max)` |
+| **R** — Risk        | `1 − min(1, Σ(freq × severity) / R_max)` |
 | **V** — Validation | `validated_components / required` |
 | **C** — Cost | `min(1, human_cost / AI_cost) × utilization` |
 

@@ -1,34 +1,29 @@
-"""SME / QA conversational quality capture.
+"""SME conversational quality capture — LangGraph StateGraph.
 
-A tiny linear state machine that walks an SME through three questions —
-accuracy, consistency, hallucination rate — then a confirm step.
-Pure: no I/O, no DB. The API persists the session between turns; this
-module advances it one step per call.
+Linear flow: ask_accuracy → ask_consistency → ask_hallucination → review →
+done. Each turn (API call) invokes the graph for exactly one transition.
 
-The state shape is deliberately small and explicit so swapping the
-runner for a LangGraph graph later is mechanical — same fields, same
-transitions, just a graph executor on top.
+The public surface — SMEFlowState dataclass, start(), advance(),
+current_prompt(), review_summary(), is_complete(), is_committed(),
+the STEP_* constants and PROMPTS dict — is unchanged from the
+hand-rolled M6 version. The graph is an implementation detail of
+advance(); callers and tests don't see it.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import asdict, dataclass, field
+from typing import Optional, TypedDict
+
+from langgraph.graph import END, StateGraph
 
 
-# Step identifiers — also surfaced to the UI so it can render the right field.
+# ---- Step identifiers + prompts (public) ---------------------------------
+
 STEP_ASK_ACCURACY = "ask_accuracy"
 STEP_ASK_CONSISTENCY = "ask_consistency"
 STEP_ASK_HALLUCINATION = "ask_hallucination"
 STEP_REVIEW = "review"
 STEP_DONE = "done"
-
-_ORDER = (
-    STEP_ASK_ACCURACY,
-    STEP_ASK_CONSISTENCY,
-    STEP_ASK_HALLUCINATION,
-    STEP_REVIEW,
-    STEP_DONE,
-)
 
 PROMPTS: dict[str, str] = {
     STEP_ASK_ACCURACY: (
@@ -56,7 +51,7 @@ class SMEFlowState:
     consistency: Optional[float] = None
     hallucination_rate: Optional[float] = None
     aborted: bool = False
-    error: Optional[str] = None  # transient, cleared on next advance
+    error: Optional[str] = None
     history: list[dict] = field(default_factory=list)
 
 
@@ -64,12 +59,24 @@ class SMEFlowError(ValueError):
     pass
 
 
-def start(agent_id: str, submitted_by: str) -> SMEFlowState:
-    if not agent_id:
-        raise SMEFlowError("agent_id is required")
-    if not submitted_by:
-        raise SMEFlowError("submitted_by is required")
-    return SMEFlowState(agent_id=agent_id, submitted_by=submitted_by)
+# ---- Graph internals -----------------------------------------------------
+
+class _Graph(TypedDict, total=False):
+    """TypedDict projection of SMEFlowState used by the StateGraph.
+
+    Identical fields, plus a transient ``_response`` set by advance() before
+    invoking and stripped from the returned state.
+    """
+    agent_id: str
+    submitted_by: str
+    step: str
+    accuracy: Optional[float]
+    consistency: Optional[float]
+    hallucination_rate: Optional[float]
+    aborted: bool
+    error: Optional[str]
+    history: list
+    _response: str
 
 
 def _parse_unit(raw: str) -> float:
@@ -88,39 +95,91 @@ def _parse_unit(raw: str) -> float:
     return v
 
 
-def advance(state: SMEFlowState, response: str) -> SMEFlowState:
-    """Apply one user response. Mutates and returns state."""
-    state.error = None
-    state.history.append({"step": state.step, "response": response})
+def _record(state: _Graph, response: str) -> list[dict]:
+    return [*state.get("history", []), {"step": state["step"], "response": response}]
 
-    try:
-        if state.step == STEP_ASK_ACCURACY:
-            state.accuracy = _parse_unit(response)
-            state.step = STEP_ASK_CONSISTENCY
-        elif state.step == STEP_ASK_CONSISTENCY:
-            state.consistency = _parse_unit(response)
-            state.step = STEP_ASK_HALLUCINATION
-        elif state.step == STEP_ASK_HALLUCINATION:
-            state.hallucination_rate = _parse_unit(response)
-            state.step = STEP_REVIEW
-        elif state.step == STEP_REVIEW:
-            answer = (response or "").strip().lower()
-            if answer in ("y", "yes"):
-                state.step = STEP_DONE
-            elif answer in ("n", "no"):
-                state.aborted = True
-                state.step = STEP_DONE
-            else:
-                raise SMEFlowError("please reply 'yes' or 'no'")
-        elif state.step == STEP_DONE:
-            raise SMEFlowError("session already complete")
-        else:
-            raise SMEFlowError(f"unknown step '{state.step}'")
-    except SMEFlowError as e:
-        state.error = str(e)
-        # On error, undo the history entry and stay on the same step.
-        state.history.pop()
-    return state
+
+def _number_node(field_name: str, next_step: str):
+    """Make a node that parses a 0–100 number, sets ``field_name``, advances."""
+    def node(state: _Graph) -> dict:
+        resp = state.get("_response", "")
+        try:
+            v = _parse_unit(resp)
+        except SMEFlowError as e:
+            return {"error": str(e)}
+        return {
+            field_name: v,
+            "step": next_step,
+            "error": None,
+            "history": _record(state, resp),
+        }
+    return node
+
+
+def _review_node(state: _Graph) -> dict:
+    resp = (state.get("_response", "") or "").strip().lower()
+    if resp in ("y", "yes"):
+        return {"step": STEP_DONE, "aborted": False, "error": None, "history": _record(state, resp)}
+    if resp in ("n", "no"):
+        return {"step": STEP_DONE, "aborted": True, "error": None, "history": _record(state, resp)}
+    return {"error": "please reply 'yes' or 'no'"}
+
+
+_NODES = {
+    STEP_ASK_ACCURACY:      _number_node("accuracy",           STEP_ASK_CONSISTENCY),
+    STEP_ASK_CONSISTENCY:   _number_node("consistency",        STEP_ASK_HALLUCINATION),
+    STEP_ASK_HALLUCINATION: _number_node("hallucination_rate", STEP_REVIEW),
+    STEP_REVIEW:            _review_node,
+}
+
+
+def _route(state: _Graph) -> str:
+    step = state.get("step")
+    return step if step in _NODES else END
+
+
+_COMPILED = None
+
+
+def _graph():
+    """Compile once, reuse across requests. Graph is stateless."""
+    global _COMPILED
+    if _COMPILED is None:
+        g = StateGraph(_Graph)
+        for name, node in _NODES.items():
+            g.add_node(name, node)
+            g.add_edge(name, END)
+        g.set_conditional_entry_point(
+            _route,
+            {**{name: name for name in _NODES}, END: END},
+        )
+        _COMPILED = g.compile()
+    return _COMPILED
+
+
+# ---- Public API (unchanged) ---------------------------------------------
+
+def start(agent_id: str, submitted_by: str) -> SMEFlowState:
+    if not agent_id:
+        raise SMEFlowError("agent_id is required")
+    if not submitted_by:
+        raise SMEFlowError("submitted_by is required")
+    return SMEFlowState(agent_id=agent_id, submitted_by=submitted_by)
+
+
+def advance(state: SMEFlowState, response: str) -> SMEFlowState:
+    """Apply one user response by routing through the StateGraph."""
+    # Terminal step is outside the graph — guard here so we don't loop.
+    if state.step == STEP_DONE:
+        state.error = "session already complete"
+        return state
+
+    payload: dict = asdict(state)
+    payload["_response"] = response
+    payload["error"] = None
+    new_payload = _graph().invoke(payload)
+    new_payload.pop("_response", None)
+    return SMEFlowState(**new_payload)
 
 
 def current_prompt(state: SMEFlowState) -> str:
@@ -140,5 +199,4 @@ def is_complete(state: SMEFlowState) -> bool:
 
 
 def is_committed(state: SMEFlowState) -> bool:
-    """True when the user said yes at REVIEW — i.e. ratings should persist."""
     return state.step == STEP_DONE and not state.aborted

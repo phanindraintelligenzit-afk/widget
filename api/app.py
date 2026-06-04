@@ -169,6 +169,10 @@ def _score_row_to_rating(row) -> Rating:
         gate_failures=list(row.gate_failures or []),
         metrics=dict(row.metrics or {}),
         missing=list(row.missing or []),
+        dimensions_measured=list(row.dimensions_measured or []),
+        coverage=row.coverage or 0,
+        coverage_capped=bool(row.coverage_capped),
+        cap_reasons=list(row.cap_reasons or []),
     )
 
 

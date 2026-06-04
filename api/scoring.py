@@ -25,6 +25,7 @@ def score_and_persist(s: Session, obs: AgentObservation) -> Rating:
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
+        min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
@@ -53,6 +54,7 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
+        min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
 
     # Link the score to the most recent partial — gives history a sensible
