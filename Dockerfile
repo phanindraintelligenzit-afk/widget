@@ -21,7 +21,7 @@ RUN uv pip install --system --no-cache \
     "aiofiles>=23.0"
 
 # If uv.lock exists, do a full locked install on top
-RUN if [ -f uv.lock ]; then uv pip install --system --no-cache -r <(uv export --no-dev 2>/dev/null || true) 2>/dev/null || true; fi
+RUN /bin/bash -c "if [ -f uv.lock ]; then uv pip install --system --no-cache -r <(uv export --no-dev 2>/dev/null || true) 2>/dev/null || true; fi"
 
 # Copy the full source after deps are cached
 COPY . .
