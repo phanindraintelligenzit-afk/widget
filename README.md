@@ -90,7 +90,15 @@ DPI-LS = 100 · ( P^.15 · Q^.20 · E^.15 · G^.20 · R^.15 · V^.10 · C^.05 )
 
 **Hard compliance gates.** If `G < 0.60` OR `R < 0.50` OR `V < 0.60`, the score
 is capped at 69 (top of *Needs Optimization*) and flagged Unsafe — regardless
-of the raw composite.
+of the raw composite. A gate firing caps the band at "Needs Optimization" and
+the Rating must distinguish capped-by-gate vs an organic 50-69 score via the
+`capped` flag and gate failure indicators.
+
+**Completeness caps.** A rating may exceed "Needs Optimization" band ONLY IF:
+(a) none of G, R, V are missing, AND (b) dimensions_measured >= 4. If either
+fails, the band is capped to "Needs Optimization" with `capped=True` and
+`cap_reason="low-coverage"`. This is independent of compliance gates and
+applied after them.
 
 **Bands.** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming/Unsafe`.
 

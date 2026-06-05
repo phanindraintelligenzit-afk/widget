@@ -15,8 +15,8 @@ class Rating(BaseModel):
     metrics: dict[str, Optional[float]]   # the 7 normalized inputs (any may be None)
     missing: list[str] = Field(default_factory=list)  # metric keys not yet observed
 
-    # Coverage — guards against "score 100 from only one dimension reported."
-    dimensions_measured: list[str] = Field(default_factory=list)  # present metric keys
-    coverage: int = 0                     # len(dimensions_measured) — 0..7
-    coverage_capped: bool = False         # True when band was capped due to low coverage
-    cap_reasons: list[str] = Field(default_factory=list)  # human-readable explanation per cap
+    # Coverage fields as specified
+    dimensions_measured: int = 0          # 7 - number of missing/null dimensions
+    coverage: float = 0.0                 # round(dimensions_measured / 7, 3)
+    capped: bool = False                  # True when band was capped
+    cap_reason: Optional[str] = None      # reason for capping
