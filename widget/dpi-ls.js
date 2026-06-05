@@ -49,6 +49,15 @@
       background: var(--card-bg); border: 1px solid var(--border);
       border-radius: 12px; padding: 16px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
+    }
+    .card[data-agent-id] { cursor: pointer; }
+    .card[data-agent-id]:hover {
+      border-color: #2563eb; box-shadow: 0 2px 8px rgba(37,99,235,0.12);
+    }
+    .card[data-agent-id]:active { transform: translateY(1px); }
+    .card[data-agent-id].is-selected {
+      border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.25);
     }
     .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
     .name { font-weight: 600; font-size: 14px; line-height: 1.3; }
@@ -105,6 +114,13 @@
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
     );
 
+  // CSS.escape isn't always present in older WebViews; provide a small
+  // fallback so agent ids with dashes/colons don't break the selector.
+  const cssEscape = (s) =>
+    (typeof CSS !== "undefined" && CSS.escape)
+      ? CSS.escape(s)
+      : String(s).replace(/([^a-zA-Z0-9_-])/g, "\\$1");
+
   function apiBase(el) {
     const a = el.getAttribute("api-base");
     return a === null ? "" : a.replace(/\/$/, "");
@@ -139,7 +155,7 @@
 
   function boardRowHtml(row) {
     return `
-      <div class="card" part="card">
+      <div class="card" part="card" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || '')}" role="button" tabindex="0" title="Click to see the 7 dimensions for ${escapeHtml(row.agent_name || row.agent_id)}">
         <div class="head">
           <div>
             <div class="name">${escapeHtml(row.agent_name)}</div>
@@ -236,7 +252,49 @@
 
   class DpiLsBoard extends Pollable {
     static get observedAttributes() {
-      return ["api-base", "poll-interval"];
+      return ["api-base", "poll-interval", "selected-agent"];
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      // Event delegation: one listener on the shadow root catches every
+      // card click. The host page listens for `dpi-ls-select-agent` on
+      // the element itself (which bubbles out of the shadow root because
+      // composed:true).
+      this._onCardClick = (ev) => this._handleCardClick(ev);
+      this.shadowRoot.addEventListener("click", this._onCardClick);
+      this.shadowRoot.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") this._handleCardClick(ev);
+      });
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      this.shadowRoot.removeEventListener("click", this._onCardClick);
+    }
+    _handleCardClick(ev) {
+      // Find the nearest .card with data-agent-id — works even if the
+      // user clicked a child element (band pill, score, etc.).
+      let el = ev.target;
+      while (el && el !== this.shadowRoot) {
+        if (el.classList && el.classList.contains("card") && el.dataset.agentId) {
+          this._select(el.dataset.agentId, el.dataset.agentName || el.dataset.agentId);
+          ev.preventDefault();
+          return;
+        }
+        el = el.parentNode;
+      }
+    }
+    _select(agentId, agentName) {
+      // Mark the selected card visually.
+      this.shadowRoot.querySelectorAll(".card.is-selected").forEach((c) => c.classList.remove("is-selected"));
+      const sel = this.shadowRoot.querySelector(`.card[data-agent-id="${cssEscape(agentId)}"]`);
+      if (sel) sel.classList.add("is-selected");
+      // Bubble a composed, bubbling event out of the shadow root so the
+      // host page can listen on the element itself.
+      this.dispatchEvent(new CustomEvent("dpi-ls-select-agent", {
+        bubbles: true,
+        composed: true,
+        detail: { agentId, agentName },
+      }));
     }
     async _tick() {
       try {
@@ -255,6 +313,12 @@
       else if (!data || data.length === 0) body = `<div class="empty">No agents scored yet.</div>`;
       else body = `<div class="board">${data.map(boardRowHtml).join("")}</div>`;
       this._renderShell(body);
+      // Re-apply the selected-card highlight after re-render.
+      const selectedId = this.getAttribute("selected-agent");
+      if (selectedId) {
+        const sel = this.shadowRoot.querySelector(`.card[data-agent-id="${cssEscape(selectedId)}"]`);
+        if (sel) sel.classList.add("is-selected");
+      }
     }
   }
 

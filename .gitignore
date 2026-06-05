@@ -5,3 +5,11 @@ __pycache__/
 *.egg-info/
 .coverage
 .DS_Store
+dpi_ls.db
+*.env
+otel_spans.json
+otel_stdout.log
+otel_stderr.log
+*.log
+sandbox_*/
+database/
