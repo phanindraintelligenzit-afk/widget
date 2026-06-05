@@ -20,13 +20,14 @@ from __future__ import annotations
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import Body, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+
 
 from contract import AgentObservation, Rating, Settings
 from ingestion import get as get_adapter
@@ -105,8 +106,12 @@ def sources() -> list[AdapterInfo]:
 # ---- ingestion -----------------------------------------------------------
 
 @app.post("/ingest", response_model=Rating)
-def ingest(obs: AgentObservation, s: Session = Depends(db_session)) -> Rating:
-    return score_and_persist(s, obs)
+def ingest(
+    obs: AgentObservation,
+    baseline: Optional[float] = None,
+    s: Session = Depends(db_session),
+) -> Rating:
+    return score_and_persist(s, obs, baseline=baseline)
 
 
 @app.post("/ingest/{adapter_name}", response_model=list[Rating])

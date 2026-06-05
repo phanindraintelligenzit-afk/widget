@@ -2,10 +2,13 @@ import asyncio
 import aioboto3
 import json
 import os
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Any
 from dotenv import load_dotenv
+
+import dpi_ls                                       # line 1 - installable package
 
 # Framework imports
 from agents import Agent, Runner, trace, function_tool
@@ -136,7 +139,7 @@ class AWSCostExplorerFetcher:
 
 
 # ================================================================== #
-#  Tool schema adapter: OpenAI → Bedrock                             #
+#  Tool schema adapter: OpenAI -> Bedrock                            #
 # ================================================================== #
 
 def _convert_tool_for_bedrock(tool) -> FunctionTool:
@@ -162,7 +165,7 @@ def _convert_tool_for_bedrock(tool) -> FunctionTool:
 
 
 # ================================================================== #
-#  Execution and Agent integration                                    #
+#  Execution and Agent integration                                   #
 # ================================================================== #
 
 async def main():
@@ -173,7 +176,7 @@ async def main():
     output_path = Path("observation") / "cost_explorer_raw.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, indent=4), encoding="utf-8")
-    print(f"✅ Successfully written full raw billing report to {output_path}")
+    print(f"Successfully written full raw billing report to {output_path}")
 
     # Print the clean summary to the terminal so you can see the new structure
     summary = await fetcher.fetch_costs_summary(days_lookback=3)
@@ -207,11 +210,16 @@ async def run_agent_observation() -> None:
     agent = Agent(
         name="Chandra",
         instructions=prompt,
-        # LiteLLM routes "bedrock/<model_id>" → AWS Bedrock automatically.
+        # LiteLLM routes "bedrock/<model_id>" -> AWS Bedrock automatically.
         # The "litellm/" prefix tells the Agents SDK to use LitellmModel routing.
         model=LitellmModel(model=f"bedrock/{bedrock_model_id}"),
         tools=bedrock_tools,
     )
+
+    # human_baseline=1: Chandra produces 1 analysis report per run,
+    # matching one human analyst who would produce the same 1 report.
+    # Without this, P defaults to 1/100 = 0.01 (wrong for a report agent).
+    collector = dpi_ls.monitor(agent, agent_id="chandra-finops", human_baseline=1)   # line 2
 
     result = await Runner.run(
         agent,
@@ -220,7 +228,32 @@ async def run_agent_observation() -> None:
     )
 
     print("\n--- Agent Final Output ---")
-    print(result.final_output)
+    # Strip any non-ASCII characters (emoji etc.) so the output prints
+    # cleanly on Windows terminals that default to cp1252.
+    safe_output = result.final_output.encode("ascii", errors="ignore").decode("ascii")
+    print(safe_output)
+
+    # -----------------------------------------------------------------
+    # Run the LangGraph Q evaluator NOW - inside the live event loop -
+    # so it can schedule async futures. If we leave it to the atexit
+    # finalizer the interpreter has already started tearing down and
+    # asyncio refuses to accept new coroutines.
+    # -----------------------------------------------------------------
+    outputs = collector.outputs_for_q()
+    if outputs and collector.quality is None:
+        try:
+            q = await asyncio.get_running_loop().run_in_executor(
+                None, dpi_ls.evaluate_quality, outputs
+            )
+            collector.set_quality(q.accuracy, q.consistency, q.hallucination_rate)
+            print(
+                f"\ndpi_ls Q score: accuracy={q.accuracy:.3f}  "
+                f"consistency={q.consistency:.3f}  "
+                f"hallucination={q.hallucination_rate:.3f}  "
+                f"(source: {q.source})"
+            )
+        except Exception as exc:
+            print(f"\ndpi_ls Q evaluator skipped: {exc}")
 
 
 if __name__ == "__main__":
