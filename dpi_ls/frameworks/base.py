@@ -67,15 +67,20 @@ class BasePatcher:
 
 def _safe_iter_tokens(response: Any) -> tuple[int, int]:
     """Pull (input_tokens, output_tokens) from a response object's
-    ``usage`` field, in whatever shape the framework uses.
+    ``usage`` / ``usage_metadata`` field, in whatever shape the framework uses.
 
-    Handles OpenAI, Anthropic, LiteLLM, and Bedrock usage shapes.
-    Returns (0, 0) if nothing readable is found — worst case is a
-    cold C dimension, never a crash.
+    Handles OpenAI, Anthropic, LiteLLM, Bedrock, and the LangChain
+    normalized ``usage_metadata`` shape. Returns (0, 0) if nothing
+    readable is found — worst case is a cold C dimension, never a crash.
     """
+    # Check both ``usage`` (OpenAI / Anthropic / raw clients) and
+    # ``usage_metadata`` (LangChain's normalized attribute) so we work
+    # for either shape.
     usage = getattr(response, "usage", None)
+    if usage is None:
+        usage = getattr(response, "usage_metadata", None)
     if usage is None and isinstance(response, dict):
-        usage = response.get("usage")
+        usage = response.get("usage") or response.get("usage_metadata")
     if usage is None:
         return 0, 0
 

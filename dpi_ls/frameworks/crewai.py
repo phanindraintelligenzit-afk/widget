@@ -34,8 +34,28 @@ class CrewAIPatcher(BasePatcher):
                 setattr(agent, attr, wrapped)
                 mark_patched(wrapped)
                 patched.append(f"crew.{attr}")
-            except (AttributeError, TypeError):
-                _log.debug("Could not patch Crew.%s (read-only).", attr)
+            # ``Crew`` is a Pydantic v2 model and raises ``ValueError`` on
+            # setattr for unknown fields, not the older ``AttributeError`` /
+            # ``TypeError``. Catch all three so a frozen model doesn't kill
+            # the whole patcher install.
+            except (AttributeError, TypeError, ValueError):
+                # Bypass the Pydantic validator by writing onto the instance
+                # __dict__ directly. Pydantic v2 only intercepts __setattr__;
+                # ``object.__setattr__`` is untouched and still works on
+                # frozen / extra-forbidden models.
+                try:
+                    object.__setattr__(agent, attr, wrapped)
+                    mark_patched(wrapped)
+                    patched.append(f"crew.{attr}")
+                    _log.debug(
+                        "Patched Crew.%s via object.__setattr__ (Pydantic v2 model).",
+                        attr,
+                    )
+                except Exception as inner:  # pragma: no cover - truly frozen
+                    _log.debug(
+                        "Could not patch Crew.%s (read-only, even via __dict__): %s",
+                        attr, inner,
+                    )
         if patched:
             _log.debug("Patched CrewAI crew: %s", patched)
         return patched
@@ -46,7 +66,9 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
 
     if is_async:
         async def async_kickoff(*args, **kwargs):
-            collector.attempts += 1
+            # No pre-increment: ``record_llm_call`` (called in
+            # ``_capture_crew_output``) owns the attempts counter.
+            # ``record_error`` handles the failure path.
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
@@ -57,7 +79,6 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
         return functools.wraps(original)(async_kickoff)
 
     def sync_kickoff(*args, **kwargs):
-        collector.attempts += 1
         try:
             result = original(*args, **kwargs)
         except Exception as e:
@@ -71,7 +92,9 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
 def _capture_crew_output(collector: SignalCollector, result: Any) -> None:
     """Best-effort: take the final raw output, plus any per-task outputs."""
     if result is None:
-        collector.successful += 1
+        # The kickoff returned nothing — count as a successful empty call
+        # so E is non-zero.
+        collector.record_llm_call("", ok=True)
         return
 
     text = getattr(result, "raw", None) or _safe_text(result)
@@ -85,9 +108,10 @@ def _capture_crew_output(collector: SignalCollector, result: Any) -> None:
         for t in tasks:
             out = getattr(t, "raw", None) or _safe_text(t)
             if out:
-                collector.attempts += 1
-                collector.successful += 1
-                collector._capture_output(out)
+                # Each per-task output is also an LLM call. Use
+                # ``record_llm_call`` to keep the counter math consistent.
+                collector.record_llm_call(out, ok=True)
 
     if not text and not tasks:
-        collector.successful += 1
+        # Kickoff produced nothing we could parse — still count it.
+        collector.record_llm_call("", ok=True)

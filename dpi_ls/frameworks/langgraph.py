@@ -53,7 +53,9 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
             pass
 
         async def async_wrapper(*args, **kwargs):
-            collector.attempts += 1
+            # No pre-increment: ``record_llm_call`` (called in
+            # ``_capture_graph_result``) owns the attempts counter.
+            # ``record_error`` handles the failure path.
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
@@ -64,7 +66,6 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
         return functools.wraps(original)(async_wrapper)
 
     def sync_wrapper(*args, **kwargs):
-        collector.attempts += 1
         try:
             result = original(*args, **kwargs)
         except Exception as e:
@@ -99,9 +100,10 @@ def _capture_graph_result(collector: SignalCollector, result: Any) -> None:
         text = _safe_text(result)
 
     if text:
-        collector.successful += 1
+        # record_llm_call bumps attempts + successful and captures the
+        # output for the Q evaluator.
         collector.record_llm_call(text, ok=True)
     else:
         # The graph ran but produced no text we could find. Count it
-        # as successful anyway — error states would have raised.
-        collector.successful += 1
+        # as a successful empty call so E reflects the work.
+        collector.record_llm_call("", ok=True)

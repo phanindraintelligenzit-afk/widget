@@ -36,8 +36,28 @@ class LangChainPatcher(BasePatcher):
                 setattr(agent, attr, wrapped)
                 mark_patched(wrapped)
                 patched.append(f"runnable.{attr}")
-            except (AttributeError, TypeError):
-                _log.debug("Could not patch runnable.%s (read-only).", attr)
+            # Pydantic v2 models (e.g. ``RunnableSequence``) raise ``ValueError``
+            # when you try to setattr an unknown field. Older code paths raise
+            # ``AttributeError`` / ``TypeError`` — catch all three so a frozen
+            # model doesn't kill the whole patcher install.
+            except (AttributeError, TypeError, ValueError):
+                # Bypass the Pydantic validator by writing the attribute onto
+                # the instance __dict__ directly. Pydantic v2 only intercepts
+                # ``__setattr__``; ``object.__setattr__`` is untouched and
+                # still works on frozen / extra-forbidden models.
+                try:
+                    object.__setattr__(agent, attr, wrapped)
+                    mark_patched(wrapped)
+                    patched.append(f"runnable.{attr}")
+                    _log.debug(
+                        "Patched runnable.%s via object.__setattr__ (Pydantic v2 model).",
+                        attr,
+                    )
+                except Exception as inner:  # pragma: no cover - truly frozen
+                    _log.debug(
+                        "Could not patch runnable.%s (read-only, even via __dict__): %s",
+                        attr, inner,
+                    )
         if patched:
             _log.debug("Patched LangChain runnable: %s", patched)
         return patched
@@ -51,19 +71,22 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
 
     if is_async and is_stream:
         async def async_stream(*args, **kwargs):
-            collector.attempts += 1
+            # No pre-increment: ``record_llm_call`` (called via
+            # ``_capture_runnable_result``) owns the attempts counter.
+            # ``record_error`` handles the failure path.
             try:
                 async for chunk in original(*args, **kwargs):
                     yield chunk
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 raise
-            collector.successful += 1
+            # The stream yielded without raising; record one successful
+            # empty call so E reflects the work that happened.
+            collector.record_llm_call("", ok=True)
         return functools.wraps(original)(async_stream)
 
     if is_async:
         async def async_invoke(*args, **kwargs):
-            collector.attempts += 1
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
@@ -75,17 +98,15 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
 
     if is_stream:
         def sync_stream(*args, **kwargs):
-            collector.attempts += 1
             try:
                 yield from original(*args, **kwargs)
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 raise
-            collector.successful += 1
+            collector.record_llm_call("", ok=True)
         return functools.wraps(original)(sync_stream)
 
     def sync_invoke(*args, **kwargs):
-        collector.attempts += 1
         try:
             result = original(*args, **kwargs)
         except Exception as e:
@@ -102,4 +123,6 @@ def _capture_runnable_result(collector: SignalCollector, result: Any) -> None:
     if text:
         collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True)
     else:
-        collector.successful += 1
+        # No text but the call still completed — count it as a successful
+        # execution so E is non-zero for chains that don't surface text.
+        collector.record_llm_call("", ok=True)
