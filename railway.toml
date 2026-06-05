@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# railway.toml — DPI-LS / widget
+#
+# Railway reads this file automatically when you deploy from this repo.
+# Docs: https://docs.railway.com/reference/config-as-code
+# ─────────────────────────────────────────────────────────────────────────────
+
+[build]
+# Tell Railway to use the Dockerfile in the repo root
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# The start command is already baked into the Dockerfile CMD,
+# but you can override it here if needed.
+# startCommand = "/app/start.sh"
+
+# How long (seconds) Railway waits for the health check to pass before
+# marking the deploy as failed.
+healthcheckPath = "/healthz"
+healthcheckTimeout = 60
+
+# Restart policy: always restart on crash
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
