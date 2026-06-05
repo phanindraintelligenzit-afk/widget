@@ -13,3 +13,4 @@ otel_stderr.log
 *.log
 sandbox_*/
 database/
+*mcp
