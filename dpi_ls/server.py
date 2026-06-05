@@ -69,6 +69,24 @@ def start_server(
     the first call; subsequent calls reuse the running server.
     """
     global _server_thread, _server_info
+    
+    external_url = os.environ.get("DPI_LS_URL")
+    if external_url:
+        with _lock:
+            if _server_info is not None and _server_info.base_url == external_url.rstrip("/"):
+                return _server_info
+            
+            _log.info("dpi_ls: using external dashboard at %s", external_url)
+            info = ServerInfo(host="external", port=0, base_url=external_url.rstrip("/"))
+            _server_info = info
+            
+        if open_browser:
+            try:
+                webbrowser.open(info.base_url + "/")
+            except Exception:  # pragma: no cover
+                pass
+        return info
+
     with _lock:
         if _server_thread is not None and _server_thread.is_alive():
             assert _server_info is not None

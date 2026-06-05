@@ -257,6 +257,8 @@ def _default_block() -> bool:
         return False
     if _env_flag("DPI_LS_BLOCK", default=False):
         return True
+    if os.environ.get("DPI_LS_URL"):
+        return False
     # TTY check — non-interactive shells / CI don't have a stdin to
     # block on. ``sys.stdin`` may be None under ``python -c`` etc.
     return bool(sys.stdin and sys.stdin.isatty())
