@@ -252,17 +252,17 @@ classes — the engine never imports a framework).
 ```mermaid
 flowchart TD
     Start(["monitor(agent)"]) --> Detect{detect_framework}
-    Detect -->|module starts with "agents"| OA["OpenAIAgentsPatcher<br/>wraps Runner.run*"]
-    Detect -->|"langgraph"| LG["LangGraphPatcher<br/>wraps graph.invoke/ainvoke"]
-    Detect -->|"langchain" or "langchain_core"| LC["LangChainPatcher<br/>wraps chain.invoke/ainvoke/stream"]
-    Detect -->|"crewai"| CR["CrewAIPatcher<br/>wraps crew.kickoff/akickoff"]
-    Detect -->|"autogen"| AG["AutoGenPatcher<br/>wraps agent.initiate_chat / generate_reply"]
-    Detect -->|"llama_index"| LI["LlamaIndexPatcher<br/>wraps query/aquery/chat/achat<br/>+ retrieve/aretrieve"]
-    Detect -->|"openai" + has .chat| RO["RawOpenAIPatcher<br/>walks client.chat.completions.create"]
-    Detect -->|"anthropic" + has .messages| RA["RawAnthropicPatcher<br/>walks client.messages.create"]
-    Detect -->|"has .retriever attribute"| RAG["RAGPatcher<br/>wraps nested retriever"]
-    Detect -->|"retriever-shaped methods"| RAG
-    Detect -->|"none of the above"| UN["UnknownPatcher<br/>wraps invoke/run/call/query/etc."]
+    Detect -->|module starts with agents| OA["OpenAIAgentsPatcher<br/>wraps Runner.run*"]
+    Detect -->|langgraph| LG["LangGraphPatcher<br/>wraps graph.invoke/ainvoke"]
+    Detect -->|langchain / langchain_core| LC["LangChainPatcher<br/>wraps chain.invoke/ainvoke/stream"]
+    Detect -->|crewai| CR["CrewAIPatcher<br/>wraps crew.kickoff/akickoff"]
+    Detect -->|autogen| AG["AutoGenPatcher<br/>wraps agent.initiate_chat / generate_reply"]
+    Detect -->|llama_index| LI["LlamaIndexPatcher<br/>wraps query/aquery/chat/achat<br/>+ retrieve/aretrieve"]
+    Detect -->|openai and has .chat| RO["RawOpenAIPatcher<br/>walks client.chat.completions.create"]
+    Detect -->|anthropic and has .messages| RA["RawAnthropicPatcher<br/>walks client.messages.create"]
+    Detect -->|has .retriever attribute| RAG["RAGPatcher<br/>wraps nested retriever"]
+    Detect -->|retriever-shaped methods| RAG
+    Detect -->|none of the above| UN["UnknownPatcher<br/>wraps invoke/run/call/query/etc."]
 
     OA --> Install
     LG --> Install
@@ -399,9 +399,9 @@ graph LR
     Prose -->|LLM eval| Qdim
     Calls -->|successful / attempts| Edim
     Out -->|policy scan| Gdim
-    Err -->|Σ(freq·sev)| Rdim
+    Err -->|freq x sev / R_max| Rdim
     Out -->|JSON / MD / tables| Vdim
-    Tok -->|human_cost / ai_cost × util| Cdim
+    Tok -->|human_cost / ai_cost x util| Cdim
 
     Pdim --> GM["composite<br/>weighted geometric mean"]
     Qdim --> GM
