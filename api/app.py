@@ -166,6 +166,11 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
 
 
 def _score_row_to_rating(row) -> Rating:
+    # Convert database format back to new Rating schema
+    dimensions_measured_count = len(row.dimensions_measured or [])
+    coverage_float = round(dimensions_measured_count / 7, 3)
+    cap_reason = row.cap_reasons[0] if row.cap_reasons else None
+
     return Rating(
         score=row.score,
         raw_score=row.raw_score,
@@ -174,10 +179,10 @@ def _score_row_to_rating(row) -> Rating:
         gate_failures=list(row.gate_failures or []),
         metrics=dict(row.metrics or {}),
         missing=list(row.missing or []),
-        dimensions_measured=list(row.dimensions_measured or []),
-        coverage=row.coverage or 0,
-        coverage_capped=bool(row.coverage_capped),
-        cap_reasons=list(row.cap_reasons or []),
+        dimensions_measured=dimensions_measured_count,  # Convert list length to int
+        coverage=coverage_float,                       # Convert int coverage back to float
+        capped=bool(row.coverage_capped),             # Map coverage_capped to capped
+        cap_reason=cap_reason,                        # Convert list to single string
     )
 
 

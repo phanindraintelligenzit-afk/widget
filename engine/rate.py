@@ -1,4 +1,4 @@
-"""Top-level rate() — wires score → gates → coverage → bands into a Rating."""
+"""Top-level rate() — wires score → gates → bands → completeness into a Rating."""
 from __future__ import annotations
 
 from typing import Optional
@@ -6,7 +6,8 @@ from typing import Optional
 from contract import Rating
 
 from .bands import band
-from .gates import NEEDS_OPT_CAP, apply_gate, gate_check
+from .completeness import apply_completeness_cap
+from .gates import apply_gate, gate_check
 from .score import composite
 
 
@@ -18,45 +19,41 @@ def rate(
     metrics: dict[str, Optional[float]],
     weights: dict[str, float] | None = None,
     gate_thresholds: dict[str, float] | None = None,
-    min_dimensions_for_full_band: int | None = None,
+    min_dimensions_for_full_band: int = 4,
 ) -> Rating:
+    # Apply order: composite -> gates -> bands -> completeness cap LAST
     raw = composite(metrics, weights)
 
     # Compliance gates (G/R/V) — flag Unsafe and cap.
     gate_fired, failed = gate_check(metrics, gate_thresholds)
-    final, unsafe = apply_gate(raw, gate_fired)
+    gated_score, unsafe = apply_gate(raw, gate_fired)
 
-    # Coverage — count distinct dimensions actually observed.
-    dimensions_measured = [k for k in _METRIC_KEYS if metrics.get(k) is not None]
-    coverage = len(dimensions_measured)
+    # Calculate coverage metrics
     missing = [k for k in _METRIC_KEYS if metrics.get(k) is None]
+    dimensions_measured = 7 - len(missing)
+    coverage = round(dimensions_measured / 7, 3)
 
-    cap_reasons: list[str] = []
-    if gate_fired:
-        cap_reasons.append(f"compliance gate: {','.join(failed)} below floor")
+    # Determine band based on gated score
+    score_band = band(gated_score)
 
-    # Coverage cap — separate from the compliance Unsafe flag. The score is
-    # honest math; the band gets pulled down so a 1-dimension agent can't
-    # display as Exceptional.
-    coverage_capped = False
-    if min_dimensions_for_full_band is not None and coverage < min_dimensions_for_full_band:
-        if final > NEEDS_OPT_CAP:
-            final = NEEDS_OPT_CAP
-        coverage_capped = True
-        cap_reasons.append(
-            f"coverage {coverage}/7 below floor {min_dimensions_for_full_band}"
-        )
+    # Initial cap reason from gates
+    gate_cap_reason = f"compliance gate: {','.join(failed)} below floor" if gate_fired else None
+
+    # Apply completeness cap LAST (precedence: compliance gate outranks coverage cap)
+    final_score, final_band, capped, cap_reason = apply_completeness_cap(
+        gated_score, score_band, metrics, dimensions_measured, unsafe, gate_cap_reason, min_dimensions_for_full_band
+    )
 
     return Rating(
-        score=round(final, 2),
+        score=round(final_score, 2),
         raw_score=round(raw, 2),
-        band=band(final),
+        band=final_band,
         unsafe=unsafe,
         gate_failures=failed,
         metrics=metrics,
         missing=missing,
         dimensions_measured=dimensions_measured,
         coverage=coverage,
-        coverage_capped=coverage_capped,
-        cap_reasons=cap_reasons,
+        capped=capped,
+        cap_reason=cap_reason,
     )

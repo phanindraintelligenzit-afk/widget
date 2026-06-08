@@ -1,7 +1,26 @@
 """Hard compliance gates.
 
 If G < 0.60 OR R < 0.50 OR V < 0.60 the rating is capped at the top of
-the 'Needs Optimization' band and flagged Unsafe — regardless of score.
+the 'Needs Optimization' band (69) and flagged Unsafe — regardless of score.
+
+IMPORTANT: The Rating distinguishes between three different ways an agent
+can end up in the "Needs Optimization" band (50-69):
+
+1. **Organic 50-69 score**: Agent naturally scores in this range due to
+   performance. Rating shows: capped=False, unsafe=False, no special flags.
+
+2. **Coverage-capped**: Agent would score higher but lacks sufficient measured
+   dimensions. Rating shows: capped=True, cap_reason="low-coverage", unsafe=False.
+   Raw score is preserved to show what the agent would have scored with full data.
+
+3. **Compliance gate fired**: Agent fails critical safety thresholds (G/R/V).
+   Rating shows: unsafe=True, gate_failures=["G"], capped may also be True.
+   This is the most serious — agent is flagged as unsafe to operate.
+
+Precedence: Compliance gates take priority over coverage caps. If both would
+apply, the agent is flagged unsafe and the cap_reason reflects the gate failure.
+
+Note: R_max and gate thresholds live in settings, pending Ranga.
 """
 from __future__ import annotations
 

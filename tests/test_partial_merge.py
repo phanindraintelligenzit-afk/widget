@@ -63,12 +63,17 @@ def test_metrics_from_partial_returns_None_for_missing_dimensions():
 
 
 def test_rate_redistributes_weight_for_present_metrics_only():
-    """A C-only observation should give a C-dominated rating, not zero."""
+    """A C-only observation redistributes weight to C, but gets capped due to completeness."""
     p = _p("aws_cost", cost=Cost(ai_cost_per_output=1.0))
     settings = Settings(human_cost_per_output=1.0, utilization=1.0)
     baseline = AgentBaseline(agent_id="a", human_output_per_period=100)
     r = rate(metrics_from_partial(p, settings, baseline))
-    assert r.score == pytest.approx(100.0)
+
+    # Raw score would be 100.0 (perfect C redistributed), but gets capped
+    assert r.raw_score == pytest.approx(100.0)  # Weight redistribution works
+    assert r.score == 69.0  # Capped to top of "Needs Optimization"
+    assert r.capped is True  # Completeness cap applied
+    assert "low-coverage" in r.cap_reason  # Reason is low coverage
     assert set(r.missing) == {"P", "Q", "E", "G", "R", "V"}
 
 
