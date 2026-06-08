@@ -1,0 +1,77 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# .dockerignore — DPI-LS / widget
+# Keeps the Docker build context small and avoids leaking secrets.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Git & CI
+.git
+.gitignore
+.github
+.gitattributes
+
+# Python caches & virtualenvs
+__pycache__
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.pyc
+.venv
+venv/
+env/
+ENV/
+.uv/
+uv.lock          # included explicitly below — keep it for reproducible builds
+!uv.lock
+
+# Test & quality tooling (not needed at runtime)
+tests/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local dev / Docker Compose
+docker-compose*.yml
+.env
+.env.*
+*.env
+
+# Docs & notebooks
+*.md
+!README.md
+docs/
+notebooks/
+
+# Build & dist artefacts
+dist/
+build/
+*.egg-info/
+*.egg
+*.whl
+
+# OS noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Editor configs
+.idea/
+.vscode/
+*.sublime-*
+
+# Terraform & IaC (chandra-style; not in widget but safe to list)
+iac/
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Large binary / data files
+*.sqlite
+*.db
+evals/reports/
+sandbox_*
+*mcp
