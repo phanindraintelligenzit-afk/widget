@@ -1,0 +1,7 @@
+in cmd terminal
+
+uv sync
+uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
+
+in other terminal git bash
+./scripts/demo_seed.sh

@@ -6,6 +6,8 @@ meet the engine.
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from sqlalchemy.orm import Session
 
 from contract import AgentBaseline, AgentObservation, PartialObservation, Rating, merge_partials
@@ -13,20 +15,28 @@ from engine import metrics_from_observation, metrics_from_partial, rate
 from store import repo
 
 
-def score_and_persist(s: Session, obs: AgentObservation) -> Rating:
+def score_and_persist(
+    s: Session,
+    obs: AgentObservation,
+    *,
+    baseline: Optional[float] = None,
+) -> Rating:
     settings = repo.get_settings(s)
-    agent = repo.upsert_agent(s, obs.agent_id, obs.agent_name)
-    baseline = AgentBaseline(
+    agent = repo.upsert_agent(s, obs.agent_id, obs.agent_name, baseline=baseline)
+    baseline_obj = AgentBaseline(
         agent_id=obs.agent_id,
         human_output_per_period=agent.baseline_human_output,
     )
-    metrics = metrics_from_observation(obs, settings, baseline)
+    metrics = metrics_from_observation(obs, settings, baseline_obj)
     rating = rate(
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
+    # Surface RAG signals (informational — doesn't affect score math).
+    rating.retrievals = obs.retrievals
+    rating.retrieved_docs_total = obs.retrieved_docs_total
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     return rating

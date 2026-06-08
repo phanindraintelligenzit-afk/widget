@@ -13,17 +13,42 @@ BASE="${1:-http://localhost:8000}"
 REPO_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-# We rely on `jq` to strip the human-friendly _label field from each fixture
+# We rely on `jq` or Python to strip the human-friendly _label field from each fixture
 # before posting. The engine doesn't care about _label but Pydantic would.
-if ! command -v jq >/dev/null; then
-  echo "ERROR: this script needs jq (apt install jq / brew install jq)" >&2
+USE_JQ=false
+if command -v jq >/dev/null; then
+  USE_JQ=true
+elif command -v python >/dev/null; then
+  PYTHON_CMD=python
+elif command -v python3 >/dev/null; then
+  PYTHON_CMD=python3
+else
+  echo "ERROR: this script needs jq or Python (python/python3) installed" >&2
   exit 1
 fi
 
+strip_label() {
+  local file="$1"
+  if [ "$USE_JQ" = true ]; then
+    jq 'del(._label)' "$file"
+  else
+    "$PYTHON_CMD" -c 'import json, sys; obj=json.load(open(sys.argv[1])); obj.pop("_label", None); json.dump(obj, sys.stdout, separators=(",", ":"))' "$file"
+  fi
+}
+
 post() {
   local path="$1" file="$2"
-  jq 'del(._label)' "$file" | curl -fsS -X POST "${BASE}${path}" \
+  strip_label "$file" | curl -fsS -X POST "${BASE}${path}" \
       -H 'Content-Type: application/json' --data-binary @- > /dev/null
+}
+
+adapter_registered() {
+  local name="$1"
+  if command -v curl >/dev/null; then
+    curl -fsS "${BASE}/adapters" | "$PYTHON_CMD" -c 'import json, sys; names=[a.get("name") for a in json.load(sys.stdin)]; print("true" if "'"$name"'" in names else "false")'
+  else
+    echo false
+  fi
 }
 
 echo "=> Waiting for ${BASE}/healthz ..."
@@ -35,7 +60,12 @@ for name in strong baseline unsafe; do
 done
 
 echo "=> Seeding Acme via YAML mapping (M2 universal fallback)"
-post "/ingest/webhook:acme" "fixtures/raw_acme_payload.json"
+if [ "$(adapter_registered "webhook:acme")" = "true" ]; then
+  post "/ingest/webhook:acme" "fixtures/raw_acme_payload.json"
+else
+  echo "WARNING: webhook:acme adapter is not registered on ${BASE}. Skipping Acme mapping seed."
+  echo "         Start the server with MAPPINGS_DIR=./fixtures to enable it."
+fi
 
 echo "=> Seeding OTel spans (M2)"
 curl -fsS -X POST "${BASE}/ingest/otel" \

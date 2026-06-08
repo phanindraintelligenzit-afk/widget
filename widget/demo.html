@@ -22,7 +22,12 @@
 </head>
 <body>
   <h1>DPI-LS — live agent ratings</h1>
-  <p class="sub">Embed any of these on a host page with one <code>&lt;script&gt;</code> tag. No framework.</p>
+  <p class="sub">
+    Embed any of these on a host page with one <code>&lt;script&gt;</code> tag. No framework.
+    <strong>Click a card on the board</strong> to see all 7 dimensions for that agent.
+    The first per-agent card auto-binds to the most recently-scored agent
+    (override with <code>?agent=&lt;id&gt;</code>).
+  </p>
 
   <div class="row">
     <div>
@@ -30,9 +35,16 @@
       <dpi-ls-board poll-interval="3000"></dpi-ls-board>
     </div>
     <div class="stack">
+      <!--
+        The "latest agent" card auto-fills from /ratings on page load.
+        The script below picks the most recently-scored agent and sets the
+        agent-id attribute; the custom element's attributeChangedCallback
+        re-starts polling when the attribute changes.
+        Pass ?agent=<id> in the URL to pin it to a specific agent.
+      -->
       <div>
-        <h2>Per-agent card — multi-source</h2>
-        <dpi-ls-agent agent-id="agent-multi-001" poll-interval="3000"></dpi-ls-agent>
+        <h2 id="latest-card-title">Per-agent card — most recently scored</h2>
+        <dpi-ls-agent id="latest-card" poll-interval="3000"></dpi-ls-agent>
       </div>
       <div>
         <h2>SME quality capture</h2>
@@ -44,5 +56,79 @@
       </div>
     </div>
   </div>
+
+  <script>
+    // ── Auto-discover the most recently-scored agent ──
+    (function () {
+      const API = "";  // same origin as the page
+      const card = document.getElementById("latest-card");
+      const title = document.getElementById("latest-card-title");
+      const board = document.querySelector("dpi-ls-board");
+      if (!card) return;
+
+      // URL ?agent=<id> wins over auto-discovery.
+      const urlAgent = new URLSearchParams(window.location.search).get("agent");
+
+      function bindTo(agentId, agentName) {
+        if (!agentId) return;
+        card.setAttribute("agent-id", agentId);
+        title.textContent = `Per-agent card — ${agentName || agentId} (7 dimensions)`;
+        title.title = `agent_id: ${agentId}`;
+        // Mark on the board too (in case the page is reloaded).
+        if (board) board.setAttribute("selected-agent", agentId);
+        // Update the URL so the selection is bookmarkable + shareable.
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("agent", agentId);
+          window.history.replaceState({}, "", url);
+        } catch (e) { /* non-fatal */ }
+      }
+
+      // Track whether the user has explicitly picked an agent. Once they
+      // have, we stop auto-discovering the latest-scored agent — otherwise
+      // a fresh /ratings poll silently yanks the per-agent card away from
+      // whatever the user just clicked. The "latest" hint is for the empty
+      // state, not a continuous override of user intent.
+      let userSelected = false;
+
+      // Click on a board card -> drill into that agent.
+      if (board) {
+        board.addEventListener("dpi-ls-select-agent", (ev) => {
+          userSelected = true;
+          const { agentId, agentName } = ev.detail || {};
+          bindTo(agentId, agentName);
+          // Scroll the per-agent card into view on small screens.
+          try { card.scrollIntoView({ behavior: "smooth", block: "nearest" }); } catch (e) {}
+        });
+      }
+
+      async function discoverLatest() {
+        if (userSelected) return;  // respect the user's choice
+        try {
+          const r = await fetch(`${API}/ratings`, { headers: { Accept: "application/json" } });
+          if (!r.ok) return;
+          const rows = await r.json();
+          if (!rows || rows.length === 0) return;
+          // Sort by computed_at desc, take the first.
+          rows.sort((a, b) =>
+            new Date(b.computed_at).getTime() - new Date(a.computed_at).getTime()
+          );
+          bindTo(rows[0].agent_id, rows[0].agent_name);
+        } catch (e) {
+          // Silent — board will still render whatever it can.
+        }
+      }
+
+      if (urlAgent) {
+        // ?agent=<id> deep-link: bind to that specific agent immediately.
+        bindTo(urlAgent, urlAgent);
+      } else {
+        discoverLatest();
+        // Re-discover every 5 s only until the user clicks something.
+        // Once they pick an agent, discoverLatest becomes a no-op.
+        setInterval(discoverLatest, 5000);
+      }
+    })();
+  </script>
 </body>
 </html>

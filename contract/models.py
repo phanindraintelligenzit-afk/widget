@@ -83,3 +83,9 @@ class AgentObservation(BaseModel):
     validation: Validation
     cost: Cost
     source: str
+    # Optional RAG-specific signals — populated by the dpi_ls LlamaIndex
+    # and RAG patchers via the ``/ingest`` path. Not required for the
+    # engine's score math (retrievals already count toward E); surfaced
+    # on the per-agent card for observability.
+    retrievals: int = 0
+    retrieved_docs_total: int = 0
