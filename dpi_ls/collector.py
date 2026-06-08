@@ -105,6 +105,14 @@ class SignalCollector:
     validated_outputs: int = 0
     total_outputs: int = 0
 
+    # RAG-specific signals — populated by the LlamaIndex and RAG patchers
+    # via ``record_retrieval``. A retrieval counts as one E-relevant
+    # execution (it's a tool call) but is tracked separately so the
+    # per-agent card can show "N retrievals · M docs" underneath E.
+    retrievals: int = 0
+    retrieved_docs_total: int = 0
+    last_retrieval_top_score: float = 0.0
+
     # Q — quality. Set by the LangGraph evaluator after the run finishes.
     quality: Optional[dict] = None  # {accuracy, consistency, hallucination_rate}
 
@@ -145,6 +153,34 @@ class SignalCollector:
                 self.successful += 1
             else:
                 self.failed += 1
+
+    def record_retrieval(
+        self,
+        *,
+        docs_count: int = 0,
+        top_score: float = 0.0,
+        ok: bool = True,
+    ) -> None:
+        """A retriever returned ``docs_count`` documents.
+
+        Drives E (a retrieval IS an execution) and surfaces two
+        per-agent-card signals: ``retrievals`` (call count) and
+        ``retrieved_docs_total`` (sum of node counts). The retrieved
+        text itself is captured separately by the caller via
+        ``_capture_output(..., kind="tool")`` so V and G see it but
+        the Q LLM evaluator does not.
+        """
+        with self._lock:
+            if ok:
+                self.attempts += 1
+                self.successful += 1
+            else:
+                self.attempts += 1
+                self.failed += 1
+            self.retrievals += 1
+            self.retrieved_docs_total += max(0, int(docs_count))
+            if top_score:
+                self.last_retrieval_top_score = float(top_score)
 
     def record_agent_run(self, *, ok: bool = True) -> None:
         """Called when a top-level agent run completes (or fails).
@@ -336,6 +372,9 @@ class SignalCollector:
                 "systems_accessed": len(self._systems_accessed),
             },
             "source": f"dpi_ls:{self.framework}",
+            # RAG signals — observed by the LlamaIndex / RAG patchers.
+            "retrievals": self.retrievals,
+            "retrieved_docs_total": self.retrieved_docs_total,
         }
         if self.quality is not None:
             obs["quality"] = self.quality
@@ -355,6 +394,8 @@ class SignalCollector:
             "tokens": self.tokens_in + self.tokens_out,
             "outputs": self.total_outputs,
             "validated": self.validated_outputs,
+            "retrievals": self.retrievals,
+            "retrieved_docs_total": self.retrieved_docs_total,
             "has_quality": self.quality is not None,
         }
 

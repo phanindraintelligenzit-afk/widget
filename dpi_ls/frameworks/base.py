@@ -65,6 +65,67 @@ class BasePatcher:
         # Default: no-op. Subclasses override if they keep a list of swaps.
 
 
+# ---------------------------------------------------------------------------
+# Collector-swap-on-reinstall — shared by all patchers so that
+# ``detect_and_install(obj, c1)`` followed by ``detect_and_install(obj, c2)``
+# re-targets the existing wrappers at c2 (matching the UnknownPatcher's
+# behaviour and the ``test_install_is_idempotent`` contract).
+# ---------------------------------------------------------------------------
+
+# Attribute name attached to the agent instance. The value is a
+# ``list[SignalCollector]`` with one element — the *current* collector.
+# Wrappers read ``_collector_ref[0]`` on every call so a swap on
+# re-install takes effect immediately.
+_COLLECTOR_REF_ATTR = "_dpi_ls_collector_ref"
+
+
+def attach_collector_ref(agent: Any, collector: SignalCollector) -> list:
+    """Attach (or update) a mutable collector reference on ``agent``.
+
+    Returns the list. On a second call we mutate the existing list in
+    place so the already-installed wrappers pick up the new collector
+    on their next invocation.
+    """
+    existing = getattr(agent, _COLLECTOR_REF_ATTR, None)
+    if existing is not None:
+        existing[0] = collector
+        return existing
+    ref: list = [collector]
+    try:
+        object.__setattr__(agent, _COLLECTOR_REF_ATTR, ref)
+    except (AttributeError, TypeError):
+        # Some objects don't allow arbitrary attribute setting (e.g.
+        # certain C-extension types). Fall back to setting on the class
+        # — less ideal but still works.
+        try:
+            setattr(type(agent), _COLLECTOR_REF_ATTR, ref)
+        except (AttributeError, TypeError):
+            pass
+    return ref
+
+
+def resolve_collector(agent: Any, fallback) -> SignalCollector:
+    """Return the active collector for ``agent``.
+
+    Priority:
+      1. ``_state.get_collector()`` — wins when ``monitor()`` set the
+         state (handles multi-monitor scenarios where the second call
+         takes over).
+      2. The mutable reference attached to the agent — survives
+         re-installs in tests.
+      3. The closure-captured fallback — used only when neither of
+         the above is set (e.g. direct patcher use in tests).
+    """
+    from .. import _state  # local import — avoids a top-level cycle
+    cur = _state.get_collector()
+    if cur is not None:
+        return cur
+    ref = getattr(agent, _COLLECTOR_REF_ATTR, None)
+    if ref is not None and ref[0] is not None:
+        return ref[0]
+    return fallback
+
+
 def _safe_iter_tokens(response: Any) -> tuple[int, int]:
     """Pull (input_tokens, output_tokens) from a response object's
     ``usage`` / ``usage_metadata`` field, in whatever shape the framework uses.

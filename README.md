@@ -10,6 +10,26 @@ The design rationale, hard requirements, and the full scoring spec live in
 
 ---
 
+## The dashboard
+
+This is what `dpi_ls` renders the moment you open `http://localhost:8000/`
+after running any of the examples in `examples/`:
+
+![DPI-LS live dashboard — board of all agents on the left, per-agent 7-dimension card on the right](images/image.png)
+
+*Board of all agents* (left) shows one row per scored agent with the
+composite score, the band, and a red `unsafe` badge when a
+compliance gate fired. *Per-agent card* (right) renders all 7
+normalized sub-scores plus coverage, gate failures, and cap reasons.
+*SME quality capture* panel (bottom-right) lets a subject-matter
+expert record Q in five conversational steps.
+
+The widget is one vanilla-JS file (`widget/dpi-ls.js`, 648 lines) and
+embeds into any host page with a single `<script>` tag — no framework,
+no build step.
+
+---
+
 ## What's new — `dpi_ls` instrumentation package
 
 On top of the original FastAPI scoring engine, this repo now ships a
@@ -27,6 +47,377 @@ collector = dpi_ls.monitor(agent, agent_id="my-agent", human_baseline=1)
 dashboard in a background thread, and POSTs the final `AgentObservation`
 to `/ingest` on exit — using the **exact same `engine/` scoring math**
 as the REST API. No scoring logic is duplicated.
+
+---
+
+## Architecture
+
+A 30-second tour of the system, the file layout, and the data flow.
+
+### System overview
+
+Five layers, each replaceable. The engine is the only one that
+contains scoring math; everything else is plumbing.
+
+```mermaid
+graph TB
+    subgraph USER["Your agent code"]
+        Agent["Agent / Chain / Crew / Graph<br/>(LangChain, LlamaIndex, CrewAI, ...)"]
+    end
+
+    subgraph PKG["dpi_ls package — instrumentation"]
+        Mon["dpi_ls.monitor()"]
+        Patcher["Framework patcher<br/>(detects and wraps run methods)"]
+        Coll["SignalCollector<br/>(accumulates P / Q / E / G / R / V / C)"]
+        Post["Poster"]
+    end
+
+    subgraph ENG["engine — PURE scoring, no I/O"]
+        Met["metrics.py — 7 sub-metrics"]
+        Sc["score.py — weighted geometric mean"]
+        Gt["gates.py — G / R / V hard floors"]
+        Bd["bands.py — Exceptional / Strong / ..."]
+    end
+
+    subgraph API["api — FastAPI"]
+        Ing["/ingest — validates and scores"]
+        Brd["/ratings and /agents/{id}/score — board and 7-dim card"]
+    end
+
+    subgraph STORE["store — SQLAlchemy"]
+        DB[("observations<br/>score_history<br/>settings")]
+    end
+
+    subgraph WIDG["widget — vanilla web components"]
+        WJS["dpi-ls.js — dpi-ls-board, dpi-ls-agent"]
+    end
+
+    Agent -->|run methods| Patcher
+    Mon --> Patcher
+    Patcher -->|record_*| Coll
+    Coll -->|on atexit| Post
+    Post -->|HTTP POST /ingest| Ing
+    Ing --> Met
+    Met --> Sc
+    Sc --> Gt
+    Gt --> Bd
+    Ing --> DB
+    Brd --> DB
+    WJS -->|polls every 3s| Brd
+```
+
+**The cardinal rule:** the engine consumes only `AgentObservation`. It
+never imports a framework. Adapters, ingest endpoints, and the
+instrumentation package are the only things that know about agent
+runtimes.
+
+### Project structure
+
+```
+dpi-ls/
+├── contract/         Pydantic models — the canonical AgentObservation (the only schema)
+│   ├── models.py     AgentObservation, Quality, Cost, Policy, Validation, Executions
+│   ├── partial.py    PartialObservation — one dimension at a time, merged by the API
+│   ├── rating.py     Rating — the engine's output (score, band, gates, metrics)
+│   └── settings.py   Tunables (weights, gate thresholds, R_max, human cost/hr)
+│
+├── engine/           PURE scoring. No I/O. No framework imports. The source of truth.
+│   ├── metrics.py    compute_P, Q, E, G, R, V, C  → 7 normalized [0, 1] sub-metrics
+│   ├── score.py      composite() — weighted geometric mean × 100
+│   ├── gates.py      gate_check() — G/R/V compliance floors; cap at 69 if any fire
+│   ├── bands.py      band() — Exceptional / Strong / Needs Optimization / Underperforming
+│   └── sme_flow.py   Conversational Q-capture state machine
+│
+├── ingestion/        Adapters — the only place that knows about agent runtimes
+│   ├── base.py       Adapter interface + to_observations() contract
+│   ├── registry.py   Name → adapter lookup
+│   ├── generic/      Universal adapters (work for any agent)
+│   │   ├── webhook.py     GenericWebhookAdapter — POST any JSON
+│   │   ├── mapping.py     YAML field-mapping for arbitrary payloads
+│   │   ├── otel.py        OpenTelemetry spans → observation
+│   │   └── jsonpath.py    JSONPath resolution for the YAML mapping
+│   └── sources/      Per-system partial-dimension adapters
+│       ├── aws_cost.py, puvi_noise.py, arize.py,
+│       │   servicenow.py, jira.py, base.py, registry.py
+│       └── stubs.py  langgraph, bedrock, ray, bmc, sap_hr (placeholders)
+│
+├── api/              FastAPI — the demo surface the widget polls
+│   ├── app.py        Route handlers (/ingest, /ratings, /agents/{id}/score, /settings, …)
+│   ├── scoring.py    score_and_persist() — the bridge between API and engine
+│   ├── bootstrap.py  Adapter registration, DB init
+│   ├── schemas.py    Request/response models
+│   └── sme_orchestration.py  Conversational Q-capture HTTP layer
+│
+├── store/            SQLAlchemy persistence
+│   ├── models.py     AgentRow, ObservationRow, ScoreRow, SettingsRow, PartialRow
+│   └── repo.py       upsert_agent, save_observation, save_score, get_settings, …
+│
+├── dpi_ls/           ⭐ The 2-line installable package
+│   ├── __init__.py   Public surface: monitor(), evaluate_quality(), SignalCollector
+│   ├── monitor.py    Entry point — framework detection, server boot, atexit finalizer
+│   ├── collector.py  SignalCollector — accumulates P/Q/E/G/R/V/C signals
+│   ├── evaluator.py  LangGraph Q evaluator (accuracy, consistency, hallucination)
+│   ├── heuristics.py Deterministic Q fallback when LLM is unreachable
+│   ├── poster.py     post_observation() — POSTs AgentObservation to /ingest
+│   ├── server.py     Background uvicorn launcher (idempotent, daemon thread)
+│   ├── policy.py     Deterministic G policy scan (PII, secrets, prompt-injection)
+│   ├── _state.py     Process-wide collector singleton
+│   └── frameworks/   Framework-specific patchers
+│       ├── base.py             BasePatcher, _safe_text, _safe_iter_tokens
+│       ├── openai_agents.py    OpenAI Agents SDK (Runner.run* + RunHooks)
+│       ├── langchain.py        LangChain Runnable/Chain
+│       ├── langgraph.py        LangGraph compiled StateGraph
+│       ├── crewai.py           CrewAI Crew
+│       ├── autogen.py          AutoGen 0.7+ AssistantAgent
+│       ├── llama_index.py      LlamaIndex query engine + retriever
+│       ├── rag.py              General RAG pattern (retrievers + chains-with-retriever)
+│       ├── raw_openai.py       openai.OpenAI / AsyncOpenAI client
+│       ├── raw_anthropic.py    anthropic.Anthropic / AsyncAnthropic
+│       └── unknown.py          Best-effort fallback (invoke/run/call/…/query)
+│
+├── widget/           Embeddable dashboard (no framework — drop into any host page)
+│   ├── dpi-ls.js     648 lines, vanilla web components
+│   └── demo.html     Standalone demo page
+│
+├── fixtures/         Sample observations + a sample YAML mapping (mock-first dev)
+├── examples/         End-to-end demo agents (one per supported framework)
+└── tests/            203 tests, < 12 seconds
+```
+
+### The two-line flow
+
+From `import dpi_ls` to a row on the dashboard — the full lifecycle in
+one sequence.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant M as dpi_ls.monitor()
+    participant D as Dashboard thread
+    participant P as Patcher
+    participant C as SignalCollector
+    participant A as Agent
+    participant E as atexit
+    participant Q as Q evaluator
+    participant T as Poster
+    participant I as /ingest
+    participant Eg as Engine
+    participant S as Store
+    participant W as Widget
+
+    U->>M: monitor(agent, agent_id, human_baseline)
+    M->>D: start_server() — boot uvicorn in daemon thread
+    M->>C: create SignalCollector
+    M->>P: detect_and_install(agent, C)
+    P-->>M: ["graph.ainvoke", "graph.invoke"]
+    M-->>U: return collector
+
+    loop One or more agent runs
+        U->>A: agent.invoke(prompt)
+        A->>P: invoke — wrapped
+        P->>C: record_llm_call(text, tokens_in, tokens_out)
+        P->>A: original invoke
+        A-->>U: result
+    end
+
+    U->>U: script ends (sys.exit / atexit)
+    E->>C: mark_end() + outputs_for_q()
+    E->>Q: evaluate_quality(outputs)
+    Q-->>E: {accuracy, consistency, hallucination_rate}
+    E->>C: set_quality(acc, con, hal)
+    E->>T: post_observation(C, base_url)
+    T->>I: POST /ingest?baseline=1  body=AgentObservation
+    I->>Eg: metrics_from_observation(obs, settings, baseline)
+    Eg-->>I: {P, Q, E, G, R, V, C}
+    I->>Eg: rate(metrics, weights, gates, coverage)
+    Eg-->>I: Rating(score, band, unsafe, …)
+    I->>S: save_observation, save_score
+    I-->>T: Rating JSON
+
+    par Dashboard polling
+        W->>I: GET /ratings
+        I-->>W: board row
+    and
+        W->>I: GET /agents/{id}/score
+        I-->>W: per-agent 7-dim card
+    end
+```
+
+### Framework detection — how `monitor(agent)` picks a patcher
+
+Detection is by **module name** (no `isinstance` against concrete
+classes — the engine never imports a framework).
+
+```mermaid
+flowchart TD
+    Start(["monitor(agent)"]) --> Detect{detect_framework}
+    Detect -->|module starts with "agents"| OA["OpenAIAgentsPatcher<br/>wraps Runner.run*"]
+    Detect -->|"langgraph"| LG["LangGraphPatcher<br/>wraps graph.invoke/ainvoke"]
+    Detect -->|"langchain" or "langchain_core"| LC["LangChainPatcher<br/>wraps chain.invoke/ainvoke/stream"]
+    Detect -->|"crewai"| CR["CrewAIPatcher<br/>wraps crew.kickoff/akickoff"]
+    Detect -->|"autogen"| AG["AutoGenPatcher<br/>wraps agent.initiate_chat / generate_reply"]
+    Detect -->|"llama_index"| LI["LlamaIndexPatcher<br/>wraps query/aquery/chat/achat<br/>+ retrieve/aretrieve"]
+    Detect -->|"openai" + has .chat| RO["RawOpenAIPatcher<br/>walks client.chat.completions.create"]
+    Detect -->|"anthropic" + has .messages| RA["RawAnthropicPatcher<br/>walks client.messages.create"]
+    Detect -->|"has .retriever attribute"| RAG["RAGPatcher<br/>wraps nested retriever"]
+    Detect -->|"retriever-shaped methods"| RAG
+    Detect -->|"none of the above"| UN["UnknownPatcher<br/>wraps invoke/run/call/query/etc."]
+
+    OA --> Install
+    LG --> Install
+    LC --> Install
+    CR --> Install
+    AG --> Install
+    LI --> Install
+    RO --> Install
+    RA --> Install
+    RAG --> Install
+    UN --> Install
+
+    Install["detect_and_install<br/>wraps the agent's run methods<br/>(idempotent)"] --> Done(["returns list of patched paths"])
+```
+
+**Idempotency:** every patcher marks wrappers with `_dpi_ls_patched`.
+Calling `monitor()` twice on the same object is a no-op on the second
+call. A second `monitor()` call with a new collector swaps the active
+collector via the shared `_dpi_ls_collector_ref` (used by
+`UnknownPatcher`, `LlamaIndexPatcher`, and `RAGPatcher`).
+
+### Scoring pipeline — observation → 7 metrics → composite → band
+
+The engine is pure functions over a normalized observation. Nothing
+imports an agent framework, nothing calls out to the network.
+
+```mermaid
+flowchart LR
+    Obs["AgentObservation<br/>(canonical)"] --> Pull["metrics_from_observation"]
+
+    Pull --> P["P = min 1, completed / baseline"]
+    Pull --> Q["Q = 0.7·Acc + 0.2·Con + 0.1·(1−Hal)"]
+    Pull --> E["E = successful / attempts"]
+    Pull --> G["G = 1 − violations / actions"]
+    Pull --> R["R = 1 − Σ(freq·sev) / R_max"]
+    Pull --> V["V = validated / required"]
+    Pull --> C["C = min(1, human_cost / ai_cost) × util"]
+
+    P --> GM
+    Q --> GM
+    E --> GM
+    G --> GM
+    R --> GM
+    V --> GM
+    C --> GM
+
+    GM["composite<br/>100 × ∏ mᵢʷⁱ"] --> Raw["raw_score"]
+
+    Raw --> Gate{"G < 0.60?<br/>R < 0.50?<br/>V < 0.60?"}
+    Gate -->|no| Final["final score<br/>(no change)"]
+    Gate -->|yes| Cap["cap at 69<br/>unsafe = true"]
+
+    Cap --> Band
+    Final --> Band["band()<br/>85+ Exceptional<br/>70-84 Strong<br/>50-69 Needs Opt<br/><50 Underperforming"]
+
+    Band --> Rating["Rating<br/>+ coverage check<br/>(<5 dims = band cap)"]
+```
+
+The `min_dimensions_for_full_band` setting (default 5) prevents an
+agent with only one or two reported dimensions from scoring 100 —
+the band is capped at *Needs Optimization* until at least 5 of 7
+dimensions report a signal.
+
+### RAG signal flow — why retrieval is its own signal
+
+In a RAG agent, the retriever and the synthesizer do very different
+things. The instrumentation treats them separately so the per-agent
+card shows what's actually happening.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant QE as QueryEngine
+    participant R as Retriever
+    participant L as LLM
+    participant C as SignalCollector
+    participant E as Engine
+
+    U->>QE: query("Summarise X")
+    activate QE
+    QE->>R: retrieve("Summarise X") — WRAPPED
+    activate R
+    R->>C: record_retrieval(docs_count=5, top_score=0.92)
+    R->>C: capture_output(docs[0..4], kind="tool")
+    Note over C: tool kind → V + G scan<br/>NOT sent to Q evaluator
+    R-->>QE: 5 NodeWithScore
+    deactivate R
+
+    QE->>L: synthesize(prompt + context)
+    L-->>QE: answer text
+    deactivate QE
+
+    QE->>C: record_agent_run(ok=True)  — drives P
+    QE->>C: record_llm_call(answer, tokens_in, tokens_out)  — drives C
+    QE->>C: capture_output(answer, kind="agent")  — drives Q
+    Note over C: agent kind → Q evaluator
+
+    Note over C,E: atexit: to_observation()
+    C-->>E: obs with retrievals=1, retrieved_docs=5
+    E-->>E: E = 2/2 (retrieval + synthesis)<br/>C = tokens from synthesis<br/>Q = LangGraph eval on synthesis only
+    E->>U: dashboard card shows<br/>"E: 2/2 · N retrievals · M docs"
+```
+
+**Key invariant:** the retriever's returned node text is tagged
+`tool`, so the deterministic V / G scanners see it but the Q LLM
+evaluator does NOT — raw corpus text would otherwise drown the
+evaluator in noise.
+
+### The 7-dimension map — which source signals feed which dimension
+
+```mermaid
+graph LR
+    subgraph SRC["Source signals (per-run)"]
+        Runs["agent_runs_completed"]
+        Prose["agent prose outputs"]
+        Calls["LLM + tool call outcomes"]
+        Out["all captured outputs"]
+        Err["exceptions / errors"]
+        Tok["tokens (in + out)"]
+    end
+
+    subgraph DIM["7 dimensions [0, 1]"]
+        Pdim["P<br/>Productivity"]
+        Qdim["Q<br/>Quality"]
+        Edim["E<br/>Execution"]
+        Gdim["G<br/>Governance"]
+        Rdim["R<br/>Risk"]
+        Vdim["V<br/>Validation"]
+        Cdim["C<br/>Cost"]
+    end
+
+    Runs -->|count / baseline| Pdim
+    Prose -->|LLM eval| Qdim
+    Calls -->|successful / attempts| Edim
+    Out -->|policy scan| Gdim
+    Err -->|Σ(freq·sev)| Rdim
+    Out -->|JSON / MD / tables| Vdim
+    Tok -->|human_cost / ai_cost × util| Cdim
+
+    Pdim --> GM["composite<br/>weighted geometric mean"]
+    Qdim --> GM
+    Edim --> GM
+    Gdim --> GM
+    Rdim --> GM
+    Vdim --> GM
+    Cdim --> GM
+```
+
+Six of the seven dimensions are computed deterministically in the
+collector / engine. **Q is the exception** — it needs an LLM
+judge (the `evaluator.py` LangGraph node). When the LLM is
+unreachable, the deterministic `heuristics.py` fallback produces a
+rough but non-zero Q so the composite doesn't drop one dimension
+to "needs input".
 
 ---
 
@@ -54,7 +445,7 @@ Seed the board with fixture data:
 ./scripts/demo_seed.sh
 ```
 
-Open **http://localhost:8000/** — redirects to the live demo at `/widget/demo.html`.
+Open **http://localhost:8000/** — redirects to the live demo at `/widget/demo.html`. You should see the board, per-agent card, and SME quality capture panel exactly as in [the screenshot above](#the-dashboard).
 
 ### Option B — run the example agent (end-to-end)
 
@@ -108,16 +499,383 @@ Falls back to a deterministic heuristic if the LLM is unreachable.
 
 ### Supported frameworks
 
-| Framework | Auto-detected via |
-|---|---|
-| **OpenAI Agents SDK** | `agents.Agent` instance |
-| **LangGraph** | compiled `StateGraph` |
-| **LangChain** | `Runnable` / `Chain` |
-| **CrewAI** | `Crew` instance |
-| **AutoGen** | `ConversableAgent` |
-| **Raw OpenAI client** | `openai.OpenAI` / `AsyncOpenAI` |
-| **Raw Anthropic client** | `anthropic.Anthropic` |
-| **Unknown** | best-effort fallback |
+| Framework | What you pass to `monitor()` | Auto-patches | C (cost) captured | Example |
+|---|---|---|---|---|
+| **OpenAI Agents SDK** | `Agent` instance | `Runner.run*` (via injected `RunHooks`) | yes — `response.usage` | `examples/test_agent.py` |
+| **LangGraph** | compiled `StateGraph` | `graph.invoke` / `graph.ainvoke` | manual* — see `record_llm_call` | `examples/langgraph_research.py` |
+| **LangChain** | `Runnable` / `Chain` | `chain.invoke` / `ainvoke` / `stream` | yes — `usage_metadata` | `examples/langchain_qa.py` |
+| **CrewAI** | `Crew` instance | `crew.kickoff` / `akickoff` | manual* | `examples/crewai_research.py` |
+| **AutoGen 0.7+** | `AssistantAgent` | `agent.run` (best-effort) | manual* | `examples/autogen_debate.py` |
+| **LlamaIndex** | query engine / retriever | `query` / `aquery` / `chat` / `achat` / `retrieve` / `aretrieve` | yes — `response.metadata['usage']` | `examples/llamaindex_rag.py` |
+| **RAG (general)** | any retriever, or chain with `.retriever` | `retrieve` / `aretrieve` / `get_relevant_documents` | manual* | below |
+| **Raw OpenAI client** | `openai.OpenAI` / `AsyncOpenAI` | `client.chat.completions.create` (walks the client) | yes — `response.usage` | below |
+| **Raw Anthropic client** | `anthropic.Anthropic` / `AsyncAnthropic` | `client.messages.create` (walks the client) | yes — `response.usage` | below |
+| **Anything else** | any object exposing `invoke` / `run` / `__call__` | best-effort | manual* | `examples/raw_bedrock.py` |
+
+*\* "manual" = the patcher doesn't see the inner LLM call, so push tokens into the collector yourself with one `collector.record_llm_call(text, tokens_in=..., tokens_out=..., cost=...)` inside your LLM wrapper. The framework examples show the exact one-liner.*
+
+**RAG signals.** When a query engine runs a retrieval internally, `dpi_ls` records each retrieval as a tool call (drives E and G via the policy scan) and surfaces `retrievals` + `retrieved_docs_total` on the per-agent card. Retrieved node text is tagged `tool` so it feeds V and G but NOT the Q LLM evaluator (raw corpus text would drown the LLM in noise).
+
+---
+
+## Framework integration — copy-paste recipes
+
+`dpi_ls.monitor(agent, agent_id=...)` is the **single entry point** for every framework. It auto-detects the framework from the object you pass, installs the matching patcher, starts the dashboard in a background thread, and on `atexit` POSTs the final `AgentObservation` to `/ingest` — which the widget then renders as the 7 dimensions on the board.
+
+### The universal 2-line pattern
+
+```python
+import dpi_ls
+
+dpi_ls.monitor(my_agent, agent_id="my-agent", human_baseline=1)
+# ... your existing agent code, completely unchanged ...
+```
+
+That's it. On script exit, `dpi_ls` evaluates Q, builds the canonical observation, and the dashboard row for `my-agent` populates within ~3 s.
+
+### OpenAI Agents SDK
+
+```bash
+pip install openai-agents
+```
+
+```python
+import asyncio
+from agents import Agent, Runner
+import dpi_ls
+
+agent = Agent(
+    name="support-bot",
+    instructions="You are a concise customer support agent.",
+    model="gpt-4o-mini",
+)
+dpi_ls.monitor(agent, agent_id="openai-agents-demo", human_baseline=1)
+
+result = asyncio.run(Runner.run(agent, "Summarise my last 3 orders."))
+print(result.final_output)
+```
+
+`OpenAIAgentsPatcher` injects a `RunHooks` subclass into `Runner.run`,
+so **all 7 dimensions light up automatically** — P from the run count,
+E from `on_llm_end` / `on_tool_end`, G from the policy scan on every
+output, V from the structured-output detector, C from `response.usage`,
+Q from the LangGraph evaluator. R increments on exceptions.
+
+### LangGraph
+
+```bash
+pip install langgraph langchain-openai
+```
+
+```python
+from typing import TypedDict
+from langgraph.graph import END, StateGraph
+from langchain_openai import ChatOpenAI
+import dpi_ls
+
+class State(TypedDict):
+    question: str
+    final_answer: str
+
+def answer(state: State):
+    msg = ChatOpenAI(model="gpt-4o-mini").invoke(state["question"])
+    return {"final_answer": msg.content}
+
+g = StateGraph(State)
+g.add_node("answer", answer)
+g.set_entry_point("answer")
+g.add_edge("answer", END)
+graph = g.compile()
+
+dpi_ls.monitor(graph, agent_id="langgraph-demo", human_baseline=1)
+print(graph.invoke({"question": "What is 2+2?"})["final_answer"])
+```
+
+LangGraph's patcher wraps `graph.invoke` / `graph.ainvoke` — P, E, G, V
+come from the graph-level call. For a real **C** (token-count) reading,
+push the inner LLM's `usage_metadata` into the collector with one line —
+see `examples/langgraph_research.py:88-95` for the exact pattern.
+
+### LangChain
+
+```bash
+pip install langchain langchain-openai
+```
+
+```python
+from langchain_openai import ChatOpenAI
+from langchain_core.prompts import ChatPromptTemplate
+import dpi_ls
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "Be concise. Use Markdown with one '##' header."),
+    ("human", "{question}"),
+])
+chain = prompt | ChatOpenAI(model="gpt-4o-mini")
+
+dpi_ls.monitor(chain, agent_id="langchain-demo", human_baseline=1)
+print(chain.invoke({"question": "Hello!"}).content)
+```
+
+`LangChainPatcher` wraps `invoke` / `ainvoke` / `stream` / `astream` and
+reads `usage_metadata` off the `AIMessage` response, so **C is real,
+not estimated** — no manual plumbing needed.
+
+### CrewAI
+
+```bash
+pip install crewai
+```
+
+```python
+from crewai import Agent, Crew, Process, Task
+import dpi_ls
+
+researcher = Agent(
+    role="Researcher", goal="Find three facts",
+    backstory="Meticulous researcher.", allow_delegation=False,
+)
+writer = Agent(
+    role="Writer", goal="Summarise into a Markdown brief",
+    backstory="Tight, structured writer.", allow_delegation=False,
+)
+
+crew = Crew(
+    agents=[researcher, writer],
+    tasks=[
+        Task(description="Find three facts about the moon.",
+             expected_output="Three bullets.", agent=researcher),
+        Task(description="Turn bullets into a Markdown brief.",
+             expected_output="Markdown brief with ## headers.", agent=writer),
+    ],
+    process=Process.sequential,
+)
+
+dpi_ls.monitor(crew, agent_id="crewai-demo", human_baseline=1)
+print(crew.kickoff().raw)
+```
+
+`CrewAIPatcher` patches `Crew.kickoff` (using `object.__setattr__` to
+bypass Pydantic v2's frozen-model guard). For real C capture, wrap the
+underlying boto3 / LLM `converse` call and call
+`collector.record_llm_call(...)` on the way out — see
+`examples/crewai_research.py:74-91`.
+
+### AutoGen 0.7+ (AssistantAgent)
+
+```bash
+pip install autogen-agentchat~=0.7
+```
+
+```python
+from autogen_agentchat.agents import AssistantAgent
+import asyncio, dpi_ls
+
+agent = AssistantAgent(
+    name="debater",
+    model_client="openai/gpt-4o-mini",   # or your own ChatCompletionClient
+    system_message="Be concise.",
+)
+
+collector = dpi_ls.monitor(agent, agent_id="autogen-demo", human_baseline=1)
+# The dispatcher falls back to UnknownPatcher on the new AutoGen; re-stamp
+# the framework label so the board reads "dpi_ls:autogen" not "dpi_ls:unknown".
+collector.framework = "autogen"
+
+result = asyncio.run(agent.run(task="Argue both sides of open-source LLMs."))
+print(result.messages[-1].content)
+```
+
+For C capture from a custom `ChatCompletionClient`, push tokens from
+the response into the collector — see
+`examples/autogen_debate.py:122-136` for the boto3-Bedrock client
+pattern.
+
+### LlamaIndex
+
+```bash
+pip install dpi-ls[llamaindex]   # installs llama-index-core
+```
+
+```python
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
+import dpi_ls
+
+query_engine = VectorStoreIndex.from_documents(
+    SimpleDirectoryReader("data").load_data()
+).as_query_engine()
+
+dpi_ls.monitor(query_engine, agent_id="llamaindex-rag", human_baseline=1)
+print(query_engine.query("Summarise the documents."))
+```
+
+`LlamaIndexPatcher` wraps `query` / `aquery` / `chat` / `achat` on the
+engine (drives P, E, V, G, Q) and `retrieve` / `aretrieve` on the
+nested retriever (drives E, surfaces `retrievals` on the card). Token
+counts are pulled from `response.metadata['usage']` (the standard
+LlamaIndex storage location) so **C is real, not estimated**. A
+full RAG example lives at `examples/llamaindex_rag.py`.
+
+### RAG (general)
+
+The dispatcher auto-routes any retriever-shaped object — anything
+with `retrieve` / `aretrieve` / `get_relevant_documents`, or any
+chain with a `.retriever` attribute (LangChain `RetrievalQA` etc.) —
+to the `RAGPatcher`. Pass the retriever directly:
+
+```python
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+import dpi_ls
+
+vectorstore = FAISS.from_texts([...], OpenAIEmbeddings())
+retriever = vectorstore.as_retriever()
+
+dpi_ls.monitor(retriever, agent_id="my-rag", human_baseline=1)
+docs = retriever.invoke("What is X?")  # or retriever.get_relevant_documents("...")
+```
+
+Each call increments the per-agent card's `retrievals` line, captures
+the returned node text as a `tool`-tagged output (V / G see it,
+Q does not), and drives E. For a chain with a nested retriever
+(e.g. `RetrievalQA`), the dispatcher wraps only the inner retriever
+so the chain's own `invoke` is treated as a normal agent run by
+`UnknownPatcher` — no double-counting.
+
+### Raw OpenAI / Anthropic clients
+
+```bash
+pip install openai        # or: pip install anthropic
+```
+
+```python
+from openai import OpenAI
+import dpi_ls
+
+client = OpenAI()
+dpi_ls.monitor(client, agent_id="raw-openai-demo", human_baseline=1)
+
+resp = client.chat.completions.create(
+    model="gpt-4o-mini",
+    messages=[{"role": "user", "content": "Hello!"}],
+)
+print(resp.choices[0].message.content)
+```
+
+The patcher walks the client and wraps every `*.create` method it
+finds. **C is real** (pulled from `response.usage`). The exact same
+pattern works for `anthropic.Anthropic()` — `RawAnthropicPatcher`
+handles `client.messages.create` and the `usage.input_tokens` /
+`usage.output_tokens` shape.
+
+### Any other framework (custom, in-house, or unknown)
+
+`UnknownPatcher` wraps the first callable it finds among `invoke`,
+`ainvoke`, `run`, `arun`, `kickoff`, `akickoff`, `call`,
+`__call__`. If your object exposes a different method name, rename it
+to `invoke` (or add a one-line `__call__` shim) and you get P + E + G
++ V + R coverage for free.
+
+For real C capture, drop a single `collector.record_llm_call(...)`
+call inside your LLM wrapper — that's the same hook every other
+framework example uses. The raw boto3 Bedrock agent in
+`examples/raw_bedrock.py` is the canonical "graceful fallback"
+reference: 80 lines, no framework imports, full 7-dimension coverage.
+
+### Multi-agent / multi-framework in one process
+
+`dpi_ls` keeps one active `SignalCollector` per process. To score
+several agents in one script (e.g. the orchestrator pattern in
+`examples/run_all.py`):
+
+```python
+import dpi_ls
+from dpi_ls import _state
+from dpi_ls.monitor import _finalize
+
+# Agent 1
+dpi_ls.monitor(crew1, agent_id="crew-a", human_baseline=1)
+crew1.kickoff()
+_finalize()           # force the atexit handler now
+_state.reset_for_tests()  # clear the singleton collector
+
+# Agent 2 — fresh collector
+dpi_ls.monitor(graph2, agent_id="langgraph-b", human_baseline=1)
+graph2.invoke({"question": "..."})
+_finalize()
+```
+
+Each `agent_id` lands as a separate row on the board.
+
+---
+
+## The 7 dimensions — what the dashboard shows
+
+After your script exits, the dashboard at **http://127.0.0.1:8000/**
+shows two custom elements:
+
+* `<dpi-ls-board>` — one row per agent, polling `/ratings` every 3 s.
+  Each row shows: `agent_id`, composite `score / 100`, `band`, an
+  `unsafe` badge (red) if a compliance gate fired, and the timestamp.
+* `<dpi-ls-agent>` — the per-agent card, polling
+  `/agents/{id}/score`. Click a board row to populate it. Renders all
+  7 normalised sub-scores plus coverage, gate failures, and cap
+  reasons.
+
+| Dim | What `dpi_ls` measures | Source signal | Dashboard card line |
+|---|---|---|---|
+| **P — Productivity** | `min(1, agent_runs / human_baseline)` | top-level `Runner.run` / `kickoff` / `ainvoke` count | "N completed / baseline M" |
+| **Q — Quality** | `0.7·Acc + 0.2·Con + 0.1·(1−Hal)` | LangGraph evaluator on the last N agent prose outputs | "Acc / Con / (1−Hal)" triple |
+| **E — Execution** | `successful / attempts` | LLM + tool call success rate | "X successful / Y attempts" |
+| **G — Governance** | `1 − violations / total_actions` | deterministic policy scan (PII, auth errors, …) on every output | "V violations / A actions" |
+| **R — Risk** | `1 − min(1, Σ(freq×sev) / R_max)` | recorded exceptions and incidents | "I incidents (ΣW = …)" |
+| **V — Validation** | `validated / required` | JSON / Markdown / `<answer>` / tables detector | "V validated / R required" |
+| **C — Cost** | `min(1, human_cost / AI_cost) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
+| **RAG signals** *(informational, not in the composite)* | `retrievals` count + total docs retrieved | RAG / LlamaIndex patchers via `record_retrieval` | "N retrievals · M docs" (under E) |
+
+Composite: `100 × (P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05)`.
+
+Bands: `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming`.
+
+Gates (hard floors): if `G < 0.60` OR `R < 0.50` OR `V < 0.60` the score
+is **capped at 69** and flagged `unsafe = true` — visible as a red
+badge on the board and as a `gate_failures` array on the per-agent
+card.
+
+### Reading the per-agent card
+
+Click a board row to drill in. The card renders something like:
+
+```
+agent_id            chandra-finops
+score               96.4 / 100        ← post-gate final
+raw_score           96.4              ← pre-gate composite
+band                Exceptional
+unsafe              false
+coverage            7 / 7             ← how many of the 7 dims were measured
+gate_failures       []
+cap_reasons         []
+
+P — Productivity    1.000   1 run / baseline 1
+Q — Quality         0.920   Acc 0.95 · Con 0.90 · (1−Hal) 0.85
+E — Execution       1.000   14 successful / 14 attempts
+G — Governance      1.000   0 violations / 14 actions
+R — Risk            1.000   0 incidents
+V — Validation      1.000   14 validated / 14 required
+C — Cost            0.850   4 213 tokens · $0.004
+```
+
+`missing` and `coverage` are the two fields to watch on a first run:
+
+* `missing` lists dimensions with no signal yet (e.g. `["Q"]` while the
+  LangGraph evaluator is still running, or `["C"]` if you didn't push
+  tokens).
+* `coverage_capped = true` means the band was capped because fewer
+  than 5 dimensions were measured — the `cap_reasons` array names
+  the missing ones so you know which patcher to add.
+
+Once all 7 dimensions report at least one signal, the card shows the
+real composite and the board row stays in its true band.
 
 ---
 

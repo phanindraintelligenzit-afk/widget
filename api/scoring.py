@@ -34,6 +34,9 @@ def score_and_persist(
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
+    # Surface RAG signals (informational — doesn't affect score math).
+    rating.retrievals = obs.retrievals
+    rating.retrieved_docs_total = obs.retrieved_docs_total
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     return rating

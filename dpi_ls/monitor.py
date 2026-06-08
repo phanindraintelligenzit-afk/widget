@@ -231,7 +231,13 @@ def _try_agent_name(agent: Any) -> str | None:
 
 
 def _infer_framework_from_patches(patched: list[str]) -> str:
-    """Map the patched attribute paths back to a human framework name."""
+    """Map the patched attribute paths back to a human framework name.
+
+    Used by ``monitor()`` to stamp the collector's framework field
+    from the patched path list — the dispatcher in
+    ``frameworks/detect_and_install`` doesn't return the chosen
+    patcher, only the paths it produced.
+    """
     if not patched:
         return "unknown"
     joined = " ".join(patched).lower()
@@ -245,6 +251,17 @@ def _infer_framework_from_patches(patched: list[str]) -> str:
         return "crewai"
     if "agent.initiate" in joined or "agent.generate" in joined:
         return "autogen"
+    # LlamaIndex patches query/aquery/chat/achat/retrieve/aretrieve;
+    # if the retriever sub-attribute was wrapped the path includes
+    # "retriever." prefix.
+    if any(p in ("query", "aquery", "chat", "achat") for p in patched) or "retriever" in joined:
+        return "llama_index"
+    # RAG-only patcher — only retrieval methods were wrapped.
+    if any(p.startswith("retriever.") for p in patched) and all(
+        p.split(".")[-1] in {"retrieve", "aretrieve", "get_relevant_documents", "aget_relevant_documents"}
+        for p in patched
+    ):
+        return "rag"
     if "openai" in joined or "chat" in joined:
         return "openai"
     if "anthropic" in joined or "messages" in joined:

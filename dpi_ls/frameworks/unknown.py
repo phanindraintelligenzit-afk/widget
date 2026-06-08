@@ -34,8 +34,16 @@ _log = logging.getLogger("dpi_ls.frameworks.unknown")
 
 # Method names we treat as "run" entry points. Order matters only
 # for the order we check — first match wins.
+#
+# `query` / `aquery` cover frameworks that use "query" as the run verb:
+#   * Haystack pipelines: `pipeline.run()`, but query-shaped components
+#     like `Retriever.retrieve()` are wrapped by the RAGPatcher.
+#   * Google Vertex AI Agent Engine: `agent.query()` / `agent.stream_query()`.
+#   * Elasticsearch / OpenSearch clients (when used as agents).
+#   * Anything else that picked the SQL-flavoured name for "ask the agent".
 _CANDIDATE_METHODS: tuple[str, ...] = (
     "invoke", "ainvoke", "run", "arun", "kickoff", "akickoff", "call", "__call__",
+    "query", "aquery",
 )
 
 # Attribute we attach to the agent instance to share the mutable

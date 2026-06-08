@@ -75,6 +75,9 @@ EXAMPLES: list[tuple[str, str, str, str, str]] = [
     ("CrewAI 2-agent research crew",                  "crewai-research",     "examples.crewai_research",    "main",                  "sync"),
     ("AutoGen 0.7+ debate agent",                     "autogen-debate",      "examples.autogen_debate",     "main",                  "async"),
     ("Raw boto3 Bedrock agent",                       "raw-bedrock",         "examples.raw_bedrock",        "main",                  "sync"),
+    # Requires `pip install dpi-ls[llamaindex]`. Skipped at import time
+    # if llama-index-core isn't on the path.
+    ("LlamaIndex RAG agent",                          "llamaindex-rag",      "examples.llamaindex_rag",     "main",                  "async"),
 ]
 
 DASHBOARD_URL = os.environ.get("DPI_LS_URL", "http://127.0.0.1:8000")
@@ -162,8 +165,16 @@ def main() -> None:
     summary_rows: list[dict[str, Any]] = []
 
     for label, agent_id, module_name, attr, kind in EXAMPLES:
-        module = importlib.import_module(module_name)
-        fn = getattr(module, attr)
+        try:
+            module = importlib.import_module(module_name)
+            fn = getattr(module, attr)
+        except ImportError as e:
+            # Optional dependencies (e.g. llama-index-core) — skip the
+            # example cleanly with a one-line notice instead of
+            # blowing up the whole run.
+            print(f"\n=== {label} (agent_id={agent_id}) ===")
+            print(f"  ! skipped: missing dependency ({e})")
+            continue
         rating = _run_one(label, fn, kind, agent_id)
         _reset_state()
         if rating is not None:

@@ -20,3 +20,8 @@ class Rating(BaseModel):
     coverage: int = 0                     # len(dimensions_measured) — 0..7
     coverage_capped: bool = False         # True when band was capped due to low coverage
     cap_reasons: list[str] = Field(default_factory=list)  # human-readable explanation per cap
+
+    # RAG signals — populated from the observation's retrievals field.
+    # Doesn't affect the score; surfaced on the per-agent card.
+    retrievals: int = 0
+    retrieved_docs_total: int = 0

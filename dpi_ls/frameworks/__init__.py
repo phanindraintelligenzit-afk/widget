@@ -17,7 +17,9 @@ from .base import BasePatcher
 from .crewai import CrewAIPatcher
 from .langchain import LangChainPatcher
 from .langgraph import LangGraphPatcher
+from .llama_index import LlamaIndexPatcher
 from .openai_agents import OpenAIAgentsPatcher
+from .rag import RAGPatcher
 from .raw_anthropic import RawAnthropicPatcher
 from .raw_openai import RawOpenAIPatcher
 from .unknown import UnknownPatcher
@@ -55,13 +57,32 @@ def detect_framework(agent: Any) -> BasePatcher:
     # 5. AutoGen — historically under pyautogen or autogen.
     if "autogen" in module:
         return AutoGenPatcher()
-    # 6. Raw OpenAI client — openai.OpenAI / AsyncOpenAI.
+    # 6. LlamaIndex — top-level ``llama_index`` package, covers
+    #    ``llama_index.core`` (query engines, retrievers, indexes) and
+    #    the sub-packages ``llama_index.llms.*``, ``llama_index.embeddings.*``, etc.
+    if module.startswith("llama_index"):
+        return LlamaIndexPatcher()
+    # 7. Raw OpenAI client — openai.OpenAI / AsyncOpenAI.
     if module.startswith("openai") and hasattr(agent, "chat"):
         return RawOpenAIPatcher()
-    # 7. Raw Anthropic client — anthropic.Anthropic / AsyncAnthropic.
+    # 8. Raw Anthropic client — anthropic.Anthropic / AsyncAnthropic.
     if module.startswith("anthropic") and hasattr(agent, "messages"):
         return RawAnthropicPatcher()
-    # 8. Last resort — best-effort instrumentation.
+    # 9. Generic RAG — any retriever-shaped object, or anything with a
+    #    ``.retriever`` attribute. This covers LangChain RetrievalQA
+    #    chains, custom RAG chains, and standalone retrievers passed
+    #    directly to ``monitor()``. Runs BEFORE the unknown fallback
+    #    so RAG agents get RAG-specific instrumentation (retrievals
+    #    counted as tool calls) instead of the catch-all invoke/run wrap.
+    if not isinstance(agent, type):
+        if hasattr(agent, "retriever"):
+            return RAGPatcher()
+        # Standalone retriever — the user passed one directly. Detected
+        # by the presence of one of the standard retrieval methods.
+        from .rag import _is_retriever_shaped
+        if _is_retriever_shaped(agent):
+            return RAGPatcher()
+    # 10. Last resort — best-effort instrumentation.
     return UnknownPatcher()
 
 
@@ -76,7 +97,10 @@ def detect_and_install(agent: Any, collector: SignalCollector) -> list[str]:
     if not patched:
         # Patcher found nothing to instrument — fall back to the
         # unknown patcher so we at least capture the next user call.
-        if not isinstance(patcher, UnknownPatcher):
+        # Skip this when the agent is already a RAGPatcher match (a
+        # standalone retriever with no retrievable methods is a user
+        # error and we don't want to second-guess the routing).
+        if not isinstance(patcher, (UnknownPatcher, RAGPatcher)):
             _log.debug(
                 "%s patcher found nothing to instrument; falling back to best-effort.",
                 patcher.name,
@@ -91,7 +115,9 @@ __all__ = [
     "CrewAIPatcher",
     "LangChainPatcher",
     "LangGraphPatcher",
+    "LlamaIndexPatcher",
     "OpenAIAgentsPatcher",
+    "RAGPatcher",
     "RawAnthropicPatcher",
     "RawOpenAIPatcher",
     "UnknownPatcher",
