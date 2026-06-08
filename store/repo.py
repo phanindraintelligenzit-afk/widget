@@ -41,7 +41,7 @@ def upsert_agent(
         row = AgentRow(
             id=agent_id,
             name=agent_name,
-            baseline_human_output=baseline if baseline is not None else 100.0,
+            baseline_human_output=baseline if baseline is not None else 1.0,
         )
         s.add(row)
     else:

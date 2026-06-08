@@ -30,6 +30,14 @@ def test_upsert_agent_creates_then_updates():
     s.commit()
 
 
+def test_upsert_agent_uses_default_baseline_1_0():
+    """Default baseline should be 1.0 when none provided."""
+    s = _session()
+    agent = repo.upsert_agent(s, "default-agent", "Default Agent")
+    assert agent.baseline_human_output == 1.0
+    s.commit()
+
+
 def test_save_observation_and_score_round_trip():
     s = _session()
     obs = load("strong")

@@ -48,3 +48,22 @@ def test_otel_end_to_end():
     assert r.metrics["G"] == 0.75
     assert r.gate_failures == []
     assert 0 < r.score <= 100
+
+
+def test_productivity_with_default_baseline_1_0():
+    """Test P calculation with default baseline of 1.0."""
+    from fixtures import load
+
+    obs = load("strong")
+    settings = Settings()
+    # Use default baseline of 1.0
+    baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=1.0)
+
+    metrics = metrics_from_observation(obs, settings, baseline)
+
+    # Strong fixture has completed=1, so P should be 1/1.0 = 1.0
+    assert metrics["P"] == 1.0
+
+    r = rate(metrics)
+    assert r.unsafe is False
+    assert r.metrics["P"] == 1.0
