@@ -166,11 +166,13 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
 
 
 def _score_row_to_rating(row) -> Rating:
-    # Convert database format back to new Rating schema
-    dimensions_measured_count = len(row.dimensions_measured or [])
-    coverage_float = round(dimensions_measured_count / 7, 3)
-    cap_reason = row.cap_reasons[0] if row.cap_reasons else None
-
+    # Persist the typed columns straight through — the DB and the
+    # contract use the same field types (int count, float ratio,
+    # list[str] reasons). The DB column ``coverage_capped`` and the
+    # contract's ``capped`` field are aliases; surface both.
+    cap_reasons_list = list(row.cap_reasons or [])
+    cap_reason = cap_reasons_list[0] if cap_reasons_list else None
+    coverage_capped = bool(row.coverage_capped)
     return Rating(
         score=row.score,
         raw_score=row.raw_score,
@@ -179,10 +181,12 @@ def _score_row_to_rating(row) -> Rating:
         gate_failures=list(row.gate_failures or []),
         metrics=dict(row.metrics or {}),
         missing=list(row.missing or []),
-        dimensions_measured=dimensions_measured_count,  # Convert list length to int
-        coverage=coverage_float,                       # Convert int coverage back to float
-        capped=bool(row.coverage_capped),             # Map coverage_capped to capped
-        cap_reason=cap_reason,                        # Convert list to single string
+        dimensions_measured=int(row.dimensions_measured or 0),
+        coverage=float(row.coverage or 0.0),
+        capped=coverage_capped,
+        cap_reason=cap_reason,
+        coverage_capped=coverage_capped,
+        cap_reasons=cap_reasons_list,
     )
 
 

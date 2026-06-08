@@ -107,10 +107,13 @@ def save_score(
     observation_id: int,
     rating: Rating,
 ) -> ScoreRow:
-    # Convert new Rating fields to old database schema format
-    measured_keys = [k for k, v in rating.metrics.items() if v is not None]
-    cap_reasons_list = [rating.cap_reason] if rating.cap_reason else []
-
+    # Persist the rating's typed fields straight through — the contract
+    # is the source of truth. The DB columns match the Pydantic model
+    # field types (int count, float ratio, list[str] reasons).
+    cap_reasons_list = (
+        list(rating.cap_reasons) if rating.cap_reasons
+        else ([rating.cap_reason] if rating.cap_reason else [])
+    )
     row = ScoreRow(
         agent_id=agent_id,
         observation_id=observation_id,
@@ -121,10 +124,10 @@ def save_score(
         gate_failures=list(rating.gate_failures),
         metrics=dict(rating.metrics),
         missing=list(rating.missing),
-        dimensions_measured=measured_keys,  # Convert int dimensions_measured to list of keys
-        coverage=int(rating.coverage * 7),  # Convert float coverage to int (dimensions count)
-        coverage_capped=rating.capped,     # Map capped to coverage_capped
-        cap_reasons=cap_reasons_list,      # Convert single string to list
+        dimensions_measured=int(rating.dimensions_measured),
+        coverage=float(rating.coverage),
+        coverage_capped=bool(rating.capped or rating.coverage_capped),
+        cap_reasons=cap_reasons_list,
     )
     s.add(row)
     s.flush()

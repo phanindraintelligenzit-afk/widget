@@ -1,52 +1,209 @@
 # DPI-LS — Digital FTE Performance Index
 
-Score any AI agent in real time on a 0–100 index across 7 performance dimensions,
-with hard compliance gates and a live embeddable dashboard.
+> **Score any AI agent in real time on a 0–100 index across 7 performance
+> dimensions, with hard compliance gates and a live embeddable dashboard.**
 
-The pitch: *"two lines of code — I'll score your agent live."*
+The pitch: *two lines of code — and the agent shows up on a live board,
+rated across P, Q, E, G, R, V, C, with safety gates that fire automatically.*
 
-The design rationale, hard requirements, and the full scoring spec live in
-[CLAUDE.md](./CLAUDE.md). This README is the runbook.
+The engine is **agent-agnostic** — it consumes a canonical
+`AgentObservation` schema and never imports an agent framework. The
+`dpi_ls` instrumentation package wraps a framework's run methods, builds
+the observation, and POSTs it to the same engine the REST API uses.
+Onboarding a new agent = a new adapter (or a YAML mapping). Never an
+engine change.
+
+The design rationale, hard requirements, and the full scoring spec
+live in [CLAUDE.md](./CLAUDE.md). This README is the runbook.
+
+## Why DPI-LS
+
+* **One number for the whole agent.** A weighted geometric mean of
+  P, Q, E, G, R, V, C — a single score a CFO can quote, with the
+  full breakdown on the dashboard.
+* **Hard safety gates.** A single PII leak drops the agent to
+  "Needs Optimization" with an `unsafe` flag, regardless of how
+  strong the other dimensions are. The gates don't soften, and the
+  dashboard shows the flag.
+* **Coverage-aware.** A C-only agent (just one source feeding) can
+  score 90 on its raw C, but the band is held at "Needs Optimization"
+  until enough dimensions report. No false "Strong" labels.
+* **Framework-agnostic by contract.** A canonical Pydantic schema is
+  the only thing the engine ever sees. Adapters translate from
+  LangChain, LangGraph, CrewAI, LlamaIndex, AutoGen, raw OpenAI, raw
+  Anthropic, or anything with an `invoke` method.
+* **Universal fallback.** No adapter? Drop a YAML field mapping in
+  `MAPPINGS_DIR` or emit OTel spans — the engine scores the agent
+  with zero new code.
 
 ---
 
-## The dashboard
+## Contents
+
+- [Live demo](#live-demo)
+- [Quick start](#quick-start)
+- [The two-line integration](#the-two-line-integration)
+- [The 7 dimensions](#the-7-dimensions)
+- [Architecture](#architecture)
+  - [System overview](#system-overview)
+  - [Project structure](#project-structure)
+  - [The two-line flow](#the-two-line-flow)
+  - [Framework detection](#framework-detection)
+  - [Scoring pipeline](#scoring-pipeline)
+  - [RAG signal flow](#rag-signal-flow)
+  - [The 7-dimension map](#the-7-dimension-map)
+- [The `dpi_ls` package](#the-dpi_ls-package)
+- [Framework integration recipes](#framework-integration-recipes)
+- [Reading the per-agent card](#reading-the-per-agent-card)
+- [Data flow](#data-flow)
+- [The DPI-LS score — formula reference](#the-dpi-ls-score--formula-reference)
+- [API surface](#api-surface)
+- [Onboarding a new agent or source](#onboarding-a-new-agent-or-source)
+- [Configuration](#configuration)
+- [Running the tests](#running-the-tests)
+- [Key implementation notes](#key-implementation-notes)
+- [What's intentionally not done](#whats-intentionally-not-done)
+
+## Live demo
 
 This is what `dpi_ls` renders the moment you open `http://localhost:8000/`
 after running any of the examples in `examples/`:
 
 ![DPI-LS live dashboard — board of all agents on the left, per-agent 7-dimension card on the right](images/image.png)
 
-*Board of all agents* (left) shows one row per scored agent with the
-composite score, the band, and a red `unsafe` badge when a
-compliance gate fired. *Per-agent card* (right) renders all 7
-normalized sub-scores plus coverage, gate failures, and cap reasons.
-*SME quality capture* panel (bottom-right) lets a subject-matter
-expert record Q in five conversational steps.
+The **board** (left) shows one row per scored agent with the composite
+score, the band, and a red `unsafe` badge when a compliance gate fired.
+The **per-agent card** (right) renders all 7 normalized sub-scores plus
+coverage, gate failures, and cap reasons. The **SME quality capture**
+panel (bottom-right) lets a subject-matter expert record Q in three
+conversational steps.
 
-The widget is one vanilla-JS file (`widget/dpi-ls.js`, 648 lines) and
+The widget is one vanilla-JS file (`widget/dpi-ls.js`, ~650 lines) and
 embeds into any host page with a single `<script>` tag — no framework,
 no build step.
 
 ---
 
-## What's new — `dpi_ls` instrumentation package
+## Quick start
 
-On top of the original FastAPI scoring engine, this repo now ships a
-**Python instrumentation package** (`dpi_ls/`) that lets you monitor any
-AI agent with two lines of code:
+Requires **Python 3.11+** and **`uv`** (or `pip`).
+
+```bash
+git clone <repo-url> dpi-ls
+cd dpi-ls
+uv sync                                    # runtime + dev deps
+```
+
+### Option A — run the demo dashboard only
+
+```bash
+uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
+./scripts/demo_seed.sh                     # seeds the board with fixtures
+```
+
+Open **http://localhost:8000/** — redirects to `/widget/demo.html`. You
+should see the board, per-agent card, and SME quality capture panel
+exactly as in the [screenshot above](#live-demo).
+
+### Option B — run an example agent (end-to-end)
+
+```bash
+uv run examples/test_agent.py              # needs AWS Bedrock access
+```
+
+Starts the dashboard in the background, runs the Chandra FinOps agent,
+evaluates Q with the LangGraph LLM evaluator, and POSTs the scored
+observation. Expected final score: **95–99 / 100, band: Exceptional**.
+
+---
+
+## The two-line integration
 
 ```python
 import dpi_ls
 
-collector = dpi_ls.monitor(agent, agent_id="my-agent", human_baseline=1)
-# ... run your agent normally ...
+collector = dpi_ls.monitor(my_agent, agent_id="my-agent", human_baseline=1)
+# ... your existing agent code, completely unchanged ...
 ```
 
-`dpi_ls.monitor()` auto-detects the framework, installs hooks, boots the
-dashboard in a background thread, and POSTs the final `AgentObservation`
-to `/ingest` on exit — using the **exact same `engine/` scoring math**
-as the REST API. No scoring logic is duplicated.
+That's the whole integration. `dpi_ls.monitor()` auto-detects the
+framework from the object you pass, installs the matching hooks,
+boots the dashboard in a background thread, and on `atexit` POSTs the
+final `AgentObservation` to `/ingest` — which the widget renders as
+the 7 dimensions on the board. On script exit, `dpi_ls` evaluates Q,
+builds the canonical observation, and the dashboard row for
+`my-agent` populates within ~3 seconds.
+
+---
+
+## The 7 dimensions
+
+| Dim | What it measures | Source signal | Dashboard card line |
+|---|---|---|---|
+| **P** — Productivity | `min(1, agent_runs / human_baseline)` | top-level `Runner.run` / `kickoff` / `ainvoke` count | "N completed / baseline M" |
+| **Q** — Quality | `0.7·Acc + 0.2·Con + 0.1·(1−Hal)` | LangGraph LLM evaluator on the last N agent prose outputs | "Acc / Con / (1−Hal)" triple |
+| **E** — Execution | `successful_calls / attempts` | LLM + tool call success rate | "X successful / Y attempts" |
+| **G** — Governance | `1 − violations / total_actions` | deterministic policy scan (PII, auth errors, secrets, prompt-injection) on every output | "V violations / A actions" |
+| **R** — Risk | `1 − min(1, Σ(freq×sev) / R_max)` | recorded exceptions and incidents | "I incidents (ΣW = …)" |
+| **V** — Validation | `validated / required` | JSON / Markdown `##` headers / `<answer>` / `\| tables \|` detector | "V validated / R required" |
+| **C** — Cost | `min(1, human_cost / AI_cost) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
+| **RAG signals** *(informational)* | `retrievals` count + total docs retrieved | RAG / LlamaIndex patchers via `record_retrieval` | "N retrievals · M docs" (under E) |
+
+**Composite — weighted geometric mean:**
+
+```
+DPI-LS = 100 × ( P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05 )
+```
+
+**Bands:** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization ·
+<50 Underperforming`.
+
+**Hard compliance gates:** if `G < 0.60` OR `R < 0.50` OR `V < 0.60` the
+score is **capped at 69** and flagged `unsafe = true` — visible as a
+red badge on the board and as a `gate_failures` array on the per-agent
+card.
+
+> The full formula reference, including vacuous-safe defaults, the
+> completeness cap, and the four spec reference outputs, lives in
+> [The DPI-LS score — formula reference](#the-dpi-ls-score--formula-reference) below.
+
+---
+
+## Reading the per-agent card
+
+Click a board row to drill in. The card renders something like:
+
+```
+agent_id            chandra-finops
+score               96.4 / 100        ← post-gate final
+raw_score           96.4              ← pre-gate composite
+band                Exceptional
+unsafe              false
+coverage            7 / 7             ← how many of the 7 dims were measured
+gate_failures       []
+cap_reasons         []
+
+P — Productivity    1.000   1 run / baseline 1
+Q — Quality         0.920   Acc 0.95 · Con 0.90 · (1−Hal) 0.85
+E — Execution       1.000   14 successful / 14 attempts
+G — Governance      1.000   0 violations / 14 actions
+R — Risk            1.000   0 incidents
+V — Validation      1.000   14 validated / 14 required
+C — Cost            0.850   4 213 tokens · $0.004
+```
+
+`missing` and `coverage` are the two fields to watch on a first run:
+
+* `missing` lists dimensions with no signal yet (e.g. `["Q"]` while the
+  LangGraph evaluator is still running, or `["C"]` if you didn't push
+  tokens).
+* `coverage_capped = true` means the band was capped because fewer
+  than 4 dimensions were measured (or any of G/R/V is missing) —
+  the `cap_reasons` array names the missing ones so you know which
+  patcher to add.
+
+Once all 7 dimensions report at least one signal, the card shows the
+real composite and the board row stays in its true band.
 
 ---
 
@@ -181,7 +338,7 @@ dpi-ls/
 │
 ├── fixtures/         Sample observations + a sample YAML mapping (mock-first dev)
 ├── examples/         End-to-end demo agents (one per supported framework)
-└── tests/            203 tests, < 12 seconds
+└── tests/            232 tests, < 12 seconds
 ```
 
 ### The two-line flow
@@ -244,7 +401,7 @@ sequenceDiagram
     end
 ```
 
-### Framework detection — how `monitor(agent)` picks a patcher
+### Framework detection
 
 Detection is by **module name** (no `isinstance` against concrete
 classes — the engine never imports a framework).
@@ -284,7 +441,7 @@ call. A second `monitor()` call with a new collector swaps the active
 collector via the shared `_dpi_ls_collector_ref` (used by
 `UnknownPatcher`, `LlamaIndexPatcher`, and `RAGPatcher`).
 
-### Scoring pipeline — observation → 7 metrics → composite → band
+### Scoring pipeline
 
 The engine is pure functions over a normalized observation. Nothing
 imports an agent framework, nothing calls out to the network.
@@ -318,7 +475,7 @@ flowchart LR
     Cap --> Band
     Final --> Band["band()<br/>85+ Exceptional<br/>70-84 Strong<br/>50-69 Needs Opt<br/><50 Underperforming"]
 
-    Band --> Rating["Rating<br/>+ coverage check<br/>(<5 dims = band cap)"]
+    Band --> Rating["Rating<br/>+ coverage check<br/>(<4 dims = band cap)"]
 ```
 
 The `min_dimensions_for_full_band` setting (default 5) prevents an
@@ -326,7 +483,7 @@ agent with only one or two reported dimensions from scoring 100 —
 the band is capped at *Needs Optimization* until at least 5 of 7
 dimensions report a signal.
 
-### RAG signal flow — why retrieval is its own signal
+### RAG signal flow
 
 In a RAG agent, the retriever and the synthesizer do very different
 things. The instrumentation treats them separately so the per-agent
@@ -372,7 +529,7 @@ sequenceDiagram
 evaluator does NOT — raw corpus text would otherwise drown the
 evaluator in noise.
 
-### The 7-dimension map — which source signals feed which dimension
+### The 7-dimension map
 
 ```mermaid
 graph LR
@@ -418,46 +575,6 @@ judge (the `evaluator.py` LangGraph node). When the LLM is
 unreachable, the deterministic `heuristics.py` fallback produces a
 rough but non-zero Q so the composite doesn't drop one dimension
 to "needs input".
-
----
-
-## Quick start
-
-Requires Python 3.11+, `uv` (or `pip`).
-
-```bash
-git clone <repo-url> dpi-ls
-cd dpi-ls
-
-# Install everything (runtime + dev deps)
-uv sync          # or: pip install -e ".[dev]"
-```
-
-### Option A — run the demo dashboard only
-
-```bash
-uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
-```
-
-Seed the board with fixture data:
-
-```bash
-./scripts/demo_seed.sh
-```
-
-Open **http://localhost:8000/** — redirects to the live demo at `/widget/demo.html`. You should see the board, per-agent card, and SME quality capture panel exactly as in [the screenshot above](#the-dashboard).
-
-### Option B — run the example agent (end-to-end)
-
-Requires AWS credentials with Bedrock access (`AWS_ACCESS_KEY_ID`, etc.):
-
-```bash
-uv run examples/test_agent.py
-```
-
-This starts the dashboard automatically, runs the Chandra FinOps agent,
-evaluates Q with a LangGraph LLM evaluator, and POSTs the scored
-observation. Expected final score: **95–99 / 100, band: Exceptional**.
 
 ---
 
@@ -518,7 +635,7 @@ Falls back to a deterministic heuristic if the LLM is unreachable.
 
 ---
 
-## Framework integration — copy-paste recipes
+## Framework integration recipes
 
 `dpi_ls.monitor(agent, agent_id=...)` is the **single entry point** for every framework. It auto-detects the framework from the object you pass, installs the matching patcher, starts the dashboard in a background thread, and on `atexit` POSTs the final `AgentObservation` to `/ingest` — which the widget then renders as the 7 dimensions on the board.
 
@@ -809,77 +926,7 @@ Each `agent_id` lands as a separate row on the board.
 
 ---
 
-## The 7 dimensions — what the dashboard shows
-
-After your script exits, the dashboard at **http://127.0.0.1:8000/**
-shows two custom elements:
-
-* `<dpi-ls-board>` — one row per agent, polling `/ratings` every 3 s.
-  Each row shows: `agent_id`, composite `score / 100`, `band`, an
-  `unsafe` badge (red) if a compliance gate fired, and the timestamp.
-* `<dpi-ls-agent>` — the per-agent card, polling
-  `/agents/{id}/score`. Click a board row to populate it. Renders all
-  7 normalised sub-scores plus coverage, gate failures, and cap
-  reasons.
-
-| Dim | What `dpi_ls` measures | Source signal | Dashboard card line |
-|---|---|---|---|
-| **P — Productivity** | `min(1, agent_runs / human_baseline)` | top-level `Runner.run` / `kickoff` / `ainvoke` count | "N completed / baseline M" |
-| **Q — Quality** | `0.7·Acc + 0.2·Con + 0.1·(1−Hal)` | LangGraph evaluator on the last N agent prose outputs | "Acc / Con / (1−Hal)" triple |
-| **E — Execution** | `successful / attempts` | LLM + tool call success rate | "X successful / Y attempts" |
-| **G — Governance** | `1 − violations / total_actions` | deterministic policy scan (PII, auth errors, …) on every output | "V violations / A actions" |
-| **R — Risk** | `1 − min(1, Σ(freq×sev) / R_max)` | recorded exceptions and incidents | "I incidents (ΣW = …)" |
-| **V — Validation** | `validated / required` | JSON / Markdown / `<answer>` / tables detector | "V validated / R required" |
-| **C — Cost** | `min(1, human_cost / AI_cost) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
-| **RAG signals** *(informational, not in the composite)* | `retrievals` count + total docs retrieved | RAG / LlamaIndex patchers via `record_retrieval` | "N retrievals · M docs" (under E) |
-
-Composite: `100 × (P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05)`.
-
-Bands: `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming`.
-
-Gates (hard floors): if `G < 0.60` OR `R < 0.50` OR `V < 0.60` the score
-is **capped at 69** and flagged `unsafe = true` — visible as a red
-badge on the board and as a `gate_failures` array on the per-agent
-card.
-
-### Reading the per-agent card
-
-Click a board row to drill in. The card renders something like:
-
-```
-agent_id            chandra-finops
-score               96.4 / 100        ← post-gate final
-raw_score           96.4              ← pre-gate composite
-band                Exceptional
-unsafe              false
-coverage            7 / 7             ← how many of the 7 dims were measured
-gate_failures       []
-cap_reasons         []
-
-P — Productivity    1.000   1 run / baseline 1
-Q — Quality         0.920   Acc 0.95 · Con 0.90 · (1−Hal) 0.85
-E — Execution       1.000   14 successful / 14 attempts
-G — Governance      1.000   0 violations / 14 actions
-R — Risk            1.000   0 incidents
-V — Validation      1.000   14 validated / 14 required
-C — Cost            0.850   4 213 tokens · $0.004
-```
-
-`missing` and `coverage` are the two fields to watch on a first run:
-
-* `missing` lists dimensions with no signal yet (e.g. `["Q"]` while the
-  LangGraph evaluator is still running, or `["C"]` if you didn't push
-  tokens).
-* `coverage_capped = true` means the band was capped because fewer
-  than 5 dimensions were measured — the `cap_reasons` array names
-  the missing ones so you know which patcher to add.
-
-Once all 7 dimensions report at least one signal, the card shows the
-real composite and the board row stays in its true band.
-
----
-
-## Data flow — how `dpi_ls` uses the project's engine
+## Data flow
 
 ```
 Your agent code
@@ -908,45 +955,59 @@ do for the REST API and the webhook adapters.
 
 ---
 
-## The DPI-LS score
+## The DPI-LS score — formula reference
 
-Each sub-metric normalises to [0, 1]:
+Each sub-metric normalises to [0, 1]. The composite is a **weighted geometric
+mean** — not a weighted sum — so a single 0.0 dimension pulls the score down
+disproportionately (and the gates handle the "stop the world" case).
 
-| Metric | Formula | What `dpi_ls` measures |
-|---|---|---|
-| **P** — Productivity | `min(1, agent_runs / human_baseline)` | Completed agent runs vs human_baseline |
-| **Q** — Quality | `0.70·Acc + 0.20·Con + 0.10·(1−Hal)` | LangGraph LLM evaluator over agent prose outputs |
-| **E** — Execution | `successful_calls / attempts` | LLM + tool call success rate |
-| **G** — Governance | `1 − (violations / total_actions)` | Policy scan on every output (PII, auth errors, etc.) |
-| **R** — Risk | `1 − min(1, Σ(freq×sev) / R_max)` | Recorded incidents / errors |
-| **V** — Validation | `validated / required` | Structured outputs: JSON, Markdown with `##` headers or `\| tables \|` |
-| **C** — Cost | `min(1, human_cost / AI_cost) × utilization` | Token-estimated cost vs human_cost_per_output |
+### Per-dimension formula
 
-Composite — weighted geometric mean:
+| Dim | Formula | Vacuous default | What it captures |
+|---|---|---|---|
+| **P** — Productivity | `min(1, agent_runs / human_baseline)` | 0.0 (no baseline) | Completed agent runs vs `human_baseline` from `Settings` |
+| **Q** — Quality | `0.70·Acc + 0.20·Con + 0.10·(1−Hal)` | n/a (always computed) | LangGraph LLM evaluator scores the last N agent prose outputs |
+| **E** — Execution | `successful_calls / attempts` | 0.0 (no attempts) | LLM + tool call success rate |
+| **G** — Governance | `1 − (violations / total_actions)` | **1.0** (no actions = no violations) | Deterministic policy scan on every output (PII, auth errors, etc.) |
+| **R** — Risk | `1 − min(1, Σ(freq×sev) / R_max)` | **1.0** (no incidents = no risk) | Recorded exceptions and incidents |
+| **V** — Validation | `validated / required` | **1.0** (no required = nothing to validate) | Structured outputs: JSON, Markdown with `##` headers or `\| tables \|` |
+| **C** — Cost | `min(1, human_cost / AI_cost) × utilization` | 0.0 (no AI cost = no saving to credit) | Token-estimated cost vs `human_cost_per_output` |
+
+> **Vacuous-safe**: G, R, V return `1.0` when no actions / incidents / required
+> components are declared, so a brand-new agent that has not yet had the
+> chance to violate anything starts at 1.0 on those dimensions — and the
+> gate floor of 0.60 is automatically met.
+
+### Composite
 
 ```
 DPI-LS = 100 · ( P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05 )
 ```
 
-**Hard compliance gates.** If `G < 0.60` OR `R < 0.50` OR `V < 0.60`, the score
+### Hard compliance gates
+
+If `G < 0.60` OR `R < 0.50` OR `V < 0.60`, the score
 is capped at 69 (top of *Needs Optimization*) and flagged Unsafe — regardless
 of the raw composite. A gate firing caps the band at "Needs Optimization" and
 the Rating must distinguish capped-by-gate vs an organic 50-69 score via the
 `capped` flag and gate failure indicators.
 
 **Completeness caps.** A rating may exceed "Needs Optimization" band ONLY IF:
-(a) none of G, R, V are missing, AND (b) dimensions_measured >= 4. If either
+(a) none of G, R, V are missing, AND (b) `dimensions_measured >= 4`. If either
 fails, the band is capped to "Needs Optimization" with `capped=True` and
 `cap_reason="low-coverage"`. This is independent of compliance gates and
 applied after them.
 
-**Bands.** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming/Unsafe`.
+**Bands.** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming`.
 
-**Reference outputs** (asserted in `tests/test_engine_reference.py`):
-**Hard compliance gates.** If `G < 0.60` OR `R < 0.50` OR `V < 0.60`,
-the score is capped at 69 (top of *Needs Optimization*) and flagged `unsafe=true`.
+**Reference outputs** (asserted in `tests/test_engine_reference.py` and `tests/test_engine_formulas.py`):
 
-**Bands.** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming`
+| Input | Expected output |
+|---|---|
+| all metrics = 0.85 | composite = 85, band = Exceptional |
+| all metrics = 0.92 | composite = 92, band = Exceptional |
+| all metrics = 0.55 | composite = 55, band = Needs Optimization |
+| all metrics = 0.85, G = 0.25 | raw = 67, gate fires, `unsafe=True`, band = Needs Optimization |
 
 ---
 
@@ -1052,7 +1113,7 @@ the `settings` DB table — fetch/write via `GET /settings` and `PUT /settings`.
 uv run pytest           # or: pytest
 ```
 
-**180 tests, < 7 seconds.** All pass. Key test files:
+**232 tests, < 12 seconds.** All pass. Key test files:
 
 | File | What it covers |
 |---|---|
@@ -1062,57 +1123,6 @@ uv run pytest           # or: pytest
 | `tests/test_dpi_ls_end_to_end.py` | Full monitor() → POST /ingest → score round-trip |
 | `tests/test_api_*.py` | FastAPI routes, ingest, settings, SME flow |
 | `tests/test_ingestion_*.py` | Webhook adapter, OTel, source adapters |
-
----
-
-## Repo layout
-
-```
-contract/           Pydantic models — AgentObservation, PartialObservation
-engine/             PURE scoring. No I/O. Never edit.
-  metrics.py        compute_P, Q, E, G, R, V, C
-  score.py          rate() — weighted geometric mean + gate + band
-  gates.py          G/R/V hard compliance gates
-  bands.py          Exceptional / Strong / Needs Optimization / Underperforming
-  sme_flow.py       Conversational Q state machine
-ingestion/
-  generic/          GenericWebhookAdapter (YAML mapping) + OTelAdapter
-  sources/          aws_cost, puvi_noise, arize, servicenow, jira + stubs
-api/                FastAPI app, routes, orchestration, bootstrap
-  app.py            All route handlers
-  scoring.py        score_and_persist() — the bridge between API and engine
-  bootstrap.py      Adapter registration, DB init
-store/              SQLAlchemy models + repo
-  models.py         AgentRow, ObservationRow, ScoreRow, SettingsRow, …
-  repo.py           upsert_agent, save_observation, save_score, get_settings
-dpi_ls/             Instrumentation package — two-line agent monitoring
-  __init__.py       Public API: monitor(), evaluate_quality()
-  monitor.py        Entry point — framework detection, server boot, atexit
-  collector.py      SignalCollector — accumulates P/Q/E/G/R/V/C signals
-  evaluator.py      LangGraph Q evaluator (accuracy, consistency, hallucination)
-  heuristics.py     Deterministic Q fallback when LLM is unreachable
-  poster.py         post_observation() — POSTs AgentObservation to /ingest
-  server.py         Background uvicorn launcher (idempotent, daemon thread)
-  policy.py         Deterministic G policy scan (PII, auth errors, …)
-  _state.py         Process-wide collector singleton
-  frameworks/       Framework-specific patchers
-    base.py         BasePatcher, _safe_text, _safe_iter_tokens
-    openai_agents.py  OpenAI Agents SDK (Runner.run hooks + agent run counter)
-    langchain.py    LangChain Runnable wrapper
-    langgraph.py    LangGraph compiled graph wrapper
-    crewai.py       CrewAI Crew wrapper
-    autogen.py      AutoGen ConversableAgent wrapper
-    raw_openai.py   Raw openai.OpenAI / AsyncOpenAI client
-    raw_anthropic.py  Raw anthropic.Anthropic client
-    unknown.py      Best-effort fallback for unrecognized objects
-widget/             dpi-ls.js (vanilla web components) + demo.html
-fixtures/           Synthetic payloads used by tests and the demo seed
-tests/              180 tests
-examples/
-  test_agent.py     End-to-end Chandra FinOps agent (OpenAI Agents + Bedrock)
-scripts/
-  demo_seed.sh      Seeds the board with fixture data
-```
 
 ---
 
