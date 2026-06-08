@@ -41,7 +41,7 @@ class Settings(BaseModel):
     # agent with only 1–2 dimensions reported could otherwise score 100. This
     # threshold caps the band at "Needs Optimization" when coverage is below
     # the floor, with the reason surfaced on the Rating.
-    min_dimensions_for_full_band: int = 5
+    min_dimensions_for_full_band: int = 4
 
 
 class AgentBaseline(BaseModel):
