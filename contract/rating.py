@@ -31,7 +31,7 @@ Doesn't affect the score; surfaced on the per-agent card.
 """
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,7 @@ class Rating(BaseModel):
     unsafe: bool                          # any compliance gate fired (G/R/V floors)
     gate_failures: list[str] = Field(default_factory=list)
     metrics: dict[str, Optional[float]]   # the 7 normalized inputs (any may be None)
+    sub_metrics: dict[str, Any] = Field(default_factory=dict)  # raw components for the UI
     missing: list[str] = Field(default_factory=list)  # metric keys not yet observed
 
     # Coverage — guards against "score 100 from only one dimension reported."

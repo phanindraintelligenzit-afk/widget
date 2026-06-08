@@ -37,7 +37,7 @@ _PROMPTS: dict[str, str] = {
         "These may include raw data from tool calls (e.g. JSON API responses) "
         "followed by the agent's final analysis or answer. "
         "Focus your evaluation on the agent's analysis and recommendations, "
-        "NOT on the raw tool data — the tool data is ground truth. "
+        "NOT on the raw tool data \u2014 the tool data is ground truth. "
         "Score accuracy from 0.0 (analysis is mostly wrong or contradicts the data) "
         "to 1.0 (analysis accurately reflects the data and makes sound conclusions). "
         "Respond with a single line: SCORE: <number between 0 and 1>."
@@ -46,35 +46,63 @@ _PROMPTS: dict[str, str] = {
         "You are a quality evaluator measuring internal consistency. "
         "Given the outputs an AI agent produced in one run (which may include "
         "raw tool results and a final analysis), evaluate whether the final "
-        "analysis is logically consistent — no contradictions, "
+        "analysis is logically consistent \u2014 no contradictions, "
         "coherent reasoning, conclusions that follow from the data. "
         "Score 0.0 (many contradictions) to 1.0 (fully consistent). "
         "Respond with a single line: SCORE: <number between 0 and 1>."
     ),
-    "hallucination": (
-        "You are a quality evaluator measuring hallucination rate. "
-        "Given the outputs an AI agent produced (tool results + final analysis), "
-        "estimate what fraction of statements in the FINAL ANALYSIS are fabricated — "
-        "i.e., claims NOT supported by the tool data provided. "
-        "0.0 = no hallucinations (everything is grounded in the data), "
-        "1.0 = everything is fabricated. "
-        "Note: reasonable interpretations and recommendations based on the data "
-        "are NOT hallucinations. Only flag claims that directly contradict or "
-        "have no basis in the provided data. "
-        "Respond with a single line: SCORE: <number between 0 and 1>."
-    ),
 }
+
+# Hallucination prompt when source data IS available (the meaningful path).
+# {source_block} is replaced with the labelled source data at eval time.
+_HALLUCINATION_PROMPT_WITH_SOURCE = (
+    "You are a quality evaluator measuring hallucination rate for an AI agent.\n"
+    "Below is the CONTEXT the agent was given (input task + any retrieved / tool data),"
+    " followed by the agent's OUTPUT.\n\n"
+    "=== CONTEXT (ground truth the agent had access to) ===\n"
+    "{source_block}\n\n"
+    "=== AGENT OUTPUT ===\n"
+    "{output_block}\n\n"
+    "Estimate what fraction of SPECIFIC FACTUAL CLAIMS in the agent's output are NOT "
+    "grounded in \u2014 or directly contradict \u2014 the above context.\n"
+    "\u2022 General knowledge claims (widely-known facts) that match the context count as grounded.\n"
+    "\u2022 Only flag claims about specific details that contradict or have no basis in the provided context.\n"
+    "\u2022 0.0 = all claims grounded in the context.\n"
+    "\u2022 1.0 = the output is entirely fabricated / contradicts the source.\n"
+    "Respond with exactly one line: SCORE: <number between 0 and 1>"
+)
+
+# Fallback hallucination prompt when NO source data was captured.
+# The LLM can only do a general plausibility check \u2014 less precise.
+_HALLUCINATION_PROMPT_NO_SOURCE = (
+    "You are a quality evaluator measuring hallucination rate for an AI agent.\n"
+    "You have ONLY the agent's output \u2014 no original source data was captured.\n"
+    "Assess whether the output contains internally inconsistent, implausible, or "
+    "self-contradicting factual claims that are likely to be fabricated.\n"
+    "\u2022 0.0 = output appears internally consistent and plausible (low hallucination risk).\n"
+    "\u2022 1.0 = output contains many implausible or self-contradicting claims.\n"
+    "NOTE: Without ground-truth source data this score is a rough estimate only.\n"
+    "Respond with exactly one line: SCORE: <number between 0 and 1>\n\n"
+    "Agent output:\n\n{output_block}"
+)
 
 
 class QState(TypedDict, total=False):
     """LangGraph state. The three scoring nodes write their slots;
-    ``_outputs`` and ``_llm`` are inputs set by ``evaluate_quality``."""
+    ``_outputs``, ``_llm``, and ``_source_data`` are inputs set by
+    ``evaluate_quality``.
+
+    Note: the internal key is ``hallucination`` (matching ``_PROMPTS`` and
+    ``_NODE_ORDER``); it is mapped to ``QResult.hallucination_rate`` at the
+    end of ``evaluate_quality``.
+    """
 
     _outputs: list[str]
     _llm: Any  # ChatBedrockConverse instance
+    _source_data: list[str]  # ground-truth context for hallucination scoring
     accuracy: Optional[float]
     consistency: Optional[float]
-    hallucination_rate: Optional[float]
+    hallucination: Optional[float]  # internal name; see note above
     error: Optional[str]
 
 
@@ -86,33 +114,53 @@ class QResult:
     source: str  # "llm" or "heuristic"
 
 
-def evaluate_quality(outputs: list[str], *, timeout: float = 60.0) -> QResult:
+def evaluate_quality(
+    outputs: list[str],
+    *,
+    source_data: list[str] | None = None,
+    timeout: float = 60.0,
+) -> QResult:
     """Run the LangGraph evaluator over a set of agent outputs.
 
-    Synchronous — wraps the async LLM calls in ``asyncio.run``. Falls
+    Args:
+        outputs:     Agent output texts (final answers/analyses).
+        source_data: The input task + retrieved docs the agent had access to.
+                     When supplied, the hallucination node cross-references
+                     the agent's claims against this context for a meaningful
+                     score. When None, a general plausibility check is used.
+        timeout:     Per-graph call timeout in seconds.
+
+    Synchronous \u2014 wraps the async LLM calls in ``asyncio.run``. Falls
     back to the deterministic heuristic if anything goes wrong.
     """
     if not outputs:
-        return QResult(0.0, 1.0, 0.5, source="heuristic")
+        return QResult(0.5, 1.0, 0.5, source="heuristic")
 
     # Try the LLM path first; the heuristic is the safety net.
     try:
         llm = _build_llm()
     except Exception as e:  # pragma: no cover - depends on env
-        _log.warning("LLM init failed (%s); using heuristic Q.", e)
+        _log.error(
+            "Q-eval: LLM init failed (%s: %s) — falling back to heuristic. "
+            "Check that AWS credentials and MODEL_NAME/BEDROCK_MODEL_ID are set.",
+            type(e).__name__, e,
+        )
         return _heuristic_result(outputs)
 
     try:
-        # The LangGraph graph is async-friendly; asyncio.run gives us a
-        # clean event loop even when the user's main code is sync.
-        state = asyncio.run(_invoke_graph(outputs, llm, timeout=timeout))
+        state = asyncio.run(
+            _invoke_graph(outputs, llm, source_data=source_data or [], timeout=timeout)
+        )
     except Exception as e:  # pragma: no cover - network/HTTP errors
-        _log.warning("LLM evaluation failed (%s); using heuristic Q.", e)
+        _log.error(
+            "Q-eval: LLM graph invocation failed (%s: %s) — falling back to heuristic.",
+            type(e).__name__, e,
+        )
         return _heuristic_result(outputs)
 
     if state.get("error") or state.get("accuracy") is None:
-        _log.warning(
-            "LLM evaluation returned no score (error=%s); using heuristic Q.",
+        _log.error(
+            "Q-eval: LLM returned no parseable score (error=%s) — falling back to heuristic.",
             state.get("error"),
         )
         return _heuristic_result(outputs)
@@ -122,7 +170,8 @@ def evaluate_quality(outputs: list[str], *, timeout: float = 60.0) -> QResult:
         # Use explicit None check instead of `or` — a score of 0.0 is valid
         # and falsy, so `state["consistency"] or 1.0` would wrongly return 1.0.
         consistency=float(state["consistency"] if state["consistency"] is not None else 1.0),
-        hallucination_rate=float(state["hallucination_rate"] if state["hallucination_rate"] is not None else 0.5),
+        # "hallucination" is the internal state key; QResult calls it hallucination_rate.
+        hallucination_rate=float(state["hallucination"] if state.get("hallucination") is not None else 0.5),
         source="llm",
     )
 
@@ -142,9 +191,24 @@ def _heuristic_result(outputs: list[str]) -> QResult:
 # ---------------------------------------------------------------------------
 
 def _build_llm():  # pragma: no cover - depends on env
-    """Build a ChatBedrockConverse from env config. No boto3 auth is
-    configured here — the Bedrock SDK picks up credentials from the
-    standard AWS env / IAM role / SSO chain."""
+    """Build a ChatBedrockConverse from env config.
+
+    Calls ``load_dotenv()`` as a safety net so credentials are available
+    even when the caller (e.g. an atexit finalizer, a bare script, or a
+    direct API ingest) did not call it themselves. ``find_dotenv()`` walks
+    up from CWD so this works regardless of where Python is invoked.
+    """
+    try:
+        from dotenv import find_dotenv, load_dotenv as _load_dotenv
+        _env_file = find_dotenv(usecwd=True)
+        if _env_file:
+            _load_dotenv(_env_file, override=False)  # override=False: respect already-set vars
+            _log.debug("Q-eval: loaded credentials from %s", _env_file)
+        else:
+            _log.debug("Q-eval: no .env file found; relying on system environment")
+    except ImportError:
+        pass  # python-dotenv not installed; rely on the system environment
+
     from langchain_aws import ChatBedrockConverse
 
     model_id = (
@@ -153,6 +217,7 @@ def _build_llm():  # pragma: no cover - depends on env
         or "us.amazon.nova-pro-v1:0"
     )
     region = os.environ.get("AWS_DEFAULT_REGION") or os.environ.get("AWS_REGION")
+    _log.debug("Q-eval: building LLM model_id=%s region=%s", model_id, region)
     kwargs: dict[str, Any] = {"model_id": model_id}
     if region:
         kwargs["region_name"] = region
@@ -164,6 +229,11 @@ def _build_llm():  # pragma: no cover - depends on env
 # ---------------------------------------------------------------------------
 
 _NODE_ORDER: tuple[str, ...] = ("accuracy", "consistency", "hallucination")
+# ^^^ Must match the keys in _PROMPTS and QState. "hallucination" (not
+# "hallucination_rate") is used internally so the node dict, QState field,
+# and _PROMPTS lookup all agree. evaluate_quality maps it to
+# QResult.hallucination_rate at the boundary.
+
 
 
 def _scoring_node(metric: str):
@@ -173,12 +243,38 @@ def _scoring_node(metric: str):
         outputs: list[str] = state.get("_outputs") or []
         if not outputs:
             return {metric: 0.0}
-        prompt = _PROMPTS[metric]
-        joined = "\n\n---\n\n".join(_truncate(o) for o in outputs)
-        user_msg = (
-            f"{prompt}\n\n"
-            f"Outputs to evaluate ({len(outputs)} total):\n\n{joined}"
-        )
+
+        joined_outputs = "\n\n---\n\n".join(_truncate(o) for o in outputs)
+
+        if metric == "hallucination":
+            # Build a context-aware prompt when source data is available.
+            source_data: list[str] = state.get("_source_data") or []
+            if source_data:
+                source_block = "\n\n".join(source_data)
+                user_msg = _HALLUCINATION_PROMPT_WITH_SOURCE.format(
+                    source_block=source_block,
+                    output_block=joined_outputs,
+                )
+                _log.debug(
+                    "Q-eval hallucination: using source-context prompt "
+                    "(%d source items, %d outputs)",
+                    len(source_data), len(outputs),
+                )
+            else:
+                user_msg = _HALLUCINATION_PROMPT_NO_SOURCE.format(
+                    output_block=joined_outputs,
+                )
+                _log.debug(
+                    "Q-eval hallucination: no source data captured; "
+                    "using general plausibility prompt"
+                )
+        else:
+            prompt = _PROMPTS[metric]
+            user_msg = (
+                f"{prompt}\n\n"
+                f"Outputs to evaluate ({len(outputs)} total):\n\n{joined_outputs}"
+            )
+
         try:
             response = await llm.ainvoke(user_msg)
             text = _extract_text(response)
@@ -202,6 +298,7 @@ def _build_graph():
     for name, fn in nodes.items():
         g.add_node(name, fn)
     # Linear chain: accuracy → consistency → hallucination → END.
+    # All three keys match QState fields and _PROMPTS keys.
     g.set_entry_point("accuracy")
     g.add_edge("accuracy", "consistency")
     g.add_edge("consistency", "hallucination")
@@ -209,7 +306,7 @@ def _build_graph():
     return g.compile()
 
 
-_GRAPH = None
+_GRAPH = None  # reset so the fixed graph is compiled on next call
 
 
 def _graph():
@@ -219,13 +316,20 @@ def _graph():
     return _GRAPH
 
 
-async def _invoke_graph(outputs: list[str], llm, *, timeout: float) -> QState:
+async def _invoke_graph(
+    outputs: list[str],
+    llm,
+    *,
+    source_data: list[str],
+    timeout: float,
+) -> QState:
     initial: QState = {
         "_outputs": outputs,
         "_llm": llm,
+        "_source_data": source_data,
         "accuracy": None,
         "consistency": None,
-        "hallucination_rate": None,
+        "hallucination": None,   # matches QState key and _NODE_ORDER entry
         "error": None,
     }
     coro = _graph().ainvoke(initial)
@@ -236,8 +340,11 @@ async def _invoke_graph(outputs: list[str], llm, *, timeout: float) -> QState:
 # Parsing helpers — defensive on purpose; the LLM is creative.
 # ---------------------------------------------------------------------------
 
-_SCORE_RE = re.compile(r"SCORE\s*[:=]\s*([0-1](?:\.\d+)?)", re.IGNORECASE)
-_FALLBACK_NUMBER_RE = re.compile(r"\b([0-1](?:\.\d+)?)\b")
+# Regexes accept numbers in the full 0–100 range since LLMs sometimes
+# respond on a percentage scale despite instructions. Values > 1 are
+# normalised by dividing by 100 in _parse_score().
+_SCORE_RE = re.compile(r"SCORE\s*[:=]\s*(\d+(?:\.\d+)?)", re.IGNORECASE)
+_FALLBACK_NUMBER_RE = re.compile(r"\b(\d+(?:\.\d+)?)\b")
 
 
 def _extract_text(response: Any) -> str:
@@ -251,15 +358,26 @@ def _extract_text(response: Any) -> str:
 
 
 def _parse_score(text: str) -> Optional[float]:
+    """Parse a score from LLM text. Normalises 0–100 integer responses to
+    [0, 1]. Returns None if no valid number is found."""
     if not text:
         return None
+
+    def _normalise(v: float) -> Optional[float]:
+        """Map to [0, 1]; reject values outside [0, 100]."""
+        if v < 0 or v > 100:
+            return None
+        return min(1.0, v / 100.0 if v > 1.0 else v)
+
     m = _SCORE_RE.search(text)
     if m:
-        return float(m.group(1))
-    # Fall back to the first 0–1 number we can find.
-    m = _FALLBACK_NUMBER_RE.search(text)
-    if m:
-        return float(m.group(1))
+        return _normalise(float(m.group(1)))
+    # Fall back to the first number in range [0, 100] we can find.
+    for m in _FALLBACK_NUMBER_RE.finditer(text):
+        v = float(m.group(1))
+        result = _normalise(v)
+        if result is not None:
+            return result
     return None
 
 
@@ -270,4 +388,5 @@ def _truncate(text: str, limit: int = 2500) -> str:
     the conclusion rather than just the preamble."""
     if len(text) <= limit:
         return text
-    return text[: limit - 60] + "\n\n[...truncated for length...]"
+    # Keep the TAIL of the text (the conclusion), not the head.
+    return "[...truncated for length...]\n\n" + text[-(limit - 60):]

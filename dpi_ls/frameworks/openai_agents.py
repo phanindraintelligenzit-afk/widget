@@ -19,7 +19,7 @@ import logging
 from typing import Any
 
 from ..collector import SignalCollector
-from .base import BasePatcher, _safe_iter_tokens, _safe_text, already_patched, mark_patched
+from .base import BasePatcher, _extract_input_text, _safe_iter_tokens, _safe_text, already_patched, mark_patched
 
 _log = logging.getLogger("dpi_ls.frameworks.openai_agents")
 
@@ -127,6 +127,10 @@ def _wrap_runner_method(original, hooks):
 
     if inspect.iscoroutinefunction(original):
         async def async_wrapper(*args, **kwargs):
+            # Runner.run(agent, task, ...) — task is the second positional arg.
+            task_text = args[1] if len(args) > 1 else _extract_input_text(args, kwargs)
+            if _collector is not None and isinstance(task_text, str) and task_text:
+                _collector.record_source(task_text, kind="input")
             existing = kwargs.get("hooks")
             if existing is None:
                 kwargs["hooks"] = hooks
@@ -134,7 +138,6 @@ def _wrap_runner_method(original, hooks):
                 kwargs["hooks"] = _compose_hooks(existing, hooks)
             try:
                 result = await original(*args, **kwargs)
-                # One completed top-level run = one unit of AI output (P numerator).
                 if _collector is not None:
                     _collector.record_agent_run(ok=True)
                 return result
@@ -145,6 +148,9 @@ def _wrap_runner_method(original, hooks):
         return functools.wraps(original)(async_wrapper)
 
     def sync_wrapper(*args, **kwargs):
+        task_text = args[1] if len(args) > 1 else _extract_input_text(args, kwargs)
+        if _collector is not None and isinstance(task_text, str) and task_text:
+            _collector.record_source(task_text, kind="input")
         existing = kwargs.get("hooks")
         if existing is None:
             kwargs["hooks"] = hooks

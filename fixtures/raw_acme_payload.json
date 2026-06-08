@@ -34,9 +34,8 @@
     "audit_ready": true
   },
   "cost": {
-    "per_output": 0.35,
-    "tokens": 540000,
-    "cloud": 18.4,
-    "systems": 5
+    "model_cost": 30.80,
+    "input_tokens": 240000,
+    "output_tokens": 300000
   }
 }

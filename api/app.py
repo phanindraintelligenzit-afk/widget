@@ -75,9 +75,30 @@ app.add_middleware(
 )
 
 # Static serving of the embeddable widget.
+# NoCacheStaticFiles overrides the response headers to prevent browsers
+# from caching the widget JS between edits — otherwise a change to
+# dpi-ls.js is invisible until the 10-minute browser cache expires.
 _WIDGET_DIR = Path(__file__).resolve().parent.parent / "widget"
+
+
+class _NoCacheStaticFiles(StaticFiles):
+    """StaticFiles that sends Cache-Control: no-cache so the browser always
+    re-validates before using a cached copy. Safe for development; in
+    production set STATIC_CACHE_SECONDS to a positive integer instead."""
+
+    _max_age: int = int(os.environ.get("STATIC_CACHE_SECONDS", "0"))
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        if self._max_age > 0:
+            response.headers["Cache-Control"] = f"public, max-age={self._max_age}"
+        else:
+            response.headers["Cache-Control"] = "no-cache, must-revalidate"
+        return response
+
+
 if _WIDGET_DIR.exists():
-    app.mount("/widget", StaticFiles(directory=str(_WIDGET_DIR)), name="widget")
+    app.mount("/widget", _NoCacheStaticFiles(directory=str(_WIDGET_DIR)), name="widget")
 
 
 @app.get("/", include_in_schema=False)
@@ -180,6 +201,7 @@ def _score_row_to_rating(row) -> Rating:
         unsafe=row.unsafe,
         gate_failures=list(row.gate_failures or []),
         metrics=dict(row.metrics or {}),
+        sub_metrics=dict(row.sub_metrics or {}),
         missing=list(row.missing or []),
         dimensions_measured=int(row.dimensions_measured or 0),
         coverage=float(row.coverage or 0.0),
@@ -244,6 +266,15 @@ def get_settings(s: Session = Depends(db_session)) -> Settings:
 
 @app.put("/settings", response_model=Settings)
 def update_settings(payload: Settings, s: Session = Depends(db_session)) -> Settings:
+    weight_sum = sum(payload.weights.values())
+    if abs(weight_sum - 1.0) > 0.01:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Composite weights must sum to 1.0 "
+                f"(got {weight_sum:.4f}). Adjust the weights and retry."
+            ),
+        )
     repo.save_settings(s, payload)
     return payload
 

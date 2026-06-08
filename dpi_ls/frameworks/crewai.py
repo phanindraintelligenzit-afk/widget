@@ -14,7 +14,7 @@ import logging
 from typing import Any
 
 from ..collector import SignalCollector
-from .base import BasePatcher, _safe_text, already_patched, mark_patched
+from .base import BasePatcher, _extract_input_text, _safe_text, already_patched, mark_patched
 
 _log = logging.getLogger("dpi_ls.frameworks.crewai")
 
@@ -66,9 +66,9 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
 
     if is_async:
         async def async_kickoff(*args, **kwargs):
-            # No pre-increment: ``record_llm_call`` (called in
-            # ``_capture_crew_output``) owns the attempts counter.
-            # ``record_error`` handles the failure path.
+            input_text = _extract_input_text(args, kwargs)
+            if input_text:
+                collector.record_source(input_text, kind="input")
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
@@ -79,6 +79,9 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
         return functools.wraps(original)(async_kickoff)
 
     def sync_kickoff(*args, **kwargs):
+        input_text = _extract_input_text(args, kwargs)
+        if input_text:
+            collector.record_source(input_text, kind="input")
         try:
             result = original(*args, **kwargs)
         except Exception as e:

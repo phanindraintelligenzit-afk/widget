@@ -19,7 +19,7 @@ import logging
 from typing import Any
 
 from ..collector import SignalCollector
-from .base import BasePatcher, _safe_text, already_patched, mark_patched
+from .base import BasePatcher, _extract_input_text, _safe_text, already_patched, mark_patched
 
 _log = logging.getLogger("dpi_ls.frameworks.autogen")
 
@@ -54,6 +54,9 @@ def _wrap_method(original, collector: SignalCollector, attr: str):
 
     if is_async:
         async def async_wrapper(*args, **kwargs):
+            input_text = _extract_input_text(args, kwargs)
+            if input_text:
+                collector.record_source(input_text, kind="input")
             collector.attempts += 1
             try:
                 result = await original(*args, **kwargs)
@@ -65,6 +68,9 @@ def _wrap_method(original, collector: SignalCollector, attr: str):
         return functools.wraps(original)(async_wrapper)
 
     def sync_wrapper(*args, **kwargs):
+        input_text = _extract_input_text(args, kwargs)
+        if input_text:
+            collector.record_source(input_text, kind="input")
         collector.attempts += 1
         try:
             result = original(*args, **kwargs)

@@ -38,10 +38,16 @@ def upsert_agent(
 ) -> AgentRow:
     row = s.get(AgentRow, agent_id)
     if row is None:
+        # Explicitly set first_seen and last_seen at insert time.
+        # Relying solely on the column default can leave them None before
+        # the row is flushed/committed when autoflush=False.
+        now = _utcnow()
         row = AgentRow(
             id=agent_id,
             name=agent_name,
             baseline_human_output=baseline if baseline is not None else 100.0,
+            first_seen=now,
+            last_seen=now,
         )
         s.add(row)
     else:
@@ -123,6 +129,7 @@ def save_score(
         unsafe=rating.unsafe,
         gate_failures=list(rating.gate_failures),
         metrics=dict(rating.metrics),
+        sub_metrics=dict(rating.sub_metrics),
         missing=list(rating.missing),
         dimensions_measured=int(rating.dimensions_measured),
         coverage=float(rating.coverage),
@@ -155,7 +162,32 @@ def score_history(s: Session, agent_id: str, limit: int = 100) -> list[ScoreRow]
 
 
 def latest_scores_for_all(s: Session) -> list[tuple[AgentRow, Optional[ScoreRow]]]:
-    return [(a, latest_score(s, a.id)) for a in list_agents(s)]
+    """Return (AgentRow, latest ScoreRow or None) for every agent.
+
+    Uses a single LEFT JOIN query instead of one query per agent (N+1
+    pattern). The subquery picks the highest ScoreRow.id per agent —
+    because ids are autoincrement, max(id) == most recently inserted row.
+    """
+    from sqlalchemy import func
+
+    # Subquery: one row per agent containing its latest score's id.
+    latest_id_subq = (
+        select(
+            ScoreRow.agent_id.label("agent_id"),
+            func.max(ScoreRow.id).label("latest_id"),
+        )
+        .group_by(ScoreRow.agent_id)
+        .subquery("_latest_score_ids")
+    )
+
+    stmt = (
+        select(AgentRow, ScoreRow)
+        .outerjoin(latest_id_subq, AgentRow.id == latest_id_subq.c.agent_id)
+        .outerjoin(ScoreRow, ScoreRow.id == latest_id_subq.c.latest_id)
+        .order_by(AgentRow.name)
+    )
+
+    return [(row.AgentRow, row.ScoreRow) for row in s.execute(stmt).all()]
 
 
 # ---- settings ------------------------------------------------------------

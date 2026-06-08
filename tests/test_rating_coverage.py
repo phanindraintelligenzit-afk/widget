@@ -47,13 +47,20 @@ def test_coverage_cap_pulls_high_raw_down():
 # ---- end-to-end through the full API ------------------------------------
 
 def test_partial_coverage_agent_through_full_engine(client):
-    """End-to-end: aws_cost-only agent gets capped by the new completeness system."""
-    from fixtures import load_source
-
-    client.post("/ingest/source/aws_cost", json=load_source("aws_cost"))
+    """End-to-end: a strictly C-only agent (aws_cost with no
+    output_count) gets capped by the completeness system."""
+    # ``spend_usd`` with no ``output_count`` → the adapter stays
+    # cost-only and the engine has to default the per-output
+    # denominator to 1. That puts the agent at 1/7 dimensions.
+    payload = {
+        "period_start": "2026-06-01T00:00:00Z",
+        "period_end":   "2026-06-02T00:00:00Z",
+        "agents": [{"agent_id": "agent-multi-001", "spend_usd": 0.30}],
+    }
+    client.post("/ingest/source/aws_cost", json=payload)
     r = client.get("/agents/agent-multi-001/score").json()
     assert r["coverage"] == 0.143  # 1/7 dimensions
-    assert r["capped"] is True      # New completeness cap
+    assert r["capped"] is True      # Completeness cap fires
     assert r["score"] == 69.0       # Capped to "Needs Optimization"
     assert r["band"] == "Needs Optimization"
 

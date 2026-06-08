@@ -18,24 +18,37 @@ def test_aws_cost_emits_cost_partial_only():
     [p] = AwsCostAdapter().to_partials(load_source("aws_cost"))
     assert p.agent_id == "agent-multi-001"
     assert p.cost is not None
-    assert p.cost.ai_cost_per_output == pytest.approx(26.40 / 88)
-    assert p.cost.tokens == 540000
-    # Other dimensions stay None — that's the whole point.
-    assert p.tasks is None
+    # The contract no longer carries ai_cost_per_output — the engine
+    # derives it from model_cost / tasks.completed at scoring time.
+    # The adapter forwards the spend total as model_cost and the
+    # output_count as a tasks block so the math comes out to the
+    # same per-output figure the old contract carried directly.
+    assert p.cost.model_cost == pytest.approx(26.40)
+    # Legacy "tokens" rollup is split 50/50 by the adapter when the
+    # caller doesn't supply the in/out split explicitly.
+    assert p.cost.input_tokens == 540000 // 2
+    assert p.cost.output_tokens == 540000 - p.cost.input_tokens
+    assert p.tasks is not None
+    assert p.tasks.completed == 88
+    # Other dimensions stay None — that's the whole point of a
+    # cost-only source.
     assert p.policy is None
     assert p.incidents is None
     assert p.quality is None
     assert p.validation is None
 
 
-def test_aws_cost_zero_output_count_avoids_division():
+def test_aws_cost_without_output_count_stays_strictly_cost_only():
     payload = {
         "period_start": "2026-06-01T00:00:00Z",
         "period_end":   "2026-06-02T00:00:00Z",
-        "agents": [{"agent_id": "a", "spend_usd": 5.0, "output_count": 0}],
+        "agents": [{"agent_id": "a", "spend_usd": 5.0}],
     }
     [p] = AwsCostAdapter().to_partials(payload)
-    assert p.cost.ai_cost_per_output == 0.0
+    # No output_count → no tasks block; the engine falls back to
+    # treating the cost total as a single-output figure.
+    assert p.cost.model_cost == 5.0
+    assert p.tasks is None
 
 
 def test_puvi_noise_emits_policy_partial():

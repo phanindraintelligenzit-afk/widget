@@ -116,7 +116,9 @@ def test_to_observation_validates_against_canonical_contract():
     # One agent run was completed — tasks reflects run-level counts, not LLM calls.
     assert obs.tasks.assigned == 1
     assert obs.tasks.completed == 1
-    assert obs.cost.tokens == 12
+    assert obs.cost.input_tokens == 5
+    assert obs.cost.output_tokens == 7
+    assert obs.cost.model_cost == pytest.approx(0.03)
 
 
 def test_to_observation_with_quality_includes_quality_block():
@@ -165,7 +167,12 @@ def test_to_observation_with_no_outputs_returns_zero_baseline():
     obs = AgentObservation.model_validate(c.to_observation())
     assert obs.executions.attempts == 0
     assert obs.executions.successful == 0
-    assert obs.cost.ai_cost_per_output == 0.0
+    # The Cost model now carries just three fields — the engine
+    # derives the per-output figure on the fly. Defaults to 0
+    # for an empty collector.
+    assert obs.cost.model_cost == 0.0
+    assert obs.cost.input_tokens == 0
+    assert obs.cost.output_tokens == 0
     assert obs.validation.required_components == 0
     assert obs.tasks.assigned == 0
 

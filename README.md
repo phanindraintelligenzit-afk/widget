@@ -88,8 +88,26 @@ no build step.
 
 Requires **Python 3.11+** and **`uv`** (or `pip`).
 
+### Install as a package
+
+You can install the `dpi_ls` package directly from the repository:
+
 ```bash
-git clone <repo-url> dpi-ls
+pip install git+https://github.com/phanindraintelligenzit-afk/widget.git
+```
+
+Then, in your code, just import it and call monitor:
+
+```python
+import dpi_ls
+
+collector = dpi_ls.monitor(my_agent, agent_id="my-agent", human_baseline=1)
+```
+
+### Install for development
+
+```bash
+git clone https://github.com/phanindraintelligenzit-afk/widget.git dpi-ls
 cd dpi-ls
 uv sync                                    # runtime + dev deps
 ```

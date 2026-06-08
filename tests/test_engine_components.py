@@ -121,7 +121,9 @@ def test_V_proportional():
 
 
 def test_C_includes_utilization():
-    # human=2, ai=1 → ratio capped at 1 → × utilization 0.5 = 0.5
-    assert compute_C(2.0, 1.0, 0.5) == 0.5
-    # human=1, ai=2 → ratio 0.5 × utilization 1.0 = 0.5
-    assert compute_C(1.0, 2.0, 1.0) == 0.5
+    # human=2, model_cost=1, completed=1 → per-output=1 → ratio capped at 1
+    # × utilization 0.5 = 0.5
+    assert compute_C(2.0, 1.0, 1, 0.5) == 0.5
+    # human=1, model_cost=2, completed=1 → per-output=2 → ratio 0.5
+    # × utilization 1.0 = 0.5
+    assert compute_C(1.0, 2.0, 1, 1.0) == 0.5

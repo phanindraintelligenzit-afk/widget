@@ -26,6 +26,7 @@ dependencies = [
     "httpx>=0.27",
     "crewai>=1.6.1",
     "pyautogen>=0.10.0",
+    "llama-index>=0.14.22",
 ]
 
 [project.optional-dependencies]

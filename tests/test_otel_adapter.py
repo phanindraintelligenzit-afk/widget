@@ -30,9 +30,12 @@ def test_otel_fixture_round_trip():
     # validation
     assert obs.validation.required_components == 10
     assert obs.validation.validated_components == 9
-    # cost
-    assert obs.cost.tokens == (1200 + 400 + 900 + 350)
-    assert obs.cost.cloud_cost == 0.012 + 0.009 + 0.004
+    # cost — the OTel fixture carries input/output tokens separately
+    # so the per-agent card can show the breakdown rather than a
+    # single combined "tokens" rollup.
+    assert obs.cost.input_tokens == 1200 + 900
+    assert obs.cost.output_tokens == 400 + 350
+    assert obs.cost.model_cost == 0.012 + 0.009 + 0.004
     assert obs.source == "otel"
 
 

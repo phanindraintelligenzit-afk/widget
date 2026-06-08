@@ -16,8 +16,7 @@ Recognised attributes (resource OR span-level):
     incident.source
     quality.accuracy / consistency / hallucination_rate  — feeds Q
     validation.required, validation.validated  — feeds V
-    cost.usd                                   — feeds C
-    cost.systems_accessed
+    cost.usd                                   — feeds C (model_cost)
 
 Anything else is ignored. This is the canonical mapping; teams that
 want something more exotic should write a YAML mapping for the
@@ -79,6 +78,12 @@ class OTelAdapter(Adapter):
         now = datetime.now(timezone.utc)
         period_start = min(starts) if starts else now
         period_end = max(ends) if ends else now
+        # Guarantee a non-zero observation window. A zero-length period occurs
+        # when spans have no timestamps (both get `now`). Downstream tools that
+        # compute duration would produce 0 or NaN without this guard.
+        if period_end <= period_start:
+            from datetime import timedelta
+            period_end = period_start + timedelta(seconds=1)
 
         agent_name = "unknown"
         attempts = successful = failed = 0
@@ -92,8 +97,8 @@ class OTelAdapter(Adapter):
         v_required = 0
         v_validated = 0
         cost_usd = 0.0
-        tokens = 0
-        systems = 0
+        input_tokens = 0
+        output_tokens = 0
 
         for s in spans:
             a = _attrs(s)
@@ -140,9 +145,11 @@ class OTelAdapter(Adapter):
                 v_validated = max(v_validated, int(a["validation.validated"]))
 
             cost_usd += float(a.get("cost.usd", 0))
-            tokens += int(a.get("gen_ai.usage.output_tokens", 0))
-            tokens += int(a.get("gen_ai.usage.input_tokens", 0))
-            systems = max(systems, int(a.get("cost.systems_accessed", 0)))
+            # Track in/out tokens separately so the per-agent card
+            # can show the breakdown rather than a single "tokens"
+            # rollup.
+            input_tokens += int(a.get("gen_ai.usage.input_tokens", 0))
+            output_tokens += int(a.get("gen_ai.usage.output_tokens", 0))
 
         quality = None
         if q_acc or q_con or q_hal:
@@ -153,8 +160,6 @@ class OTelAdapter(Adapter):
                 "consistency": _avg(q_con, 0.0),
                 "hallucination_rate": _avg(q_hal, 0.0),
             }
-
-        per_output = (cost_usd / tasks_completed) if tasks_completed else 0.0
 
         return AgentObservation.model_validate({
             "agent_id": agent_id,
@@ -176,10 +181,14 @@ class OTelAdapter(Adapter):
                 "audit_ready": v_required > 0 and v_validated >= v_required,
             },
             "cost": {
-                "ai_cost_per_output": per_output,
-                "tokens": tokens,
-                "cloud_cost": cost_usd,
-                "systems_accessed": systems,
+                # Three fields — exactly what the per-agent card's C
+                # panel renders. The engine derives the per-output
+                # figure from ``model_cost / tasks.completed`` on its
+                # own; the wire payload never carries the derived
+                # value.
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "model_cost": cost_usd,
             },
             "source": "otel",
         })

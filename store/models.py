@@ -52,6 +52,7 @@ class ScoreRow(Base):
     unsafe: Mapped[bool] = mapped_column(Boolean)
     gate_failures: Mapped[list[str]] = mapped_column(JSON)
     metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    sub_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     missing: Mapped[list[str]] = mapped_column(JSON)
     dimensions_measured: Mapped[int] = mapped_column(Integer, default=0)
     coverage: Mapped[float] = mapped_column(Float, default=0.0)

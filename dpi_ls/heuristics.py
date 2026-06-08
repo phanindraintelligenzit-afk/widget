@@ -44,11 +44,14 @@ def heuristic_quality(outputs: Iterable[str]) -> dict[str, float]:
     avg_len = sum(lengths) / len(lengths)
     length_var = _variance(lengths)
 
-    # --- accuracy: penalise error-shaped / very-short / very-long outputs
-    bad = sum(1 for o in out if _looks_like_error(o))
-    too_short = sum(1 for o in out if len(o) < 20)
-    too_long = sum(1 for o in out if len(o) > 10_000)
-    good = len(out) - bad - too_short - too_long
+    # --- accuracy: penalise error-shaped / very-short / very-long outputs.
+    # Each output is tested once — using subtraction of independent counts
+    # double-counts outputs that match more than one condition (e.g. a short
+    # error message), which can drive `good` negative.
+    good = sum(
+        1 for o in out
+        if not _looks_like_error(o) and 20 <= len(o) <= 10_000
+    )
     accuracy = max(0.0, min(1.0, good / len(out)))
 
     # Bonus: being in the "reasonable" length band bumps accuracy.

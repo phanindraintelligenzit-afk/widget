@@ -30,7 +30,15 @@ RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     (
         "pii.credit_card",
-        re.compile(r"\b(?:\d[ -]*?){13,16}\b"),
+        # Two safe alternatives — avoids the catastrophic backtracking risk of
+        # (?:\d[ -]*?){13,16} (lazy quantifier inside repetition).
+        # Alt 1: 13–16 consecutive digits (no separators).
+        # Alt 2: exactly the NNNN[- ]NNNN[- ]NNNN[- ]NNNN(NNN) formatted form.
+        re.compile(
+            r"\b\d{13,16}\b"
+            r"|"
+            r"\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{1,4}\b"
+        ),
     ),
     (
         "pii.ssn",

@@ -35,6 +35,16 @@
     C: "Cost",
   };
 
+  const METRIC_FORMULAS = {
+    P: "P = completed / assigned * 100",
+    Q: "Q = w_acc*Accuracy + w_con*Consistency + w_hal*(1 − Hallucination)",
+    E: "E = successful / attempts * 100",
+    G: "G = 100 - (violations / total_actions * 100)",
+    R: "R = 100 - SUM(severity * frequency)",
+    V: "V = validated / required * 100",
+    C: "C = max(0, 100 - total_cost)"
+  };
+
   const SHARED_CSS = `
     :host {
       display: block;
@@ -170,31 +180,59 @@
     `;
   }
 
-  function metricLineHtml(key, value) {
+  function metricLineHtml(key, value, sub, isExpanded) {
     const label = METRIC_LABELS[key] || key;
-    if (value === null || value === undefined) {
-      return `<div class="metric">
-        <span class="metric-label">${escapeHtml(label)}</span>
-        <span class="metric-missing">SME</span>
+    const formula = METRIC_FORMULAS[key] || "";
+    let subHtml = "";
+    
+    if (sub && Object.keys(sub).length > 0) {
+      const parts = Object.entries(sub).map(([k, v]) => {
+         let disp = v;
+         if (typeof v === 'number') disp = Math.round(v * 100) / 100;
+         if (Array.isArray(v)) disp = v.length + ' items';
+         return `<div>${escapeHtml(k)}: <strong>${escapeHtml(disp)}</strong></div>`;
+      }).join("");
+      const displayStyle = isExpanded ? 'block' : 'none';
+      subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
+        <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(formula)}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
       </div>`;
     }
-    return `<div class="metric">
-      <span class="metric-label">${escapeHtml(label)}</span>
-      <span class="metric-value">${fmtMetric(value)}</span>
+
+    if (value === null || value === undefined) {
+      return `<div class="metric-wrapper" style="display:contents">
+        <div class="metric">
+          <span class="metric-label">${escapeHtml(label)}</span>
+          <span class="metric-missing">SME</span>
+        </div>
+      </div>`;
+    }
+    
+    const interactiveStyle = subHtml ? 'cursor: pointer;' : '';
+    const labelStyle = subHtml ? 'text-decoration: underline dashed #cbd5e1; text-underline-offset: 4px;' : '';
+    
+    return `<div class="metric-wrapper has-detail" data-metric-key="${escapeHtml(key)}" style="display:contents; ${interactiveStyle}">
+      <div class="metric" style="width: 100%">
+        <span class="metric-label" style="${labelStyle}">${escapeHtml(label)}</span>
+        <span class="metric-value">${fmtMetric(value)}</span>
+      </div>
+      ${subHtml}
     </div>`;
   }
 
   function coverageBadge(rating) {
-    const cov = Number.isFinite(rating.coverage) ? rating.coverage : 0;
+    // Use dimensions_measured (integer 0-7) not coverage (float ratio 0-1).
+    // coverage=1.0 (meaning 7/7) would incorrectly display as "measured 1/7".
+    const dim = Number.isFinite(rating.dimensions_measured) ? rating.dimensions_measured : 0;
     const capped = !!rating.coverage_capped;
-    const fg = capped ? "#a16207" : (cov === 7 ? "#15803d" : "#374151");
-    const bg = capped ? "#fef3c7" : (cov === 7 ? "#dcfce7" : "#f3f4f6");
-    return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped — below coverage floor" : ""}">measured ${cov}/7${capped ? " · capped" : ""}</span>`;
+    const fg = capped ? "#a16207" : (dim === 7 ? "#15803d" : "#374151");
+    const bg = capped ? "#fef3c7" : (dim === 7 ? "#dcfce7" : "#f3f4f6");
+    return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped — below coverage floor" : ""}">measured ${dim}/7${capped ? " · capped" : ""}</span>`;
   }
 
-  function agentCardHtml(rating) {
+  function agentCardHtml(rating, expandedSet = new Set()) {
     const metrics = ["P", "Q", "E", "G", "R", "V", "C"]
-      .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null))
+      .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k)))
       .join("");
     const unsafeBanner = rating.unsafe
       ? `<div class="unsafe">⚠ Unsafe — failing gates: ${(rating.gate_failures || []).map(escapeHtml).join(", ") || "—"}</div>`
@@ -326,6 +364,37 @@
     static get observedAttributes() {
       return ["agent-id", "api-base", "poll-interval"];
     }
+    connectedCallback() {
+      this._expandedMetrics = new Set();
+      super.connectedCallback();
+      this._onCardClick = (ev) => {
+        let el = ev.target;
+        while (el && el !== this.shadowRoot) {
+          if (el.classList && el.classList.contains("metric") && el.parentNode.classList.contains("has-detail")) {
+            const wrapper = el.parentNode;
+            const detail = wrapper.querySelector(".metric-detail");
+            const key = wrapper.dataset.metricKey;
+            if (detail) {
+              if (detail.style.display === "none") {
+                detail.style.display = "block";
+                if (key) this._expandedMetrics.add(key);
+              } else {
+                detail.style.display = "none";
+                if (key) this._expandedMetrics.delete(key);
+              }
+            }
+            ev.preventDefault();
+            return;
+          }
+          el = el.parentNode;
+        }
+      };
+      this.shadowRoot.addEventListener("click", this._onCardClick);
+    }
+    disconnectedCallback() {
+      super.disconnectedCallback();
+      this.shadowRoot.removeEventListener("click", this._onCardClick);
+    }
     async _tick() {
       const id = this.getAttribute("agent-id");
       if (!id) {
@@ -353,7 +422,7 @@
       if (loading) body = `<div class="empty">Loading…</div>`;
       else if (error) body = `<div class="err">${escapeHtml(error)}</div>`;
       else if (notFound) body = `<div class="empty">No score yet for <code>${escapeHtml(id)}</code>.</div>`;
-      else body = agentCardHtml(rating);
+      else body = agentCardHtml(rating, this._expandedMetrics);
       this._renderShell(body);
     }
   }

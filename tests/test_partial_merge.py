@@ -38,22 +38,29 @@ def test_merge_takes_latest_per_dimension():
 
 
 def test_merge_keeps_dimensions_from_separate_sources():
-    cost = _p("aws_cost", cost=Cost(ai_cost_per_output=0.30))
+    # model_cost + tasks.completed → engine derives the per-output
+    # figure for the C formula. Here 0.30/output is achieved with
+    # model_cost=30 and completed=100.
+    cost = _p("aws_cost",
+              cost=Cost(model_cost=30.0),
+              tasks=TaskStats(assigned=100, completed=100, failed=0))
     pol = _p("puvi", policy=Policy(total_actions=50, violations=[]))
     qua = _p("arize", quality=Quality(accuracy=0.9, consistency=0.85, hallucination_rate=0.05))
     merged = merge_partials([cost, pol, qua])
-    assert merged.cost.ai_cost_per_output == 0.30
+    assert merged.cost.model_cost == 30.0
     assert merged.policy.total_actions == 50
     assert merged.quality.accuracy == 0.9
     # Dimensions nobody contributed stay None.
-    assert merged.tasks is None
     assert merged.incidents is None
     assert merged.validation is None
     assert merged.executions is None
 
 
 def test_metrics_from_partial_returns_None_for_missing_dimensions():
-    p = _p("aws_cost", cost=Cost(ai_cost_per_output=1.0))
+    # Cost-only partial: no tasks block, so the engine falls back to
+    # treating the cost total as a per-output figure (denominator=1).
+    # model_cost=1.0 == human_cost_per_output → C=1.0.
+    p = _p("aws_cost", cost=Cost(model_cost=1.0))
     settings = Settings(human_cost_per_output=1.0, utilization=1.0)
     baseline = AgentBaseline(agent_id="a", human_output_per_period=100)
     m = metrics_from_partial(p, settings, baseline)
@@ -64,7 +71,7 @@ def test_metrics_from_partial_returns_None_for_missing_dimensions():
 
 def test_rate_redistributes_weight_for_present_metrics_only():
     """A C-only observation redistributes weight to C, but gets capped due to completeness."""
-    p = _p("aws_cost", cost=Cost(ai_cost_per_output=1.0))
+    p = _p("aws_cost", cost=Cost(model_cost=1.0))
     settings = Settings(human_cost_per_output=1.0, utilization=1.0)
     baseline = AgentBaseline(agent_id="a", human_output_per_period=100)
     r = rate(metrics_from_partial(p, settings, baseline))

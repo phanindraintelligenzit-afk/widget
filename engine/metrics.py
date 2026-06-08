@@ -147,22 +147,36 @@ def compute_V(validated: int, required: int) -> float:
 
 def compute_C(
     human_cost_per_output: float,
-    ai_cost_per_output: float,
+    model_cost: float,
+    completed_outputs: int,
     utilization: float,
 ) -> float:
     """C = min(1, human_cost_per_output / AI_cost_per_output) × utilization.
 
-    A zero AI cost (the agent produced output for free) returns 0.0
-    — we don't credit a 100× savings that came from missing data.
-    Negative inputs are clipped to 0; utilization is clamped to
-    [0, 1].
+    The agent's per-output cost is derived here from the totals the
+    caller already has on hand: ``model_cost / completed_outputs``.
+    That keeps the contract's ``Cost`` model to just the three numbers
+    the dashboard shows (``input_tokens``, ``output_tokens``,
+    ``model_cost``) instead of forcing callers to pre-compute the
+    per-output figure.
+
+    Edge cases (in priority order):
+    * ``completed_outputs <= 0``  → treat as one output (avoids
+      div-by-zero AND prevents a single huge ``model_cost`` from
+      vanishing into a tiny per-output when the caller didn't supply
+      a count).
+    * ``model_cost <= 0``         → 0.0 (no spend reported → no
+      savings to credit; never 1.0 for "free").
+    * ``human_cost_per_output<=0``→ 0.0 (a human baseline of zero
+      means the comparison is meaningless).
+    * ``utilization`` is clamped to [0, 1].
     """
-    if ai_cost_per_output <= 0:
+    if model_cost <= 0:
         return 0.0
     if human_cost_per_output <= 0:
         return 0.0
-    if utilization <= 0:
-        return 0.0
+    outputs = completed_outputs if completed_outputs > 0 else 1
+    ai_cost_per_output = model_cost / outputs
     ratio = min(1.0, human_cost_per_output / ai_cost_per_output)
     util = min(1.0, utilization)
     return ratio * util
@@ -199,9 +213,14 @@ def metrics_from_observation(
     G = compute_G(len(obs.policy.violations), obs.policy.total_actions)
     R = compute_R(obs.incidents, settings.r_max)
     V = compute_V(obs.validation.validated_components, obs.validation.required_components)
+    # C derives its per-output figure from the cost total divided by
+    # the agent's completed output count. The contract's ``Cost``
+    # model carries just the three breakdown fields; the
+    # per-output math lives here in the engine.
     C = compute_C(
         settings.human_cost_per_output,
-        obs.cost.ai_cost_per_output,
+        obs.cost.model_cost,
+        obs.tasks.completed,
         settings.utilization,
     )
 
@@ -259,7 +278,13 @@ def metrics_from_partial(
     C = (
         compute_C(
             settings.human_cost_per_output,
-            partial.cost.ai_cost_per_output,
+            partial.cost.model_cost,
+            # A Cost-only partial (e.g. AWS Cost Explorer) doesn't
+            # carry a tasks block — treat the per-output denominator
+            # as 1 in that case, matching the canonical observation
+            # path. The completeness cap downstream keeps a single
+            # dimension from claiming a Strong band.
+            partial.tasks.completed if partial.tasks is not None else 1,
             settings.utilization,
         )
         if partial.cost is not None

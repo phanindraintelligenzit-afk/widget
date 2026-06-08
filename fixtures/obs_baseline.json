@@ -25,6 +25,6 @@
   ],
   "quality": null,
   "validation": {"required_components": 10, "validated_components": 7, "audit_ready": false},
-  "cost": {"ai_cost_per_output": 0.80, "tokens": 1100000, "cloud_cost": 41.00, "systems_accessed": 6},
+  "cost": {"input_tokens": 550000, "output_tokens": 550000, "model_cost": 48.00},
   "source": "fixture"
 }

@@ -18,7 +18,7 @@
     @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
     .stack > * + * { margin-top: 16px; }
   </style>
-  <script src="/widget/dpi-ls.js" defer></script>
+  <script src="/widget/dpi-ls.js?v=2" defer></script>
 </head>
 <body>
   <h1>DPI-LS — live agent ratings</h1>
@@ -48,7 +48,12 @@
       </div>
       <div>
         <h2>SME quality capture</h2>
-        <dpi-ls-sme-prompt agent-id="agent-multi-001" submitted-by="qa@example.com"></dpi-ls-sme-prompt>
+        <!--
+          agent-id is set dynamically by bindTo() when the user selects
+          an agent on the board, or when auto-discovery picks the latest.
+          Hardcoding agent-multi-001 here would break for any other agent.
+        -->
+        <dpi-ls-sme-prompt id="sme-prompt" submitted-by="qa@example.com"></dpi-ls-sme-prompt>
       </div>
       <div>
         <h2>Settings</h2>
@@ -74,6 +79,9 @@
         card.setAttribute("agent-id", agentId);
         title.textContent = `Per-agent card — ${agentName || agentId} (7 dimensions)`;
         title.title = `agent_id: ${agentId}`;
+        // Keep the SME prompt in sync with the selected agent.
+        const smePrompt = document.getElementById("sme-prompt");
+        if (smePrompt) smePrompt.setAttribute("agent-id", agentId);
         // Mark on the board too (in case the page is reloaded).
         if (board) board.setAttribute("selected-agent", agentId);
         // Update the URL so the selection is bookmarkable + shareable.
@@ -120,8 +128,18 @@
       }
 
       if (urlAgent) {
-        // ?agent=<id> deep-link: bind to that specific agent immediately.
+        // ?agent=<id> deep-link: bind immediately with ID as placeholder name,
+        // then resolve the real display name from /agents to update the heading.
         bindTo(urlAgent, urlAgent);
+        fetch(`${API}/agents`, { headers: { Accept: "application/json" } })
+          .then(r => r.ok ? r.json() : [])
+          .then(agents => {
+            const found = (agents || []).find(a => a.agent_id === urlAgent);
+            if (found && found.agent_name && found.agent_name !== urlAgent) {
+              bindTo(urlAgent, found.agent_name);
+            }
+          })
+          .catch(() => { /* non-fatal — heading already shows the id */ });
       } else {
         discoverLatest();
         // Re-discover every 5 s only until the user clicks something.

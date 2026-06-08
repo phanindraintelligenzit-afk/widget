@@ -80,7 +80,13 @@ class _Graph(TypedDict, total=False):
 
 
 def _parse_unit(raw: str) -> float:
-    """Accept '93', '0.93', '93%', '  0.93 '. Map to [0, 1]."""
+    """Accept '93', '0.93', '93%', '  0.93 '. Map to [0, 1].
+
+    Accepted formats:
+    - Integer 0–100 (e.g. ``85``) → divided by 100.
+    - Decimal 0.0–1.0 (e.g. ``0.85``) → used as-is.
+    - Percentage suffix (e.g. ``85%``) → treated as integer form.
+    """
     s = (raw or "").strip().rstrip("%").strip()
     if not s:
         raise SMEFlowError("empty input")
@@ -91,7 +97,9 @@ def _parse_unit(raw: str) -> float:
     if v > 1:
         v = v / 100.0
     if v < 0 or v > 1:
-        raise SMEFlowError("value must be between 0 and 100")
+        raise SMEFlowError(
+            "value must be between 0 and 100 (integer) or 0.0 and 1.0 (decimal)"
+        )
     return v
 
 
@@ -183,7 +191,12 @@ def advance(state: SMEFlowState, response: str) -> SMEFlowState:
 
 
 def current_prompt(state: SMEFlowState) -> str:
-    return PROMPTS[state.step]
+    """Return the prompt for the current step, or '' if the step is unknown.
+
+    Using ``.get()`` prevents a KeyError when an unexpected step value
+    (e.g. an error state set by external code) reaches this function.
+    """
+    return PROMPTS.get(state.step, "")
 
 
 def review_summary(state: SMEFlowState) -> dict[str, Optional[float]]:

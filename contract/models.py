@@ -58,10 +58,24 @@ class Validation(BaseModel):
 
 
 class Cost(BaseModel):
-    ai_cost_per_output: float
-    tokens: int = 0
-    cloud_cost: float = 0.0
-    systems_accessed: int = 0
+    """Cost / efficiency inputs for the C dimension.
+
+    Three numbers, nothing else — exactly what the per-agent card's C
+    panel shows. The engine derives the per-output figure it actually
+    needs (the ``human_cost_per_output / ai_cost_per_output`` ratio)
+    from ``model_cost`` divided by the agent's ``tasks.completed``
+    count, so callers don't have to pre-compute it.
+
+    The dropped fields (``ai_cost_per_output``, ``cloud_cost``,
+    ``systems_accessed``) were either a derived value or pure
+    observability. Removing them keeps the contract aligned with the
+    dashboard: what you see on the card is exactly what the model
+    carries.
+    """
+    # Breakdown surfaced on the per-agent card.
+    input_tokens: int = 0
+    output_tokens: int = 0
+    model_cost: float = 0.0
 
 
 class AgentObservation(BaseModel):

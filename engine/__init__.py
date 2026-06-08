@@ -50,11 +50,8 @@ from .metrics import (
 from .rate import rate
 from .score import composite
 
-# Surface the single source of truth for the band cap. The two
-# modules used to define it independently; now both point at the
-# same constant in :mod:`engine.bands`. We re-export it from
-# :mod:`engine.gates` as ``NEEDS_OPT_CAP`` for back-compat.
-NEEDS_OPT_CAP = NEEDS_OPT_CAP
+# NEEDS_OPT_CAP is imported from engine.bands above (line 22) and re-exported
+# via __all__ below. No re-assignment needed.
 
 __all__ = [
     "DEFAULT_MIN_DIMENSIONS",

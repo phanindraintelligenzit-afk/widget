@@ -161,14 +161,17 @@ def _finalize() -> None:
             # interpreter shutdown" because the event loop is tearing down.
             if outputs and collector.quality is None:
                 try:
-                    q = evaluate_quality(outputs)
+                    source_data = collector.source_data_for_q()
+                    q = evaluate_quality(outputs, source_data=source_data)
                     collector.set_quality(
                         q.accuracy, q.consistency, q.hallucination_rate,
                     )
                     _log.info(
                         "dpi_ls: Q evaluation source=%s accuracy=%.3f "
-                        "consistency=%.3f hallucination=%.3f",
+                        "consistency=%.3f hallucination=%.3f "
+                        "(source_data_items=%d)",
                         q.source, q.accuracy, q.consistency, q.hallucination_rate,
+                        len(source_data),
                     )
                 except Exception as e:  # pragma: no cover - defensive
                     _log.warning("Q evaluation raised: %s", e)

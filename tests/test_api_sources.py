@@ -17,10 +17,29 @@ def test_aws_cost_alone_produces_C_dominated_rating(client):
     r = client.post("/ingest/source/aws_cost", json=load_source("aws_cost"))
     assert r.status_code == 200, r.text
     [rating] = r.json()
-    # Only C is populated; the engine deferred the rest.
+    # The AWS Cost fixture ships an ``output_count`` so the adapter
+    # also forwards a tasks block — that gives the engine a real
+    # denominator for the per-output C math. The C/P dimensions
+    # populate; Q/E/G/R/V stay missing because no runtime source
+    # in this set speaks to them.
+    assert set(rating["missing"]) == {"Q", "E", "G", "R", "V"}
+    assert rating["metrics"]["C"] is not None
+    assert rating["metrics"]["P"] is not None
+    assert 0 < rating["score"] <= 100
+
+
+def test_aws_cost_without_output_count_stays_c_only(client):
+    """Caller didn't supply output_count → no tasks block → only C."""
+    payload = {
+        "period_start": "2026-06-01T00:00:00Z",
+        "period_end":   "2026-06-02T00:00:00Z",
+        "agents": [{"agent_id": "cost-only-agent", "spend_usd": 0.5}],
+    }
+    r = client.post("/ingest/source/aws_cost", json=payload)
+    assert r.status_code == 200, r.text
+    [rating] = r.json()
     assert set(rating["missing"]) == {"P", "Q", "E", "G", "R", "V"}
     assert rating["metrics"]["C"] is not None
-    assert 0 < rating["score"] <= 100
 
 
 def test_unknown_source_returns_404(client):
@@ -33,7 +52,9 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     five independent source feeds. Each POST re-merges and re-scores."""
     AGENT = "agent-multi-001"
 
-    # 1. AWS Cost arrives first — C only.
+    # 1. AWS Cost arrives first — C (and P, because the fixture
+    #    ships an output_count) populated; everything else stays
+    #    None until a later source contributes.
     r1 = client.post("/ingest/source/aws_cost", json=load_source("aws_cost"))
     rating_after_cost = r1.json()[0]
     assert rating_after_cost["metrics"]["C"] is not None
@@ -58,9 +79,11 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     assert r_final["metrics"]["R"] is not None
 
     # Only the dimensions no source in this M5 set speaks to remain missing:
-    # P (tasks), E (executions), V (validation). All three are agent-runtime
-    # dimensions — they show up once a LangGraph/Bedrock/etc. adapter is wired.
-    assert set(r_final["missing"]) == {"P", "E", "V"}
+    # E (executions) and V (validation) — both are agent-runtime
+    # dimensions that show up once a LangGraph/Bedrock/etc. adapter
+    # is wired. P arrives alongside C from the AWS Cost fixture
+    # because the fixture ships an output_count.
+    assert set(r_final["missing"]) == {"E", "V"}
     assert r_final["metrics"]["C"] is not None  # aws_cost
     assert r_final["metrics"]["G"] is not None  # arize (latest, overwrote puvi)
     assert r_final["metrics"]["Q"] is not None  # arize

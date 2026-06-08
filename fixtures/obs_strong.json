@@ -18,6 +18,6 @@
   ],
   "quality": {"accuracy": 0.94, "consistency": 0.92, "hallucination_rate": 0.04},
   "validation": {"required_components": 10, "validated_components": 10, "audit_ready": true},
-  "cost": {"ai_cost_per_output": 0.30, "tokens": 480000, "cloud_cost": 12.40, "systems_accessed": 4},
+  "cost": {"input_tokens": 240000, "output_tokens": 240000, "model_cost": 33.00},
   "source": "fixture"
 }

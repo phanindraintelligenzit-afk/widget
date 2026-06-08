@@ -77,4 +77,24 @@ def _commit(s: Session, state: sme_flow.SMEFlowState) -> Rating:
         ),
     )
     ratings = ingest_partials(s, [partial])
-    return ratings[0]
+    if ratings:
+        return ratings[0]
+
+    # Defensive fallback: ingest_partials returned no ratings (edge case —
+    # e.g. the agent was deleted between start and commit, or a flush issue).
+    # The SME quality triple IS saved to sme_ratings above. Return a Q-only
+    # rating so the caller gets a valid object rather than crashing.
+    from engine import compute_Q, rate as _rate
+    settings = repo.get_settings(s)
+    q = compute_Q(
+        state.accuracy,
+        state.consistency,
+        state.hallucination_rate,
+        settings.q_sub_weights,
+    )
+    return _rate(
+        {"P": None, "Q": q, "E": None, "G": None, "R": None, "V": None, "C": None},
+        weights=settings.weights,
+        gate_thresholds=settings.gate_thresholds,
+        min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
+    )

@@ -37,6 +37,7 @@ def score_and_persist(
     # Surface RAG signals (informational — doesn't affect score math).
     rating.retrievals = obs.retrievals
     rating.retrieved_docs_total = obs.retrieved_docs_total
+    rating.sub_metrics = _extract_sub_metrics(obs)
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     return rating
@@ -66,6 +67,7 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
+    rating.sub_metrics = _extract_sub_metrics(merged)
 
     # Link the score to the most recent partial — gives history a sensible
     # causal anchor even though the score is from the merged set.
@@ -77,7 +79,17 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         .order_by(PartialObservationRow.received_at.desc(), PartialObservationRow.id.desc())
         .limit(1)
     )
-    repo.save_score(s, agent_id, most_recent_id, rating)
+    if most_recent_id is not None:
+        repo.save_score(s, agent_id, most_recent_id, rating)
+    else:
+        # Race condition or empty table — skip persisting this score to avoid
+        # a NULL FK violation on Postgres. The rating is still returned so the
+        # caller gets the right answer; it will be re-persisted on the next ingest.
+        import logging
+        logging.getLogger(__name__).warning(
+            "rescore_from_partials: no partial row found for agent '%s'; "
+            "score not persisted.", agent_id,
+        )
     return rating
 
 
@@ -94,3 +106,42 @@ def ingest_partials(s: Session, partials: list[PartialObservation]) -> list[Rati
         if r is not None:
             out.append(r)
     return out
+
+
+def _extract_sub_metrics(obs: AgentObservation | PartialObservation) -> dict:
+    """Extract raw components from the observation for UI drill-downs.
+
+    The per-agent card renders each dimension's sub-metrics under a
+    click-to-expand panel. The C panel in particular benefits from
+    the breakdown ``input_tokens`` / ``output_tokens`` / ``model_cost``
+    rather than a single rolled-up ``tokens`` figure — the user can
+    see at a glance whether the spend is prompt-heavy (large input)
+    or completion-heavy (large output).
+    """
+    res: dict = {}
+    if obs.tasks:
+        res["P"] = obs.tasks.model_dump(mode="json")
+    if obs.quality:
+        res["Q"] = obs.quality.model_dump(mode="json")
+    if obs.executions:
+        res["E"] = obs.executions.model_dump(mode="json")
+    if obs.policy:
+        res["G"] = obs.policy.model_dump(mode="json")
+    if obs.incidents is not None:
+        # Incident carries a numeric ``severity_weight`` (0..1) rather
+        # than a string label — bucket it for the UI summary. Cutoffs
+        # match the R sub-metric story (R formula treats >= 0.7 as
+        # severe contribution to Σ(freq × severity)).
+        high = sum(1 for i in obs.incidents if float(i.severity_weight) >= 0.7)
+        med  = sum(1 for i in obs.incidents if 0.3 <= float(i.severity_weight) < 0.7)
+        low  = sum(1 for i in obs.incidents if float(i.severity_weight) < 0.3)
+        res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
+    if obs.validation:
+        res["V"] = obs.validation.model_dump(mode="json")
+    if obs.cost:
+        # ``model_dump`` already emits the new breakdown fields
+        # (input_tokens, output_tokens, model_cost) in addition to
+        # the engine input (ai_cost_per_output) and the non-model
+        # observability fields (cloud_cost, systems_accessed).
+        res["C"] = obs.cost.model_dump(mode="json")
+    return res

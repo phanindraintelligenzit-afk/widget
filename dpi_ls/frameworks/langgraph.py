@@ -16,7 +16,7 @@ import logging
 from typing import Any
 
 from ..collector import SignalCollector
-from .base import BasePatcher, _safe_text, already_patched, mark_patched
+from .base import BasePatcher, _extract_input_text, _safe_text, already_patched, mark_patched
 
 _log = logging.getLogger("dpi_ls.frameworks.langgraph")
 
@@ -53,9 +53,10 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
             pass
 
         async def async_wrapper(*args, **kwargs):
-            # No pre-increment: ``record_llm_call`` (called in
-            # ``_capture_graph_result``) owns the attempts counter.
-            # ``record_error`` handles the failure path.
+            # Auto-record the graph input as source data for hallucination eval.
+            input_text = _extract_input_text(args, kwargs)
+            if input_text:
+                collector.record_source(input_text, kind="input")
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
@@ -66,6 +67,10 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
         return functools.wraps(original)(async_wrapper)
 
     def sync_wrapper(*args, **kwargs):
+        # Auto-record the graph input as source data for hallucination eval.
+        input_text = _extract_input_text(args, kwargs)
+        if input_text:
+            collector.record_source(input_text, kind="input")
         try:
             result = original(*args, **kwargs)
         except Exception as e:

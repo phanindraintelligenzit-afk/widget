@@ -30,6 +30,10 @@ from .policy import scan_policy_violations
 # full conversation into three LLM calls is wasteful.
 _MAX_OUTPUTS_FOR_Q = 6
 
+# Max source-data items passed to the hallucination evaluator.
+# Source data = input queries + tool results the agent had access to.
+_MAX_SOURCE_DATA = 8
+
 # Output kind constants — stored alongside each captured output.
 _KIND_AGENT = "agent"   # LLM-generated prose / structured answer
 _KIND_TOOL  = "tool"    # raw tool result (API response, DB row, etc.)
@@ -116,6 +120,13 @@ class SignalCollector:
     # Q — quality. Set by the LangGraph evaluator after the run finishes.
     quality: Optional[dict] = None  # {accuracy, consistency, hallucination_rate}
 
+    # Source data for hallucination detection — the input task / retrieved
+    # documents / tool results the agent had access to during the run.
+    # Populated by framework patchers (auto, from invoke args) and by the
+    # user via ``collector.record_source(text)`` for explicit control.
+    _source_data: list[str] = field(default_factory=list)
+    _source_data_lock: threading.Lock = field(default_factory=threading.Lock)
+
     # Lock for the small handful of counters that are incremented from
     # background threads (uvicorn server thread + main thread both touch
     # the collector when the engine talks back during /ingest).
@@ -145,6 +156,32 @@ class SignalCollector:
             self.cloud_cost += float(cost or 0.0)
         if output:
             self._capture_output(output, system=system)
+
+    def record_source(self, text: str, *, kind: str = "input") -> None:
+        """Record source data used as ground truth for hallucination detection.
+
+        Call this with:
+        * The task / question sent to the agent (``kind="input"``).
+        * Relevant retrieved documents (``kind="retrieved"``).
+        * Key tool results (``kind="tool_result"``).
+
+        Framework patchers call this automatically with the first argument
+        passed to ``invoke``/``ainvoke``. Agent code can also call it
+        explicitly for finer control.
+
+        Args:
+            text: The source text to record.
+            kind: Label (``"input"``, ``"retrieved"``, ``"tool_result"``).
+        """
+        if not text or not text.strip():
+            return
+        # Prefix each item with its kind so the evaluator can distinguish
+        # the original task from retrieved documents.
+        labelled = f"[{kind.upper()}]\n{text.strip()}"
+        with self._source_data_lock:
+            self._source_data.append(labelled)
+            if len(self._source_data) > _MAX_SOURCE_DATA:
+                del self._source_data[: len(self._source_data) - _MAX_SOURCE_DATA]
 
     def record_tool_call(self, *, ok: bool = True) -> None:
         with self._lock:
@@ -239,6 +276,15 @@ class SignalCollector:
 
     # ---- accessors used by finalize() ---------------------------------
 
+    def source_data_for_q(self) -> list[str]:
+        """Return the recorded source data items for the hallucination evaluator.
+
+        Returns an empty list when no source data was captured — the
+        evaluator falls back to the no-context hallucination prompt.
+        """
+        with self._source_data_lock:
+            return list(self._source_data[-_MAX_SOURCE_DATA:])
+
     def outputs_for_q(self) -> list[str]:
         """The last N *agent* outputs (prose/analysis), in order, for the LLM evaluator.
 
@@ -322,16 +368,16 @@ class SignalCollector:
         # Keep raw signal counts for E; don't conflate with agent runs.
 
         # C — cost per agent run output (not per LLM call).
-        # If we have no cloud cost at all, estimate from token counts.
-        tokens_total = self.tokens_in + self.tokens_out
-        estimated_cost = self.cloud_cost
-        if estimated_cost == 0.0 and tokens_total > 0:
+        # ``model_cost`` is the raw total the LLM calls reported.
+        # If no real cost was reported we fall back to a token-based
+        # estimate so the dimension has something to score against.
+        # The engine derives the per-output figure
+        # (``model_cost / completed_outputs``) itself; we just carry
+        # the total here.
+        model_cost = self.cloud_cost
+        if model_cost == 0.0 and (self.tokens_in + self.tokens_out) > 0:
             # Conservative blended estimate: $0.001 per 1k tokens
-            estimated_cost = tokens_total * 0.000001
-        ai_cost_per_output = (
-            estimated_cost / completed_runs if completed_runs > 0
-            else (estimated_cost if estimated_cost > 0 else 0.0)
-        )
+            model_cost = (self.tokens_in + self.tokens_out) * 0.000001
 
         # V — validation: fraction of captured outputs that look structured.
         # Use total_outputs as the required count; if zero but we had
@@ -366,10 +412,13 @@ class SignalCollector:
                 "audit_ready": required > 0 and validated >= required,
             },
             "cost": {
-                "ai_cost_per_output": ai_cost_per_output,
-                "tokens": tokens_total,
-                "cloud_cost": estimated_cost,
-                "systems_accessed": len(self._systems_accessed),
+                # The three fields the per-agent card's C panel
+                # renders. The engine derives the per-output figure
+                # from ``model_cost / tasks.completed`` internally —
+                # the observation never carries the derived value.
+                "input_tokens": self.tokens_in,
+                "output_tokens": self.tokens_out,
+                "model_cost": model_cost,
             },
             "source": f"dpi_ls:{self.framework}",
             # RAG signals — observed by the LlamaIndex / RAG patchers.

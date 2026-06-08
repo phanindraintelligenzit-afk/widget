@@ -220,3 +220,40 @@ def _safe_text(response: Any) -> str:
                 parts.append(str(part))
         return "\n".join(parts)
     return str(content)
+
+
+# ---------------------------------------------------------------------------
+# Source-data extraction - shared by all framework patchers so each
+# invoke/ainvoke wrapper can auto-record the agent's input task.
+# ---------------------------------------------------------------------------
+
+_MAX_INPUT_TEXT = 4000  # chars; cap so huge retrieval dumps stay manageable
+
+
+def _extract_input_text(args, kwargs):
+    """Best-effort extraction of a human-readable task string from invoke args.
+
+    Framework patchers call this with (*args, **kwargs) of the original
+    invoke / ainvoke call. The result is passed to
+    collector.record_source(text, kind='input') so the hallucination
+    evaluator has a reference point.
+    """
+    arg = args[0] if args else kwargs.get("input") or kwargs.get("inputs")
+    if arg is None:
+        return ""
+    if isinstance(arg, str):
+        return arg[:_MAX_INPUT_TEXT]
+    if isinstance(arg, dict):
+        parts = []
+        for k, v in arg.items():
+            if isinstance(v, str) and v.strip():
+                parts.append(f"{k}: {v}")
+        return "\n".join(parts)[:_MAX_INPUT_TEXT]
+    if isinstance(arg, list):
+        parts = []
+        for msg in arg:
+            content = getattr(msg, "content", None)
+            if content and isinstance(content, str):
+                parts.append(content)
+        return "\n".join(parts)[:_MAX_INPUT_TEXT]
+    return str(arg)[:_MAX_INPUT_TEXT]

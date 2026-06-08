@@ -23,7 +23,11 @@ def test_acme_payload_through_generic_webhook():
     assert obs.quality is not None
     assert obs.quality.accuracy == 0.91
     assert obs.validation.validated_components == 9
-    assert obs.cost.ai_cost_per_output == 0.35
+    # The Cost contract carries just the three breakdown fields.
+    # The engine derives the per-output figure at scoring time.
+    assert obs.cost.model_cost == 30.80
+    assert obs.cost.input_tokens == 240000
+    assert obs.cost.output_tokens == 300000
 
 
 def test_webhook_accepts_list_payload():
