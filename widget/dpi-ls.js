@@ -154,6 +154,12 @@
     return Number.isFinite(v) ? Math.round(v * 100).toString() : "—";
   }
 
+  function fmtWeightedMetric(v, weightPercent) {
+    if (!Number.isFinite(v)) return "—";
+    const val = v * weightPercent;
+    return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+  }
+
   function fmtTime(iso) {
     try {
       const d = new Date(iso);
@@ -180,8 +186,14 @@
     `;
   }
 
+  const METRIC_WEIGHTS = {
+    P: 15, Q: 20, E: 15, G: 20, R: 15, V: 10, C: 5
+  };
+
   function metricLineHtml(key, value, sub, isExpanded) {
-    const label = METRIC_LABELS[key] || key;
+    const labelStr = METRIC_LABELS[key] || key;
+    const weightStr = METRIC_WEIGHTS[key] ? ` (${METRIC_WEIGHTS[key]}%)` : "";
+    const label = `${labelStr}${weightStr}`;
     const formula = METRIC_FORMULAS[key] || "";
     let subHtml = "";
     
@@ -214,7 +226,7 @@
     return `<div class="metric-wrapper has-detail" data-metric-key="${escapeHtml(key)}" style="display:contents; ${interactiveStyle}">
       <div class="metric" style="width: 100%">
         <span class="metric-label" style="${labelStyle}">${escapeHtml(label)}</span>
-        <span class="metric-value">${fmtMetric(value)}</span>
+        <span class="metric-value">${METRIC_WEIGHTS[key] ? fmtWeightedMetric(value, METRIC_WEIGHTS[key]) : fmtMetric(value)}</span>
       </div>
       ${subHtml}
     </div>`;
