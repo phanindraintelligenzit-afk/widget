@@ -116,31 +116,31 @@ class BedrockDynamicCostCalculator:
         total_cost = (input_tokens / 1_000_000) * input_per_1M + (output_tokens / 1_000_000) * output_per_1M
         return round(total_cost, 6)
 
-if __name__ == "__main__":
-    calc = BedrockDynamicCostCalculator()
+# if __name__ == "__main__":
+#     calc = BedrockDynamicCostCalculator()
     
-    # # Example 1: Show all prices
-    # prices = calc.get_all_models_pricing()
-    # print(f"\n{'MODEL ID':<50} {'INPUT/1M':<10} {'OUTPUT/1M':<10}")
-    # print("-" * 75)
-    # for m_id, (in_cost, out_cost) in sorted(prices.items()):
-    #     if in_cost > 0 or out_cost > 0:
-    #         print(f"{m_id:<50} ${in_cost:<9.6f} ${out_cost:<9.6f}")
+#     # # Example 1: Show all prices
+#     # prices = calc.get_all_models_pricing()
+#     # print(f"\n{'MODEL ID':<50} {'INPUT/1M':<10} {'OUTPUT/1M':<10}")
+#     # print("-" * 75)
+#     # for m_id, (in_cost, out_cost) in sorted(prices.items()):
+#     #     if in_cost > 0 or out_cost > 0:
+#     #         print(f"{m_id:<50} ${in_cost:<9.6f} ${out_cost:<9.6f}")
 
-    # Example 2: Calculate specific cost
-    print("\n" + "="*75)
-    test_model = os.getenv("BEDROCK_MODEL_ID", "")
-    in_tok = 2500
-    out_tok = 800
+#     # Example 2: Calculate specific cost
+#     print("\n" + "="*75)
+#     test_model = os.getenv("BEDROCK_MODEL_ID", "")
+#     in_tok = 2500
+#     out_tok = 800
     
-    cost = calc.calculate_cost(
-        input_tokens=in_tok,
-        output_tokens=out_tok,
-        model_id=test_model
-    )
-    print(f"Cost Calculation Test:")
-    print(f"Model:  {test_model}")
-    print(f"Input:  {in_tok} tokens")
-    print(f"Output: {out_tok} tokens")
-    print(f"Total:  ${cost:.6f}")
-    print("="*75 + "\n")
+#     cost = calc.calculate_cost(
+#         input_tokens=in_tok,
+#         output_tokens=out_tok,
+#         model_id=test_model
+#     )
+#     print(f"Cost Calculation Test:")
+#     print(f"Model:  {test_model}")
+#     print(f"Input:  {in_tok} tokens")
+#     print(f"Output: {out_tok} tokens")
+#     print(f"Total:  ${cost:.6f}")
+#     print("="*75 + "\n")

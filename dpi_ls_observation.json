@@ -1,0 +1,40 @@
+{
+  "agent_id": "chandra-finops",
+  "agent_name": "Chandra",
+  "period_start": "2026-06-09T09:30:14.295230+00:00",
+  "period_end": "2026-06-09T09:30:53.712452+00:00",
+  "tasks": {
+    "assigned": 1,
+    "completed": 1,
+    "failed": 0
+  },
+  "executions": {
+    "attempts": 3,
+    "successful": 3
+  },
+  "policy": {
+    "total_actions": 3,
+    "violations": []
+  },
+  "incidents": [],
+  "validation": {
+    "required_components": 2,
+    "validated_components": 2,
+    "audit_ready": true
+  },
+  "cost": {
+    "input_tokens": 1846,
+    "output_tokens": 1045,
+    "model_cost": 0.002891,
+    "number_of_llm_calls": 2,
+    "Human_cost": 0.0
+  },
+  "source": "dpi_ls:openai_agents",
+  "retrievals": 0,
+  "retrieved_docs_total": 0,
+  "quality": {
+    "accuracy": 0.95,
+    "consistency": 0.95,
+    "hallucination_rate": 0.9
+  }
+}

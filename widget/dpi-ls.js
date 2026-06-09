@@ -200,7 +200,7 @@
     if (sub && Object.keys(sub).length > 0) {
       const parts = Object.entries(sub).map(([k, v]) => {
          let disp = v;
-         if (typeof v === 'number') disp = Math.round(v * 100) / 100;
+         if (typeof v === 'number') disp = parseFloat(v.toFixed(6));
          if (Array.isArray(v)) disp = v.length + ' items';
          return `<div>${escapeHtml(k)}: <strong>${escapeHtml(disp)}</strong></div>`;
       }).join("");

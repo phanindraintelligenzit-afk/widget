@@ -376,11 +376,23 @@ class SignalCollector:
         # estimate so the dimension has something to score against.
         # The engine derives the per-output figure
         # (``model_cost / completed_outputs``) itself; we just carry
-        # the total here.
         model_cost = self.cloud_cost
         if model_cost == 0.0 and (self.tokens_in + self.tokens_out) > 0:
-            # Conservative blended estimate: $0.001 per 1k tokens
-            model_cost = (self.tokens_in + self.tokens_out) * 0.000001
+            import os
+            model_id = os.getenv("BEDROCK_MODEL_ID", "")
+            if model_id:
+                try:
+                    from .cost_calculator import BedrockDynamicCostCalculator
+                    global _cost_calculator
+                    if '_cost_calculator' not in globals():
+                        _cost_calculator = BedrockDynamicCostCalculator()
+                    model_cost = _cost_calculator.calculate_cost(self.tokens_in, self.tokens_out, model_id)
+                except Exception as e:
+                    pass
+
+            if model_cost == 0.0:
+                # Conservative blended estimate: $0.001 per 1k tokens
+                model_cost = (self.tokens_in + self.tokens_out) * 0.000001
 
         # V — validation: fraction of captured outputs that look structured.
         # Use total_outputs as the required count; if zero but we had
