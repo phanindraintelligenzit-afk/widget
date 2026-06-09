@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AgentSummary(BaseModel):
@@ -31,6 +31,7 @@ class BoardRow(BaseModel):
     score: float
     band: str
     unsafe: bool
+    gate_failures: list[str] = Field(default_factory=list)
     computed_at: datetime
 
 

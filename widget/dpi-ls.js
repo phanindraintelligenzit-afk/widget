@@ -174,7 +174,7 @@
           ${bandPill(row.band)}
         </div>
         <div class="score">${fmtScore(row.score)}</div>
-        ${row.unsafe ? `<div class="unsafe">⚠ Unsafe — compliance gate failed</div>` : ""}
+        ${row.unsafe ? `<div class="unsafe">⚠ Unsafe — ${(row.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(row.gate_failures || []).length > 1 ? "s" : ""} failed</div>` : ""}
         <div class="timestamp">${escapeHtml(fmtTime(row.computed_at))}</div>
       </div>
     `;
@@ -235,7 +235,7 @@
       .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k)))
       .join("");
     const unsafeBanner = rating.unsafe
-      ? `<div class="unsafe">⚠ Unsafe — failing gates: ${(rating.gate_failures || []).map(escapeHtml).join(", ") || "—"}</div>`
+      ? `<div class="unsafe">⚠ Unsafe — ${(rating.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(rating.gate_failures || []).length > 1 ? "s" : ""} failed</div>`
       : "";
     const capReasons = (rating.cap_reasons || []).filter(r => !r.startsWith("compliance"));
     const capNote = (rating.coverage_capped && capReasons.length)

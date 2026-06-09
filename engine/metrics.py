@@ -165,18 +165,17 @@ def compute_C(
     per-output figure.
 
     Edge cases (in priority order):
+    * ``model_cost <= 0``         → 1.0 (no spend reported → "free", maximum efficiency).
     * ``completed_outputs <= 0``  → treat as one output (avoids
       div-by-zero AND prevents a single huge ``model_cost`` from
       vanishing into a tiny per-output when the caller didn't supply
       a count).
-    * ``model_cost <= 0``         → 0.0 (no spend reported → no
-      savings to credit; never 1.0 for "free").
     * ``human_cost_per_output<=0``→ 0.0 (a human baseline of zero
       means the comparison is meaningless).
     * ``utilization`` is clamped to [0, 1].
     """
     if model_cost <= 0:
-        return 0.0
+        return 1.0
     if human_cost_per_output <= 0:
         return 0.0
     outputs = completed_outputs if completed_outputs > 0 else 1

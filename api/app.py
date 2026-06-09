@@ -251,6 +251,7 @@ def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
                 score=score.score,
                 band=score.band,
                 unsafe=score.unsafe,
+                gate_failures=list(score.gate_failures or []),
                 computed_at=score.computed_at,
             )
         )

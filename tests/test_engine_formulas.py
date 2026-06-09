@@ -184,8 +184,8 @@ def test_formula_C_human_to_ai_ratio_times_utilization():
     assert math.isclose(compute_C(0.5, 1.0, 1, 1.0), 0.5)
     # utilization < 1.0 scales the ratio
     assert math.isclose(compute_C(1.0, 1.0, 1, 0.5), 0.5)
-    # 0 ai cost → 0 (we don't credit a 100x saving from missing data)
-    assert compute_C(1.0, 0.0, 1, 1.0) == 0.0
+    # 0 ai cost → 1.0 (free means highly efficient)
+    assert compute_C(1.0, 0.0, 1, 1.0) == 1.0
 
 
 # ---------------------------------------------------------------------------
