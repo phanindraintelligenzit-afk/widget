@@ -205,8 +205,12 @@
          return `<div>${escapeHtml(k)}: <strong>${escapeHtml(disp)}</strong></div>`;
       }).join("");
       const displayStyle = isExpanded ? 'block' : 'none';
+      let formulaDisplay = formula;
+      if (formula && typeof value === 'number') {
+        formulaDisplay = `${formula} = ${parseFloat(value.toFixed(4))}`;
+      }
       subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
-        <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(formula)}</div>
+        <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(formulaDisplay)}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
       </div>`;
     }
