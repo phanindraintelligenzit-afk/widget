@@ -1,262 +1,358 @@
+"""
+DPI-LS FinOps Agent — Fully Dynamic Example
+============================================
+
+Every config value is read from the environment (.env file) — nothing is hardcoded.
+
+Environment variables (set in .env):
+    BEDROCK_MODEL_ID      = which Bedrock model to use      (required)
+    AWS_ACCESS_KEY_ID     = AWS credentials                 (required)
+    AWS_SECRET_ACCESS_KEY = AWS credentials                 (required)
+    AWS_DEFAULT_REGION    = AWS region for boto3            (default: us-east-1)
+    AGENT_ID              = stable ID for this agent        (default: chandra-finops)
+    AGENT_NAME            = display name                    (default: Chandra)
+    LOOKBACK_DAYS         = how many days of billing to fetch (default: 3)
+    HUMAN_BASELINE        = human output per period for P   (default: 1)
+    AGENT_PROMPT          = system prompt for the agent     (default: FinOps prompt)
+    AGENT_QUESTION        = question sent to the agent      (default: billing analysis)
+    DPI_LS_HOST           = dashboard host                  (default: 127.0.0.1)
+    DPI_LS_PORT           = dashboard port                  (default: 8000)
+
+Usage:
+    .venv\\Scripts\\python.exe examples\\test_agent.py
+
+Two-line integration (the whole point of dpi_ls):
+    import dpi_ls
+    dpi_ls.monitor(agent, agent_id=AGENT_ID, human_baseline=HUMAN_BASELINE)
+"""
+
+from __future__ import annotations
+
 import asyncio
-import aioboto3
 import json
 import os
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
-from typing import Optional, Any
+from pathlib import Path
+from typing import Any
+
 from dotenv import load_dotenv
 
-import dpi_ls                                       # line 1 - installable package
+# ── Load .env FIRST so all os.getenv() calls below pick it up ─────────────────
+load_dotenv(override=True)
 
-# Framework imports
-from agents import Agent, Runner, trace, function_tool
+import dpi_ls  # line 1 — the installable package
+
+from agents import Agent, Runner, function_tool
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.tool import FunctionTool
 
-load_dotenv(override=True)
 
+# ── Read ALL config from environment (zero hardcoding) ────────────────────────
+
+def _env(key: str, default: str = "") -> str:
+    return os.environ.get(key, default).strip().strip('"').strip("'")
+
+def _env_int(key: str, default: int) -> int:
+    try:
+        return int(_env(key, str(default)))
+    except ValueError:
+        return default
+
+# Required
+BEDROCK_MODEL_ID  = _env("BEDROCK_MODEL_ID") or _env("MODEL_NAME")
+
+# Optional — all have sensible defaults
+AGENT_ID          = _env("AGENT_ID",       "chandra-finops")
+AGENT_NAME        = _env("AGENT_NAME",     "Chandra")
+LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
+HUMAN_BASELINE    = _env_int("HUMAN_BASELINE", 1)
+DPI_LS_HOST       = _env("DPI_LS_HOST",    "127.0.0.1")
+DPI_LS_PORT       = _env_int("DPI_LS_PORT", 8000)
+
+AGENT_PROMPT = _env("AGENT_PROMPT") or (
+    "You are a FinOps AWS Agent tasked with auditing cloud spend. "
+    "Review the cost breakdown, summarize the most expensive services by region, "
+    "and point out any strange billing spikes or cost anomalies."
+)
+
+AGENT_QUESTION = _env("AGENT_QUESTION") or (
+    f"Analyze my AWS account billing over the last {LOOKBACK_DAYS} days. "
+    "Which regions are costing me the most money? "
+    "Are there any billing spikes or anomalies I should be aware of?"
+)
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  AWS Cost Explorer — fetches real billing data from your account
+# ═══════════════════════════════════════════════════════════════════
 
 class AWSCostExplorerFetcher:
-    """
-    Asynchronously fetches global AWS Cost Explorer data to analyze account spend.
-
-    Requires: pip install aioboto3
-    """
+    """Fetches real AWS Cost Explorer data grouped by Region + Service."""
 
     def __init__(self):
-        # CE API is a global endpoint. We always communicate with us-east-1.
+        import aioboto3
+        # CE is a global endpoint — always us-east-1
         self.region = "us-east-1"
         self._session = aioboto3.Session()
 
-    # ------------------------------------------------------------------ #
-    #  Public API                                                          #
-    # ------------------------------------------------------------------ #
-
-    async def fetch_cost_by_region_and_service(
-        self,
-        days_lookback: int = 7,
-        granularity: str = "DAILY"
-    ) -> dict[str, Any]:
+    async def fetch_costs_summary(self, days_lookback: int = LOOKBACK_DAYS) -> dict[str, Any]:
         """
-        Fetches full, raw AWS cost and usage breakdown globally.
-        Groups by REGION first, then by SERVICE.
+        Returns a compact daily billing summary by region.
+        Filters out $0.00 lines to protect the LLM context window.
         """
-        # Cost Explorer requires string dates in YYYY-MM-DD
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date   = datetime.now().strftime("%Y-%m-%d")
         start_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
 
-        request_kwargs = {
+        req = {
             "TimePeriod": {"Start": start_date, "End": end_date},
-            "Granularity": granularity,
+            "Granularity": "DAILY",
             "Metrics": ["UnblendedCost"],
-            # AWS allows a maximum of 2 Dimensions for GroupBy
             "GroupBy": [
                 {"Type": "DIMENSION", "Key": "REGION"},
-                {"Type": "DIMENSION", "Key": "SERVICE"}
+                {"Type": "DIMENSION", "Key": "SERVICE"},
             ],
         }
 
-        all_results_by_time = []
-        next_token = None
-
-        # Loop manually to handle pagination for large time windows
+        all_periods: list = []
         async with self._session.client("ce", region_name=self.region) as ce:
+            next_token = None
             while True:
                 if next_token:
-                    request_kwargs["NextPageToken"] = next_token
-
-                response = await ce.get_cost_and_usage(**request_kwargs)
-                all_results_by_time.extend(response.get("ResultsByTime", []))
-
-                next_token = response.get("NextPageToken")
+                    req["NextPageToken"] = next_token
+                resp = await ce.get_cost_and_usage(**req)
+                all_periods.extend(resp.get("ResultsByTime", []))
+                next_token = resp.get("NextPageToken")
                 if not next_token:
                     break
 
-        return {
-            "TimePeriod": {"Start": start_date, "End": end_date},
-            "Granularity": granularity,
-            "ResultsByTime": all_results_by_time
+        summary: dict[str, Any] = {
+            "LookbackPeriod": {"Start": start_date, "End": end_date},
+            "Granularity": "DAILY",
+            "DailyBreakdown": [],
         }
 
-    async def fetch_costs_summary(self, days_lookback: int = 7) -> dict[str, Any]:
-        """
-        Fetch a compact daily billing summary natively broken down by Region.
-        Filters out $0.00 services to protect LLM context windows.
-        """
-        raw_data = await self.fetch_cost_by_region_and_service(days_lookback=days_lookback)
-
-        summary = {
-            "LookbackPeriod": raw_data["TimePeriod"],
-            "Granularity": raw_data["Granularity"],
-            "DailyBreakdown": []
-        }
-
-        for period in raw_data.get("ResultsByTime", []):
-            time_frame = period.get("TimePeriod", {})
-
-            daily_record = {
-                "Date": time_frame.get("Start"),
-                "TotalDailyCost": 0.0,
-                "Regions": {}
-            }
+        for period in all_periods:
+            tf = period.get("TimePeriod", {})
+            day: dict[str, Any] = {"Date": tf.get("Start"), "TotalDailyCost": 0.0, "Regions": {}}
 
             for group in period.get("Groups", []):
-                # Because we used 2 GroupBy dimensions, Keys will be: [Region, Service]
-                keys = group.get("Keys", ["Global", "Unknown"])
+                keys   = group.get("Keys", ["Global", "Unknown"])
+                region = keys[0] or "Global-Services"
+                svc    = keys[1] if len(keys) > 1 else "Unknown"
+                amount = float(group.get("Metrics", {}).get("UnblendedCost", {}).get("Amount", 0))
 
-                # 'NoRegion' is used by AWS for global services like Route53, IAM, CloudFront, etc.
-                region_name = keys[0] if keys[0] else "Global-Services"
-                service_name = keys[1] if len(keys) > 1 else "Unknown"
-
-                metrics = group.get("Metrics", {})
-                unblended = metrics.get("UnblendedCost", {})
-
-                amount = float(unblended.get("Amount", 0))
-
-                # Filter out negligible costs (<= $0.00)
                 if amount > 0:
-                    # Initialize the region dict if it doesn't exist yet
-                    if region_name not in daily_record["Regions"]:
-                        daily_record["Regions"][region_name] = {"RegionTotal": 0.0, "Services": {}}
+                    if region not in day["Regions"]:
+                        day["Regions"][region] = {"RegionTotal": 0.0, "Services": {}}
+                    day["Regions"][region]["Services"][svc] = round(amount, 4)
+                    day["Regions"][region]["RegionTotal"]   += amount
+                    day["TotalDailyCost"]                   += amount
 
-                    # Add to the region's service breakdown
-                    daily_record["Regions"][region_name]["Services"][service_name] = round(amount, 4)
+            day["TotalDailyCost"] = round(day["TotalDailyCost"], 4)
+            for r in day["Regions"].values():
+                r["RegionTotal"] = round(r["RegionTotal"], 4)
 
-                    # Add to the rolling totals
-                    daily_record["Regions"][region_name]["RegionTotal"] += amount
-                    daily_record["TotalDailyCost"] += amount
-
-            # Round the totals so they render cleanly in JSON
-            daily_record["TotalDailyCost"] = round(daily_record["TotalDailyCost"], 4)
-            for reg in daily_record["Regions"].values():
-                reg["RegionTotal"] = round(reg["RegionTotal"], 4)
-
-            summary["DailyBreakdown"].append(daily_record)
+            summary["DailyBreakdown"].append(day)
 
         return summary
 
 
-# ================================================================== #
-#  Tool schema adapter: OpenAI -> Bedrock                            #
-# ================================================================== #
+# ═══════════════════════════════════════════════════════════════════
+#  Bedrock tool-schema adapter (OpenAI SDK → Bedrock format)
+# ═══════════════════════════════════════════════════════════════════
 
-def _convert_tool_for_bedrock(tool) -> FunctionTool:
-    """
-    Bedrock's tool-use schema differs from OpenAI's.
-    This adapter re-wraps each FunctionTool so the Agents SDK sends
-    the correct schema format to the Bedrock API.
-
-    Ref: https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html
-    """
+def _to_bedrock_tool(tool) -> FunctionTool:
     return FunctionTool(
         name=tool["name"],
         description=tool["description"],
         params_json_schema={
             "type": "object",
-            "properties": {
-                k: v for k, v in tool["params_json_schema"]["properties"].items()
-            },
+            "properties": {k: v for k, v in tool["params_json_schema"]["properties"].items()},
             "required": tool["params_json_schema"].get("required", []),
         },
         on_invoke_tool=tool["on_invoke_tool"],
     )
 
 
-# ================================================================== #
-#  Execution and Agent integration                                   #
-# ================================================================== #
+# ═══════════════════════════════════════════════════════════════════
+#  Score display helpers — shows all 7 dimensions
+# ═══════════════════════════════════════════════════════════════════
 
-async def main():
-    fetcher = AWSCostExplorerFetcher()
+def _bar(value: float | None, width: int = 20) -> str:
+    """ASCII progress bar for a [0,1] metric."""
+    if value is None:
+        return "[" + "-" * width + "] N/A"
+    filled = int(round(value * width))
+    return "[" + "█" * filled + "░" * (width - filled) + f"] {value:.3f}"
 
-    # 1. Export comprehensive raw billing data locally
-    report = await fetcher.fetch_costs_summary(days_lookback=3)
-    output_path = Path("observation") / "cost_explorer_raw.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(report, indent=4), encoding="utf-8")
-    print(f"Successfully written full raw billing report to {output_path}")
 
-    # Print the clean summary to the terminal so you can see the new structure
-    summary = await fetcher.fetch_costs_summary(days_lookback=3)
-    print(json.dumps(summary, indent=4))
+DIMENSION_LABELS = {
+    "P": "Productivity   (P)",
+    "Q": "Quality        (Q)",
+    "E": "Execution      (E)",
+    "G": "Governance     (G)",
+    "R": "Risk           (R)",
+    "V": "Validation     (V)",
+    "C": "Cost           (C)",
+}
 
+
+def print_score_card(rating: dict) -> None:
+    """Print a full DPI-LS score card with all 7 dimensions."""
+    score    = rating.get("score", 0)
+    raw      = rating.get("raw_score", score)
+    band     = rating.get("band", "?")
+    unsafe   = rating.get("unsafe", False)
+    gates    = rating.get("gate_failures", [])
+    metrics  = rating.get("metrics", {})
+    capped   = rating.get("capped", False)
+
+    BAND_ICONS = {
+        "Exceptional":       "★  EXCEPTIONAL",
+        "Strong":            "▲  STRONG",
+        "Needs Optimization":"▼  NEEDS OPTIMIZATION",
+        "Underperforming":   "✗  UNDERPERFORMING",
+    }
+    band_label = BAND_ICONS.get(band, band)
+    unsafe_tag = "  ⚠  UNSAFE — compliance gate fired" if unsafe else ""
+
+    print()
+    print("╔" + "═" * 55 + "╗")
+    print(f"║  DPI-LS SCORE CARD  ·  {AGENT_NAME:<32}║")
+    print("╠" + "═" * 55 + "╣")
+    print(f"║  Final Score : {score:>6.1f} / 100{' (capped)' if capped else '         '}    ║")
+    print(f"║  Raw Score   : {raw:>6.1f}                              ║")
+    print(f"║  Band        : {band_label:<39}║")
+    if unsafe_tag:
+        print(f"║  {unsafe_tag:<53}║")
+    if gates:
+        print(f"║  Gate failures: {', '.join(gates):<38}║")
+    print("╠" + "═" * 55 + "╣")
+    print("║  7 DIMENSIONS                                         ║")
+    print("╠" + "═" * 55 + "╣")
+    for key in ["P", "Q", "E", "G", "R", "V", "C"]:
+        label = DIMENSION_LABELS[key]
+        val   = metrics.get(key)
+        gate_flag = " ← GATE FAIL" if key in gates else ""
+        bar_str = _bar(val)
+        print(f"║  {label:<18} {bar_str}{gate_flag:<13}║")
+    print("╠" + "═" * 55 + "╣")
+    print(f"║  Agent ID    : {AGENT_ID:<39}║")
+    print(f"║  Framework   : openai_agents (AWS Bedrock / LiteLLM)  ║")
+    print(f"║  Model       : {BEDROCK_MODEL_ID[:37]:<39}║")
+    print("╚" + "═" * 55 + "╝")
+    print()
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Main agent run
+# ═══════════════════════════════════════════════════════════════════
 
 async def run_agent_observation() -> None:
-    # -----------------------------------------------------------------
-    # Load Bedrock model ID from .env
-    #   BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
-    #   BEDROCK_MODEL_ID=anthropic.claude-3-5-sonnet-20241022-v2:0
-    #   BEDROCK_MODEL_ID=us.meta.llama3-3-70b-instruct-v1:0
-    # AWS credentials are resolved automatically by boto3 from the
-    # environment (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY /
-    # AWS_DEFAULT_REGION) or from an active IAM role / SSO session.
-    # -----------------------------------------------------------------
-    bedrock_model_id = os.environ["BEDROCK_MODEL_ID"]
+    if not BEDROCK_MODEL_ID:
+        print("ERROR: BEDROCK_MODEL_ID is not set in .env")
+        sys.exit(1)
+
+    print(f"\n{'─'*55}")
+    print(f"  DPI-LS Monitor  ·  Agent: {AGENT_NAME}  ·  ID: {AGENT_ID}")
+    print(f"  Model : bedrock/{BEDROCK_MODEL_ID}")
+    print(f"  Lookback: {LOOKBACK_DAYS} days  |  Human baseline: {HUMAN_BASELINE}")
+    print(f"{'─'*55}\n")
 
     fetcher = AWSCostExplorerFetcher()
 
-    # Build raw function tools, then convert each one to Bedrock schema
-    raw_tools = [function_tool(fetcher.fetch_costs_summary)]
-    bedrock_tools = [_convert_tool_for_bedrock(t.__dict__) for t in raw_tools]
+    # Build tools dynamically from the fetcher
+    raw_tools    = [function_tool(fetcher.fetch_costs_summary)]
+    bedrock_tools = [_to_bedrock_tool(t.__dict__) for t in raw_tools]
 
-    prompt = (
-        "You are a FinOps AWS Agent tasked with auditing cloud spend. "
-        "Review the cost breakdown, summarize the most expensive services by region, "
-        "and point out any strange billing spikes."
-    )
-
+    # ── Build the agent (all config from env) ─────────────────────
     agent = Agent(
-        name="Chandra",
-        instructions=prompt,
-        # LiteLLM routes "bedrock/<model_id>" -> AWS Bedrock automatically.
-        # The "litellm/" prefix tells the Agents SDK to use LitellmModel routing.
-        model=LitellmModel(model=f"bedrock/{bedrock_model_id}"),
+        name=AGENT_NAME,
+        instructions=AGENT_PROMPT,
+        model=LitellmModel(model=f"bedrock/{BEDROCK_MODEL_ID}"),
         tools=bedrock_tools,
     )
 
-    # human_baseline=1: Chandra produces 1 analysis report per run,
-    # matching one human analyst who would produce the same 1 report.
-    # Without this, P defaults to 1/100 = 0.01 (wrong for a report agent).
-    collector = dpi_ls.monitor(agent, agent_id="chandra-finops", human_baseline=1)   # line 2
-
-    result = await Runner.run(
+    # ── LINE 2: Monitor the agent ─────────────────────────────────
+    collector = dpi_ls.monitor(          # line 2
         agent,
-        "Analyze my AWS account billing over the last 3 days. "
-        "What regions are costing me the most money?",
+        agent_id=AGENT_ID,
+        agent_name=AGENT_NAME,
+        human_baseline=HUMAN_BASELINE,
+        host=DPI_LS_HOST,
+        port=DPI_LS_PORT,
+        block=False,                     # we handle blocking ourselves below
+        post=False,                      # we post explicitly after Q eval
     )
 
-    print("\n--- Agent Final Output ---")
-    # Strip any non-ASCII characters (emoji etc.) so the output prints
-    # cleanly on Windows terminals that default to cp1252.
-    safe_output = result.final_output.encode("ascii", errors="ignore").decode("ascii")
-    print(safe_output)
+    # ── Run the agent ─────────────────────────────────────────────
+    print(f"Question: {AGENT_QUESTION}\n")
+    result = await Runner.run(agent, AGENT_QUESTION)
 
-    # -----------------------------------------------------------------
-    # Run the LangGraph Q evaluator NOW - inside the live event loop -
-    # so it can schedule async futures. If we leave it to the atexit
-    # finalizer the interpreter has already started tearing down and
-    # asyncio refuses to accept new coroutines.
-    # -----------------------------------------------------------------
+    print("\n" + "─" * 55)
+    print("  AGENT ANSWER")
+    print("─" * 55)
+    # Strip non-ASCII so Windows cp1252 terminals don't crash
+    safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
+    print(safe)
+    print("─" * 55)
+
+    # ── Q evaluation (must run inside the live event loop) ────────
     outputs = collector.outputs_for_q()
     if outputs and collector.quality is None:
+        print("\nRunning Q (Quality) evaluator via LangGraph...")
         try:
             q = await asyncio.get_running_loop().run_in_executor(
                 None, dpi_ls.evaluate_quality, outputs
             )
             collector.set_quality(q.accuracy, q.consistency, q.hallucination_rate)
             print(
-                f"\ndpi_ls Q score: accuracy={q.accuracy:.3f}  "
+                f"  Q → accuracy={q.accuracy:.3f}  "
                 f"consistency={q.consistency:.3f}  "
                 f"hallucination={q.hallucination_rate:.3f}  "
                 f"(source: {q.source})"
             )
         except Exception as exc:
-            print(f"\ndpi_ls Q evaluator skipped: {exc}")
+            print(f"  Q evaluator skipped: {exc}")
 
+    # ── POST to dashboard and display full score card ─────────────
+    from dpi_ls import _state
+    from dpi_ls.poster import post_observation
+
+    info = _state.get_server_info()
+    if info is None:
+        print("Dashboard server not running — score not posted.")
+        return
+
+    collector.mark_end()
+    print(f"\nPosting observation to {info.base_url}/ingest ...")
+    rating = post_observation(collector, info.base_url)
+
+    if rating is not None:
+        _state.set_post_on_exit(False)   # prevent atexit double-post
+        print_score_card(rating)
+    else:
+        print("Could not retrieve score from dashboard.")
+        # Save local copy so nothing is lost
+        from dpi_ls.poster import write_local_copy
+        path = write_local_copy(collector)
+        print(f"Observation saved locally: {path}")
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  Entry point
+# ═══════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
-    # asyncio.run(main())
-
     asyncio.run(run_agent_observation())
+
+    # Keep the dashboard alive for browsing
+    from dpi_ls import _state
+    info = _state.get_server_info()
+    if info is not None:
+        print(f"Dashboard is live → open  {info.base_url}  in your browser.")
+        try:
+            input("Press Enter to exit ...")
+        except (EOFError, KeyboardInterrupt):
+            pass

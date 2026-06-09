@@ -85,6 +85,13 @@ def test_P_zero_baseline_defends_against_div_zero():
     assert compute_P(50, 0) == 0.0
 
 
+def test_P_with_baseline_1_0():
+    """P should work correctly with default baseline of 1.0."""
+    assert compute_P(1, 1.0) == 1.0  # AI matches human baseline exactly
+    assert compute_P(0.5, 1.0) == 0.5  # AI is half as productive
+    assert compute_P(2.0, 1.0) == 1.0  # AI exceeds baseline, capped at 1.0
+
+
 def test_Q_uses_sub_weights():
     # 0.7*1 + 0.2*1 + 0.1*(1-0) = 1.0
     assert compute_Q(1.0, 1.0, 0.0, DEFAULT_Q_SUB_WEIGHTS) == pytest.approx(1.0)
