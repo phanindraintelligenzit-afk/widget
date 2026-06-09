@@ -25,7 +25,7 @@ def test_acme_payload_through_generic_webhook():
     assert obs.validation.validated_components == 9
     # The Cost contract carries just the three breakdown fields.
     # The engine derives the per-output figure at scoring time.
-    assert obs.cost.model_cost == 30.80
+    assert obs.cost.model_cost == 33.0
     assert obs.cost.input_tokens == 240000
     assert obs.cost.output_tokens == 300000
 

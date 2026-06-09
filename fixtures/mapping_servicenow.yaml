@@ -1,0 +1,32 @@
+# Declarative mapping: ServiceNow payload -> canonical AgentObservation.
+# Proves the "any agent, zero code" claim.
+
+constants:
+  source: servicenow
+  agent_name: "Unknown Agent"
+  tasks:
+    assigned: 0
+    completed: 0
+    failed: 0
+  executions:
+    attempts: 0
+    successful: 0
+  policy:
+    total_actions: 0
+  validation:
+    required_components: 0
+    validated_components: 0
+  cost:
+    input_tokens: 0
+    output_tokens: 0
+    model_cost: 0.0
+
+agent_id: $.tickets[0].u_agent_id
+period_start: $.period_start
+period_end: $.period_end
+
+incidents:
+  _each: $.tickets[*]
+  severity_weight: $.impact
+  frequency: 1.0
+  source: $.number

@@ -25,7 +25,7 @@ uv.lock          # included explicitly below — keep it for reproducible builds
 !uv.lock
 
 # Test & quality tooling (not needed at runtime)
-tests/
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/

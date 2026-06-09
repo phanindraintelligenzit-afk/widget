@@ -158,13 +158,13 @@ builds the canonical observation, and the dashboard row for
 
 | Dim | What it measures | Source signal | Dashboard card line |
 |---|---|---|---|
-| **P** — Productivity | `min(1, agent_runs / human_baseline)` | top-level `Runner.run` / `kickoff` / `ainvoke` count | "N completed / baseline M" |
+| **P** — Productivity | `min(1, (AI_output_per_period / human_baseline) * normalization_factor)` | top-level `Runner.run` / `kickoff` / `ainvoke` count | "N completed / baseline M" |
 | **Q** — Quality | `0.7·Acc + 0.2·Con + 0.1·(1−Hal)` | LangGraph LLM evaluator on the last N agent prose outputs | "Acc / Con / (1−Hal)" triple |
-| **E** — Execution | `successful_calls / attempts` | LLM + tool call success rate | "X successful / Y attempts" |
-| **G** — Governance | `1 − violations / total_actions` | deterministic policy scan (PII, auth errors, secrets, prompt-injection) on every output | "V violations / A actions" |
-| **R** — Risk | `1 − min(1, Σ(freq×sev) / R_max)` | recorded exceptions and incidents | "I incidents (ΣW = …)" |
-| **V** — Validation | `validated / required` | JSON / Markdown `##` headers / `<answer>` / `\| tables \|` detector | "V validated / R required" |
-| **C** — Cost | `min(1, human_cost / AI_cost) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
+| **E** — Execution | `successful_executions / total_attempts` | LLM + tool call success rate | "X successful / Y attempts" |
+| **G** — Governance | `1 − (policy_violations / total_actions)` | deterministic policy scan (PII, auth errors, secrets, prompt-injection) on every output | "V violations / A actions" |
+| **R** — Risk | `1 − min(1, Σ(freq × severity) / R_max)` | recorded exceptions and incidents | "I incidents (ΣW = …)" |
+| **V** — Validation | `validated_components / total_required` | JSON / Markdown `##` headers / `<answer>` / `\| tables \|` detector | "V validated / R required" |
+| **C** — Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
 | **RAG signals** *(informational)* | `retrievals` count + total docs retrieved | RAG / LlamaIndex patchers via `record_retrieval` | "N retrievals · M docs" (under E) |
 
 **Composite — weighted geometric mean:**
@@ -468,13 +468,13 @@ imports an agent framework, nothing calls out to the network.
 flowchart LR
     Obs["AgentObservation<br/>(canonical)"] --> Pull["metrics_from_observation"]
 
-    Pull --> P["P = min 1, completed / baseline"]
+    Pull --> P["P = min(1, (AI_output_per_period / human_baseline) * normalization_factor)"]
     Pull --> Q["Q = 0.7·Acc + 0.2·Con + 0.1·(1−Hal)"]
-    Pull --> E["E = successful / attempts"]
-    Pull --> G["G = 1 − violations / actions"]
-    Pull --> R["R = 1 − Σ(freq·sev) / R_max"]
-    Pull --> V["V = validated / required"]
-    Pull --> C["C = min(1, human_cost / ai_cost) × util"]
+    Pull --> E["E = successful_executions / total_attempts"]
+    Pull --> G["G = 1 − (policy_violations / total_actions)"]
+    Pull --> R["R = 1 − min(1, Σ(freq × severity) / R_max)"]
+    Pull --> V["V = validated_components / total_required"]
+    Pull --> C["C = min(1, human_cost_per_output / AI_cost_per_output) × util"]
 
     P --> GM
     Q --> GM
@@ -576,7 +576,7 @@ graph LR
     Out -->|policy scan| Gdim
     Err -->|freq x sev / R_max| Rdim
     Out -->|JSON / MD / tables| Vdim
-    Tok -->|human_cost / ai_cost x util| Cdim
+    Tok -->|human_cost_per_output / AI_cost_per_output × util| Cdim
 
     Pdim --> GM["composite<br/>weighted geometric mean"]
     Qdim --> GM
@@ -983,13 +983,13 @@ disproportionately (and the gates handle the "stop the world" case).
 
 | Dim | Formula | Vacuous default | What it captures |
 |---|---|---|---|
-| **P** — Productivity | `min(1, agent_runs / human_baseline)` | 0.0 (no baseline) | Completed agent runs vs `human_baseline` from `Settings` |
+| **P** — Productivity | `min(1, (AI_output_per_period / human_baseline) * normalization_factor)` | 0.0 (no baseline) | Completed agent runs vs `human_baseline` from `Settings` |
 | **Q** — Quality | `0.70·Acc + 0.20·Con + 0.10·(1−Hal)` | n/a (always computed) | LangGraph LLM evaluator scores the last N agent prose outputs |
-| **E** — Execution | `successful_calls / attempts` | 0.0 (no attempts) | LLM + tool call success rate |
-| **G** — Governance | `1 − (violations / total_actions)` | **1.0** (no actions = no violations) | Deterministic policy scan on every output (PII, auth errors, etc.) |
-| **R** — Risk | `1 − min(1, Σ(freq×sev) / R_max)` | **1.0** (no incidents = no risk) | Recorded exceptions and incidents |
-| **V** — Validation | `validated / required` | **1.0** (no required = nothing to validate) | Structured outputs: JSON, Markdown with `##` headers or `\| tables \|` |
-| **C** — Cost | `min(1, human_cost / AI_cost) × utilization` | 0.0 (no AI cost = no saving to credit) | Token-estimated cost vs `human_cost_per_output` |
+| **E** — Execution | `successful_executions / total_attempts` | 0.0 (no attempts) | LLM + tool call success rate |
+| **G** — Governance | `1 − (policy_violations / total_actions)` | **1.0** (no actions = no violations) | Deterministic policy scan on every output (PII, auth errors, etc.) |
+| **R** — Risk | `1 − min(1, Σ(freq × severity) / R_max)` | **1.0** (no incidents = no risk) | Recorded exceptions and incidents |
+| **V** — Validation | `validated_components / total_required` | **1.0** (no required = nothing to validate) | Structured outputs: JSON, Markdown with `##` headers or `\| tables \|` |
+| **C** — Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | 0.0 (no AI cost = no saving to credit) | Token-estimated cost vs `human_cost_per_output` |
 
 > **Vacuous-safe**: G, R, V return `1.0` when no actions / incidents / required
 > components are declared, so a brand-new agent that has not yet had the

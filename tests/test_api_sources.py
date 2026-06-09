@@ -9,7 +9,7 @@ def test_sources_listed_at_startup(client):
     assert r.status_code == 200
     names = {s["name"] for s in r.json()}
     # 5 real + 5 stub sources.
-    assert {"aws_cost", "puvi_noise", "arize", "servicenow", "jira"}.issubset(names)
+    assert {"aws_cost", "puvi_noise", "arize", "jira"}.issubset(names)
     assert {"langgraph", "bedrock", "ray", "bmc", "sap_hr"}.issubset(names)
 
 
@@ -73,7 +73,7 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     assert r_after_arize["metrics"]["Q"] is not None
 
     # 4. ServiceNow + Jira → R appears (Jira lands last so it wins).
-    client.post("/ingest/source/servicenow", json=load_source("servicenow"))
+    client.post("/ingest/webhook:servicenow", json=load_source("servicenow"))
     client.post("/ingest/source/jira", json=load_source("jira"))
     r_final = client.get(f"/agents/{AGENT}/score").json()
     assert r_final["metrics"]["R"] is not None
@@ -97,8 +97,9 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
 
 
 def test_servicenow_payload_scores_each_distinct_agent(client):
-    # Fixture has two distinct agents; expect two ratings back.
-    r = client.post("/ingest/source/servicenow", json=load_source("servicenow"))
+    # Fixture has multiple tickets, but YAML mapping aggregates to the first agent.
+    r = client.post("/ingest/webhook:servicenow", json=load_source("servicenow"))
     assert r.status_code == 200
     out = r.json()
-    assert len(out) == 2
+    assert len(out) == 1
+    assert "R" in out[0]["metrics"]

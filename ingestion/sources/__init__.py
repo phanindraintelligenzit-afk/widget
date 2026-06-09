@@ -7,7 +7,6 @@ from .base import SourceAdapter
 from .jira import JiraAdapter
 from .puvi_noise import PuviNoiseAdapter
 from .registry import clear, get, list_sources, register
-from .servicenow import ServiceNowAdapter
 from .stubs import (
     ALL_STUBS,
     BedrockAdapter,
@@ -21,7 +20,6 @@ REAL_ADAPTERS = (
     AwsCostAdapter,
     PuviNoiseAdapter,
     ArizeAdapter,
-    ServiceNowAdapter,
     JiraAdapter,
 )
 
@@ -45,7 +43,6 @@ __all__ = [
     "RayAdapter",
     "REAL_ADAPTERS",
     "SapHrAdapter",
-    "ServiceNowAdapter",
     "SourceAdapter",
     "clear",
     "get",

@@ -9,7 +9,6 @@ from ingestion.sources import (
     AwsCostAdapter,
     JiraAdapter,
     PuviNoiseAdapter,
-    ServiceNowAdapter,
 )
 from ingestion.sources.stubs import ALL_STUBS
 
@@ -82,27 +81,6 @@ def test_arize_omits_quality_when_payload_omits():
     [p] = ArizeAdapter().to_partials(payload)
     assert p.quality is None
     assert p.policy is not None
-
-
-def test_servicenow_maps_impact_to_severity_and_groups_by_agent():
-    partials = ServiceNowAdapter().to_partials(load_source("servicenow"))
-    by_agent = {p.agent_id: p for p in partials}
-    assert "agent-multi-001" in by_agent and "another-agent" in by_agent
-    incidents = by_agent["agent-multi-001"].incidents
-    assert len(incidents) == 2
-    weights = sorted(i.severity_weight for i in incidents)
-    assert weights == pytest.approx([0.3, 0.6])  # impact 3 → 0.3, impact 2 → 0.6
-
-
-def test_servicenow_drops_tickets_without_agent_id():
-    payload = {
-        "period_start": "2026-06-01T00:00:00Z",
-        "period_end":   "2026-06-02T00:00:00Z",
-        "tickets": [
-            {"number": "INC001", "impact": 1, "opened_at": "2026-06-01T00:00:00Z"},
-        ],
-    }
-    assert ServiceNowAdapter().to_partials(payload) == []
 
 
 def test_jira_priority_maps_to_severity():

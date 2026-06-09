@@ -36,13 +36,13 @@
   };
 
   const METRIC_FORMULAS = {
-    P: "P = completed / assigned * 100",
+    P: "P = min(1, (AI_output_per_period / human_baseline) * normalization_factor)",
     Q: "Q = w_acc*Accuracy + w_con*Consistency + w_hal*(1 − Hallucination)",
-    E: "E = successful / attempts * 100",
-    G: "G = 100 - (violations / total_actions * 100)",
-    R: "R = 100 - SUM(severity * frequency)",
-    V: "V = validated / required * 100",
-    C: "C = max(0, 100 - total_cost)"
+    E: "E = successful_executions / total_attempts",
+    G: "G = 1 − (policy_violations / total_actions)",
+    R: "R = 1 − min(1, SUM(freq × severity) / R_max)",
+    V: "V = validated_components / total_required",
+    C: "C = min(1, human_cost_per_output / AI_cost_per_output) × utilization"
   };
 
   const SHARED_CSS = `

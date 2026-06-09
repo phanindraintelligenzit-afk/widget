@@ -37,7 +37,7 @@ def score_and_persist(
     # Surface RAG signals (informational — doesn't affect score math).
     rating.retrievals = obs.retrievals
     rating.retrieved_docs_total = obs.retrieved_docs_total
-    rating.sub_metrics = _extract_sub_metrics(obs)
+    rating.sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj)
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     return rating
@@ -67,7 +67,7 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
-    rating.sub_metrics = _extract_sub_metrics(merged)
+    rating.sub_metrics = _extract_sub_metrics(merged, settings, baseline)
 
     # Link the score to the most recent partial — gives history a sensible
     # causal anchor even though the score is from the merged set.
@@ -108,7 +108,7 @@ def ingest_partials(s: Session, partials: list[PartialObservation]) -> list[Rati
     return out
 
 
-def _extract_sub_metrics(obs: AgentObservation | PartialObservation) -> dict:
+def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, baseline) -> dict:
     """Extract raw components from the observation for UI drill-downs.
 
     The per-agent card renders each dimension's sub-metrics under a
@@ -120,7 +120,11 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation) -> dict:
     """
     res: dict = {}
     if obs.tasks:
-        res["P"] = obs.tasks.model_dump(mode="json")
+        res["P"] = {
+            "AI_output_per_period": obs.tasks.completed,
+            "human_baseline": baseline.human_output_per_period,
+            "normalization_factor": settings.normalization_factor
+        }
     if obs.quality:
         res["Q"] = obs.quality.model_dump(mode="json")
     if obs.executions:
