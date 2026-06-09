@@ -34,6 +34,6 @@
   ],
   "quality": {"accuracy": 0.88, "consistency": 0.85, "hallucination_rate": 0.06},
   "validation": {"required_components": 10, "validated_components": 9, "audit_ready": false},
-  "cost": {"input_tokens": 350000, "output_tokens": 350000, "model_cost": 35.10},
+  "cost": {"input_tokens": 350000, "output_tokens": 350000, "model_cost": 35.10, "number_of_llm_calls": 88, "Human_cost": 170.50},
   "source": "fixture"
 }

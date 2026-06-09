@@ -837,7 +837,7 @@ requires-dist = [
     { name = "langchain-community", specifier = ">=0.4.2" },
     { name = "langchain-core", specifier = ">=0.3" },
     { name = "langgraph", specifier = ">=0.2" },
-    { name = "litellm", specifier = ">=1.87.1" },
+    { name = "litellm", specifier = ">=1.50.0" },
     { name = "llama-index", specifier = ">=0.14.22" },
     { name = "llama-index-core", marker = "extra == 'llamaindex'", specifier = ">=0.10" },
     { name = "openai-agents", specifier = ">=0.17.4" },

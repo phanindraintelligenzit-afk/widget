@@ -100,6 +100,8 @@ class SignalCollector:
     tokens_in: int = 0
     tokens_out: int = 0
     cloud_cost: float = 0.0
+    llm_calls: int = 0
+    human_cost: float = 0.0
     _systems_accessed: set[str] = field(default_factory=set)
 
     # V — validation. We treat any output that looks like a structured
@@ -147,6 +149,7 @@ class SignalCollector:
         """One LLM call completed. Records tokens/cost/output for Q."""
         with self._lock:
             self.attempts += 1
+            self.llm_calls += 1
             if ok:
                 self.successful += 1
             else:
@@ -419,6 +422,8 @@ class SignalCollector:
                 "input_tokens": self.tokens_in,
                 "output_tokens": self.tokens_out,
                 "model_cost": model_cost,
+                "number_of_llm_calls": self.llm_calls,
+                "Human_cost": self.human_cost,
             },
             "source": f"dpi_ls:{self.framework}",
             # RAG signals — observed by the LlamaIndex / RAG patchers.

@@ -34,8 +34,10 @@
     "audit_ready": true
   },
   "cost": {
-    "model_cost": 30.80,
+    "model_cost": 33.0,
     "input_tokens": 240000,
-    "output_tokens": 300000
+    "output_tokens": 300000,
+    "number_of_llm_calls": 56,
+    "Human_cost": 210.00
   }
 }
