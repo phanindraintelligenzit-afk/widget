@@ -31,8 +31,12 @@ from contract import AgentBaseline, AgentObservation, PartialObservation, Settin
 # Individual metric functions
 # ---------------------------------------------------------------------------
 
-def compute_P(ai_output_per_period: float, human_baseline: float) -> float:
-    """P = min(1, AI_output_per_period / human_baseline).
+def compute_P(
+    ai_output_per_period: float,
+    human_baseline: float,
+    normalization_factor: float = 1.0,
+) -> float:
+    """P = min(1, (AI_output_per_period / human_baseline) * normalization_factor).
 
     Output is clamped to [0, 1]. A negative ``ai_output_per_period``
     (which should never happen, but is the kind of thing a
@@ -43,7 +47,7 @@ def compute_P(ai_output_per_period: float, human_baseline: float) -> float:
         return 0.0
     if ai_output_per_period <= 0:
         return 0.0
-    return min(1.0, ai_output_per_period / human_baseline)
+    return min(1.0, (ai_output_per_period / human_baseline) * normalization_factor)
 
 
 def compute_Q(
@@ -183,7 +187,11 @@ def metrics_from_observation(
     that's a signal to defer Q to a conversational/SME capture, not
     a zero. All other dimensions resolve to a float.
     """
-    P = compute_P(obs.tasks.completed, baseline.human_output_per_period)
+    P = compute_P(
+        obs.tasks.completed,
+        baseline.human_output_per_period,
+        settings.normalization_factor,
+    )
 
     if obs.quality is None:
         Q: Optional[float] = None
@@ -222,7 +230,11 @@ def metrics_from_partial(
     as Strong.
     """
     P = (
-        compute_P(partial.tasks.completed, baseline.human_output_per_period)
+        compute_P(
+            partial.tasks.completed,
+            baseline.human_output_per_period,
+            settings.normalization_factor,
+        )
         if partial.tasks is not None
         else None
     )

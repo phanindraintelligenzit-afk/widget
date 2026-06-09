@@ -36,6 +36,7 @@ class Settings(BaseModel):
     r_max: float = 10.0
     human_cost_per_output: float = 1.0
     utilization: float = 1.0
+    normalization_factor: float = 1.0
 
     # Coverage cap. The composite redistributes weight off None metrics, so an
     # agent with only 1–2 dimensions reported could otherwise score 100. This
