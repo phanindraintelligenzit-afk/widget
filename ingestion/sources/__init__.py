@@ -9,13 +9,13 @@ from .puvi_noise import PuviNoiseAdapter
 from .ray import RayAdapter
 from .servicenow import ServiceNowAdapter
 from .bmc import BmcAdapter
+from .bedrock import BedrockAdapter
+from .sap_hr import SapHrAdapter
+from .langgraph import LangGraphAdapter
 from .audit_trail import AuditTrailAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
-    BedrockAdapter,
-    LangGraphAdapter,
-    SapHrAdapter,
 )
 
 REAL_ADAPTERS = (
@@ -26,6 +26,9 @@ REAL_ADAPTERS = (
     RayAdapter,
     ServiceNowAdapter,
     BmcAdapter,
+    BedrockAdapter,
+    SapHrAdapter,
+    LangGraphAdapter,
     AuditTrailAdapter,
 )
 

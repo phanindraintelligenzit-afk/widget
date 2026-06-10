@@ -476,16 +476,10 @@ class TestArizeAPIEndpoint:
         assert score["metrics"]["G"] == pytest.approx(1.0)
 
     def test_bad_payload_missing_period_start_raises(self, client):
-        """Missing period_start causes a KeyError crash in arize.py (known gap).
-
-        The Starlette TestClient propagates unhandled server exceptions directly
-        rather than wrapping them in an HTTP 500 response, so we catch with
-        pytest.raises. This documents a real bug: arize.py should guard against
-        missing period_start/period_end and raise an HTTPException instead.
-        TODO: fix arize.py to validate period fields and return HTTP 422.
-        """
-        with pytest.raises(KeyError, match="period_start"):
-            client.post("/ingest/source/arize", json={"agents": []})
+        """Missing period_start returns HTTP 422."""
+        r = client.post("/ingest/source/arize", json={"agents": []})
+        assert r.status_code == 422
+        assert "Missing period_start" in r.text
 
     def test_arize_listed_in_sources_endpoint(self, client):
         r = client.get("/sources")

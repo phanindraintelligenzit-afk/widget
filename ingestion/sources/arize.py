@@ -11,6 +11,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from fastapi import HTTPException
+
 from contract import PartialObservation, Policy, PolicyViolation, Quality
 
 from .base import SourceAdapter
@@ -41,6 +43,8 @@ class ArizeAdapter(SourceAdapter):
               ]
             }
         """
+        if "period_start" not in payload or "period_end" not in payload:
+            raise HTTPException(status_code=422, detail="Missing period_start or period_end")
         start = _parse_dt(payload["period_start"])
         end = _parse_dt(payload["period_end"])
         out: list[PartialObservation] = []

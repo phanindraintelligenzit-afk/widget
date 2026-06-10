@@ -1,0 +1,21 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Bedrock Usage mapping to Cost (C)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "bedrock_usage": [
+    {
+      "agent_id": "chandra-finops",
+      "model": "anthropic.claude-3-sonnet-20240229-v1:0",
+      "input_tokens": 15000,
+      "output_tokens": 4000,
+      "estimated_cost_usd": 0.06
+    },
+    {
+      "agent_id": "agent-perfect-002",
+      "model": "anthropic.claude-3-haiku-20240307-v1:0",
+      "input_tokens": 2000,
+      "output_tokens": 500,
+      "estimated_cost_usd": 0.01
+    }
+  ]
+}

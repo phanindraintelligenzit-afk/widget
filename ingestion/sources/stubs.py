@@ -33,16 +33,4 @@ class _StubAdapter(SourceAdapter):
         return []
 
 
-class LangGraphAdapter(_StubAdapter):
-    name = "langgraph"
-
-
-class BedrockAdapter(_StubAdapter):
-    name = "bedrock"
-
-
-class SapHrAdapter(_StubAdapter):
-    name = "sap_hr"
-
-
-ALL_STUBS = (LangGraphAdapter, BedrockAdapter, SapHrAdapter)
+ALL_STUBS = ()
