@@ -41,10 +41,6 @@ class BedrockAdapter(_StubAdapter):
     name = "bedrock"
 
 
-class RayAdapter(_StubAdapter):
-    name = "ray"
-
-
 class BmcAdapter(_StubAdapter):
     name = "bmc"
 
@@ -53,4 +49,4 @@ class SapHrAdapter(_StubAdapter):
     name = "sap_hr"
 
 
-ALL_STUBS = (LangGraphAdapter, BedrockAdapter, RayAdapter, BmcAdapter, SapHrAdapter)
+ALL_STUBS = (LangGraphAdapter, BedrockAdapter, BmcAdapter, SapHrAdapter)
