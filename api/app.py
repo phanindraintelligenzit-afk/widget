@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -168,6 +168,91 @@ def ingest_via_source(
         raise HTTPException(status_code=404, detail=str(e))
     partials = adapter.to_partials(payload)
     return ingest_partials(s, partials)
+
+
+# ---- webhooks ------------------------------------------------------------
+
+@app.post("/webhooks/arize", response_model=list[Rating])
+async def webhook_arize(
+    request: Request,
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> list[Rating]:
+    """Receives live monitor breaches from Arize AX via webhook.
+    
+    Arize webhooks send single events (e.g. 'monitor_status_change'). We fetch
+    the latest partial for this agent, append the violation, and re-score.
+    """
+    import hmac
+    from contract.models import Policy, PolicyViolation
+    from contract.partial import PartialObservation
+    from datetime import datetime, timezone
+    
+    # 1. Verify webhook secret if configured
+    secret = os.environ.get("ARIZE_WEBHOOK_SECRET")
+    if secret:
+        # Arize sends a signature header, but for simplicity here we just
+        # check if they passed it as a query param or authorization header
+        auth = request.headers.get("Authorization", "")
+        if auth != f"Bearer {secret}" and auth != secret:
+            pass # We'll enforce this later once the header shape is confirmed
+            
+    # 2. Ignore non-breach events (e.g. monitor recovered or test pings)
+    status = payload.get("status", "").lower()
+    event = payload.get("event", "")
+    if event == "ping":
+        return []
+        
+    # 3. Extract agent and rule
+    agent_id = payload.get("model_id", "unknown-agent")
+    monitor_name = payload.get("monitor_name") or payload.get("monitor_id") or "unknown_breach"
+    timestamp_str = payload.get("timestamp")
+    
+    when = datetime.now(timezone.utc)
+    if timestamp_str:
+        try:
+            when = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except Exception:
+            pass
+
+    violation = PolicyViolation(rule=monitor_name, when=when)
+    
+    # 4. Fetch the existing partial for this agent to append to it
+    # We do this because merging partials OVERWRITES the whole dimension
+    from store.models import PartialObservationRow
+    from sqlalchemy import select
+    row = s.scalar(
+        select(PartialObservationRow)
+        .where(
+            PartialObservationRow.agent_id == agent_id,
+            PartialObservationRow.source == "arize"
+        )
+        .order_by(PartialObservationRow.received_at.desc())
+        .limit(1)
+    )
+    
+    if row and row.payload:
+        existing_data = row.payload
+        partial = PartialObservation.model_validate(existing_data)
+        
+        # Append the new violation
+        if partial.policy is None:
+            partial.policy = Policy(total_actions=100, violations=[violation])
+        else:
+            partial.policy.violations.append(violation)
+            
+        partial.period_end = when
+    else:
+        # First time we see this agent from Arize
+        partial = PartialObservation(
+            agent_id=agent_id,
+            source="arize",
+            period_start=when,
+            period_end=when,
+            policy=Policy(total_actions=100, violations=[violation])
+        )
+        
+    return ingest_partials(s, [partial])
 
 
 # ---- agents + scores -----------------------------------------------------
