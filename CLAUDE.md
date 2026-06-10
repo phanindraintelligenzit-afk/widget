@@ -189,11 +189,18 @@ Each sub-metric is normalized to **[0, 1]**. None is a valid value (means "needs
 | **V** Validation | `validated_components / total_required` | **1.0** | JSON / `## headers` / `<answer>` / markdown tables detector |
 | **C** Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | 0.0 / 1.0 (see `engine/metrics.compute_C`) | Token-estimated cost vs `human_cost_per_output` |
 
-**Composite — weighted geometric mean, not a weighted sum:**
+**Composite — weighted arithmetic mean of the 7 metrics × 100:**
 
 ```
-DPI-LS = 100 × ( P^.15 · Q^.20 · E^.15 · G^.20 · R^.15 · V^.10 · C^.05 )
+DPI-LS = 100 × ( 0.15·P + 0.20·Q + 0.15·E + 0.20·G + 0.15·R + 0.10·V + 0.05·C )
 ```
+
+The arithmetic mean expresses "score reflects performance across all
+7 metrics" — a 0 in G lowers the score, but doesn't nuke it to zero
+(six other dims at 1.0 still drive the score above 0). The safety-net
+for a fully-failed dim is the **gate force-cap** (see
+"Compliance gates" below) — when G / R / V dips below its floor, the
+score is pinned to 69 (top of "Needs Optimization") and `unsafe=True`.
 
 The four reference numbers the engine tests guard:
 
@@ -201,8 +208,8 @@ The four reference numbers the engine tests guard:
 |---|---|
 | all metrics = 0.85 | composite = 85, band = Exceptional |
 | all metrics = 0.92 | composite = 92, band = Exceptional |
-| all metrics = 0.55 | composite = 55, band = Needs Optimization |
-| all 0.85, G = 0.25 | raw = 67, gate fires, `unsafe=True`, band = Needs Optimization |
+| all metrics = 0.55 | raw = 55, G+V gate fires, `score=69`, `unsafe=True`, band = Needs Optimization |
+| all 0.85, G = 0.25 | raw = 73, G gate fires, `score=69`, `unsafe=True`, band = Needs Optimization |
 
 These are asserted in `tests/test_engine_reference.py` and `tests/test_engine_formulas.py`. **If any of these break, the engine is wrong** — not the test.
 

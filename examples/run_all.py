@@ -75,6 +75,12 @@ EXAMPLES: list[tuple[str, str, str, str, str]] = [
     ("CrewAI 2-agent research crew",                  "crewai-research",     "examples.crewai_research",    "main",                  "sync"),
     ("AutoGen 0.7+ debate agent",                     "autogen-debate",      "examples.autogen_debate",     "main",                  "async"),
     ("Raw boto3 Bedrock agent",                       "raw-bedrock",         "examples.raw_bedrock",        "main",                  "sync"),
+    # Bedrock LLM driven — uses ChatBedrockConverse to emit
+    # PII / secrets / prompt-injection / authz / compliance text the G
+    # regex scanner flags. ``gov-violator`` is the same agent_id the
+    # prior deterministic version of this example used, so any
+    # existing dashboard row is replaced rather than duplicated.
+    ("LLM-driven Governance Violator (Bedrock)",      "gov-violator",        "examples.governance_violator","main",                  "async"),
     # Requires `pip install dpi-ls[llamaindex]`. Skipped at import time
     # if llama-index-core isn't on the path.
     ("LlamaIndex RAG agent",                          "llamaindex-rag",      "examples.llamaindex_rag",     "main",                  "async"),

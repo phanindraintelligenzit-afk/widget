@@ -95,18 +95,27 @@ def test_reference_outputs_unchanged():
     assert r2.band == "Exceptional"
     assert r2.capped is False
 
-    # All metrics 0.55 → 55
+    # All metrics 0.55 → raw 55, gate fires (G and V below 0.60),
+    # force-pinned at 69
     r3 = rate(_all(0.55))
-    assert round(r3.score) == 55
+    # 0.55 trips both the G floor (0.60) and the V floor (0.60) — and
+    # R floor is 0.50, so 0.55 actually passes R. The gate is a force
+    # cap, so the score is pinned at 69 (top of Needs Optimization),
+    # not the raw 55. The raw score is preserved on r3.raw_score.
+    assert round(r3.raw_score) == 55
+    assert round(r3.score) == 69
     assert r3.band == "Needs Optimization"
-    assert r3.capped is False
+    assert r3.unsafe is True
+    assert "G" in r3.gate_failures
+    assert "V" in r3.gate_failures
 
-    # Strong agent but G=.25 → raw 67, gate fires, flagged Unsafe
+    # Strong agent but G=.25 → raw 73 (arithmetic), gate fires,
+    # force-pinned at 69
     m4 = _all(0.85)
     m4["G"] = 0.25
     r4 = rate(m4)
-    assert round(r4.raw_score) == 67
-    assert round(r4.score) == 67
+    assert round(r4.raw_score) == 73
+    assert round(r4.score) == 69
     assert r4.unsafe is True
     assert r4.band == "Needs Optimization"
     assert "G" in r4.gate_failures

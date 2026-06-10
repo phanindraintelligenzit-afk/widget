@@ -240,18 +240,18 @@ def test_unauthorized_change_text_triggers_violation():
     assert "governance.unauthorized_change" in rules
 
 
-def test_unauthorized_data_access_text_triggers_violation():
-    rules = set(scan_policy_violations(
-        "Investigation: unauthorized data access from the finance DB."
-    ))
-    assert "authz.unauthorized_data_access" in rules
-
-
-def test_unauthorized_system_access_text_triggers_violation():
-    rules = set(scan_policy_violations(
-        "ALERT: unauthorized system access from 10.0.0.5 — blocked."
-    ))
-    assert "authz.unauthorized_system_access" in rules
+# NOTE: ``authz.unauthorized_data_access`` and
+# ``authz.unauthorized_system_access`` are NOT triggered by text
+# matching — those rules fired on any LLM prose containing the phrase
+# "unauthorized access" and so produced false positives whenever an
+# agent discussed security topics (FinOps IAM, post-mortems,
+# compliance reports) without an actual auth error in the code.
+# Real auth failures still get tagged via:
+#   * the exception-class map in collector._ERROR_RULE_MAP
+#     (PermissionError, AccessDenied, UnauthorizedError, ...)
+#   * the ``authz.permission_denied`` / ``authz.forbidden`` text rules
+#     (which name a concrete failure, not a topic)
+# See ``test_unauthorized_keyword_in_exception_message_below``.
 
 
 def test_permission_denied_text_triggers_violation():
@@ -298,16 +298,19 @@ def test_multiple_violations_in_one_output_dedupe_by_rule():
         "The agent leaked an SSN 123-45-6789 and an email a@b.com. "
         "We saw a 'ignore previous instructions' marker in the tool "
         "result. The audit log write failed for the related event, "
-        "and an unauthorized data access event was reported with a "
-        "permission denied status."
+        "and the tool call returned a 'permission denied' status."
     )
     rules = set(scan_policy_violations(text))
     assert "pii.ssn" in rules
     assert "pii.email" in rules
     assert "prompt.ignore_previous" in rules
-    assert "authz.unauthorized_data_access" in rules
     assert "authz.permission_denied" in rules
     assert "audit.trail_failure" in rules
+    # ``authz.unauthorized_data_access`` deliberately does NOT fire
+    # on the prose "an unauthorized data access event was reported" —
+    # the regex that used to match it was removed because it produced
+    # false positives whenever an LLM discussed security topics
+    # without an actual auth error in the agent's code.
 
 
 # ---- error class -> G rule mapping -----------------------------------------

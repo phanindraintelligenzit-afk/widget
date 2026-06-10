@@ -95,7 +95,21 @@ def gate_check(
 
 
 def apply_gate(raw_score: float, gate_fired: bool) -> tuple[float, bool]:
-    """Cap score at NEEDS_OPT_CAP if a gate fires; return (final, unsafe)."""
+    """Pin the score at the top of "Needs Optimization" if a gate fires.
+
+    The gate is a *force-cap*, not a ceiling. When G / R / V dips below
+    its floor, the agent is held in the 50–69 "Needs Optimization"
+    band and flagged ``unsafe=True``, regardless of how low the raw
+    composite sank (e.g. an all-other-dims-1.0 / G=0.0 agent would
+    raw-score near 1 because the geometric mean treats 0 as a kill
+    switch — that's the correct *raw* behaviour for a single zeroed
+    dimension, but it would put the agent in "Underperforming", which
+    mis-reports a gate failure as a performance failure).
+
+    Pinning at the top of the band (69) — not the bottom (50) — keeps
+    the agent in the recoverable range: a single G violation should
+    not bury the agent below where a single fix would surface it.
+    """
     if not gate_fired:
         return raw_score, False
-    return min(raw_score, NEEDS_OPT_CAP), True
+    return NEEDS_OPT_CAP, True

@@ -141,6 +141,14 @@
     return Number.isFinite(n) && n > 0 ? n : DEFAULT_POLL_MS;
   }
 
+  function bandForScore(score, fallback) {
+    if (!Number.isFinite(score)) return fallback;
+    if (score >= 85) return "Exceptional";
+    if (score >= 70) return "Strong";
+    if (score >= 50) return "Needs Optimization";
+    return "Underperforming";
+  }
+
   function bandPill(band) {
     const { fg, bg } = BANDS[band] || { fg: "#374151", bg: "#f3f4f6" };
     return `<span class="pill" style="color:${fg};background:${bg}">${escapeHtml(band)}</span>`;
@@ -151,10 +159,17 @@
   }
 
   function fmtMetric(v) {
+    // Display the metric as a percentage — the natural reading.
+    // The total score is the weighted sum of the 7 metric percentages
+    // (see ``engine.score.composite``), so the user can do the math
+    // mentally: 100% × 0.15 + 82.5% × 0.20 + … = raw_score.
     return Number.isFinite(v) ? Math.round(v * 100).toString() : "—";
   }
 
   function fmtWeightedMetric(v, weightPercent) {
+    // Weighted contribution to the raw score (value × weightPercent).
+    // Surfaced in the metric detail panel so the user can see exactly
+    // what each dim adds up to.
     if (!Number.isFinite(v)) return "—";
     const val = v * weightPercent;
     return Number.isInteger(val) ? val.toString() : val.toFixed(1);
@@ -177,9 +192,9 @@
             <div class="name">${escapeHtml(row.agent_name)}</div>
             <div class="id">${escapeHtml(row.agent_id)}</div>
           </div>
-          ${bandPill(row.band)}
+          ${bandPill(bandForScore(row.raw_score !== undefined ? row.raw_score : row.score, row.band))}
         </div>
-        <div class="score">${fmtScore(row.score)}</div>
+        <div class="score">${fmtScore(row.raw_score !== undefined ? row.raw_score : row.score)}</div>
         ${row.unsafe ? `<div class="unsafe">⚠ Unsafe — ${(row.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(row.gate_failures || []).length > 1 ? "s" : ""} failed</div>` : ""}
         <div class="timestamp">${escapeHtml(fmtTime(row.computed_at))}</div>
       </div>
@@ -207,7 +222,25 @@
       const displayStyle = isExpanded ? 'block' : 'none';
       let formulaDisplay = formula;
       if (formula && typeof value === 'number') {
-        formulaDisplay = `${formula} = ${parseFloat(value.toFixed(4))}`;
+        // Show the formula, the value, and the weighted contribution
+        // to the raw score — e.g.
+        //   "Q = ... = 0.825"            ← the metric value
+        //   "weighted contribution:      ← how this dim adds up
+        //      0.825 × 20% = 16.5"
+        const valueStr = parseFloat(value.toFixed(4));
+        if (METRIC_WEIGHTS[key]) {
+          const w = METRIC_WEIGHTS[key];
+          const contrib = value * w;
+          const contribStr = Number.isInteger(contrib)
+            ? contrib.toString()
+            : contrib.toFixed(1);
+          formulaDisplay =
+            `${formula} = ${valueStr}<br>` +
+            `<span style="color:#475569">weighted contribution: ` +
+            `${valueStr} × ${w}% = <strong>${contribStr}</strong></span>`;
+        } else {
+          formulaDisplay = `${formula} = ${valueStr}`;
+        }
       }
 
       // Governance panel — surface the actual violation list so an
@@ -249,7 +282,7 @@
       }
 
       subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
-        <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(formulaDisplay)}</div>
+        <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${formulaDisplay}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
         ${violationsHtml}
       </div>`;
@@ -300,12 +333,23 @@
     const missing = (rating.missing || []).length
       ? `<div class="missing-note">Pending SME / source input: ${rating.missing.map(escapeHtml).join(", ")}</div>`
       : "";
+
+    // The composite is the weighted arithmetic mean of the 7
+    // metrics × 100 — `raw_score` on the API. When no gate fires,
+    // ``score == raw_score``. When a gate fires, ``score`` is
+    // force-pinned to 69 (top of "Needs Optimization") and the
+    // raw_score is preserved separately so the user can verify the
+    // math. Surface the raw_score as a small subtitle under the
+    // score so the discrepancy is explicit.
+    const rawScore = Number.isFinite(rating.raw_score) ? rating.raw_score : null;
     return `
       <div class="card" part="card">
         <div class="head">
-          <div class="score">${fmtScore(rating.score)}</div>
+          <div>
+            <div class="score">${fmtScore(rawScore !== null ? rawScore : rating.score)}</div>
+          </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-            ${bandPill(rating.band)}
+            ${bandPill(bandForScore(rawScore !== null ? rawScore : rating.score, rating.band))}
             ${coverageBadge(rating)}
           </div>
         </div>

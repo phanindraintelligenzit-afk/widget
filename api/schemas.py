@@ -29,6 +29,7 @@ class BoardRow(BaseModel):
     agent_id: str
     agent_name: str
     score: float
+    raw_score: float
     band: str
     unsafe: bool
     gate_failures: list[str] = Field(default_factory=list)

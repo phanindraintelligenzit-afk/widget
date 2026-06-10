@@ -334,6 +334,7 @@ def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
                 agent_id=agent.id,
                 agent_name=agent.name,
                 score=score.score,
+                raw_score=score.raw_score,
                 band=score.band,
                 unsafe=score.unsafe,
                 gate_failures=list(score.gate_failures or []),

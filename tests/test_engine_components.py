@@ -56,9 +56,21 @@ def test_gate_caps_high_score():
     assert final == NEEDS_OPT_CAP
 
 
-def test_gate_leaves_low_score_untouched():
+def test_gate_force_pins_low_score_to_band_top():
+    """When a gate fires, the score is force-pinned to the top of
+    "Needs Optimization" (69) — even when the raw composite sank
+    below the band (e.g. a 0 in one dim nuked the geometric mean).
+    The gate is a force-cap, not a ceiling: it expresses a safety
+    floor failure, not a performance failure.
+    """
     final, unsafe = apply_gate(42.0, True)
     assert unsafe is True
+    assert final == NEEDS_OPT_CAP  # 42.0 → pinned at 69
+
+
+def test_gate_does_not_cap_when_no_fire():
+    final, unsafe = apply_gate(42.0, False)
+    assert unsafe is False
     assert final == 42.0
 
 

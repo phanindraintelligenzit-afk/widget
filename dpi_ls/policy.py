@@ -99,26 +99,24 @@ RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         ),
     ),
     # ---- Authorization (authz) — text-level signals -----------------
-    # Catches log lines and tool results that report an authorization
-    # failure *without* an exception class. (The class-based mapping
-    # lives in collector._ERROR_RULE_MAP.) The wording is narrow
-    # enough to avoid false positives on prose like "we authorize
-    # payments" but broad enough to catch the common log idioms.
-    (
-        "authz.unauthorized_data_access",
-        re.compile(
-            r"\b(?:unauthor(?:ized|ised))\s+(?:data\s+)?access\b",
-            re.IGNORECASE,
-        ),
-    ),
-    (
-        "authz.unauthorized_system_access",
-        re.compile(
-            r"\b(?:unauthor(?:ized|ised))\s+(?:system|api|endpoint|"
-            r"resource|service)\s+access\b",
-            re.IGNORECASE,
-        ),
-    ),
+    # ``authz.permission_denied`` and ``authz.forbidden`` are kept here
+    # because they name a concrete failure ("Permission denied" /
+    # "403 forbidden") — a log line, an exception message, or a tool
+    # result. They don't false-positive on prose that *discusses*
+    # authorization (e.g. "we authorize payments").
+    #
+    # The two broader ``authz.unauthorized_data_access`` /
+    # ``authz.unauthorized_system_access`` patterns that used to live
+    # here were removed: they matched any prose containing the phrase
+    # "unauthorized access" and so fired whenever an LLM mentioned
+    # the topic naturally (FinOps agents describing IAM, security
+    # post-mortems, compliance reports, etc.) — even when the agent's
+    # code never raised an auth error. Real auth failures still get
+    # tagged via the exception-class map in
+    # ``collector._ERROR_RULE_MAP`` (``PermissionError`` /
+    # ``AccessDenied`` / ``UnauthorizedError`` etc.) and via the
+    # ``authz.permission_denied`` / ``authz.forbidden`` text rules
+    # above when the message is a concrete failure line.
     (
         "authz.permission_denied",
         re.compile(r"\bpermission\s+denied\b", re.IGNORECASE),
