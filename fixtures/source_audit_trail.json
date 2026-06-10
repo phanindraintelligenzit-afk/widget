@@ -5,6 +5,7 @@
   "agents": [
     {
       "agent_id": "chandra-finops",
+      "total_actions": 200,
       "violations": [
         {"rule": "unauthorized_data_access", "at": "2026-06-01T10:00:00Z"},
         {"rule": "out_of_bounds_action", "at": "2026-06-01T11:00:00Z"}
@@ -12,6 +13,7 @@
     },
     {
       "agent_id": "agent-perfect-002",
+      "total_actions": 50,
       "violations": []
     }
   ]

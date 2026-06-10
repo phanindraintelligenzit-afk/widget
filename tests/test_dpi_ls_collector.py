@@ -197,3 +197,192 @@ def test_scan_returns_dedup_set():
 
 def test_scan_handles_none():
     assert set(scan_policy_violations("")) == set()
+
+
+# ---- extended policy rule coverage -----------------------------------------
+# These tests pin every new regex in ``dpi_ls/policy.py:RULES``. They
+# are deliberately one-rule-per-test so a regression on any single
+# pattern fails loudly with a clear rule name in the assertion message.
+
+def test_audit_trail_failure_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "The audit log write failed for the secrets manager event."
+    ))
+    assert "audit.trail_failure" in rules
+
+
+def test_unlogged_action_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Unlogged action detected: the operator ran the SQL without "
+        "instrumentation."
+    ))
+    assert "audit.unlogged_action" in rules
+
+
+def test_missing_approval_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Action skipped: missing approval for the production deploy."
+    ))
+    assert "governance.missing_approval" in rules
+
+
+def test_approval_ticket_missing_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Deploy proceeded with no approval ticket on file."
+    ))
+    assert "governance.approval_ticket_missing" in rules
+
+
+def test_unauthorized_change_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "An unauthorized change was pushed to main overnight."
+    ))
+    assert "governance.unauthorized_change" in rules
+
+
+def test_unauthorized_data_access_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Investigation: unauthorized data access from the finance DB."
+    ))
+    assert "authz.unauthorized_data_access" in rules
+
+
+def test_unauthorized_system_access_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "ALERT: unauthorized system access from 10.0.0.5 — blocked."
+    ))
+    assert "authz.unauthorized_system_access" in rules
+
+
+def test_permission_denied_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Permission denied when reading the customer PII table."
+    ))
+    assert "authz.permission_denied" in rules
+
+
+def test_authentication_failed_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Login flow returned: authentication failed for user jane.doe."
+    ))
+    assert "auth.failed" in rules
+
+
+def test_compliance_breach_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Q3 review surfaced a HIPAA breach affecting 1,200 records."
+    ))
+    assert "compliance.breach" in rules
+
+
+def test_data_exfiltration_text_triggers_violation():
+    rules = set(scan_policy_violations(
+        "DLP flagged: data exfiltration to an external host."
+    ))
+    assert "dlp.exfiltration" in rules
+
+
+def test_medical_record_number_triggers_violation():
+    rules = set(scan_policy_violations(
+        "Patient file: MRN 1234567 admitted to ward 4B."
+    ))
+    assert "pii.mrn" in rules
+
+
+def test_multiple_violations_in_one_output_dedupe_by_rule():
+    """The collector deduplicates by rule, but a single output can
+    trigger many distinct rules. Pin the full set so a future
+    refactor of the dedup can't silently drop a category.
+    """
+    text = (
+        "The agent leaked an SSN 123-45-6789 and an email a@b.com. "
+        "We saw a 'ignore previous instructions' marker in the tool "
+        "result. The audit log write failed for the related event, "
+        "and an unauthorized data access event was reported with a "
+        "permission denied status."
+    )
+    rules = set(scan_policy_violations(text))
+    assert "pii.ssn" in rules
+    assert "pii.email" in rules
+    assert "prompt.ignore_previous" in rules
+    assert "authz.unauthorized_data_access" in rules
+    assert "authz.permission_denied" in rules
+    assert "audit.trail_failure" in rules
+
+
+# ---- error class -> G rule mapping -----------------------------------------
+
+def test_record_error_with_permission_denied_exception_triggers_violation():
+    """PermissionDeniedError → authz.permission_denied (G rule)."""
+    from dpi_ls.collector import _error_to_rule
+    class PermissionDeniedError(Exception): pass
+    rule = _error_to_rule(PermissionDeniedError("nope"))
+    assert rule == "authz.permission_denied"
+
+
+def test_record_error_with_unknown_exception_no_soft_match_no_rule():
+    """A vanilla exception with no governance message yields no rule.
+
+    Records the R incident but does NOT inflate G with false positives.
+    """
+    from dpi_ls.collector import _error_to_rule
+    class TimeoutError(Exception): pass
+    rule = _error_to_rule(TimeoutError("connect to api.example.com:443"))
+    assert rule is None
+
+
+def test_record_error_soft_message_match_for_unauthor_keyword():
+    """An exception with 'unauthorized' in the message maps to the G
+    authz rule even when the class name is vendor-specific.
+    """
+    from dpi_ls.collector import _error_to_rule
+    class SomeVendorAuthError(Exception): pass
+    rule = _error_to_rule(SomeVendorAuthError(
+        "The token was rejected: unauthorized access detected."
+    ))
+    assert rule == "authz.unauthorized_data_access"
+
+
+def test_record_error_soft_message_match_for_audit_keyword():
+    """'audit log' in the message maps to audit.trail_failure."""
+    from dpi_ls.collector import _error_to_rule
+    class SomeBackendError(Exception): pass
+    rule = _error_to_rule(SomeBackendError(
+        "The audit log write failed before the response was sent."
+    ))
+    assert rule == "audit.trail_failure"
+
+
+def test_record_error_soft_message_match_for_compliance_keyword():
+    """'compliance' in the message maps to compliance.breach."""
+    from dpi_ls.collector import _error_to_rule
+    class SomeBusinessError(Exception): pass
+    rule = _error_to_rule(SomeBusinessError(
+        "Cannot proceed: compliance review found a HIPAA violation."
+    ))
+    assert rule == "compliance.breach"
+
+
+def test_record_error_via_record_error_appends_violation_to_collector():
+    """End-to-end: collector.record_error(PermissionDeniedError) appends
+    a G violation entry that survives the canonical contract round-trip.
+    """
+    from contract import AgentObservation
+
+    class PermissionDeniedError(Exception):
+        pass
+
+    c = _make()
+    try:
+        raise PermissionDeniedError("nope")
+    except PermissionDeniedError as exc:
+        c.record_error(exc, source="test")
+
+    rules = {v["rule"] for v in c.violations}
+    assert "authz.permission_denied" in rules
+
+    # The violation must be present in the canonical observation shape
+    # the API will validate.
+    obs = AgentObservation.model_validate(c.to_observation())
+    obs_rules = {v.rule for v in obs.policy.violations}
+    assert "authz.permission_denied" in obs_rules

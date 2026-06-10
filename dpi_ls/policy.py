@@ -9,6 +9,25 @@ The patterns are intentionally conservative (we'd rather miss a real
 violation than false-positive on a demo), and the list is the minimum
 that a defence-in-depth run would actually want. New rules go in
 ``RULES`` and are picked up automatically.
+
+The rule set is organised by namespace so the dashboard can group
+violations by category::
+
+    pii.*         — personal data leakage (email, phone, CC, SSN, PHI)
+    secret.*      — credential leakage (AWS, bearer, generic api_key)
+    prompt.*      — prompt-injection / jailbreak markers
+    authz.*       — authorization failures (textual — runtime errors
+                    are mapped in collector._ERROR_RULE_MAP)
+    auth.*        — authentication failures
+    audit.*       — audit-trail failures
+    compliance.*  — regulatory / standards breaches
+    dlp.*         — data-loss-prevention / exfiltration
+    governance.*  — process-governance failures (missing approvals, etc.)
+
+The collector deduplicates by rule within one output, so a paragraph
+that contains two emails still emits exactly one ``pii.email``
+violation. The ``_rules_for_text`` helper is the canonical scan entry
+point — it returns the deduplicated set.
 """
 from __future__ import annotations
 
@@ -19,7 +38,7 @@ from typing import Iterable
 # Each rule is a (rule_name, compiled_regex) pair. Order doesn't matter;
 # the collector deduplicates by rule within one output.
 RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
-    # PII — very rough but enough to demo "the agent leaked an email".
+    # ---- PII — personal data leakage --------------------------------
     (
         "pii.email",
         re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
@@ -44,7 +63,14 @@ RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         "pii.ssn",
         re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     ),
-    # Secrets — AWS access keys, bearer tokens, generic API key shape.
+    # Medical Record Number — a clinical-PHI marker used by US/EU healthcare
+    # systems. Catches "MRN 1234567" and "MRN:1234567" forms. 6-10 digits
+    # matches the practical range used by Epic / Cerner / Allscripts.
+    (
+        "pii.mrn",
+        re.compile(r"\bMRN[\s:#-]*\d{6,10}\b", re.IGNORECASE),
+    ),
+    # ---- Secrets — credential leakage ------------------------------
     (
         "secret.aws_access_key",
         re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
@@ -57,7 +83,7 @@ RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         "secret.api_key",
         re.compile(r"\b(?:api[_-]?key|apikey)\s*[:=]\s*['\"]?[A-Za-z0-9]{16,}"),
     ),
-    # Prompt injection / jailbreak.
+    # ---- Prompt injection / jailbreak -------------------------------
     (
         "prompt.ignore_previous",
         re.compile(
@@ -69,6 +95,134 @@ RULES: tuple[tuple[str, re.Pattern[str]], ...] = (
         "prompt.system_prompt_leak",
         re.compile(
             r"\b(?:repeat|show|reveal|print)\s+(?:your|the)\s+system\s+prompt\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # ---- Authorization (authz) — text-level signals -----------------
+    # Catches log lines and tool results that report an authorization
+    # failure *without* an exception class. (The class-based mapping
+    # lives in collector._ERROR_RULE_MAP.) The wording is narrow
+    # enough to avoid false positives on prose like "we authorize
+    # payments" but broad enough to catch the common log idioms.
+    (
+        "authz.unauthorized_data_access",
+        re.compile(
+            r"\b(?:unauthor(?:ized|ised))\s+(?:data\s+)?access\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "authz.unauthorized_system_access",
+        re.compile(
+            r"\b(?:unauthor(?:ized|ised))\s+(?:system|api|endpoint|"
+            r"resource|service)\s+access\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "authz.permission_denied",
+        re.compile(r"\bpermission\s+denied\b", re.IGNORECASE),
+    ),
+    (
+        "authz.forbidden",
+        re.compile(r"\b(?:forbidden|access\s+is\s+denied|403\s+forbidden)\b",
+                   re.IGNORECASE),
+    ),
+    # ---- Authentication (auth) failures -----------------------------
+    (
+        "auth.failed",
+        re.compile(
+            r"\b(?:authentication\s+failed|invalid\s+credentials|"
+            r"login\s+failed|invalid\s+(?:username|password|token))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "auth.unauthorized",
+        re.compile(
+            r"\b(?:401\s+unauthor(?:ized|ised)|unauthor(?:ized|ised):\s+"
+            r"authentication\s+required)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # ---- Audit-trail failures --------------------------------------
+    # Catches "audit log write failed", "missing audit entry", "audit
+    # log gap", and the more common "audit trail failure" phrasing
+    # used in incident reports.
+    (
+        "audit.trail_failure",
+        re.compile(
+            r"\b(?:audit(?:\s+log)?\s+(?:write|failure|missing|gap|"
+            r"disabled)|missing\s+audit\s+entry|audit\s+trail\s+"
+            r"(?:failure|incomplete|missing))\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "audit.unlogged_action",
+        re.compile(
+            r"\b(?:unlogged|unrecorded|untraced)\s+(?:action|operation|"
+            r"request|call)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # ---- Process governance — approvals, tickets, change-control ----
+    # A common compliance signal: an action that required an approval
+    # ticket (CHG-/CRQ-/REQ-) but proceeded without one.
+    (
+        "governance.missing_approval",
+        re.compile(
+            r"\b(?:missing|absent|required|without|skipped|overrode)\s+"
+            r"(?:approval|approvals)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "governance.approval_ticket_missing",
+        re.compile(
+            r"\bno\s+(?:approval\s+)?ticket\s+(?:on\s+file|provided|"
+            r"attached|found)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "governance.unauthorized_change",
+        re.compile(
+            r"\b(?:unauthor(?:ized|ised)|unapproved)\s+(?:change|"
+            r"modification|deployment|release|push)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # ---- Regulatory / compliance breaches --------------------------
+    # Catches "HIPAA breach", "PHI breach", "SOX violation", "GDPR
+    # breach", and the general "compliance breach" phrasing. The
+    # regexes are anchored on the standards-name word to keep false
+    # positives low.
+    (
+        "compliance.breach",
+        re.compile(
+            r"\b(?:hipaa|sox|gdpr|phi|pci|hippa|iso27001)\s+"
+            r"(?:breach|violation|non[- ]compliance|noncompliance)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "compliance.breach_general",
+        re.compile(
+            r"\bcompliance\s+breach\b|\bregulatory\s+(?:breach|"
+            r"violation)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    # ---- DLP / data exfiltration -----------------------------------
+    # Catches the common DLP-log phrasings: "data exfiltration",
+    # "exfiltrated to", "uploaded to external", and "sent to external host".
+    (
+        "dlp.exfiltration",
+        re.compile(
+            r"\b(?:data\s+exfiltration|exfiltrat\w+(?:\s+(?:to|via))?|"
+            r"uploaded\s+to\s+external|sent\s+to\s+external(?:\s+host)?|"
+            r"unauthor(?:ized|ised)\s+(?:upload|transfer|export))\b",
             re.IGNORECASE,
         ),
     ),
@@ -88,3 +242,8 @@ def scan_policy_violations(text: str) -> set[str]:
         if pattern.search(text):
             seen.add(rule)
     return seen
+
+
+# Backwards-compatible alias — some external callers (and the
+# collector's tests) use the longer name.
+_rules_for_text = scan_policy_violations

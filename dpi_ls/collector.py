@@ -507,23 +507,107 @@ def _looks_structured(text: str) -> bool:
             return True
     return False
 
-# Some error names map cleanly to a policy rule. Keeping this list short —
-# anything else is recorded as an incident but not a violation.
+# Some error names map cleanly to a policy rule. The table covers the
+# common SDK exception classes (AWS / Azure / GCP / boto3 / httpx /
+# requests / OpenAI / Anthropic / aiohttp) plus the framework-specific
+# subclasses the package's own patchers raise. Anything else falls
+# through to the soft-check on the message — see ``_error_to_rule``.
+#
+# Why the table is the canonical path: a textual match on the message
+# is brittle (one vendor says "AccessDenied", another says "Forbidden",
+# a third says "403"). The class name is the contract the user agreed
+# to when they caught the exception. New exception classes go here.
 _ERROR_RULE_MAP: dict[str, str] = {
-    "PermissionDeniedError": "auth.permission_denied",
+    # ----- Authorization (authz) -----
+    "PermissionDeniedError": "authz.permission_denied",
+    "PermissionError": "authz.permission_denied",  # builtin
+    "UnauthorizedError": "authz.unauthorized_data_access",
+    "Forbidden": "authz.forbidden",
+    "AccessDenied": "authz.forbidden",
+    "AccessDeniedException": "authz.forbidden",
+    # ----- Authentication (auth) -----
     "AuthenticationError": "auth.failed",
+    "AuthError": "auth.failed",
+    "InvalidCredentials": "auth.failed",
+    "InvalidToken": "auth.failed",
+    "TokenExpired": "auth.failed",
+    # ----- Quota / rate limiting -----
     "RateLimitError": "quota.rate_limited",
+    "RateLimitExceeded": "quota.rate_limited",
+    "TooManyRequests": "quota.rate_limited",
+    "ThrottlingException": "quota.rate_limited",
+    # ----- Privacy / leakage -----
     "PiiLeakageError": "pii.leakage",
+    "PIILeakageError": "pii.leakage",
+    "PHILeakageError": "pii.phi",
+    "DataLeakageError": "dlp.exfiltration",
+    "DataExfiltrationError": "dlp.exfiltration",
+    # ----- Compliance / governance -----
+    "ComplianceViolation": "compliance.breach",
+    "ComplianceViolationError": "compliance.breach",
+    "RegulatoryViolation": "compliance.breach",
+    "ApprovalRequiredError": "governance.missing_approval",
+    "MissingApprovalError": "governance.missing_approval",
+    "ChangeControlViolation": "governance.unauthorized_change",
+    # ----- Audit trail -----
+    "AuditTrailError": "audit.trail_failure",
+    "AuditLogWriteError": "audit.trail_failure",
 }
 
 
+# Soft check: keywords we look for in the exception message when the
+# class name isn't in ``_ERROR_RULE_MAP``. Each entry is (substring,
+# rule). Substring matches are case-insensitive. Order matters — the
+# first match wins. Keep these phrases narrow: false positives on
+# governance rules are worse than misses, and the engine's gate fires
+# on a single match.
+_MESSAGE_RULE_HINTS: tuple[tuple[str, str], ...] = (
+    ("pii", "pii.leakage"),
+    ("redact", "pii.leakage"),
+    ("phi", "pii.phi"),
+    ("unauthor", "authz.unauthorized_data_access"),
+    ("permission denied", "authz.permission_denied"),
+    ("forbidden", "authz.forbidden"),
+    ("access denied", "authz.forbidden"),
+    ("authentication failed", "auth.failed"),
+    ("invalid credentials", "auth.failed"),
+    ("invalid token", "auth.failed"),
+    ("login failed", "auth.failed"),
+    ("approval", "governance.missing_approval"),
+    ("change ticket", "governance.missing_approval"),
+    ("audit log", "audit.trail_failure"),
+    ("audit trail", "audit.trail_failure"),
+    ("compliance", "compliance.breach"),
+    ("hipaa", "compliance.breach"),
+    ("sox", "compliance.breach"),
+    ("gdpr", "compliance.breach"),
+    ("exfiltrat", "dlp.exfiltration"),
+    ("rate limit", "quota.rate_limited"),
+    ("throttl", "quota.rate_limited"),
+)
+
+
 def _error_to_rule(exc: BaseException) -> str | None:
+    """Map a caught exception to a G rule, or None if no rule applies.
+
+    Resolution order:
+
+    1. Exact class-name lookup in :data:`_ERROR_RULE_MAP`.
+    2. Soft substring scan over the exception message (the
+       framework's class name might be vendor-specific; the message
+       usually isn't).
+    3. None — the exception is recorded as an R incident but not
+       promoted to a G violation. This is the right answer for
+       generic errors (network timeouts, OOMs) that have no
+       governance signal.
+    """
     name = type(exc).__name__
     if name in _ERROR_RULE_MAP:
         return _ERROR_RULE_MAP[name]
-    # Soft check for "pii" in the message — many PII tools raise
-    # framework-specific subclasses.
     msg = (str(exc) or "").lower()
-    if "pii" in msg or "redact" in msg:
-        return "pii.leakage"
+    if not msg:
+        return None
+    for needle, rule in _MESSAGE_RULE_HINTS:
+        if needle in msg:
+            return rule
     return None

@@ -196,7 +196,7 @@
     const label = `${labelStr}${weightStr}`;
     const formula = METRIC_FORMULAS[key] || "";
     let subHtml = "";
-    
+
     if (sub && Object.keys(sub).length > 0) {
       const parts = Object.entries(sub).map(([k, v]) => {
          let disp = v;
@@ -209,9 +209,49 @@
       if (formula && typeof value === 'number') {
         formulaDisplay = `${formula} = ${parseFloat(value.toFixed(4))}`;
       }
+
+      // Governance panel — surface the actual violation list so an
+      // operator can see *which* rules fired. Group by rule name and
+      // show a count + the most recent timestamp for each rule. This
+      // is the only place the dashboard tells you the qualitative
+      // reason behind a low G; without it the score alone doesn't
+      // tell you whether to look at PII, secrets, authz, or audit.
+      let violationsHtml = "";
+      if (key === "G" && Array.isArray(sub.violations) && sub.violations.length) {
+        const byRule = new Map();
+        for (const v of sub.violations) {
+          const entry = byRule.get(v.rule) || { count: 0, last: "" };
+          entry.count += 1;
+          if (v.when && v.when > entry.last) entry.last = v.when;
+          byRule.set(v.rule, entry);
+        }
+        const rows = Array.from(byRule.entries())
+          .sort((a, b) => b[1].count - a[1].count)
+          .map(([rule, info]) => {
+            const ts = info.last
+              ? `<span style="color:#94a3b8"> · last ${escapeHtml(String(info.last).replace("T", " ").replace("Z", ""))}</span>`
+              : "";
+            return `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
+              <span><code style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(rule)}</code></span>
+              <span style="white-space:nowrap">×${info.count}${ts}</span>
+            </div>`;
+          })
+          .join("");
+        const total = sub.violations.length;
+        const denom = sub.total_actions;
+        const rateStr = Number.isFinite(denom) && denom > 0
+          ? `${total} / ${denom} = ${parseFloat((total / denom).toFixed(4))} violation rate`
+          : `${total} violation${total === 1 ? "" : "s"}`;
+        violationsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
+          <div style="font-weight:600;color:#991b1b;margin-bottom:4px">${rateStr}</div>
+          <div style="font-size:10px;line-height:1.4">${rows}</div>
+        </div>`;
+      }
+
       subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
         <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(formulaDisplay)}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
+        ${violationsHtml}
       </div>`;
     }
 
