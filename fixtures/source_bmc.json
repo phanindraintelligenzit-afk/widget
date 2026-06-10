@@ -1,0 +1,25 @@
+{
+  "_label": "SYNTHETIC FIXTURE — BMC Remedy Incidents mapping to Risk (R)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "incidents": [
+    {
+      "incident_id": "INC-8882",
+      "agent_id": "chandra-finops",
+      "priority": "Critical",
+      "reported_date": "2026-06-01T10:00:00Z"
+    },
+    {
+      "incident_id": "INC-8883",
+      "agent_id": "chandra-finops",
+      "priority": "Medium",
+      "reported_date": "2026-06-01T14:00:00Z"
+    },
+    {
+      "incident_id": "INC-8884",
+      "agent_id": "agent-perfect-002",
+      "priority": "Low",
+      "reported_date": "2026-06-01T15:00:00Z"
+    }
+  ]
+}

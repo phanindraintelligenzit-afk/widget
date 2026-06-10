@@ -5,7 +5,7 @@ def test_settings_default(client):
     r = client.get("/settings")
     assert r.status_code == 200
     body = r.json()
-    assert body["r_max"] == 10.0
+    assert body["r_max"] == 3.0
     assert body["weights"]["P"] == 0.15
 
 
@@ -33,7 +33,7 @@ def test_updated_gate_thresholds_actually_apply_to_scoring(client):
         "weights": {"P": 0.15, "Q": 0.20, "E": 0.15, "G": 0.20, "R": 0.15, "V": 0.10, "C": 0.05},
         "q_sub_weights": {"accuracy": 0.7, "consistency": 0.2, "hallucination": 0.1},
         "gate_thresholds": {"G": 1.01, "R": 0.50, "V": 0.60},  # impossible-to-meet G
-        "r_max": 10.0,
+        "r_max": 3.0,
         "human_cost_per_output": 1.0,
         "utilization": 1.0,
     }

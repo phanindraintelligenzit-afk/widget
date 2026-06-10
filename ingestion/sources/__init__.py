@@ -7,12 +7,13 @@ from .base import SourceAdapter
 from .jira import JiraAdapter
 from .puvi_noise import PuviNoiseAdapter
 from .ray import RayAdapter
+from .servicenow import ServiceNowAdapter
+from .bmc import BmcAdapter
 from .audit_trail import AuditTrailAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
     BedrockAdapter,
-    BmcAdapter,
     LangGraphAdapter,
     SapHrAdapter,
 )
@@ -23,6 +24,8 @@ REAL_ADAPTERS = (
     ArizeAdapter,
     JiraAdapter,
     RayAdapter,
+    ServiceNowAdapter,
+    BmcAdapter,
     AuditTrailAdapter,
 )
 

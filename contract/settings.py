@@ -33,7 +33,7 @@ class Settings(BaseModel):
     gate_thresholds: dict[str, float] = Field(
         default_factory=lambda: dict(DEFAULT_GATE_THRESHOLDS)
     )
-    r_max: float = 10.0
+    r_max: float = 3.0
     human_cost_per_output: float = 1.0
     utilization: float = 1.0
     normalization_factor: float = 1.0
