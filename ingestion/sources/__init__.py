@@ -6,8 +6,9 @@ from .aws_cost import AwsCostAdapter
 from .base import SourceAdapter
 from .jira import JiraAdapter
 from .puvi_noise import PuviNoiseAdapter
-from .registry import clear, get, list_sources, register
 from .ray import RayAdapter
+from .audit_trail import AuditTrailAdapter
+from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
     BedrockAdapter,
@@ -22,6 +23,7 @@ REAL_ADAPTERS = (
     ArizeAdapter,
     JiraAdapter,
     RayAdapter,
+    AuditTrailAdapter,
 )
 
 
