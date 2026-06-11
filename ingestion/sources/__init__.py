@@ -13,6 +13,13 @@ from .bedrock import BedrockAdapter
 from .sap_hr import SapHrAdapter
 from .langgraph import LangGraphAdapter
 from .audit_trail import AuditTrailAdapter
+from .langsmith import LangSmithAdapter
+from .braintrust import BraintrustAdapter
+from .galileo import GalileoAdapter
+from .opik import OpikAdapter
+from .langfuse import LangfuseAdapter
+from .agentops import AgentOpsAdapter
+from .openllmetry import OpenLLMetryAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
@@ -30,6 +37,13 @@ REAL_ADAPTERS = (
     SapHrAdapter,
     LangGraphAdapter,
     AuditTrailAdapter,
+    LangSmithAdapter,
+    BraintrustAdapter,
+    GalileoAdapter,
+    OpikAdapter,
+    LangfuseAdapter,
+    AgentOpsAdapter,
+    OpenLLMetryAdapter,
 )
 
 
@@ -53,6 +67,13 @@ __all__ = [
     "REAL_ADAPTERS",
     "SapHrAdapter",
     "SourceAdapter",
+    "LangSmithAdapter",
+    "BraintrustAdapter",
+    "GalileoAdapter",
+    "OpikAdapter",
+    "LangfuseAdapter",
+    "AgentOpsAdapter",
+    "OpenLLMetryAdapter",
     "clear",
     "get",
     "list_sources",

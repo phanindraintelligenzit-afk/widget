@@ -251,30 +251,42 @@
       // tell you whether to look at PII, secrets, authz, or audit.
       let violationsHtml = "";
       if (key === "G" && Array.isArray(sub.violations) && sub.violations.length) {
-        const byRule = new Map();
+        const byAction = new Map();
         for (const v of sub.violations) {
-          const entry = byRule.get(v.rule) || { count: 0, last: "" };
-          entry.count += 1;
-          if (v.when && v.when > entry.last) entry.last = v.when;
-          byRule.set(v.rule, entry);
+          const entry = byAction.get(v.when) || { actionName: v.action_name, rules: [] };
+          entry.rules.push(v.rule);
+          byAction.set(v.when, entry);
         }
-        const rows = Array.from(byRule.entries())
-          .sort((a, b) => b[1].count - a[1].count)
-          .map(([rule, info]) => {
-            const ts = info.last
-              ? `<span style="color:#94a3b8"> · last ${escapeHtml(String(info.last).replace("T", " ").replace("Z", ""))}</span>`
-              : "";
-            return `<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0;">
-              <span><code style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(rule)}</code></span>
-              <span style="white-space:nowrap">×${info.count}${ts}</span>
+        
+        let actionNum = 1;
+        let violatingActions = 0;
+        const rows = Array.from(byAction.entries())
+          .sort((a, b) => (a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0)))
+          .map(([when, data]) => {
+            const rules = data.rules;
+            if (rules.length > 0) violatingActions++;
+            const ts = when ? escapeHtml(String(when).replace("T", " ").replace("Z", "")) : "Unknown";
+            const rulesHtml = rules.length > 0 
+                ? rules.map(r => `<code style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(r)}</code>`).join("")
+                : `<span style="color:#10b981;font-size:10px;font-weight:600;">Safe</span>`;
+            
+            let actionNameStr = data.actionName || "";
+            if (actionNameStr.length > 60) {
+                actionNameStr = actionNameStr.substring(0, 57) + "...";
+            }
+            const actionLabel = actionNameStr ? ` - <span title="${escapeHtml(data.actionName)}">${escapeHtml(actionNameStr)}</span>` : "";
+            const vLabel = rules.length === 1 ? 'violation' : 'violations';
+            return `<div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+              <span style="color:#64748b;font-weight:600;">Action ${actionNum++}${actionLabel} <span style="font-weight:normal;color:#94a3b8">(${ts})</span> <span style="float:right">${rules.length} ${vLabel}</span></span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${rulesHtml}</div>
             </div>`;
           })
           .join("");
-        const total = sub.violations.length;
+
         const denom = sub.total_actions;
         const rateStr = Number.isFinite(denom) && denom > 0
-          ? `${total} / ${denom} = ${parseFloat((total / denom).toFixed(4))} violation rate`
-          : `${total} violation${total === 1 ? "" : "s"}`;
+          ? `${violatingActions} / ${denom} = ${parseFloat((violatingActions / denom).toFixed(4))} violation rate`
+          : `${violatingActions} violating action${violatingActions === 1 ? "" : "s"}`;
         violationsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
           <div style="font-weight:600;color:#991b1b;margin-bottom:4px">${rateStr}</div>
           <div style="font-size:10px;line-height:1.4">${rows}</div>

@@ -217,7 +217,11 @@ def metrics_from_observation(
         )
 
     E = compute_E(obs.executions.successful, obs.executions.attempts)
-    G = compute_G(len(obs.policy.violations), obs.policy.total_actions)
+    # Governance (G)
+    # The policy violation count is the number of distinct actions
+    # that triggered at least one rule (excluding the 'none' placeholder).
+    violating_actions = len(set(v.when for v in obs.policy.violations if v.rule and v.rule != "none"))
+    G = compute_G(violating_actions, obs.policy.total_actions)
     R = compute_R(obs.incidents, settings.r_max)
     V = compute_V(obs.validation.validated_components, obs.validation.required_components)
     # C derives its per-output figure from the cost total divided by
@@ -272,7 +276,7 @@ def metrics_from_partial(
         else None
     )
     G = (
-        compute_G(len(partial.policy.violations), partial.policy.total_actions)
+        compute_G(len(set(v.when for v in partial.policy.violations)), partial.policy.total_actions)
         if partial.policy is not None
         else None
     )

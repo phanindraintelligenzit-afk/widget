@@ -68,21 +68,24 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
 
     is_async = attr.startswith("a")
     is_stream = attr.endswith("stream")
+    
+    # Try to extract the runnable's name (e.g. tool name or chain name)
+    runnable_obj = getattr(original, "__self__", original)
+    runnable_name = getattr(runnable_obj, "name", None)
+    if not runnable_name:
+        runnable_name = getattr(runnable_obj, "__name__", None)
+    if not runnable_name and hasattr(runnable_obj, "__class__"):
+        runnable_name = runnable_obj.__class__.__name__
 
     if is_async and is_stream:
         async def async_stream(*args, **kwargs):
-            # No pre-increment: ``record_llm_call`` (called via
-            # ``_capture_runnable_result``) owns the attempts counter.
-            # ``record_error`` handles the failure path.
             try:
                 async for chunk in original(*args, **kwargs):
                     yield chunk
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 raise
-            # The stream yielded without raising; record one successful
-            # empty call so E reflects the work that happened.
-            collector.record_llm_call("", ok=True)
+            collector.record_llm_call("", ok=True, system=runnable_name)
         return functools.wraps(original)(async_stream)
 
     if is_async:
@@ -95,7 +98,7 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 raise
-            _capture_runnable_result(collector, result)
+            _capture_runnable_result(collector, result, system=input_text or runnable_name)
             return result
         return functools.wraps(original)(async_invoke)
 
@@ -106,7 +109,7 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 raise
-            collector.record_llm_call("", ok=True)
+            collector.record_llm_call("", ok=True, system=runnable_name)
         return functools.wraps(original)(sync_stream)
 
     def sync_invoke(*args, **kwargs):
@@ -118,17 +121,15 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
         except Exception as e:
             collector.record_error(e, source="langchain")
             raise
-        _capture_runnable_result(collector, result)
+        _capture_runnable_result(collector, result, system=input_text or runnable_name)
         return result
     return functools.wraps(original)(sync_invoke)
 
 
-def _capture_runnable_result(collector: SignalCollector, result: Any) -> None:
+def _capture_runnable_result(collector: SignalCollector, result: Any, system: str | None = None) -> None:
     text = _safe_text(result)
     in_t, out_t = _safe_iter_tokens(result)
     if text:
-        collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True)
+        collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True, system=system)
     else:
-        # No text but the call still completed — count it as a successful
-        # execution so E is non-zero for chains that don't surface text.
-        collector.record_llm_call("", ok=True)
+        collector.record_llm_call("", ok=True, system=system)

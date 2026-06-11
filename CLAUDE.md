@@ -342,7 +342,7 @@ The full suite is **302 tests, < 12 s** on a developer laptop.
 - **M2** `ingestion/` + `GenericWebhookAdapter` + OTel + YAML mapping — done
 - **M3** `api/` + `store/` + score history — done
 - **M4** `widget/` (vanilla web components, no framework) — done
-- **M5** Real source adapters: `aws_cost`, `puvi_noise`, `arize`, `bedrock`, `sap_hr`, `audit_trail`, `ray`, `servicenow`, `bmc`, `jira`, `langgraph` — done. `stubs.py` now has `ALL_STUBS = ()` — there are no real stubs left.
+- **M5** Real source adapters: `aws_cost`, `puvi_noise`, `arize`, `bedrock`, `sap_hr`, `audit_trail`, `ray`, `servicenow`, `bmc`, `jira`, `langgraph`, `langsmith`, `agentops`, `langfuse`, `braintrust`, `galileo`, `openllmetry`, `opik` — done. `stubs.py` now has `ALL_STUBS = ()` — there are no real stubs left.
 - **M6** Conversational Q-capture (`engine/sme_flow.py` + `api/sme_orchestration.py`) — done.
 
 Current work is post-M5 hardening: the latest commits calibrate `R_max` to 3.0, finish the last source adapters, add test coverage, and remove the final TODOs. The demo target — *score one real agent, live* — is reachable via `examples/llamaindex_rag.py` (no AWS required) or `examples/test_agent.py` (needs Bedrock access).

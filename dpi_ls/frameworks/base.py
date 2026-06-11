@@ -250,10 +250,26 @@ def _extract_input_text(args, kwargs):
                 parts.append(f"{k}: {v}")
         return "\n".join(parts)[:_MAX_INPUT_TEXT]
     if isinstance(arg, list):
-        parts = []
+        human_parts = []
+        all_parts = []
         for msg in arg:
             content = getattr(msg, "content", None)
+            if content is None and isinstance(msg, dict):
+                content = msg.get("content")
             if content and isinstance(content, str):
-                parts.append(content)
-        return "\n".join(parts)[:_MAX_INPUT_TEXT]
+                all_parts.append(content)
+                
+                # Check if it's a human/user message (safely handle Enums like MessageRole.USER)
+                role = getattr(msg, "role", getattr(msg, "type", None))
+                role_str = str(role).lower().split(".")[-1] if role else ""
+                dict_role = str(msg.get("role")).lower().split(".")[-1] if isinstance(msg, dict) else ""
+                
+                if role_str in ("user", "human") or dict_role in ("user", "human") or msg.__class__.__name__ == "HumanMessage":
+                    human_parts.append(content)
+                    
+        if human_parts:
+            return "\n".join(human_parts)[:_MAX_INPUT_TEXT]
+        if all_parts:
+            return all_parts[-1][:_MAX_INPUT_TEXT]  # Fallback to the last message
+        return ""
     return str(arg)[:_MAX_INPUT_TEXT]

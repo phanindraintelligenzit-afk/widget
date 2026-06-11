@@ -27,6 +27,7 @@ class Executions(BaseModel):
 class PolicyViolation(BaseModel):
     rule: str
     when: datetime
+    action_name: Optional[str] = None
 
 
 class Policy(BaseModel):

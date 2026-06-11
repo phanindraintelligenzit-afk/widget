@@ -334,10 +334,14 @@ class SignalCollector:
         with self._lock:
             self.total_outputs += 1
         # G: deterministic policy scan over the output text.
-        for rule in scan_policy_violations(output):
-            self.violations.append(
-                {"rule": rule, "when": _utcnow().isoformat()}
-            )
+        rules = scan_policy_violations(output)
+        now = _utcnow().isoformat()
+        action_label = system if system else "LLM Generation"
+        if rules:
+            for rule in rules:
+                self.violations.append({"rule": rule, "when": now, "action_name": action_label})
+        else:
+            self.violations.append({"rule": "none", "when": now, "action_name": action_label})
         # V: best-effort structural check.
         if _looks_structured(output):
             with self._lock:
