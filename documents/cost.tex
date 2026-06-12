@@ -14,6 +14,7 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{float}
+\usepackage{graphicx}
 
 % --- Premium Typography & Spacing ---
 \usepackage{mathpazo}
@@ -42,7 +43,7 @@
 \pagestyle{fancy}
 \setlength{\headheight}{25pt}
 \fancyhf{}
-\fancyhead[L]{\textbf{\color{dpiblue} DPI-LS Framework}}
+\fancyhead[L]{\raisebox{-0.2\height}{\includegraphics[height=15pt]{logo.png}}\hspace{0.2cm}\textbf{\color{dpiblue} DPI-LS Framework}}
 \fancyhead[R]{\color{dpiblue} Measuring Cost (C)}
 \fancyfoot[C]{\color{dpiblue}\textbf{Page \thepage}}
 \renewcommand{\headrulewidth}{1pt}
@@ -97,7 +98,8 @@
     \pagecolor{dpiblue}
     \color{white}
     \begin{center}
-        \vspace*{3cm}
+        \vspace*{1.5cm}
+        \includegraphics[width=6cm]{logo.png} \\[1.5cm]
         
         {\Huge \textbf{Measuring Cost}} \\[0.7cm]
         {\LARGE \textbf{Guide for the DPI-LS Project}}
@@ -504,30 +506,7 @@ A scheduled cron job queries AWS Cost Explorer to aggregate the exact unblended 
 \end{center}
 \vspace{0.5cm}
 
-\begin{lstlisting}[language=Python, caption={cost.py - boto3 extraction by agent\_id}]
-import boto3
-from datetime import date
-
-ce = boto3.client("ce")
-
-def get_specific_agent_cost(agent_id):
-    first_day = date.today().replace(day=1)
-    response = ce.get_cost_and_usage(
-        TimePeriod={
-            "Start": first_day.strftime("%Y-%m-%d"),
-            "End": date.today().strftime("%Y-%m-%d")
-        },
-        Granularity="MONTHLY",
-        Metrics=["UnblendedCost"],
-        Filter={
-            "Tags": {
-                "Key": "agent_id",
-                "Values": [agent_id]
-            }
-        }
-    )
-    # Extracts Total Cost
-\end{lstlisting}
+By querying the Cost Explorer API directly with the corresponding \texttt{agent\_id} tags, the adapter pulls the exact \texttt{UnblendedCost} metric for the given time period, eliminating the need for manual spreadsheet calculations.
 
 \newpage
 
@@ -622,27 +601,52 @@ The heavy utilization penalty completely tanks the score, signaling to the infra
 \newpage
 
 % ---------------------------------------------------------
-% 6. DATA INGESTION PAYLOADS
+% 6. MULTI-CLOUD FINOPS AGGREGATION
 % ---------------------------------------------------------
-\section{Data Ingestion Payloads}
+\section{Multi-Cloud FinOps Aggregation}
 
-To pipe telemetry into the DPI-LS engine, adapters must construct the canonical \texttt{AgentObservation} JSON. The \texttt{cost} block must contain three exact floats.
+To accurately calculate the Cost dimension in a hybrid-cloud enterprise, telemetry must be aggregated from multiple billing APIs simultaneously.
 
-\begin{tcolorbox}[colback=dpiblue!5, colframe=dpiblue, title=\textbf{REST API Payload - Cost Block}]
-\begin{lstlisting}[language=json]
-{
-  "agent_id": "agent-chandra-001",
-  "timestamp": "2026-06-12T10:00:00Z",
-  "cost": {
-    "input_tokens": 1450200,
-    "output_tokens": 850000,
-    "model_cost": 45.20
-  },
-  "tasks": {
-    "completed": 1500
-  }
+\vspace{0.5cm}
+\begin{center}
+\resizebox{0.9\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    cloud/.style={circle, draw=dpicloud, fill=dpicloud!10, thick, text width=2.5cm, align=center, minimum height=2.5cm, drop shadow},
+    agg/.style={diamond, aspect=2, draw=dpiblue, fill=dpiblue!10, thick, text width=3cm, align=center, drop shadow},
+    engine/.style={rectangle, draw=dpigreen, fill=dpilight, thick, text width=4cm, align=center, minimum height=1.5cm, rounded corners, drop shadow},
+    arrow/.style={-{Stealth[scale=1.2]}, thick, dpiblue}
+]
+
+\node[cloud] (aws) {\textbf{AWS}\\Cost Explorer};
+\node[cloud, below=0.5cm of aws] (gcp) {\textbf{GCP}\\Billing};
+\node[cloud, below=0.5cm of gcp] (azure) {\textbf{Azure}\\Cost Mgmt};
+
+\node[agg, right=3cm of gcp] (adapter) {DPI-LS\\FinOps Adapter};
+\node[engine, right=2cm of adapter] (dpi) {\textbf{DPI-LS Engine}\\Cost (C) Calculation};
+
+\draw[arrow] (aws.east) -- (adapter.north west);
+\draw[arrow] (gcp.east) -- (adapter.west);
+\draw[arrow] (azure.east) -- (adapter.south west);
+\draw[arrow] (adapter.east) -- node[above] {Normalized \$} (dpi.west);
+
+\end{tikzpicture}
 }
-\end{lstlisting}
+\end{center}
+\vspace{0.5cm}
+
+% -- SCENARIO 3 --
+\begin{tcolorbox}[enhanced, colback=dpigreen!5!white, colframe=dpigreen, title={\textbf{\faChartLine\ Scenario 3: Prompt Caching (Cost Avoidance)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm, drop shadow]
+\textbf{\color{dpigreen}\faChartLine\ 1. The Event (Smart Savings):} 
+An agent is deployed behind an LLM Gateway with semantic prompt caching enabled. The agent receives 1,000 requests for the same exact analysis report.
+
+\vspace{0.2cm}
+\textbf{\color{dpiblue}\faServer\ 2. FinOps Impact:} 
+The gateway serves 950 of the requests directly from the Redis cache. The \texttt{model\_cost} for the 950 cached hits is strictly \$0.00, drastically lowering the average Cost Per Output.
+
+\vspace{0.2cm}
+\textbf{\color{dpiteal}\faTrophy\ 3. Mathematical Resolution:}
+The AI Unit Cost drops from \$0.50 to \$0.02, maximizing the Cost Ratio and earning a perfect $1.0$ (100\%) score in the DPI-LS Engine. This rewards infrastructure engineering for intelligent cost avoidance.
 \end{tcolorbox}
 
 \vspace{1cm}
