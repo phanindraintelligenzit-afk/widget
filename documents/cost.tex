@@ -86,8 +86,8 @@
 }
 
 % Define Custom GitHub-Style Alerts
-\newtcolorbox{dpinote}[1][]{enhanced, colback=blue!5!white, colframe=dpiblue, title={\textbf{NOTE}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
-\newtcolorbox{dpiimportant}[1][]{enhanced, colback=red!5!white, colframe=dpired, title={\textbf{IMPORTANT}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
+\newtcolorbox{dpinote}[1][]{enhanced, colback=blue!5!white, colframe=dpiblue, title={\textbf{\faInfoCircle\ NOTE}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
+\newtcolorbox{dpiimportant}[1][]{enhanced, colback=red!5!white, colframe=dpired, title={\textbf{\faExclamationTriangle\ IMPORTANT}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
 \newtcolorbox{dpitip}[1][]{enhanced, colback=dpigreen!5!white, colframe=dpigreen, boxrule=0.5pt, leftrule=3pt, sharp corners, #1}
 
 \begin{document}
@@ -125,7 +125,7 @@
         \renewcommand{\arraystretch}{1.3}
         \begin{tabular}{rl}
             \textbf{Framework:} & Digital Performance Index (DPI-LS) \\
-            \textbf{Dimension:} & Cost (C) --- Weight: 10\% \\
+            \textbf{Dimension:} & Cost (C) --- Weight: 5\% \\
             \textbf{Version:} & 2.5 (Extended Enterprise Edition) \\
             \textbf{Status:} & Architectural Reference \\
         \end{tabular}
@@ -135,6 +135,9 @@
         {\color{dpicloud}\rule{0.5\textwidth}{1pt}} \\[0.5cm]
         
         {\large DPI-LS Architecture Team}
+        
+        \vspace{0.3cm}
+        {\normalsize Document Developed by \textbf{Malkapurapu Sivamanikanta}}
         
         \vspace*{1cm}
     \end{center}
@@ -209,16 +212,16 @@ The following mind map defines the core financial pillars of AI Agent Cost monit
 % ---------------------------------------------------------
 \section{Mathematical Foundations of the Cost Formula}
 
-The Cost dimension provides a normalized score indicating how financially efficient an agent operates relative to a human baseline. Cost carries a weighting of \textbf{10\% (0.10)} on the final composite DPI-LS score.
+The Cost dimension provides a normalized score indicating how financially efficient an agent operates relative to a human baseline. Cost carries a weighting of \textbf{5\% (0.05)} on the final composite DPI-LS score.
 
 \begin{dpiimportant}
 \textbf{Formula:} $C = \min\left(1.0, \frac{\text{Human Cost Per Output}}{\text{AI Cost Per Output}}\right) \times \text{Utilization}$
 \end{dpiimportant}
 
 \begin{itemize}
-    \item \textbf{Human Cost Per Output:} The baseline unit cost to produce one successful output (derived from human salary, benefits, and tools).
-    \item \textbf{AI Cost Per Output:} Calculated as $\frac{\text{Total Model \& Compute Cost}}{\text{Completed Outputs}}$.
-    \item \textbf{Utilization:} The percentage $[0.0 - 1.0]$ of provisioned infrastructure that the agent actually utilized, penalizing over-provisioned idle instances.
+    \item \textbf{\color{dpiblue}\faUserTie\ Human Cost Per Output:} The baseline unit cost to produce one successful output (derived from human salary, benefits, and tools).
+    \item \textbf{\color{dpiteal}\faRobot\ AI Cost Per Output:} Calculated as $\frac{\text{Total Model \& Compute Cost}}{\text{Completed Outputs}}$.
+    \item \textbf{\color{dpired}\faChartPie\ Utilization:} The percentage $[0.0 - 1.0]$ of provisioned infrastructure that the agent actually utilized, penalizing over-provisioned idle instances.
 \end{itemize}
 
 \subsection{Dynamic Token Cost Calculation}
@@ -316,13 +319,16 @@ This total of \textbf{\$0.025} is the exact number fed into the DPI-LS Engine as
 
 \subsection{Deep Math: The Lemonade Stand Analogy}
 
+\begin{tcolorbox}[enhanced, colback=dpicloud!10!white, colframe=dpicloud, title={\textbf{\faLightbulb\ The Lemonade Stand Analogy}}, fonttitle=\bfseries\large, boxrule=1pt, arc=2mm, drop shadow]
 To make this math so simple a kid could understand it, let's pretend you own a lemonade stand:
 
+\vspace{0.2cm}
 \begin{itemize}
-    \item \textbf{Human Cost:} It usually costs you \$10 a day to hire your little brother to squeeze lemons. He makes 10 cups. So, your human baseline is \textbf{\$1.00 per cup}.
-    \item \textbf{AI Cost:} You buy a giant robot to squeeze lemons. The robot costs \$20 a day, but it only makes 5 cups because it's slow. Your robot cost is \textbf{\$4.00 per cup}.
-    \item \textbf{The Ratio ($\frac{\text{Human}}{\text{Robot}}$):} You divide the human cost (\$1) by the robot cost (\$4). This equals \textbf{0.25 (or 25\%)}. This means your robot is only 25\% as cost-efficient as your brother! If the robot was cheaper than your brother, the math limits the score to exactly \textbf{1.0 (100\%)} so you don't get extra credit just for being cheap.
+    \item \textbf{\color{dpiblue}\faUserTie\ Human Cost:} It usually costs you \$10 a day to hire your little brother to squeeze lemons. He makes 10 cups. So, your human baseline is \textbf{\$1.00 per cup}.
+    \item \textbf{\color{dpigreen}\faRobot\ AI Cost:} You buy a giant robot to squeeze lemons. The robot costs \$20 a day, but it only makes 5 cups because it's slow. Your robot cost is \textbf{\$4.00 per cup}.
+    \item \textbf{\color{dpired}\faBalanceScale\ The Ratio ($\frac{\text{Human}}{\text{Robot}}$):} You divide the human cost (\$1) by the robot cost (\$4). This equals \textbf{0.25 (or 25\%)}. This means your robot is only 25\% as cost-efficient as your brother! If the robot was cheaper than your brother, the math limits the score to exactly \textbf{1.0 (100\%)} so you don't get extra credit just for being cheap.
 \end{itemize}
+\end{tcolorbox}
 
 \subsection{Understanding the Utilization Scale}
 
@@ -533,15 +539,16 @@ def get_specific_agent_cost(agent_id):
 The following five scenarios demonstrate exactly how the Cost (C) dimension reacts to various FinOps anomalies. Each scenario provides a deep architectural breakdown, an incident timeline, and the agent's resultant math.
 
 % -- SCENARIO 1 --
-\subsection{Scenario 1: The Infinite Hallucination Loop (Runaway Spend)}
-
-\textbf{1. The Event (Financial Black Hole):} 
+\begin{tcolorbox}[enhanced, colback=dpired!5!white, colframe=dpired, title={\textbf{\faExclamationCircle\ Scenario 1: The Infinite Hallucination Loop (Runaway Spend)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm, drop shadow]
+\textbf{\color{dpired}\faFire\ 1. The Event (Financial Black Hole):} 
 An autonomous data-scraping agent is tasked with summarizing 500 web pages. Due to a parsing error on a specific Javascript-heavy site, the agent gets stuck in a recursive loop. It continuously retries the extraction, feeding the raw, messy HTML into GPT-4o over 8,000 times in a single night.
 
-\textbf{2. FinOps Impact:} 
+\vspace{0.2cm}
+\textbf{\color{dpiblue}\faMoneyBillWave\ 2. FinOps Impact:} 
 The \texttt{completed\_outputs} remains firmly at $0$, but the \texttt{model\_cost} skyrockets to \$450.00. The human baseline for this task was a flat \$15.00. 
 
-\textbf{3. Incident Timeline:}
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faClock\ 3. Incident Timeline:}
 \begin{itemize}
     \item \textbf{02:00 AM}: Agent encounters Javascript rendering error.
     \item \textbf{02:05 AM}: Agent initiates recursive retry block without a max-depth counter.
@@ -550,7 +557,8 @@ The \texttt{completed\_outputs} remains firmly at $0$, but the \texttt{model\_co
     \item \textbf{06:15 AM}: DPI-LS chron job calculates the Cost score.
 \end{itemize}
 
-\textbf{4. Mathematical Resolution:}
+\vspace{0.2cm}
+\textbf{\color{dpiteal}\faCalculator\ 4. Mathematical Resolution:}
 \begin{itemize}
     \item \texttt{model\_cost} = \$450.00
     \item \texttt{completed\_outputs} = 0
@@ -583,21 +591,23 @@ The \texttt{completed\_outputs} remains firmly at $0$, but the \texttt{model\_co
 \end{tikzpicture}
 }
 \end{center}
-\vspace{0.5cm}
+\vspace{0.2cm}
 
 The agent is instantly flagged as \textbf{Underperforming} and paused by the FinOps circuit breaker.
+\end{tcolorbox}
 
 % -- SCENARIO 2 --
 \vspace{0.5cm}
-\subsection{Scenario 2: The Over-Provisioned Idle GPU (Poor Utilization)}
-
-\textbf{1. The Event (Wasted Capacity):} 
+\begin{tcolorbox}[enhanced, colback=dpicloud!5!white, colframe=dpicloud, title={\textbf{\faServer\ Scenario 2: The Over-Provisioned Idle GPU (Poor Utilization)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm, drop shadow]
+\textbf{\color{dpicloud}\faHourglassHalf\ 1. The Event (Wasted Capacity):} 
 An internal ML team deploys a specialized autonomous code-review agent. To ensure zero-latency response times for PR reviews, they provision a dedicated \texttt{p4d.24xlarge} EC2 instance. However, the engineering team only creates 2 Pull Requests over the weekend.
 
-\textbf{2. FinOps Impact:} 
+\vspace{0.2cm}
+\textbf{\color{dpired}\faMoneyBillWave\ 2. FinOps Impact:} 
 The agent successfully completes both code reviews at lightning speed, but the \$32/hour instance sat idle for 47.5 hours. 
 
-\textbf{3. Mathematical Resolution:}
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCalculator\ 3. Mathematical Resolution:}
 \begin{itemize}
     \item \texttt{model\_cost} = \$1,536.00 (Weekend compute)
     \item \texttt{completed\_outputs} = 2
@@ -605,7 +615,9 @@ The agent successfully completes both code reviews at lightning speed, but the \
     \item \texttt{utilization} = 0.04 (4\%)
     \item $C = \min(1.0, 50.00 / 768.00) \times 0.04 = \textbf{0.0026}$ (0.2\%)
 \end{itemize}
+\vspace{0.2cm}
 The heavy utilization penalty completely tanks the score, signaling to the infrastructure team that Serverless / Serverless-GPU scaling is required.
+\end{tcolorbox}
 
 \newpage
 
@@ -642,46 +654,76 @@ To pipe telemetry into the DPI-LS engine, adapters must construct the canonical 
 
 Deploying the Cost dimension across an enterprise requires strict infrastructure tagging. We recommend the following phase rollout:
 
-\begin{enumerate}
-    \item \textbf{Phase 1: Strict Tagging Policy (Weeks 1-2)}
-    \begin{itemize}
-        \item Enforce an \texttt{agent\_id} tag on every AWS, GCP, and Azure resource via Terraform/Pulumi.
-        \item Pass the \texttt{agent\_id} header in all LLM Gateway requests (e.g., Cloudflare, Helicone).
-    \end{itemize}
-    
-    \item \textbf{Phase 2: Baseline Calibration (Weeks 3-4)}
-    \begin{itemize}
-        \item Audit current human team costs (Salary + Tools / Outputs per month).
-        \item Inject this scalar into the DPI-LS \texttt{Settings} block as the \texttt{human\_cost\_per\_output} baseline.
-    \end{itemize}
-    
-    \item \textbf{Phase 3: The FinOps Circuit Breaker (Weeks 5-6)}
-    \begin{itemize}
-        \item Configure an automated webhook. If the DPI-LS composite score detects that the Cost (C) dimension drops below $0.40$ (signaling that the AI is vastly more expensive than a human), automatically pause the agent and page the on-call engineer via PagerDuty.
-    \end{itemize}
-    
-    \vspace{0.3cm}
-    \begin{center}
-    \resizebox{0.8\textwidth}{!}{
-    \begin{tikzpicture}[
-        node distance=2.5cm,
-        metric/.style={rectangle, draw=dpigreen, fill=dpilight, thick, text width=2cm, align=center, minimum height=1cm, rounded corners},
-        decision/.style={diamond, aspect=2, draw=orange, fill=orange!10, thick, text width=2.5cm, align=center},
-        action/.style={rectangle, draw=dpired, fill=red!10, thick, text width=2cm, align=center, minimum height=1cm, rounded corners, drop shadow},
-        arrow/.style={-{Stealth[scale=1.2]}, thick}
-    ]
-    
-    \node[metric] (score) {C-Score = 0.35};
-    \node[decision, right=of score] (check) {$C < 0.40$?};
-    \node[action, right=of check, yshift=1.5cm] (pause) {Kill Container};
-    \node[action, right=of check, yshift=-1.5cm] (page) {PagerDuty Alert};
-    
-    \draw[arrow] (score) -- (check);
-    \draw[arrow] (check) |- node[above, xshift=0.5cm] {Yes} (pause);
-    \draw[arrow] (check) |- (page);
-    \end{tikzpicture}
-    }
-    \end{center}
-\end{enumerate}
+\vspace{0.5cm}
+\begin{center}
+\resizebox{1.0\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=3cm,
+    phase/.style={circle, draw=white, ultra thick, fill=#1, text=white, minimum size=1.5cm, font=\bfseries\Large, drop shadow},
+    box/.style={rectangle, draw=#1, fill=#1!5, thick, rounded corners, text width=4.5cm, align=center, minimum height=2cm, drop shadow},
+    line/.style={draw, ultra thick, dpiblue}
+]
+
+% The central timeline
+\draw[line] (-1,0) -- (13,0);
+
+% Phase 1
+\node[phase=dpiblue] (p1) at (0,0) {1};
+\node[box=dpiblue, above=0.5cm of p1] { \textbf{Weeks 1-2} \\ Strict Tagging Policy (AWS, GCP, Azure) };
+\node[box=dpiblue, below=0.5cm of p1] { Enforce \texttt{agent\_id} on resources \& LLM Gateway requests. };
+\draw[thick, dpiblue, dashed] (p1) -- ++(0,0.5);
+\draw[thick, dpiblue, dashed] (p1) -- ++(0,-0.5);
+
+% Phase 2
+\node[phase=dpicloud] (p2) at (6,0) {2};
+\node[box=dpicloud, above=0.5cm of p2] { \textbf{Weeks 3-4} \\ Baseline Calibration };
+\node[box=dpicloud, below=0.5cm of p2] { Audit human costs and inject into \texttt{human\_cost\_per\_output}. };
+\draw[thick, dpicloud, dashed] (p2) -- ++(0,0.5);
+\draw[thick, dpicloud, dashed] (p2) -- ++(0,-0.5);
+
+% Phase 3
+\node[phase=dpigreen] (p3) at (12,0) {3};
+\node[box=dpigreen, above=0.5cm of p3] { \textbf{Weeks 5-6} \\ FinOps Circuit Breaker };
+\node[box=dpigreen, below=0.5cm of p3] { Automate agent shutdown \& PagerDuty if $C < 0.40$. };
+\draw[thick, dpigreen, dashed] (p3) -- ++(0,0.5);
+\draw[thick, dpigreen, dashed] (p3) -- ++(0,-0.5);
+
+\end{tikzpicture}
+}
+\end{center}
+
+\vspace{0.5cm}
+\begin{center}
+\resizebox{0.8\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    metric/.style={rectangle, draw=dpigreen, fill=dpilight, thick, text width=2cm, align=center, minimum height=1cm, rounded corners},
+    decision/.style={diamond, aspect=2, draw=orange, fill=orange!10, thick, text width=2.5cm, align=center},
+    action/.style={rectangle, draw=dpired, fill=red!10, thick, text width=2cm, align=center, minimum height=1cm, rounded corners, drop shadow},
+    arrow/.style={-{Stealth[scale=1.2]}, thick}
+]
+
+\node[metric] (score) {C-Score = 0.35};
+\node[decision, right=of score] (check) {$C < 0.40$?};
+\node[action, right=of check, yshift=1.5cm] (pause) {Kill Container};
+\node[action, right=of check, yshift=-1.5cm] (page) {PagerDuty Alert};
+
+\draw[arrow] (score) -- (check);
+\draw[arrow] (check) |- node[above, xshift=0.5cm] {Yes} (pause);
+\draw[arrow] (check) |- (page);
+\end{tikzpicture}
+}
+\end{center}
+
+\vspace{1cm}
+\begin{tcolorbox}[enhanced, colback=dpiblue, colframe=dpiblue, boxrule=0pt, arc=2mm]
+\begin{center}
+\textcolor{white}{\textbf{\Large Document Developed By}}\\[0.15cm]
+\textcolor{white}{\textbf{\Large AI Team}}\\[0.15cm]
+\textcolor{white}{\textbf{\Large Malkapurapu Sivamanikanta}}\\[0.3cm]
+\textcolor{dpicloud}{\small Digital Performance Index --- Cost Dimension (C) --- Version 2.5}\\[0.1cm]
+\textcolor{dpicloud}{\small Architectural Reference $\bullet$ Confidential}
+\end{center}
+\end{tcolorbox}
 
 \end{document}

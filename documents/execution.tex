@@ -54,8 +54,8 @@
 \definecolor{dpiteal}{HTML}{318281}
 
 % Define Custom GitHub-Style Alerts
-\newtcolorbox{dpinote}[1][]{enhanced, colback=blue!5!white, colframe=dpiblue, title={\textbf{NOTE}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
-\newtcolorbox{dpiimportant}[1][]{enhanced, colback=red!5!white, colframe=dpired, title={\textbf{IMPORTANT}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
+\newtcolorbox{dpinote}[1][]{enhanced, colback=blue!5!white, colframe=dpiblue, title={\textbf{\faInfoCircle\ NOTE}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
+\newtcolorbox{dpiimportant}[1][]{enhanced, colback=red!5!white, colframe=dpired, title={\textbf{\faExclamationTriangle\ IMPORTANT}}, fonttitle=\bfseries, attach boxed title to top left={xshift=5mm,yshift=-2mm}, #1}
 \newtcolorbox{dpitip}[1][]{enhanced, colback=dpigreen!5!white, colframe=dpigreen, boxrule=0.5pt, leftrule=3pt, sharp corners, #1}
 
 \begin{document}
@@ -64,7 +64,9 @@
     \pagecolor{dpiblue}
     \color{white}
     \begin{center}
-        \vspace*{3cm}
+        \vspace*{1cm}
+        \includegraphics[width=6cm]{logo.png}
+        \vspace*{1.5cm}
         
         {\Huge \textbf{Measuring Execution}} \\[0.7cm]
         {\LARGE \textbf{Guide for the DPI-LS Project}}
@@ -83,7 +85,6 @@
         
         % Stylish Geometric Cover Overlay
         \begin{tikzpicture}[remember picture, overlay]
-            % Subtle watermark circles in the corners
             \fill[white, opacity=0.05] (current page.north east) circle (5cm);
             \fill[white, opacity=0.05] (current page.south west) circle (7cm);
             \fill[dpiteal, opacity=0.1] (current page.south east) circle (9cm);
@@ -95,8 +96,8 @@
         \renewcommand{\arraystretch}{1.3}
         \begin{tabular}{rl}
             \textbf{Framework:} & Digital Performance Index (DPI-LS) \\
-            \textbf{Dimension:} & Execution (E) --- Weight: 20\% \\
-            \textbf{Version:} & 1.0 \\
+            \textbf{Dimension:} & Execution (E) --- Weight: 15\% \\
+            \textbf{Version:} & 2.5 (Extended Enterprise Edition) \\
             \textbf{Status:} & Architectural Reference \\
         \end{tabular}
         
@@ -105,6 +106,9 @@
         {\color{dpicloud}\rule{0.5\textwidth}{1pt}} \\[0.5cm]
         
         {\large DPI-LS Architecture Team}
+        
+        \vspace{0.3cm}
+        {\normalsize Document Developed by \textbf{Malkapurapu Sivamanikanta}}
         
         \vspace*{1cm}
     \end{center}
@@ -177,8 +181,8 @@ The Execution dimension relies on a transparent mathematical formula calculated 
 \end{dpiimportant}
 
 \begin{itemize}
-    \item \textbf{total\_attempts:} The total number of times an agent tries to execute a tool, function, or API call.
-    \item \textbf{successful\_executions:} The number of those attempts that return a successful 200 OK or valid operational state without crashing or failing.
+    \item \textbf{\color{dpicloud}\faServer\ total\_attempts:} The total number of times an agent tries to execute a tool, function, or API call.
+    \item \textbf{\color{dpigreen}\faCheckCircle\ successful\_executions:} The number of those attempts that return a successful 200 OK or valid operational state without crashing or failing.
 \end{itemize}
 
 \subsection{\textcolor{dpiteal}{Calculation Example}}
@@ -398,41 +402,37 @@ Code-level function decoration & Wrapped Python functions & Custom App Code & \t
     cloud/.style={rectangle, rounded corners, draw=gray, fill=dpicloud, text width=3cm, align=center, inner sep=4pt}
 ]
 
-% Column 1
+% Nodes
 \node[decision] (start) at (0, 0) {Agent\\Framework?};
+\node[decision] (custom) at (7, 0) {Custom\\Built?};
+\node[decision] (llm) at (14, 0) {LLM API\\Provider?};
 
-% Column 2
-\node[decision] (custom) at (4, 0) {Custom\\Built?};
-\node[native] (langchain) at (4, -4) {LangChain\\Callbacks};
-\node[native] (llamaindex) at (4, -6) {LlamaIndex\\OTel Exporter};
+\node[native] (langchain) at (3.5, -3) {LangChain\\Callbacks};
+\node[native] (llamaindex) at (3.5, -5) {LlamaIndex\\OTel Exporter};
 
-% Column 3
-\node[decision] (llm) at (8, 0) {LLM API\\Provider?};
-\node[decision] (apm) at (8, -4) {Enterprise\\APM?};
+\node[decision] (apm) at (11, -3.5) {Enterprise\\APM?};
 
-% Column 4
-\node[cloud] (openai) at (12, 0) {OpenAI\\finish\_reason};
-\node[cloud] (anthropic) at (12, -2) {Anthropic\\stop\_reason};
+\node[cloud] (openai) at (19, 1) {OpenAI\\finish\_reason};
+\node[cloud] (anthropic) at (19, -1) {Anthropic\\stop\_reason};
 
-\node[third] (datadog) at (12, -4) {Datadog HTTP};
-\node[third] (dynatrace) at (12, -6) {Dynatrace APM};
-\node[third] (openllmetry) at (12, -8) {OpenLLMetry};
-
+\node[third] (datadog) at (19, -3.5) {Datadog HTTP};
+\node[third] (dynatrace) at (19, -5) {Dynatrace APM};
+\node[third] (openllmetry) at (19, -6.5) {OpenLLMetry};
 
 % Connections
 \draw[->] (start) -- node[above, font=\footnotesize] {No} (custom);
-\draw[->] (start) |- node[near start, left, font=\footnotesize] {Yes: LC} (langchain);
-\draw[->] (start) |- node[near start, left, font=\footnotesize] {Yes: LI} (llamaindex);
+\draw[->] (start.south) |- node[above, pos=0.75, font=\footnotesize] {Yes: LC} (langchain.west);
+\draw[->] (start.south) |- node[above, pos=0.75, font=\footnotesize] {Yes: LI} (llamaindex.west);
 
 \draw[->] (custom) -- node[above, font=\footnotesize] {Yes} (llm);
-\draw[->] (custom) |- node[near start, left, font=\footnotesize] {Yes} (apm);
+\draw[->] (custom.south) |- node[above, pos=0.75, font=\footnotesize] {No} (apm.west);
 
-\draw[->] (llm) -- node[above, font=\footnotesize] {OpenAI} (openai);
-\draw[->] (llm) |- node[near start, left, font=\footnotesize] {Anthropic} (anthropic);
+\draw[->] (llm.east) -- node[above, sloped, font=\footnotesize] {OpenAI} (openai.west);
+\draw[->] (llm.east) -- node[below, sloped, font=\footnotesize] {Anthropic} (anthropic.west);
 
-\draw[->] (apm) -- node[above, font=\footnotesize] {Datadog} (datadog);
-\draw[->] (apm) |- node[near start, left, font=\footnotesize] {Dynatrace} (dynatrace);
-\draw[->] (apm) |- node[near start, left, font=\footnotesize] {OTel} (openllmetry);
+\draw[->] (apm.east) -- node[above, font=\footnotesize] {Datadog} (datadog.west);
+\draw[->] (apm.south) |- node[above, pos=0.75, font=\footnotesize] {Dynatrace} (dynatrace.west);
+\draw[->] (apm.south) |- node[above, pos=0.75, font=\footnotesize] {OTel} (openllmetry.west);
 
 \end{tikzpicture}
 }
@@ -441,147 +441,175 @@ Code-level function decoration & Wrapped Python functions & Custom App Code & \t
 
 \subsection{Native Agent Framework Integrations}
 
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faCode\ LangSmith}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} The premier observability platform built by LangChain to track, debug, and monitor complex agentic workflows.
 
-\subsubsection*{LangSmith}
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} LangSmith captures the complete execution flow of an agent, including every tool invocation, retrieval step, and reasoning logic. If a tool fails, LangSmith natively logs the exception, the exact inputs that caused it, and the latency.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} The premier observability platform built by LangChain to track, debug, and monitor complex agentic workflows.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} LangSmith captures the complete execution flow of an agent, including every tool invocation, retrieval step, and reasoning logic. If a tool fails, LangSmith natively logs the exception, the exact inputs that caused it, and the latency.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Enable tracing in the environment via \texttt{LANGCHAIN\_TRACING\_V2=true}.
-        \item Use the LangSmith SDK to automatically capture all agent loops.
-        \item Configure LangSmith automation rules to POST failed tool executions directly to the DPI-LS webhook.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faTerminal} Enable tracing in the environment via \texttt{LANGCHAIN\_TRACING\_V2=true}.
+    \item \textbf{\color{gray}\faProjectDiagram} Use the LangSmith SDK to automatically capture all agent loops.
+    \item \textbf{\color{gray}\faShareSquare} Configure LangSmith automation rules to POST failed tool executions directly to the DPI-LS webhook.
 \end{itemize}
+\end{tcolorbox}
 
-\subsubsection*{LangChain \& LangGraph}
+\vspace{0.3cm}
+
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faProjectDiagram\ LangChain \& LangGraph}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} The most popular open-source frameworks for building complex agentic architectures and stateful workflows.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} By implementing a custom \texttt{BaseCallbackHandler}, DPI-LS can hook directly into the \texttt{on\_tool\_start}, \texttt{on\_tool\_end}, and \texttt{on\_tool\_error} events. This allows native, precise tracking of exactly when an agent attempts a tool and whether it succeeded or crashed natively in Python.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} The most popular open-source frameworks for building complex agentic architectures and stateful workflows.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} By implementing a custom \texttt{BaseCallbackHandler}, DPI-LS can hook directly into the \texttt{on\_tool\_start}, \texttt{on\_tool\_end}, and \texttt{on\_tool\_error} events. This allows native, precise tracking of exactly when an agent attempts a tool and whether it succeeded or crashed natively in Python.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Create a \texttt{DPIExecutionCallbackHandler(BaseCallbackHandler)} class.
-        \item Implement \texttt{on\_tool\_error} to dispatch a failure payload to the DPI-LS Webhook.
-        \item Pass the callback handler into the Agent Executor initialization.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faCode} Create a \texttt{DPIExecutionCallbackHandler(BaseCallbackHandler)} class.
+    \item \textbf{\color{gray}\faBug} Implement \texttt{on\_tool\_error} to dispatch a failure payload to the DPI-LS Webhook.
+    \item \textbf{\color{gray}\faMicrochip} Pass the callback handler into the Agent Executor initialization.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.3cm}
 
-\subsubsection*{LlamaIndex}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faDatabase\ LlamaIndex}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} A data framework specifically designed for connecting custom data sources to LLMs for RAG and agentic querying.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} LlamaIndex natively supports OpenTelemetry (OTel). If a query pipeline or tool execution fails, the OTel spans immediately register the exception.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} A data framework specifically designed for connecting custom data sources to LLMs for RAG and agentic querying.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} LlamaIndex natively supports OpenTelemetry (OTel). If a query pipeline or tool execution fails, the OTel spans immediately register the exception.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Configure the \texttt{OpenTelemetrySpanHandler} in the LlamaIndex dispatcher.
-        \item Route the OTel exporter to the DPI-LS ingestor endpoint.
-        \item Filter spans by type \texttt{TOOL\_CALL} and aggregate successes vs failures for the E-Score.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faSlidersH} Configure the \texttt{OpenTelemetrySpanHandler} in the LlamaIndex dispatcher.
+    \item \textbf{\color{gray}\faNetworkWired} Route the OTel exporter to the DPI-LS ingestor endpoint.
+    \item \textbf{\color{gray}\faFilter} Filter spans by type \texttt{TOOL\_CALL} and aggregate successes vs failures for the E-Score.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.3cm}
 
 \subsection{Direct API \& Cloud Provider Integrations}
 
-\subsubsection*{OpenAI Function Calling API}
-\begin{itemize}
-    \item \textbf{What it is:} Native tool use capabilities built directly into OpenAI models like GPT-4o.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} For lightweight agents not using heavy frameworks, DPI-LS can monitor the raw API responses. If an agent outputs \texttt{finish\_reason: "tool\_calls"} but fails to provide a valid JSON schema matching the registered functions, it counts as an execution failure.
-\end{itemize}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faRobot\ OpenAI Function Calling API}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} Native tool use capabilities built directly into OpenAI models like GPT-4o.
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} For lightweight agents not using heavy frameworks, DPI-LS can monitor the raw API responses. If an agent outputs \texttt{finish\_reason: "tool\_calls"} but fails to provide a valid JSON schema matching the registered functions, it counts as an execution failure.
+\end{tcolorbox}
+
+\vspace{0.3cm}
 
 \subsection{OpenTelemetry \& Third-Party Observability}
 
-\subsubsection*{OpenLLMetry (by Traceloop)}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faChartLine\ OpenLLMetry (by Traceloop)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} An open-source observability framework built on OpenTelemetry, specifically designed to track LLM execution and agent tool calling using GenAI Semantic Conventions.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} OpenLLMetry automatically instruments agent workflows (like LangChain or LlamaIndex) and treats the agent's entire execution flow as a distributed trace. If an agent's tool call crashes, the exception is recorded as a child span.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} An open-source observability framework built on OpenTelemetry, specifically designed to track LLM execution and agent tool calling using GenAI Semantic Conventions.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} OpenLLMetry automatically instruments agent workflows (like LangChain or LlamaIndex) and treats the agent's entire execution flow as a distributed trace. If an agent's tool call crashes, the exception is recorded as a child span.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Install the \texttt{traceloop-sdk} and initialize it in the application entry point.
-        \item Use \texttt{@workflow} and \texttt{@task} decorators on custom tool functions to ensure they are captured as individual spans.
-        \item Export the telemetry data to the DPI-LS backend using a standard OTel exporter, allowing DPI-LS to penalize the E-score upon detecting tool-call error spans.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faTerminal} Install the \texttt{traceloop-sdk} and initialize it in the application entry point.
+    \item \textbf{\color{gray}\faCodeBranch} Use \texttt{@workflow} and \texttt{@task} decorators on custom tool functions to ensure they are captured as individual spans.
+    \item \textbf{\color{gray}\faUpload} Export the telemetry data to the DPI-LS backend using a standard OTel exporter, allowing DPI-LS to penalize the E-score upon detecting tool-call error spans.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.3cm}
 
-\subsubsection*{Langfuse}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faProjectDiagram\ Langfuse}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} An open-source, full-stack LLM engineering platform that focuses on comprehensive trace analytics, prompt management, and evaluation.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} Langfuse excels at visualizing complex, multi-turn agent execution graphs. It natively integrates with frameworks like LangChain, tracking the exact latency, cost, and tool-call sequence of every execution.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} An open-source, full-stack LLM engineering platform that focuses on comprehensive trace analytics, prompt management, and evaluation.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} Langfuse excels at visualizing complex, multi-turn agent execution graphs. It natively integrates with frameworks like LangChain, tracking the exact latency, cost, and tool-call sequence of every execution.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Add the \texttt{Langfuse} callback handler to your agent loop.
-        \item Map Langfuse's concept of a "Trace" to the DPI-LS Session ID.
-        \item Route Langfuse's webhooks or export its datasets into the DPI-LS ingestion API to calculate the E-score.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faLink} Add the \texttt{Langfuse} callback handler to your agent loop.
+    \item \textbf{\color{gray}\faMapPin} Map Langfuse's concept of a "Trace" to the DPI-LS Session ID.
+    \item \textbf{\color{gray}\faShareSquare} Route Langfuse's webhooks or export its datasets into the DPI-LS ingestion API to calculate the E-score.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.3cm}
 
-\subsubsection*{Arize Phoenix}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faFire\ Arize Phoenix}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} An open-source AI observability platform that leverages the OpenInference standard to trace LLM applications using OpenTelemetry.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} Phoenix provides deep visibility into retrieval (RAG) and tool-calling performance. If an agent calls a tool and the context retrieved is irrelevant or the execution fails, Phoenix captures this as an OpenInference span.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} An open-source AI observability platform that leverages the OpenInference standard to trace LLM applications using OpenTelemetry.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} Phoenix provides deep visibility into retrieval (RAG) and tool-calling performance. If an agent calls a tool and the context retrieved is irrelevant or the execution fails, Phoenix captures this as an OpenInference span.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Instrument the agent application with the \texttt{openinference-instrumentation} library.
-        \item Point the OTLP exporter to a Phoenix server (or directly to a compatible DPI-LS collector).
-        \item Analyze the trace spans for \texttt{ToolCall} events marked with \texttt{StatusCode.ERROR}.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faTerminal} Instrument the agent application with the \texttt{openinference-instrumentation} library.
+    \item \textbf{\color{gray}\faNetworkWired} Point the OTLP exporter to a Phoenix server (or directly to a compatible DPI-LS collector).
+    \item \textbf{\color{gray}\faSearch} Analyze the trace spans for \texttt{ToolCall} events marked with \texttt{StatusCode.ERROR}.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.3cm}
 
 \subsection{AI Gateway \& Proxy Integrations}
 
-\subsubsection*{Helicone \& Portkey}
-\begin{itemize}
-    \item \textbf{What it is:} Open-source AI gateways that act as a proxy layer between your application and the LLM providers.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} Gateways provide zero-code observability. Because they intercept the raw HTTP requests, they can instantly capture malformed tool-calls, timeouts, and token costs without requiring you to install heavy tracing SDKs in your agent logic.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Change your agent's LLM Base URL to point to the Helicone or Portkey proxy instance.
-        \item The gateway captures the \texttt{finish\_reason} and full tool-call payload.
-        \item Route the gateway's webhooks directly to the DPI-LS Engine to record E-score failures.
-    \end{enumerate}
-\end{itemize}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faServer\ Helicone \& Portkey}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} Open-source AI gateways that act as a proxy layer between your application and the LLM providers.
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} Gateways provide zero-code observability. Because they intercept the raw HTTP requests, they can instantly capture malformed tool-calls, timeouts, and token costs without requiring you to install heavy tracing SDKs in your agent logic.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
+\begin{itemize}
+    \item \textbf{\color{gray}\faSync} Change your agent's LLM Base URL to point to the Helicone or Portkey proxy instance.
+    \item \textbf{\color{gray}\faFileCode} The gateway captures the \texttt{finish\_reason} and full tool-call payload.
+    \item \textbf{\color{gray}\faRoute} Route the gateway's webhooks directly to the DPI-LS Engine to record E-score failures.
+\end{itemize}
+\end{tcolorbox}
+
+\vspace{0.3cm}
 
 \subsection{Agent-Specific Observability}
 
-\subsubsection*{AgentOps}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faUsersCog\ AgentOps}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} An open-source observability platform purpose-built for multi-agent frameworks (like CrewAI, AutoGen, and PraisonAI) rather than generic LLM calls.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} AgentOps captures the "session replay" and causal chain of why an agent selected a tool. It natively tracks "Agent Loops" and "Time Travel Debugging", making it perfect for complex execution failures.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} An open-source observability platform purpose-built for multi-agent frameworks (like CrewAI, AutoGen, and PraisonAI) rather than generic LLM calls.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} AgentOps captures the "session replay" and causal chain of why an agent selected a tool. It natively tracks "Agent Loops" and "Time Travel Debugging", making it perfect for complex execution failures.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Initialize \texttt{agentops.init()} at the start of your multi-agent script.
-        \item AgentOps automatically wraps framework tool executions.
-        \item Use the AgentOps REST API to pull failed execution graphs and push them to the DPI-LS metrics database.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faTerminal} Initialize \texttt{agentops.init()} at the start of your multi-agent script.
+    \item \textbf{\color{gray}\faBox} AgentOps automatically wraps framework tool executions.
+    \item \textbf{\color{gray}\faDownload} Use the AgentOps REST API to pull failed execution graphs and push them to the DPI-LS metrics database.
 \end{itemize}
+\end{tcolorbox}
 
-\vspace{0.2cm}\hrule\vspace{0.2cm}
-
+\vspace{0.3cm}
 
 \subsection{Enterprise APM Integrations}
 
-\subsubsection*{Datadog / Dynatrace}
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faStopwatch\ Datadog / Dynatrace}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpiblue}\faQuestionCircle\ What it is:} Deep infrastructure monitoring platforms that track every network request, CPU spike, and HTTP status code in your cloud environment.
+
+\vspace{0.2cm}
+\textbf{\color{dpigreen}\faCogs\ Integration Strategy:} Agents often fail because the \textit{external API} they are trying to call is down (e.g. 504 Gateway Timeout, 500 Internal Server Error). APMs catch these network failures automatically.
+
+\vspace{0.2cm}
+\textbf{\color{dpicloud}\faPlug\ How to wire it up:}
 \begin{itemize}
-    \item \textbf{What it is:} Deep infrastructure monitoring platforms that track every network request, CPU spike, and HTTP status code in your cloud environment.
-    \item \textbf{How can we integrate and use this for DPI-LS project:} Agents often fail because the \textit{external API} they are trying to call is down (e.g. 504 Gateway Timeout, 500 Internal Server Error). APMs catch these network failures automatically.
-    \item \textbf{How to wire it up:}
-    \begin{enumerate}
-        \item Correlate APM traces with Agent Session IDs.
-        \item When Datadog detects a \texttt{5xx} error triggered by the agent's service, it fires a Webhook to DPI-LS.
-        \item The DPI-LS engine records this as an Execution Failure and penalizes the E-Score.
-    \end{enumerate}
+    \item \textbf{\color{gray}\faLink} Correlate APM traces with Agent Session IDs.
+    \item \textbf{\color{gray}\faBell} When Datadog detects a \texttt{5xx} error triggered by the agent's service, it fires a Webhook to DPI-LS.
+    \item \textbf{\color{gray}\faSortAmountDown} The DPI-LS engine records this as an Execution Failure and penalizes the E-Score.
 \end{itemize}
+\end{tcolorbox}
 
 
 \newpage
@@ -645,53 +673,63 @@ When a tool fails, the agent must either self-correct or fail gracefully. The DP
 }
 \end{center}
 
-\subsection*{Scenario 1: The Hallucinated Syntax (Malformed JSON)}
-
-\textbf{1. The Risk Event:}\\
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faBug\ Scenario 1: The Hallucinated Syntax (Malformed JSON)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpired} 1. The Risk Event:}\\
 An autonomous data-entry agent attempts to write a record to a database, but the LLM hallucinates a parameter that doesn't exist in the tool's schema.
 \begin{itemize}
-    \item \textbf{Agent Intent:} \textit{"I will now insert the customer record using the \texttt{insert\_db} tool."}
-    \item \textbf{Agent Payload:} \texttt{\{ "customer\_id": 123, "email": "test@test.com", "imaginary\_field": true \}}
+    \item \textbf{\color{dpiblue}Agent Intent:} \textit{"I will now insert the customer record using the \texttt{insert\_db} tool."}
+    \item \textbf{\color{dpiblue}Agent Payload:} \texttt{\{ "customer\_id": 123, "email": "test@test.com", "imaginary\_field": true \}}
 \end{itemize}
 
-\textbf{2. Automated Detection (How E is Detected):}\\
+\vspace{0.2cm}
+\textbf{\color{dpicloud} 2. Automated Detection (How E is Detected):}\\
 The agent's framework intercepts the call and attempts to validate the payload against the Pydantic schema. It throws a \texttt{ValidationError} because \texttt{imaginary\_field} does not exist. The tool call fails entirely.
 
-\textbf{3. Integration \& Score Downgrade:}\\
+\vspace{0.2cm}
+\textbf{\color{dpigreen} 3. Integration \& Score Downgrade:}\\
 \begin{itemize}
-    \item \textbf{Endpoint Hit:} The tracing callback registers the failure and sends a payload to the DPI-LS backend.
-    \item \textbf{Score Updated:} The DPI-LS scoring engine logs \textbf{1 failed attempt}. The agent's Execution (E) score drops. 
-    \item \textbf{Outcome:} The agent might receive the error message in its prompt and try again, but the initial failure remains permanently logged against its E-score.
+    \item \textbf{\color{gray}\faSitemap\ Endpoint Hit:} The tracing callback registers the failure and sends a payload to the DPI-LS backend.
+    \item \textbf{\color{gray}\faSortNumericDown\ Score Updated:} The DPI-LS scoring engine logs \textbf{1 failed attempt}. The agent's Execution (E) score drops. 
+    \item \textbf{\color{gray}\faClipboardCheck\ Outcome:} The agent might receive the error message in its prompt and try again, but the initial failure remains permanently logged against its E-score.
 \end{itemize}
+\end{tcolorbox}
 
-\subsection*{Scenario 2: The Unstable External API (Network Timeout)}
+\vspace{0.3cm}
 
-\textbf{1. The Risk Event:}\\
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faNetworkWired\ Scenario 2: The Unstable External API (Network Timeout)}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpired} 1. The Risk Event:}\\
 A financial forecasting agent successfully formats its JSON payload and calls an external stock-pricing API, but the external API is currently down.
 
-\textbf{2. Automated Detection (How E is Detected):}\\
+\vspace{0.2cm}
+\textbf{\color{dpicloud} 2. Automated Detection (How E is Detected):}\\
 The HTTP request hangs for 10 seconds and throws a \texttt{TimeoutError}. Even though the agent did nothing wrong syntactically, the execution attempt failed.
 
-\textbf{3. Integration \& Score Downgrade:}\\
+\vspace{0.2cm}
+\textbf{\color{dpigreen} 3. Integration \& Score Downgrade:}\\
 \begin{itemize}
-    \item \textbf{Endpoint Hit:} The Datadog APM integration catches the \texttt{504 Gateway Timeout} and pushes a failure event to DPI-LS.
-    \item \textbf{Score Updated:} The DPI-LS engine registers \textbf{1 failed attempt}, downgrading the E-score.
+    \item \textbf{\color{gray}\faSitemap\ Endpoint Hit:} The Datadog APM integration catches the \texttt{504 Gateway Timeout} and pushes a failure event to DPI-LS.
+    \item \textbf{\color{gray}\faSortNumericDown\ Score Updated:} The DPI-LS engine registers \textbf{1 failed attempt}, downgrading the E-score.
 \end{itemize}
+\end{tcolorbox}
 
-\subsection*{Scenario 3: The Seamless Self-Correction}
+\vspace{0.3cm}
 
-\textbf{1. The Risk Event:}\\
+\begin{tcolorbox}[enhanced, colback=gray!5!white, colframe=gray, title={\textbf{\faSync\ Scenario 3: The Seamless Self-Correction}}, fonttitle=\bfseries, boxrule=1pt, arc=2mm]
+\textbf{\color{dpired} 1. The Risk Event:}\\
 An agent is asked to write a Python script and execute it in a sandbox. It writes the script, but forgets to import the \texttt{json} module.
 
-\textbf{2. Automated Detection (How E is Detected):}\\
+\vspace{0.2cm}
+\textbf{\color{dpicloud} 2. Automated Detection (How E is Detected):}\\
 The Python sandbox tool returns the \texttt{NameError}. The DPI-LS ingestion API logs this as \textbf{1 failed attempt}.
 
-\textbf{3. Integration \& Recovery:}\\
+\vspace{0.2cm}
+\textbf{\color{dpigreen} 3. Integration \& Recovery:}\\
 \begin{itemize}
-    \item \textbf{Self-Correction:} The agent reads the \texttt{NameError}, realizes its mistake, adds \texttt{import json}, and tries again.
-    \item \textbf{Score Updated:} The second attempt is successful. The DPI-LS engine logs \textbf{1 successful attempt}.
-    \item \textbf{Outcome:} The final tally for this task is 1 success and 1 failure ($E = 1/2 = 0.50$). The agent completed the task, but the execution tracking proves it was inefficient and wasted compute cycles to get there.
+    \item \textbf{\color{gray}\faWrench\ Self-Correction:} The agent reads the \texttt{NameError}, realizes its mistake, adds \texttt{import json}, and tries again.
+    \item \textbf{\color{gray}\faSortNumericUp\ Score Updated:} The second attempt is successful. The DPI-LS engine logs \textbf{1 successful attempt}.
+    \item \textbf{\color{gray}\faClipboardCheck\ Outcome:} The final tally for this task is 1 success and 1 failure ($E = 1/2 = 0.50$). The agent completed the task, but the execution tracking proves it was inefficient and wasted compute cycles to get there.
 \end{itemize}
+\end{tcolorbox}
 
 \vspace{0.5cm}
 
@@ -700,9 +738,9 @@ The Python sandbox tool returns the \texttt{NameError}. The DPI-LS ingestion API
 By meticulously tracking the Execution dimension, organizations unlock several operational capabilities:
 
 \begin{itemize}
-    \item \textbf{Self-Correction Visibility:} By looking at the ratio of attempts to successes, engineers can see how often an agent is forced to "retry" and "self-correct". An agent that succeeds on the 3rd try still gets the job done, but it is wasting compute and latency.
-    \item \textbf{Model Selection Optimization:} Different LLMs have varying levels of proficiency in generating strict JSON or adhering to complex tool schemas. The E-score provides a direct, quantifiable metric to compare how well GPT-4o executes tools compared to Claude 3.5 Sonnet or open-source models.
-    \item \textbf{Flaky Tool Identification:} If multiple agents have low E-scores when interacting with a specific internal API, the telemetry will highlight that the \textit{tool} is likely flaky or poorly documented in its system prompt, rather than the agent being unintelligent.
+    \item \textbf{\color{dpiblue}\faChartBar\ Self-Correction Visibility:} By looking at the ratio of attempts to successes, engineers can see how often an agent is forced to "retry" and "self-correct". An agent that succeeds on the 3rd try still gets the job done, but it is wasting compute and latency.
+    \item \textbf{\color{dpigreen}\faBrain\ Model Selection Optimization:} Different LLMs have varying levels of proficiency in generating strict JSON or adhering to complex tool schemas. The E-score provides a direct, quantifiable metric to compare how well GPT-4o executes tools compared to Claude 3.5 Sonnet or open-source models.
+    \item \textbf{\color{dpired}\faTools\ Flaky Tool Identification:} If multiple agents have low E-scores when interacting with a specific internal API, the telemetry will highlight that the \textit{tool} is likely flaky or poorly documented in its system prompt, rather than the agent being unintelligent.
 \end{itemize}
 
 \vspace{0.5cm}
@@ -715,11 +753,56 @@ The Execution (E) dimension strips away the subjective nature of LLM outputs and
 
 By integrating execution callbacks directly into your agent frameworks and piping them into the DPI-LS engine, you gain absolute clarity into the technical competence of your autonomous systems.
 
-\textbf{Next Steps:}
-\begin{enumerate}
-    \item \textbf{Define Webhooks:} Ensure the DPI-LS execution API (\texttt{/webhooks/execution}) is active.
-    \item \textbf{Configure Callbacks:} Install \texttt{LangChain} or \texttt{LlamaIndex} callback handlers in the agent framework to automatically push tool statistics.
-    \item \textbf{Monitor Dashboard:} Observe the live UI to pinpoint failing API calls or syntactical hallucinations in real-time.
-\end{enumerate}
+\vspace{0.5cm}
+\begin{center}
+\resizebox{\textwidth}{!}{
+\begin{tikzpicture}[
+    node distance=1cm,
+    step1/.style={rectangle, draw=gray, fill=gray!5, thick, text width=4.5cm, align=center, minimum height=3cm, rounded corners, drop shadow},
+    step2/.style={rectangle, draw=dpiblue, fill=blue!5, thick, text width=4.5cm, align=center, minimum height=3cm, rounded corners, drop shadow},
+    step3/.style={rectangle, draw=dpigreen, fill=green!5, thick, text width=4.5cm, align=center, minimum height=3cm, rounded corners, drop shadow},
+    arrow/.style={-{Stealth[scale=1.5]}, line width=2pt, draw=dpicloud}
+]
+
+% Nodes
+\node[step1] (s1) {\textbf{\color{gray}\faLink\ 1. Define Webhooks} \\[-0.1cm] \rule{3cm}{0.5pt} \\ \vspace{0.2cm} \small Ensure the DPI-LS execution API (\texttt{/webhooks/execution}) is active.};
+
+\node[step2, right=1.5cm of s1] (s2) {\textbf{\color{dpiblue}\faCode\ 2. Configure Callbacks} \\[-0.1cm] \rule{3cm}{0.5pt} \\ \vspace{0.2cm} \small Install LangChain or LlamaIndex handlers in the framework to automatically push stats.};
+
+\node[step3, right=1.5cm of s2] (s3) {\textbf{\color{dpigreen}\faChartLine\ 3. Monitor Dashboard} \\[-0.1cm] \rule{3cm}{0.5pt} \\ \vspace{0.2cm} \small Observe the live UI to pinpoint failing API calls or hallucinations in real-time.};
+
+% Timeline Bar
+\draw[line width=4pt, draw=gray!30, rounded corners] ([yshift=-2cm]s1.south west) -- ([yshift=-2cm]s3.south east);
+\draw[line width=4pt, draw=dpiblue, rounded corners] ([yshift=-2cm]s1.south west) -- ([yshift=-2cm]s2.south);
+\draw[line width=4pt, draw=dpigreen, rounded corners] ([yshift=-2cm]s2.south) -- ([yshift=-2cm]s3.south east);
+
+% Connection Arrows
+\draw[arrow] (s1) -- (s2);
+\draw[arrow] (s2) -- (s3);
+
+% Timeline Markers
+\filldraw[gray] ([yshift=-2cm]s1.south) circle (4pt);
+\filldraw[dpiblue] ([yshift=-2cm]s2.south) circle (4pt);
+\filldraw[dpigreen] ([yshift=-2cm]s3.south) circle (4pt);
+
+% Timeline Labels
+\node[below=0.2cm of s1.south, yshift=-2cm, font=\small\bfseries\color{gray}] {Day 1};
+\node[below=0.2cm of s2.south, yshift=-2cm, font=\small\bfseries\color{dpiblue}] {Day 2-3};
+\node[below=0.2cm of s3.south, yshift=-2cm, font=\small\bfseries\color{dpigreen}] {Day 4+};
+
+\end{tikzpicture}
+}
+\end{center}
+
+\vspace{1cm}
+\begin{tcolorbox}[enhanced, colback=dpiblue, colframe=dpiblue, boxrule=0pt, arc=2mm]
+\begin{center}
+\textcolor{white}{\textbf{\Large Document Developed By}}\\[0.15cm]
+\textcolor{white}{\textbf{\Large AI Team}}\\[0.15cm]
+\textcolor{white}{\textbf{\Large Malkapurapu Sivamanikanta}}\\[0.3cm]
+\textcolor{dpicloud}{\small Digital Performance Index --- Execution Dimension (E) --- Version 2.5}\\[0.1cm]
+\textcolor{dpicloud}{\small Architectural Reference $\bullet$ Confidential}
+\end{center}
+\end{tcolorbox}
 
 \end{document}
