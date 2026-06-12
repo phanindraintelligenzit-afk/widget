@@ -13,6 +13,7 @@
 \usepackage{fontawesome5}
 \usepackage{amsmath}
 \usepackage{listings}
+\usepackage{float}
 
 % --- Premium Typography & Spacing ---
 \usepackage{mathpazo}
@@ -202,7 +203,7 @@ The Risk dimension provides a normalized score indicating how safely an agent op
 
 Before calculating the final score, every incident captured must be assigned a standardized severity weight. This ensures that minor hiccups don't unnecessarily trip the circuit breaker, while critical security flaws are heavily penalized. A standard scale might look like:
 
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.5}
 \rowcolors{2}{gray!10}{white}
@@ -476,7 +477,7 @@ While ITSM provides formal validation, Application Performance Monitoring (APM) 
 The tables below map how both ITSM and APM sources translate raw system noise into formal DPI-LS Risk Data.
 
 \subsection{Table A: ITSM Sources}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.4}
 \rowcolors{2}{gray!10}{white}
@@ -484,7 +485,7 @@ The tables below map how both ITSM and APM sources translate raw system noise in
 \arrayrulecolor{gray!50}
 \begin{tabularx}{\textwidth}{| >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}X |}
 \hline
-\rowcolor{dpiblue} \textcolor{white}{\textbf{Risk Data}} & \textcolor{white}{\textbf{What It Measures}} & \textcolor{white}{\textbf{System}} & \textcolor{white}{\textbf{Trigger Mechanism}} \\
+\rowcolor{dpiblue} \textcolor{white}{\textbf{Risk Data}} & \textcolor{white}{\textbf{What It Measures}} & \textcolor{white}{\textbf{Source System}} & \textcolor{white}{\textbf{Actual Data Comes From}} \\
 \hline
 P1/P2 Operational Outages & Severe system failure or downtime & ServiceNow & SNOW Business Rules \\
 Compliance / Security Bug & Regulatory or architectural risk & Jira & Jira Automation Webhooks \\
@@ -495,7 +496,7 @@ SLA Violations & Missed operational thresholds & BMC Helix & Incident Management
 \end{table}
 
 \subsection{Table B: APM, Observability, \& Security Sources}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.4}
 \rowcolors{2}{gray!10}{white}
@@ -503,7 +504,7 @@ SLA Violations & Missed operational thresholds & BMC Helix & Incident Management
 \arrayrulecolor{gray!50}
 \begin{tabularx}{\textwidth}{| >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}X |}
 \hline
-\rowcolor{dpicloud!30} \textbf{Risk Data} & \textbf{What It Measures} & \textbf{System} & \textbf{Trigger Mechanism} \\
+\rowcolor{dpicloud!30} \textbf{Risk Data} & \textbf{What It Measures} & \textbf{Source System} & \textbf{Actual Data Comes From} \\
 \hline
 Code exceptions \& crashes & Operational degradation & Sentry & Unhandled Exception Webhook \\
 Infrastructure anomalies & System cascading failures & Dynatrace/New Relic & Monitor Alert Webhook \\
@@ -516,7 +517,7 @@ Unauthorized Execution & Cloud Security Violations & Wiz / Prisma Cloud & CSPM C
 \end{table}
 
 \subsection{Table C: Specialized Risk Sources}
-\begin{table}[htbp]
+\begin{table}[H]
 \centering
 \renewcommand{\arraystretch}{1.4}
 \rowcolors{2}{gray!10}{white}
@@ -524,7 +525,7 @@ Unauthorized Execution & Cloud Security Violations & Wiz / Prisma Cloud & CSPM C
 \arrayrulecolor{gray!50}
 \begin{tabularx}{\textwidth}{| >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}X |}
 \hline
-\rowcolor{dpigreen!80} \textcolor{white}{\textbf{Risk Data}} & \textcolor{white}{\textbf{What It Measures}} & \textcolor{white}{\textbf{System}} & \textcolor{white}{\textbf{Trigger Mechanism}} \\
+\rowcolor{dpigreen!80} \textcolor{white}{\textbf{Risk Data}} & \textcolor{white}{\textbf{What It Measures}} & \textcolor{white}{\textbf{Source System}} & \textcolor{white}{\textbf{Actual Data Comes From}} \\
 \hline
 Incident Routing & Automated On-Call Escalation & PagerDuty / Opsgenie & API Incident Trigger \\
 Data Freshness / Schema & AI Database Hallucinations & Monte Carlo / Bigeye & Data Quality Alert \\
