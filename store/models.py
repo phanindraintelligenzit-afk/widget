@@ -115,3 +115,40 @@ class SMERatingRow(Base):
     hallucination_rate: Mapped[float] = mapped_column(Float)
     submitted_by: Mapped[str] = mapped_column(String(128))
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ValidationMetricRow(Base):
+    """Registry of dynamic validation metrics."""
+    __tablename__ = "validation_metrics"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    metric_name: Mapped[str] = mapped_column(String(256))
+    category: Mapped[str] = mapped_column(String(64))
+    description: Mapped[str] = mapped_column(String(1024), nullable=True)
+    source_system: Mapped[str] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class AgentValidationRuleRow(Base):
+    """Configured validation rules per agent."""
+    __tablename__ = "agent_validation_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    metric_id: Mapped[str] = mapped_column(String(128), ForeignKey("validation_metrics.id"), index=True)
+    operator: Mapped[str] = mapped_column(String(16))  # gte, lte, eq
+    threshold: Mapped[float] = mapped_column(Float)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AgentValidationValueRow(Base):
+    """Ingested validation run values."""
+    __tablename__ = "agent_validation_values"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    metric_id: Mapped[str] = mapped_column(String(128), ForeignKey("validation_metrics.id"), index=True)
+    value: Mapped[float] = mapped_column(Float)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

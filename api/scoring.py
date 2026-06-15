@@ -22,6 +22,22 @@ def score_and_persist(
     baseline: Optional[float] = None,
 ) -> Rating:
     settings = repo.get_settings(s)
+    
+    # Calculate dynamic validation score
+    from dpi_ls.validation_service import ValidationService
+    val_summary = ValidationService.evaluate_validation(
+        s=s,
+        agent_id=obs.agent_id,
+        period_start=obs.period_start,
+        period_end=obs.period_end,
+    )
+    if val_summary["required_components"] > 0 or obs.validation is not None:
+        if obs.validation is None:
+            from contract.models import Validation
+            obs.validation = Validation(required_components=0, validated_components=0)
+        obs.validation.required_components = val_summary["required_components"]
+        obs.validation.validated_components = val_summary["validated_components"]
+
     agent = repo.upsert_agent(s, obs.agent_id, obs.agent_name, baseline=baseline)
     baseline_obj = AgentBaseline(
         agent_id=obs.agent_id,
@@ -55,6 +71,22 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
 
     merged = merge_partials(partials)
     settings = repo.get_settings(s)
+    
+    # Calculate dynamic validation score
+    from dpi_ls.validation_service import ValidationService
+    val_summary = ValidationService.evaluate_validation(
+        s=s,
+        agent_id=merged.agent_id,
+        period_start=merged.period_start,
+        period_end=merged.period_end,
+    )
+    if val_summary["required_components"] > 0 or merged.validation is not None:
+        if merged.validation is None:
+            from contract.models import Validation
+            merged.validation = Validation(required_components=0, validated_components=0)
+        merged.validation.required_components = val_summary["required_components"]
+        merged.validation.validated_components = val_summary["validated_components"]
+
     agent = repo.upsert_agent(s, merged.agent_id, merged.agent_name or merged.agent_id)
     baseline = AgentBaseline(
         agent_id=merged.agent_id,
@@ -149,3 +181,19 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         # observability fields (cloud_cost, systems_accessed).
         res["C"] = obs.cost.model_dump(mode="json")
     return res
+
+
+def rescore_agent(s: Session, agent_id: str) -> Optional[Rating]:
+    """Rescore an agent, handling both partial observations and canonical observations."""
+    rating = rescore_from_partials(s, agent_id)
+    if rating is not None:
+        return rating
+
+    # If no partials exist, look for the latest canonical observation
+    obs_row = repo.latest_observation(s, agent_id)
+    if obs_row is None:
+        return None
+
+    # Load canonical observation
+    obs = AgentObservation.model_validate(obs_row.payload)
+    return score_and_persist(s, obs)

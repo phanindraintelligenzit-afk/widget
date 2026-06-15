@@ -49,6 +49,13 @@ from .schemas import (
     SMEFlowStart,
     SMEFlowStatus,
     SMERatingIn,
+    ValidationMetricIn,
+    ValidationMetricOut,
+    AgentValidationRuleIn,
+    AgentValidationRuleOut,
+    AgentValidationValueIn,
+    AgentValidationValueOut,
+    ValidationCalculationOut,
 )
 from .scoring import ingest_partials, score_and_persist
 from .sme_orchestration import advance_session, start_session
@@ -423,3 +430,167 @@ def submit_sme_rating(
         submitted_by=body.submitted_by,
     )
     return {"id": row.id, "submitted_at": row.submitted_at.isoformat()}
+
+
+# ---- dynamic validation endpoints ----------------------------------------
+
+@app.get("/api/validation/metrics", response_model=list[ValidationMetricOut])
+def get_validation_metrics(s: Session = Depends(db_session)) -> list[ValidationMetricOut]:
+    rows = repo.list_validation_metrics(s)
+    return [
+        ValidationMetricOut(
+            id=r.id,
+            metric_name=r.metric_name,
+            category=r.category,
+            description=r.description,
+            source_system=r.source_system,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
+
+
+@app.post("/api/validation/metrics", response_model=ValidationMetricOut)
+def create_validation_metric(
+    body: ValidationMetricIn,
+    s: Session = Depends(db_session),
+) -> ValidationMetricOut:
+    row = repo.save_validation_metric(
+        s,
+        metric_id=body.id,
+        metric_name=body.metric_name,
+        category=body.category,
+        description=body.description,
+        source_system=body.source_system,
+    )
+    s.commit()
+    return ValidationMetricOut(
+        id=row.id,
+        metric_name=row.metric_name,
+        category=row.category,
+        description=row.description,
+        source_system=row.source_system,
+        created_at=row.created_at,
+    )
+
+
+@app.post("/api/validation/rules", response_model=AgentValidationRuleOut)
+def create_validation_rule(
+    body: AgentValidationRuleIn,
+    s: Session = Depends(db_session),
+) -> AgentValidationRuleOut:
+    # Verify definition exists
+    defn = repo.get_validation_metric(s, body.metric_id)
+    if defn is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Validation metric '{body.metric_id}' is not registered."
+        )
+    row = repo.save_agent_validation_rule(
+        s,
+        agent_id=body.agent_id,
+        metric_id=body.metric_id,
+        operator=body.operator,
+        threshold=body.threshold,
+        enabled=body.enabled,
+    )
+    s.commit()
+    # Trigger rescoring
+    from .scoring import rescore_agent
+    rescore_agent(s, body.agent_id)
+    s.commit()
+    return AgentValidationRuleOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        metric_id=row.metric_id,
+        operator=row.operator,
+        threshold=row.threshold,
+        enabled=row.enabled,
+    )
+
+
+@app.get("/api/validation/rules/{agent_id}", response_model=list[AgentValidationRuleOut])
+def get_agent_validation_rules(
+    agent_id: str,
+    s: Session = Depends(db_session),
+) -> list[AgentValidationRuleOut]:
+    rows = repo.list_agent_validation_rules(s, agent_id)
+    return [
+        AgentValidationRuleOut(
+            id=r.id,
+            agent_id=r.agent_id,
+            metric_id=r.metric_id,
+            operator=r.operator,
+            threshold=r.threshold,
+            enabled=r.enabled,
+        )
+        for r in rows
+    ]
+
+
+@app.post("/api/validation/values", response_model=AgentValidationValueOut)
+def create_validation_value(
+    body: AgentValidationValueIn,
+    s: Session = Depends(db_session),
+) -> AgentValidationValueOut:
+    # Verify metric definition exists
+    defn = repo.get_validation_metric(s, body.metric_id)
+    if defn is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Validation metric '{body.metric_id}' is not registered."
+        )
+    row = repo.save_agent_validation_value(
+        s,
+        agent_id=body.agent_id,
+        metric_id=body.metric_id,
+        value=body.value,
+        period_start=body.period_start,
+        period_end=body.period_end,
+    )
+    s.commit()
+    # Trigger rescoring
+    from .scoring import rescore_agent
+    rescore_agent(s, body.agent_id)
+    s.commit()
+    return AgentValidationValueOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        metric_id=row.metric_id,
+        value=row.value,
+        period_start=row.period_start,
+        period_end=row.period_end,
+        recorded_at=row.recorded_at,
+    )
+
+
+@app.get("/api/validation/agents/{agent_id}/calculate", response_model=ValidationCalculationOut)
+def calculate_agent_validation(
+    agent_id: str,
+    period_start: str,
+    period_end: str,
+    s: Session = Depends(db_session),
+) -> ValidationCalculationOut:
+    from datetime import datetime, timezone
+    try:
+        start = datetime.fromisoformat(period_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+        end = datetime.fromisoformat(period_end.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+
+    from dpi_ls.validation_service import ValidationService
+    res = ValidationService.evaluate_validation(
+        s=s,
+        agent_id=agent_id,
+        period_start=start,
+        period_end=end,
+    )
+    return ValidationCalculationOut(
+        agent_id=res["agent_id"],
+        period_start=start,
+        period_end=end,
+        validation_score=res["validation_score"],
+        validated_components=res["validated_components"],
+        required_components=res["required_components"],
+        rules_evaluated=res["rules_evaluated"],
+    )

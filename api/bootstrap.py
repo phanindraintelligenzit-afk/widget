@@ -46,6 +46,15 @@ def bootstrap() -> None:
     if db_mod._engine is None:  # type: ignore[attr-defined]
         db_mod.configure()
     db_mod.init_db()
+
+    # Register dynamic validation metrics
+    from store.db import get_session_factory
+    from dpi_ls.validation_service import register_standard_metrics
+    session_factory = get_session_factory()
+    with session_factory() as s:
+        register_standard_metrics(s)
+        s.commit()
+
     register_stock_adapters()
     mappings_dir = os.environ.get("MAPPINGS_DIR")
     if mappings_dir:

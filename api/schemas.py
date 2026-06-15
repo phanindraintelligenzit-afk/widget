@@ -69,6 +69,68 @@ class SMEFlowStatus(BaseModel):
     rating: Optional["Rating"] = None      # set when commit happens
 
 
+class ValidationMetricIn(BaseModel):
+    id: str
+    metric_name: str
+    category: str
+    description: Optional[str] = None
+    source_system: Optional[str] = None
+
+
+class ValidationMetricOut(BaseModel):
+    id: str
+    metric_name: str
+    category: str
+    description: Optional[str] = None
+    source_system: Optional[str] = None
+    created_at: datetime
+
+
+class AgentValidationRuleIn(BaseModel):
+    agent_id: str
+    metric_id: str
+    operator: str
+    threshold: float
+    enabled: bool = True
+
+
+class AgentValidationRuleOut(BaseModel):
+    id: int
+    agent_id: str
+    metric_id: str
+    operator: str
+    threshold: float
+    enabled: bool
+
+
+class AgentValidationValueIn(BaseModel):
+    agent_id: str
+    metric_id: str
+    value: float
+    period_start: datetime
+    period_end: datetime
+
+
+class AgentValidationValueOut(BaseModel):
+    id: int
+    agent_id: str
+    metric_id: str
+    value: float
+    period_start: datetime
+    period_end: datetime
+    recorded_at: datetime
+
+
+class ValidationCalculationOut(BaseModel):
+    agent_id: str
+    period_start: datetime
+    period_end: datetime
+    validation_score: float
+    validated_components: int
+    required_components: int
+    rules_evaluated: list[dict]
+
+
 # Forward ref import avoids circular load.
 from contract import Rating  # noqa: E402
 SMEFlowStatus.model_rebuild()

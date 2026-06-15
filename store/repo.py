@@ -21,6 +21,9 @@ from .models import (
     SettingsRow,
     SMEFlowSessionRow,
     SMERatingRow,
+    ValidationMetricRow,
+    AgentValidationRuleRow,
+    AgentValidationValueRow,
 )
 
 
@@ -264,3 +267,129 @@ def update_sme_session(s: Session, session_id: str, state_payload: dict) -> SMEF
     row.updated_at = _utcnow()
     s.flush()
     return row
+
+
+# ---- dynamic validation components ---------------------------------------
+
+def save_validation_metric(
+    s: Session,
+    metric_id: str,
+    metric_name: str,
+    category: str,
+    description: str | None = None,
+    source_system: str | None = None,
+) -> ValidationMetricRow:
+    row = s.get(ValidationMetricRow, metric_id)
+    if row is None:
+        row = ValidationMetricRow(
+            id=metric_id,
+            metric_name=metric_name,
+            category=category,
+            description=description,
+            source_system=source_system,
+        )
+        s.add(row)
+    else:
+        row.metric_name = metric_name
+        row.category = category
+        row.description = description
+        row.source_system = source_system
+    s.flush()
+    return row
+
+
+def get_validation_metric(s: Session, metric_id: str) -> Optional[ValidationMetricRow]:
+    return s.get(ValidationMetricRow, metric_id)
+
+
+def list_validation_metrics(s: Session) -> list[ValidationMetricRow]:
+    return list(s.scalars(select(ValidationMetricRow).order_by(ValidationMetricRow.id)))
+
+
+def save_agent_validation_rule(
+    s: Session,
+    agent_id: str,
+    metric_id: str,
+    operator: str,
+    threshold: float,
+    enabled: bool = True,
+) -> AgentValidationRuleRow:
+    # Look for existing rule for this agent + metric
+    row = s.scalars(
+        select(AgentValidationRuleRow)
+        .where(
+            AgentValidationRuleRow.agent_id == agent_id,
+            AgentValidationRuleRow.metric_id == metric_id,
+        )
+        .limit(1)
+    ).first()
+
+    if row is None:
+        row = AgentValidationRuleRow(
+            agent_id=agent_id,
+            metric_id=metric_id,
+            operator=operator,
+            threshold=threshold,
+            enabled=enabled,
+        )
+        s.add(row)
+    else:
+        row.operator = operator
+        row.threshold = threshold
+        row.enabled = enabled
+    s.flush()
+    return row
+
+
+def list_agent_validation_rules(s: Session, agent_id: str) -> list[AgentValidationRuleRow]:
+    return list(
+        s.scalars(
+            select(AgentValidationRuleRow)
+            .where(AgentValidationRuleRow.agent_id == agent_id)
+            .order_by(AgentValidationRuleRow.id)
+        )
+    )
+
+
+def save_agent_validation_value(
+    s: Session,
+    agent_id: str,
+    metric_id: str,
+    value: float,
+    period_start: datetime,
+    period_end: datetime,
+) -> AgentValidationValueRow:
+    row = AgentValidationValueRow(
+        agent_id=agent_id,
+        metric_id=metric_id,
+        value=value,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def list_agent_validation_values(
+    s: Session,
+    agent_id: str,
+    period_start: Optional[datetime] = None,
+    period_end: Optional[datetime] = None,
+) -> list[AgentValidationValueRow]:
+    stmt = select(AgentValidationValueRow).where(AgentValidationValueRow.agent_id == agent_id)
+    if period_start:
+        stmt = stmt.where(AgentValidationValueRow.period_end >= period_start)
+    if period_end:
+        stmt = stmt.where(AgentValidationValueRow.period_start <= period_end)
+    return list(s.scalars(stmt.order_by(AgentValidationValueRow.period_start.asc())))
+
+
+def latest_observation(s: Session, agent_id: str) -> Optional[ObservationRow]:
+    """Return the most recently saved canonical observation for an agent."""
+    return s.scalars(
+        select(ObservationRow)
+        .where(ObservationRow.agent_id == agent_id)
+        .order_by(ObservationRow.received_at.desc(), ObservationRow.id.desc())
+        .limit(1)
+    ).first()
