@@ -50,3 +50,18 @@ def bootstrap() -> None:
     mappings_dir = os.environ.get("MAPPINGS_DIR")
     if mappings_dir:
         register_mappings_from_dir(mappings_dir)
+
+    # Seed and run initial evaluations for the Cost Resource Evaluation framework
+    session_factory = db_mod.get_session_factory()
+    with session_factory() as session:
+        try:
+            from dpi_ls.cost_resource_evaluation_service import CostResourceEvaluationService
+            service = CostResourceEvaluationService(session)
+            service.register_resources()
+            service.run_evaluations()
+            session.commit()
+        except Exception as e:
+            # Prevent startup failure if DB is locked/uninitialized during schema migration/testing
+            print(f"Error seeding cost resource registry: {e}")
+            session.rollback()
+

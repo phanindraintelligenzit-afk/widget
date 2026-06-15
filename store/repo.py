@@ -21,6 +21,8 @@ from .models import (
     SettingsRow,
     SMEFlowSessionRow,
     SMERatingRow,
+    CostResourceRegistryRow,
+    CostResourceEvaluationRow,
 )
 
 
@@ -264,3 +266,123 @@ def update_sme_session(s: Session, session_id: str, state_payload: dict) -> SMEF
     row.updated_at = _utcnow()
     s.flush()
     return row
+
+
+# ---- cost resource evaluation registry ------------------------------------
+
+def upsert_cost_resource(
+    s: Session,
+    name: str,
+    sdk_available: bool = False,
+    api_available: bool = False,
+    api_key_required: bool = False,
+    integration_implemented: bool = False,
+) -> CostResourceRegistryRow:
+    row = s.scalars(
+        select(CostResourceRegistryRow).where(CostResourceRegistryRow.name == name)
+    ).first()
+    if row is None:
+        row = CostResourceRegistryRow(
+            name=name,
+            sdk_available=sdk_available,
+            api_available=api_available,
+            api_key_required=api_key_required,
+            integration_implemented=integration_implemented,
+        )
+        s.add(row)
+    else:
+        row.sdk_available = sdk_available
+        row.api_available = api_available
+        row.api_key_required = api_key_required
+        row.integration_implemented = integration_implemented
+    s.flush()
+    return row
+
+
+def list_cost_resources(s: Session) -> list[CostResourceRegistryRow]:
+    return list(s.scalars(select(CostResourceRegistryRow).order_by(CostResourceRegistryRow.name)))
+
+
+def save_cost_resource_evaluation(
+    s: Session,
+    resource_name: str,
+    metric: str,
+    detected: bool,
+    evidence: Optional[str],
+    current_value: Optional[str] = None,
+    status: str = "SUCCESS",
+    dashboard_verified: bool = False,
+    agent_executed: bool = False,
+) -> CostResourceEvaluationRow:
+    # Get latest evaluation to preserve dashboard_verified if not explicitly set
+    existing = s.scalars(
+        select(CostResourceEvaluationRow)
+        .where(
+            CostResourceEvaluationRow.resource_name == resource_name,
+            CostResourceEvaluationRow.metric == metric,
+        )
+        .order_by(CostResourceEvaluationRow.last_run.desc())
+        .limit(1)
+    ).first()
+
+    verified = dashboard_verified
+    if existing and not dashboard_verified:
+        verified = existing.dashboard_verified
+
+    row = CostResourceEvaluationRow(
+        resource_name=resource_name,
+        metric=metric,
+        current_value=current_value,
+        detected=detected,
+        evidence=evidence,
+        last_run=_utcnow(),
+        status=status,
+        dashboard_verified=verified,
+        agent_executed=agent_executed,
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def list_latest_cost_resource_evaluations(s: Session) -> list[CostResourceEvaluationRow]:
+    """Return the most recent evaluation row for each resource-metric pair."""
+    from sqlalchemy import func
+    subq = (
+        select(
+            CostResourceEvaluationRow.resource_name.label("rname"),
+            CostResourceEvaluationRow.metric.label("met"),
+            func.max(CostResourceEvaluationRow.id).label("max_id"),
+        )
+        .group_by(CostResourceEvaluationRow.resource_name, CostResourceEvaluationRow.metric)
+        .subquery()
+    )
+    stmt = (
+        select(CostResourceEvaluationRow)
+        .join(
+            subq,
+            CostResourceEvaluationRow.id == subq.c.max_id
+        )
+        .order_by(CostResourceEvaluationRow.resource_name, CostResourceEvaluationRow.metric)
+    )
+    return list(s.scalars(stmt))
+
+
+def verify_dashboard_cost_resource_evaluation(s: Session, resource_name: str, metric: str) -> bool:
+    """Flag all evaluations for this resource/metric as dashboard_verified."""
+    rows = list(
+        s.scalars(
+            select(CostResourceEvaluationRow)
+            .where(
+                CostResourceEvaluationRow.resource_name == resource_name,
+                CostResourceEvaluationRow.metric == metric,
+            )
+        )
+    )
+    if not rows:
+        return False
+    for r in rows:
+        r.dashboard_verified = True
+    s.flush()
+    return True
+

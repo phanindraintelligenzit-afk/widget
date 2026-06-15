@@ -423,3 +423,77 @@ def submit_sme_rating(
         submitted_by=body.submitted_by,
     )
     return {"id": row.id, "submitted_at": row.submitted_at.isoformat()}
+
+
+# ---- Cost Resource Technical Evaluation API Endpoints ------------------
+
+@app.get("/api/cost-evaluation/resources")
+def get_cost_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    rows = repo.list_cost_resources(s)
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "sdk_available": r.sdk_available,
+            "api_available": r.api_available,
+            "api_key_required": r.api_key_required,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/cost-evaluation/evaluate")
+def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.cost_resource_evaluation_service import CostResourceEvaluationService
+    service = CostResourceEvaluationService(s)
+    eval_rows = service.run_evaluations()
+    s.commit()
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows
+    ]
+
+
+@app.get("/api/cost-evaluation/results")
+def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    eval_rows = repo.list_latest_cost_resource_evaluations(s)
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows
+    ]
+
+
+@app.post("/api/cost-evaluation/verify-dashboard")
+def verify_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: str = Body(..., embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    ok = repo.verify_dashboard_cost_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
+

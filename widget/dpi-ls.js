@@ -834,6 +834,141 @@
     }
   }
 
+  class DpiLsCostEvaluation extends Pollable {
+    static get observedAttributes() {
+      return ["api-base", "poll-interval"];
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      this._results = [];
+      this.shadowRoot.addEventListener("click", async (ev) => {
+        const target = ev.target;
+        if (target.dataset.action === "run-eval") {
+          this._runEvaluations();
+        } else if (target.classList.contains("verify-btn")) {
+          const res = target.dataset.resource;
+          const met = target.dataset.metric;
+          this._verifyDashboard(res, met);
+        }
+      });
+    }
+    async _tick() {
+      try {
+        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/results`, {
+          headers: { "Accept": "application/json" }
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this._results = await r.json();
+        this._render({});
+      } catch (e) {
+        this._render({ error: e.message });
+      }
+    }
+    async _runEvaluations() {
+      try {
+        this._render({ loading: true });
+        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, {
+          method: "POST",
+          headers: { "Accept": "application/json" }
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this._results = await r.json();
+        this._render({});
+      } catch (e) {
+        this._render({ error: e.message });
+      }
+    }
+    async _verifyDashboard(resource, metric) {
+      try {
+        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/verify-dashboard`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resource_name: resource, metric: metric })
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        this._tick();
+      } catch (e) {
+        alert("Verification failed: " + e.message);
+      }
+    }
+    _render({ loading, error }) {
+      if (loading) {
+        this._renderShell(`<div class="empty">Evaluating and running checks…</div>`);
+        return;
+      }
+      if (error) {
+        this._renderShell(`<div class="err">${escapeHtml(error)}</div>`);
+        return;
+      }
+      if (!this._results || this._results.length === 0) {
+        this._renderShell(`
+          <div class="empty">
+            No evaluations run yet. 
+            <button data-action="run-eval" style="margin-top:10px">Run Initial Technical Evaluation</button>
+          </div>
+        `);
+        return;
+      }
+
+      const rows = this._results.map(r => {
+        const detectedHtml = r.detected 
+          ? `<span style="color:#15803d;font-weight:600">TRUE</span>`
+          : `<span style="color:#b91c1c;font-weight:600">FALSE</span>`;
+        
+        const verifiedBtn = r.dashboard_verified 
+          ? `<span style="color:#15803d;font-weight:600">✓ Verified</span>`
+          : `<button class="secondary verify-btn" data-resource="${escapeHtml(r.resource_name)}" data-metric="${escapeHtml(r.metric)}" style="padding:4px 8px;font-size:11px">Verify</button>`;
+
+        const runTimeStr = r.last_run ? new Date(r.last_run).toLocaleTimeString() : "—";
+        const statusPill = r.status === "SUCCESS"
+          ? `<span class="pill" style="color:#15803d;background:#dcfce7">SUCCESS</span>`
+          : `<span class="pill" style="color:#b91c1c;background:#fee2e2" title="${escapeHtml(r.evidence)}">FAILED</span>`;
+
+        return `
+          <tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:10px;font-size:12px;font-weight:600">${escapeHtml(r.resource_name)}</td>
+            <td style="padding:10px;font-size:12px;font-family:monospace">${escapeHtml(r.metric)}</td>
+            <td style="padding:10px;font-size:12px;font-variant-numeric:tabular-nums">${escapeHtml(r.current_value || '0.0')}</td>
+            <td style="padding:10px;font-size:12px;text-align:center">${detectedHtml}</td>
+            <td style="padding:10px;font-size:11px;color:var(--muted);max-width:300px;word-break:break-all">${escapeHtml(r.evidence)}</td>
+            <td style="padding:10px;font-size:11px;color:var(--muted)">${escapeHtml(runTimeStr)}</td>
+            <td style="padding:10px;text-align:center">${statusPill}</td>
+            <td style="padding:10px;text-align:center">${verifiedBtn}</td>
+          </tr>
+        `;
+      }).join("");
+
+      const tableHtml = `
+        <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <span style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600">Evaluation Matrix</span>
+            <button data-action="run-eval">Run Full Technical Evaluation</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table style="width:100%;border-collapse:collapse;text-align:left">
+              <thead>
+                <tr style="border-bottom:2px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.05em">
+                  <th style="padding:10px">Resource</th>
+                  <th style="padding:10px">Metric</th>
+                  <th style="padding:10px">Current Value</th>
+                  <th style="padding:10px;text-align:center">Detected</th>
+                  <th style="padding:10px">Evidence</th>
+                  <th style="padding:10px">Last Run</th>
+                  <th style="padding:10px;text-align:center">Status</th>
+                  <th style="padding:10px;text-align:center">Dashboard Verified</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      this._renderShell(tableHtml);
+    }
+  }
+
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);
   }
@@ -845,5 +980,8 @@
   }
   if (!customElements.get("dpi-ls-settings")) {
     customElements.define("dpi-ls-settings", DpiLsSettings);
+  }
+  if (!customElements.get("dpi-ls-cost-evaluation")) {
+    customElements.define("dpi-ls-cost-evaluation", DpiLsCostEvaluation);
   }
 })();

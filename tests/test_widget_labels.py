@@ -31,7 +31,7 @@ def test_widget_renders_governance_violation_list(client):
     # by rule name. The widget code itself is rule-agnostic — rule
     # names come from the API response. The presence of the
     # grouping/render code is what we pin here.
-    assert "byRule" in body
+    assert "byAction" in body
     assert "violation rate" in body
     # The panel must be gated on the G key and on the array of
     # violation objects the API emits.

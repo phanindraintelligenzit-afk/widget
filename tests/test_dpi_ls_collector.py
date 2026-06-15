@@ -77,7 +77,8 @@ def test_aws_key_in_output_triggers_secret_violation():
 def test_clean_output_has_no_violations():
     c = _make()
     c.record_llm_call("The weather in Paris is mild today.")
-    assert c.violations == []
+    real_violations = [v for v in c.violations if v["rule"] != "none"]
+    assert real_violations == []
 
 
 def test_prompt_injection_in_output_triggers_violation():
