@@ -56,6 +56,11 @@ from .schemas import (
     AgentValidationValueIn,
     AgentValidationValueOut,
     ValidationCalculationOut,
+    CostMetricDefinitionIn,
+    CostMetricDefinitionOut,
+    AgentCostValueIn,
+    AgentCostValueOut,
+    CostCalculationOut,
 )
 from .scoring import ingest_partials, score_and_persist
 from .sme_orchestration import advance_session, start_session
@@ -594,3 +599,126 @@ def calculate_agent_validation(
         required_components=res["required_components"],
         rules_evaluated=res["rules_evaluated"],
     )
+
+
+# ---- dynamic cost endpoints ---------------------------------------------
+
+@app.get("/api/cost/metrics/definitions", response_model=list[CostMetricDefinitionOut])
+def get_cost_definitions(s: Session = Depends(db_session)) -> list[CostMetricDefinitionOut]:
+    rows = repo.list_cost_metric_definitions(s)
+    return [
+        CostMetricDefinitionOut(
+            id=r.id,
+            category=r.category,
+            display_name=r.display_name,
+            description=r.description,
+            source_system=r.source_system,
+            unit=r.unit,
+        )
+        for r in rows
+    ]
+
+
+@app.post("/api/cost/metrics/definitions", response_model=CostMetricDefinitionOut)
+def create_cost_definition(
+    body: CostMetricDefinitionIn,
+    s: Session = Depends(db_session),
+) -> CostMetricDefinitionOut:
+    row = repo.save_cost_metric_definition(
+        s,
+        metric_id=body.id,
+        category=body.category,
+        display_name=body.display_name,
+        description=body.description,
+        source_system=body.source_system,
+        unit=body.unit,
+    )
+    s.commit()
+    return CostMetricDefinitionOut(
+        id=row.id,
+        category=row.category,
+        display_name=row.display_name,
+        description=row.description,
+        source_system=row.source_system,
+        unit=row.unit,
+    )
+
+
+@app.post("/api/cost/values", response_model=AgentCostValueOut)
+def create_cost_value(
+    body: AgentCostValueIn,
+    s: Session = Depends(db_session),
+) -> AgentCostValueOut:
+    # Verify definition exists
+    defn = repo.get_cost_metric_definition(s, body.metric_id)
+    if defn is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Metric definition '{body.metric_id}' is not registered."
+        )
+    row = repo.save_agent_cost_value(
+        s,
+        agent_id=body.agent_id,
+        metric_id=body.metric_id,
+        value=body.value,
+        period_start=body.period_start,
+        period_end=body.period_end,
+    )
+    s.commit()
+    # Trigger rescoring for this agent
+    from .scoring import rescore_agent
+    rescore_agent(s, body.agent_id)
+    s.commit()
+    return AgentCostValueOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        metric_id=row.metric_id,
+        value=row.value,
+        period_start=row.period_start,
+        period_end=row.period_end,
+        recorded_at=row.recorded_at,
+    )
+
+
+@app.get("/api/cost/agents/{agent_id}/calculate", response_model=CostCalculationOut)
+def calculate_agent_costs(
+    agent_id: str,
+    period_start: str,
+    period_end: str,
+    completed_outputs: int = 1,
+    s: Session = Depends(db_session),
+) -> CostCalculationOut:
+    from datetime import datetime, timezone
+    try:
+        start = datetime.fromisoformat(period_start.replace("Z", "+00:00")).astimezone(timezone.utc)
+        end = datetime.fromisoformat(period_end.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {e}")
+
+    settings = repo.get_settings(s)
+    from dpi_ls.cost_service import CostService
+    res = CostService.calculate_costs(
+        s=s,
+        agent_id=agent_id,
+        period_start=start,
+        period_end=end,
+        completed_outputs=completed_outputs,
+        fallback_human_cost=settings.human_cost_per_output,
+        fallback_utilization=settings.utilization,
+    )
+    return CostCalculationOut(
+        agent_id=res["agent_id"],
+        period_start=res["period_start"],
+        period_end=res["period_end"],
+        model_cost=res["model_cost"],
+        Human_cost=res["Human_cost"],
+        human_cost_per_output=res["human_cost_per_output"],
+        ai_cost_per_output=res["ai_cost_per_output"],
+        utilization=res["utilization"],
+        tco=res["tco"],
+        input_tokens=res["input_tokens"],
+        output_tokens=res["output_tokens"],
+        number_of_llm_calls=res["number_of_llm_calls"],
+        audit_trail=res["audit_trail"],
+    )
+

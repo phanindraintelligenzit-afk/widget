@@ -38,6 +38,33 @@ def score_and_persist(
         obs.validation.required_components = val_summary["required_components"]
         obs.validation.validated_components = val_summary["validated_components"]
 
+    # Calculate dynamic cost
+    from dpi_ls.cost_service import CostService
+    completed = obs.tasks.completed if obs.tasks else 0
+    costs_summary = CostService.calculate_costs(
+        s=s,
+        agent_id=obs.agent_id,
+        period_start=obs.period_start,
+        period_end=obs.period_end,
+        completed_outputs=completed,
+        fallback_human_cost=settings.human_cost_per_output,
+        fallback_utilization=settings.utilization,
+    )
+    if obs.cost is None:
+        from contract.models import Cost
+        obs.cost = Cost()
+    obs.cost.model_cost = costs_summary["model_cost"]
+    obs.cost.Human_cost = costs_summary["Human_cost"]
+    if costs_summary["input_tokens"] > 0:
+        obs.cost.input_tokens = costs_summary["input_tokens"]
+    if costs_summary["output_tokens"] > 0:
+        obs.cost.output_tokens = costs_summary["output_tokens"]
+    if costs_summary["number_of_llm_calls"] > 0:
+        obs.cost.number_of_llm_calls = costs_summary["number_of_llm_calls"]
+        
+    settings.human_cost_per_output = costs_summary["human_cost_per_output"]
+    settings.utilization = costs_summary["utilization"]
+
     agent = repo.upsert_agent(s, obs.agent_id, obs.agent_name, baseline=baseline)
     baseline_obj = AgentBaseline(
         agent_id=obs.agent_id,
@@ -86,6 +113,33 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
             merged.validation = Validation(required_components=0, validated_components=0)
         merged.validation.required_components = val_summary["required_components"]
         merged.validation.validated_components = val_summary["validated_components"]
+
+    # Calculate dynamic cost
+    from dpi_ls.cost_service import CostService
+    completed = merged.tasks.completed if merged.tasks else 0
+    costs_summary = CostService.calculate_costs(
+        s=s,
+        agent_id=merged.agent_id,
+        period_start=merged.period_start,
+        period_end=merged.period_end,
+        completed_outputs=completed,
+        fallback_human_cost=settings.human_cost_per_output,
+        fallback_utilization=settings.utilization,
+    )
+    if merged.cost is None:
+        from contract.models import Cost
+        merged.cost = Cost()
+    merged.cost.model_cost = costs_summary["model_cost"]
+    merged.cost.Human_cost = costs_summary["Human_cost"]
+    if costs_summary["input_tokens"] > 0:
+        merged.cost.input_tokens = costs_summary["input_tokens"]
+    if costs_summary["output_tokens"] > 0:
+        merged.cost.output_tokens = costs_summary["output_tokens"]
+    if costs_summary["number_of_llm_calls"] > 0:
+        merged.cost.number_of_llm_calls = costs_summary["number_of_llm_calls"]
+        
+    settings.human_cost_per_output = costs_summary["human_cost_per_output"]
+    settings.utilization = costs_summary["utilization"]
 
     agent = repo.upsert_agent(s, merged.agent_id, merged.agent_name or merged.agent_id)
     baseline = AgentBaseline(

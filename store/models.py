@@ -152,3 +152,29 @@ class AgentValidationValueRow(Base):
     period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class CostMetricDefinitionRow(Base):
+    """Registry of cost metric definitions."""
+    __tablename__ = "cost_metric_definitions"
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    category: Mapped[str] = mapped_column(String(64), index=True)  # ai, human, system, business
+    display_name: Mapped[str] = mapped_column(String(256))
+    description: Mapped[str] = mapped_column(String(1024), nullable=True)
+    source_system: Mapped[str] = mapped_column(String(128), nullable=True)
+    unit: Mapped[str] = mapped_column(String(32), nullable=True)
+
+
+class AgentCostValueRow(Base):
+    """Dynamic cost values ingested per agent, metric, and period."""
+    __tablename__ = "agent_cost_values"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    metric_id: Mapped[str] = mapped_column(String(128), ForeignKey("cost_metric_definitions.id"), index=True)
+    value: Mapped[float] = mapped_column(Float)
+    period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, index=True)
+

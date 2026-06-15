@@ -24,6 +24,8 @@ from .models import (
     ValidationMetricRow,
     AgentValidationRuleRow,
     AgentValidationValueRow,
+    CostMetricDefinitionRow,
+    AgentCostValueRow,
 )
 
 
@@ -393,3 +395,78 @@ def latest_observation(s: Session, agent_id: str) -> Optional[ObservationRow]:
         .order_by(ObservationRow.received_at.desc(), ObservationRow.id.desc())
         .limit(1)
     ).first()
+
+
+# ---- dynamic cost components ---------------------------------------------
+
+def save_cost_metric_definition(
+    s: Session,
+    metric_id: str,
+    category: str,
+    display_name: str,
+    description: str | None = None,
+    source_system: str | None = None,
+    unit: str | None = None,
+) -> CostMetricDefinitionRow:
+    row = s.get(CostMetricDefinitionRow, metric_id)
+    if row is None:
+        row = CostMetricDefinitionRow(
+            id=metric_id,
+            category=category,
+            display_name=display_name,
+            description=description,
+            source_system=source_system,
+            unit=unit,
+        )
+        s.add(row)
+    else:
+        row.category = category
+        row.display_name = display_name
+        row.description = description
+        row.source_system = source_system
+        row.unit = unit
+    s.flush()
+    return row
+
+
+def get_cost_metric_definition(s: Session, metric_id: str) -> Optional[CostMetricDefinitionRow]:
+    return s.get(CostMetricDefinitionRow, metric_id)
+
+
+def list_cost_metric_definitions(s: Session) -> list[CostMetricDefinitionRow]:
+    return list(s.scalars(select(CostMetricDefinitionRow).order_by(CostMetricDefinitionRow.id)))
+
+
+def save_agent_cost_value(
+    s: Session,
+    agent_id: str,
+    metric_id: str,
+    value: float,
+    period_start: datetime,
+    period_end: datetime,
+) -> AgentCostValueRow:
+    row = AgentCostValueRow(
+        agent_id=agent_id,
+        metric_id=metric_id,
+        value=value,
+        period_start=period_start,
+        period_end=period_end,
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def list_agent_cost_values(
+    s: Session,
+    agent_id: str,
+    period_start: Optional[datetime] = None,
+    period_end: Optional[datetime] = None,
+) -> list[AgentCostValueRow]:
+    stmt = select(AgentCostValueRow).where(AgentCostValueRow.agent_id == agent_id)
+    if period_start:
+        stmt = stmt.where(AgentCostValueRow.period_end >= period_start)
+    if period_end:
+        stmt = stmt.where(AgentCostValueRow.period_start <= period_end)
+    return list(s.scalars(stmt.order_by(AgentCostValueRow.period_start.asc())))
+

@@ -131,6 +131,58 @@ class ValidationCalculationOut(BaseModel):
     rules_evaluated: list[dict]
 
 
+class CostMetricDefinitionIn(BaseModel):
+    id: str
+    category: str
+    display_name: str
+    description: Optional[str] = None
+    source_system: Optional[str] = None
+    unit: Optional[str] = None
+
+
+class CostMetricDefinitionOut(BaseModel):
+    id: str
+    category: str
+    display_name: str
+    description: Optional[str] = None
+    source_system: Optional[str] = None
+    unit: Optional[str] = None
+
+
+class AgentCostValueIn(BaseModel):
+    agent_id: str
+    metric_id: str
+    value: float
+    period_start: datetime
+    period_end: datetime
+
+
+class AgentCostValueOut(BaseModel):
+    id: int
+    agent_id: str
+    metric_id: str
+    value: float
+    period_start: datetime
+    period_end: datetime
+    recorded_at: datetime
+
+
+class CostCalculationOut(BaseModel):
+    agent_id: str
+    period_start: datetime
+    period_end: datetime
+    model_cost: float
+    Human_cost: float
+    human_cost_per_output: float
+    ai_cost_per_output: float
+    utilization: float
+    tco: float
+    input_tokens: int
+    output_tokens: int
+    number_of_llm_calls: int
+    audit_trail: list[dict]
+
+
 # Forward ref import avoids circular load.
 from contract import Rating  # noqa: E402
 SMEFlowStatus.model_rebuild()

@@ -47,12 +47,14 @@ def bootstrap() -> None:
         db_mod.configure()
     db_mod.init_db()
 
-    # Register dynamic validation metrics
+    # Register dynamic validation and cost metrics
     from store.db import get_session_factory
-    from dpi_ls.validation_service import register_standard_metrics
+    from dpi_ls.validation_service import register_standard_metrics as reg_val_metrics
+    from dpi_ls.cost_service import register_standard_metrics as reg_cost_metrics
     session_factory = get_session_factory()
     with session_factory() as s:
-        register_standard_metrics(s)
+        reg_val_metrics(s)
+        reg_cost_metrics(s)
         s.commit()
 
     register_stock_adapters()
