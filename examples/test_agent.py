@@ -41,6 +41,12 @@ from dotenv import load_dotenv
 # ── Load .env FIRST so all os.getenv() calls below pick it up ─────────────────
 load_dotenv(override=True)
 
+import litellm
+if os.getenv("LANGFUSE_PUBLIC_KEY"):
+    litellm.success_callback = ["langfuse"]
+    litellm.failure_callback = ["langfuse"]
+
+
 import dpi_ls  # line 1 — the installable package
 
 from agents import Agent, Runner, function_tool
@@ -309,6 +315,26 @@ async def run_agent_observation() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
+
+    # ── Flush Langfuse traces before exit ─────────────────────────────
+    # litellm queues Langfuse events in a background thread.
+    # Without an explicit flush, the process exits before traces are sent.
+    try:
+        import litellm
+        for cb in litellm._async_success_callback + litellm.success_callback:
+            if hasattr(cb, "Langfuse"):
+                cb.Langfuse.flush()
+                print("Langfuse traces flushed successfully.")
+                break
+        else:
+            # Fallback: flush via langfuse singleton if litellm didn't expose it
+            from langfuse import Langfuse
+            lf = Langfuse()
+            lf.flush()
+            lf.shutdown()
+            print("Langfuse traces flushed successfully (via SDK).")
+    except Exception as exc:
+        print(f"Langfuse flush skipped: {exc}")
 
     # Keep the dashboard alive for browsing
     from dpi_ls import _state

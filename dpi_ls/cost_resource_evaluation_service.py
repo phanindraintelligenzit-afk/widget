@@ -92,9 +92,9 @@ class CostResourceEvaluationService:
         from store.repo import list_cost_resources
         resources = list_cost_resources(self.session)
 
-        # Query all observations and partials once to search for runtime telemetry evidence
-        obs_rows = list(self.session.scalars(select(ObservationRow)))
-        partial_rows = list(self.session.scalars(select(PartialObservationRow)))
+        # Query all observations and partials once to search for runtime telemetry evidence (latest first)
+        obs_rows = list(self.session.scalars(select(ObservationRow).order_by(ObservationRow.id.desc())))
+        partial_rows = list(self.session.scalars(select(PartialObservationRow).order_by(PartialObservationRow.id.desc())))
 
         results = []
         for resource in resources:
