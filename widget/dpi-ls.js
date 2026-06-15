@@ -214,6 +214,7 @@
 
     if (sub && Object.keys(sub).length > 0) {
       const parts = Object.entries(sub).map(([k, v]) => {
+         if (k === 'violations' || k === 'details') return "";
          let disp = v;
          if (typeof v === 'number') disp = parseFloat(v.toFixed(6));
          if (Array.isArray(v)) disp = v.length + ' items';
@@ -293,10 +294,29 @@
         </div>`;
       }
 
+      let executionsHtml = "";
+      if (key === "E" && Array.isArray(sub.details) && sub.details.length) {
+        const detailsList = sub.details.map((d, i) => {
+          let nameStr = typeof d === 'string' ? d : d.name;
+          let statusHtml = "";
+          if (typeof d === 'object') {
+            statusHtml = d.ok 
+              ? '<span style="color:#10b981;float:right;font-size:10px;font-weight:600">✓ success</span>' 
+              : '<span style="color:#ef4444;float:right;font-size:10px;font-weight:600">✗ failed</span>';
+          }
+          return `<div style="padding:2px 0;border-bottom:1px solid #f1f5f9"><span style="color:#64748b;margin-right:6px">#${i+1}</span><code style="background:#f1f5f9;color:#334155;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(nameStr)}</code>${statusHtml}</div>`;
+        }).join("");
+        executionsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
+          <div style="font-weight:600;color:#334155;margin-bottom:4px">Attempt Details</div>
+          <div style="font-size:10px;line-height:1.4;max-height:120px;overflow-y:auto;padding-right:4px">${detailsList}</div>
+        </div>`;
+      }
+
       subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
         <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${formulaDisplay}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
         ${violationsHtml}
+        ${executionsHtml}
       </div>`;
     }
 

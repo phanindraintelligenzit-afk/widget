@@ -22,6 +22,7 @@ class TaskStats(BaseModel):
 class Executions(BaseModel):
     attempts: int
     successful: int
+    details: list[dict] = Field(default_factory=list)
 
 
 class PolicyViolation(BaseModel):

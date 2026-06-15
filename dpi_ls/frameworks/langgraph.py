@@ -82,33 +82,17 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
 
 
 def _capture_graph_result(collector: SignalCollector, result: Any) -> None:
+
     """Extract the agent's final text from a LangGraph final state.
 
-    Graph state shapes vary — a node called ``final_answer`` with a
-    string, a ``messages`` list with the last AIMessage, or a top-level
-    string are all common. We try them in order.
+    Instead of trying to find a specific key, we serialize the entire 
+    final state dictionary so the Q evaluator can assess the entire 
+    agent output.
     """
-    text = ""
-    if isinstance(result, str):
-        text = result
-    elif isinstance(result, dict):
-        for key in ("final_answer", "output", "result", "response"):
-            if key in result and isinstance(result[key], str):
-                text = result[key]
-                break
-        if not text and "messages" in result:
-            msgs = result["messages"]
-            if isinstance(msgs, list) and msgs:
-                last = msgs[-1]
-                text = _safe_text(last)
-    else:
-        text = _safe_text(result)
-
+    text = _safe_text(result)
     if text:
-        # record_llm_call bumps attempts + successful and captures the
-        # output for the Q evaluator.
-        collector.record_llm_call(text, ok=True)
+        collector.record_llm_call(text, ok=True, action_name="langgraph_invoke")
     else:
-        # The graph ran but produced no text we could find. Count it
-        # as a successful empty call so E reflects the work.
-        collector.record_llm_call("", ok=True)
+        # We got an empty response but the run completed without raising.
+        # Record it so the execution attempt matches the agent run.
+        collector.record_llm_call("", ok=True, action_name="langgraph_invoke")

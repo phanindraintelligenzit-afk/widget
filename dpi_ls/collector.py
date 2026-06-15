@@ -80,6 +80,7 @@ class SignalCollector:
     attempts: int = 0
     successful: int = 0
     failed: int = 0
+    execution_details: list[dict] = field(default_factory=list)
 
     # P — agent-level run counter. Each time the agent completes a full
     # invocation (Runner.run returns, Crew kicks off, etc.) this is +1.
@@ -145,6 +146,7 @@ class SignalCollector:
         cost: float = 0.0,
         system: str | None = None,
         ok: bool = True,
+        action_name: str | None = None,
     ) -> None:
         """One LLM call completed. Records tokens/cost/output for Q."""
         with self._lock:
@@ -157,6 +159,8 @@ class SignalCollector:
             self.tokens_in += int(tokens_in or 0)
             self.tokens_out += int(tokens_out or 0)
             self.cloud_cost += float(cost or 0.0)
+            if action_name:
+                self.execution_details.append({"name": action_name, "ok": ok})
         if output:
             self._capture_output(output, system=system)
 
@@ -186,13 +190,15 @@ class SignalCollector:
             if len(self._source_data) > _MAX_SOURCE_DATA:
                 del self._source_data[: len(self._source_data) - _MAX_SOURCE_DATA]
 
-    def record_tool_call(self, *, ok: bool = True) -> None:
+    def record_tool_call(self, *, ok: bool = True, action_name: str | None = None) -> None:
         with self._lock:
             self.attempts += 1
             if ok:
                 self.successful += 1
             else:
                 self.failed += 1
+            if action_name:
+                self.execution_details.append({"name": action_name, "ok": ok})
 
     def record_retrieval(
         self,
@@ -419,6 +425,7 @@ class SignalCollector:
             "executions": {
                 "attempts": self.attempts,
                 "successful": self.successful,
+                "details": self.execution_details,
             },
             "policy": {
                 "total_actions": max(self.attempts, 1),
