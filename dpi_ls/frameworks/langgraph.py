@@ -41,6 +41,7 @@ class LangGraphPatcher(BasePatcher):
                 _log.debug("Could not patch graph.%s (read-only).", attr)
         if patched:
             _log.debug("Patched LangGraph graph: %s", patched)
+
         return patched
 
 

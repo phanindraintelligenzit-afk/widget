@@ -47,10 +47,9 @@ _log = logging.getLogger("dpi_ls.monitor")
 
 
 def monitor(
-    agent: Any,
+    *agents: Any,
     agent_id: str,
     agent_name: str | None = None,
-    *,
     human_baseline: int | None = None,
     block: bool | None = None,
     post: bool | None = None,
@@ -62,8 +61,8 @@ def monitor(
 
     Parameters
     ----------
-    agent:
-        The framework-specific object the user is about to invoke.
+    agents:
+        The framework-specific objects (e.g. graphs, models, tools) to monitor.
     agent_id:
         Stable identifier for the agent.
     agent_name:
@@ -103,7 +102,7 @@ def monitor(
     _state.set_server_info(info)
 
     # 2. Build the collector and bind it to the agent.
-    resolved_name = agent_name or _try_agent_name(agent) or agent_id
+    resolved_name = agent_name or _try_agent_name(agents[0] if agents else None) or agent_id
     collector = SignalCollector(
         agent_id=agent_id,
         agent_name=resolved_name,
@@ -111,12 +110,16 @@ def monitor(
     )
     _state.set_collector(collector)
 
-    # 3. Install the framework-specific patcher.
-    patched = detect_and_install(agent, collector)
-    collector.framework = _infer_framework_from_patches(patched)
+    # 3. Install the framework-specific patcher on all agents.
+    all_patched = []
+    for ag in agents:
+        patched = detect_and_install(ag, collector)
+        all_patched.extend(patched)
+    
+    collector.framework = _infer_framework_from_patches(all_patched)
     _log.info(
         "dpi_ls: monitoring %s (%s) — patched %s",
-        agent_id, collector.framework, ", ".join(patched) or "(nothing matched)",
+        agent_id, collector.framework, ", ".join(all_patched) or "(nothing matched)",
     )
 
     # 4. Register the finalizer. atexit handlers run in LIFO order

@@ -148,9 +148,7 @@ def evaluate_quality(
         return _heuristic_result(outputs)
 
     try:
-        state = asyncio.run(
-            _invoke_graph(outputs, llm, source_data=source_data or [], timeout=timeout)
-        )
+        state = _invoke_graph(outputs, llm, source_data=source_data or [], timeout=timeout)
     except Exception as e:  # pragma: no cover - network/HTTP errors
         _log.error(
             "Q-eval: LLM graph invocation failed (%s: %s) — falling back to heuristic.",
@@ -235,10 +233,9 @@ _NODE_ORDER: tuple[str, ...] = ("accuracy", "consistency", "hallucination")
 # QResult.hallucination_rate at the boundary.
 
 
-
 def _scoring_node(metric: str):
     """Factory: build a LangGraph node that scores one metric."""
-    async def node(state: QState) -> dict:
+    def node(state: QState) -> dict:
         llm = state["_llm"]
         outputs: list[str] = state.get("_outputs") or []
         if not outputs:
@@ -276,7 +273,7 @@ def _scoring_node(metric: str):
             )
 
         try:
-            response = await llm.ainvoke(user_msg)
+            response = llm.invoke(user_msg)
             text = _extract_text(response)
         except Exception as e:  # pragma: no cover - LLM call failure
             return {"error": f"{metric} node failed: {e}"}
@@ -316,9 +313,9 @@ def _graph():
     return _GRAPH
 
 
-async def _invoke_graph(
+def _invoke_graph(
     outputs: list[str],
-    llm,
+    llm: Any,
     *,
     source_data: list[str],
     timeout: float,
@@ -332,8 +329,7 @@ async def _invoke_graph(
         "hallucination": None,   # matches QState key and _NODE_ORDER entry
         "error": None,
     }
-    coro = _graph().ainvoke(initial)
-    return await asyncio.wait_for(coro, timeout=timeout)
+    return _graph().invoke(initial)
 
 
 # ---------------------------------------------------------------------------

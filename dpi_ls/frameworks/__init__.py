@@ -106,6 +106,18 @@ def detect_and_install(agent: Any, collector: SignalCollector) -> list[str]:
                 patcher.name,
             )
             patched = UnknownPatcher().install(agent, collector)
+            
+    # Always attempt to apply the global LangChain BaseTool hook.
+    # This guarantees that dynamically instantiated LangChain tools (which are popular
+    # across CrewAI, AutoGen, etc.) are always captured regardless of the primary framework.
+    try:
+        from .langchain import LangChainPatcher
+        lc_patched = LangChainPatcher().install(None, collector)
+        if lc_patched:
+            patched.extend(lc_patched)
+    except ImportError:
+        pass
+        
     return patched
 
 

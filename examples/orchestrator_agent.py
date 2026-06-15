@@ -553,14 +553,7 @@ Generate the complete set of files."""
                 )
             write_tool.invoke({"file_path": filename, "text": file_info["content"]})
             logger.info("Wrote %s", filename)
-            
-            try:
-                import dpi_ls
-                collector = dpi_ls._state.get_collector()
-                if collector:
-                    collector.record_tool_call(ok=True, action_name=write_tool.name)
-            except Exception:
-                pass
+
 
         # Keep input_sandbox_path in sync so the next iteration's read_existing
         # picks up the freshly-written files.
@@ -642,14 +635,7 @@ Generate the complete set of files."""
                 continue
             try:
                 content = read_tool.invoke({"file_path": rel_path})
-                
-                try:
-                    import dpi_ls
-                    collector = dpi_ls._state.get_collector()
-                    if collector:
-                        collector.record_tool_call(ok=True, action_name=read_tool.name)
-                except Exception:
-                    pass
+
                 
                 lines = content.splitlines()
                 preview = "\n".join(lines[:60])
@@ -791,14 +777,6 @@ Only include commands needed for the actual files present."""
                 stderr_data = tool_output["stderr"]
                 proc_returncode = tool_output["return_code"]
 
-                # Manually record this tool execution so DPI-LS catches internal failures
-                try:
-                    import dpi_ls
-                    collector = dpi_ls._state.get_collector()
-                    if collector:
-                        collector.record_tool_call(ok=success, action_name=execute_shell_command.name)
-                except Exception:
-                    pass
 
                 result = {
                     "command": command,
@@ -831,13 +809,6 @@ Only include commands needed for the actual files present."""
                     logger.warning("        Error: %s", stderr_data[:500])
 
             except TimeoutError as exc:
-                # Manually record timeout failure
-                try:
-                    import dpi_ls
-                    if collector := dpi_ls._state.get_collector():
-                        collector.record_tool_call(ok=False, action_name=execute_shell_command.name)
-                except Exception:
-                    pass
 
                 timed_out = True
                 stderr_data = str(exc)
@@ -867,12 +838,6 @@ Only include commands needed for the actual files present."""
                 )
 
             except Exception as exc:
-                try:
-                    import dpi_ls
-                    if collector := dpi_ls._state.get_collector():
-                        collector.record_tool_call(ok=False, action_name=execute_shell_command.name)
-                except Exception:
-                    pass
                 result = {
                     "command": command,
                     "description": description,
@@ -1306,17 +1271,4 @@ if __name__ == "__main__":
         command_timeout=180,
     )
     print(response.model_dump_json(indent=2))
-
-    # Manually run Q evaluation before the script exits so we don't
-    # hit the "cannot schedule new futures after interpreter shutdown" 
-    # error inside the dpi_ls atexit finalizer.
-    collector = dpi_ls._state.get_collector()
-    if collector:
-        outputs = collector.outputs_for_q()
-        if outputs and collector.quality is None:
-            print("\nRunning Q (Quality) evaluator...")
-            try:
-                q = dpi_ls.evaluate_quality(outputs, source_data=collector.source_data_for_q())
-                collector.set_quality(q.accuracy, q.consistency, q.hallucination_rate)
-            except Exception as e:
-                print(f"Q evaluation failed: {e}")
+
