@@ -32,6 +32,8 @@ dependencies = [
     "openinference-instrumentation-litellm>=0.1.34",
     "openinference-instrumentation-bedrock>=0.1.41",
     "openinference-instrumentation-langchain>=0.1.66",
+    "arize-phoenix>=17.6.0",
+    "agentops>=0.4.21",
 ]
 
 [project.optional-dependencies]
