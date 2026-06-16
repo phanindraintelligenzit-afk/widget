@@ -298,46 +298,9 @@ async def run_agent_observation() -> None:
     print(safe)
     print("─" * 55)
 
-    # ── Q evaluation (must run inside the live event loop) ────────
-    outputs = collector.outputs_for_q()
-    if outputs and collector.quality is None:
-        print("\nRunning Q (Quality) evaluator via LangGraph...")
-        try:
-            q = await asyncio.get_running_loop().run_in_executor(
-                None, dpi_ls.evaluate_quality, outputs
-            )
-            collector.set_quality(q.accuracy, q.consistency, q.hallucination_rate)
-            print(
-                f"  Q → accuracy={q.accuracy:.3f}  "
-                f"consistency={q.consistency:.3f}  "
-                f"hallucination={q.hallucination_rate:.3f}  "
-                f"(source: {q.source})"
-            )
-        except Exception as exc:
-            print(f"  Q evaluator skipped: {exc}")
 
-    # ── POST to dashboard and display full score card ─────────────
-    from dpi_ls import _state
-    from dpi_ls.poster import post_observation
 
-    info = _state.get_server_info()
-    if info is None:
-        print("Dashboard server not running — score not posted.")
-        return
 
-    collector.mark_end()
-    print(f"\nPosting observation to {info.base_url}/ingest ...")
-    rating = post_observation(collector, info.base_url)
-
-    if rating is not None:
-        _state.set_post_on_exit(False)   # prevent atexit double-post
-        print_score_card(rating)
-    else:
-        print("Could not retrieve score from dashboard.")
-        # Save local copy so nothing is lost
-        from dpi_ls.poster import write_local_copy
-        path = write_local_copy(collector)
-        print(f"Observation saved locally: {path}")
 
 
 # ═══════════════════════════════════════════════════════════════════

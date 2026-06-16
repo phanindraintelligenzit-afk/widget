@@ -67,7 +67,8 @@ def _make_hooks(collector: SignalCollector):
             # it as 'tool' so it is NOT sent to the Q LLM evaluator — the LLM
             # cannot verify factual accuracy of raw API data.
             text = _safe_text(result)
-            collector.record_tool_call(ok=True)
+            tool_name = getattr(tool, "name", "tool")
+            collector.record_tool_call(ok=True, action_name=tool_name)
             if text:
                 collector._capture_output(text, kind="tool")
 
