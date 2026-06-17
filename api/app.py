@@ -103,6 +103,9 @@ class _NoCacheStaticFiles(StaticFiles):
 if _WIDGET_DIR.exists():
     app.mount("/widget", _NoCacheStaticFiles(directory=str(_WIDGET_DIR)), name="widget")
 
+from prometheus_client import make_asgi_app
+app.mount("/metrics", make_asgi_app())
+
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:

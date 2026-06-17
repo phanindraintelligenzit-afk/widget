@@ -60,6 +60,24 @@ def bootstrap() -> None:
             service.register_resources()
             service.run_evaluations()
             session.commit()
+
+            # Pre-populate Prometheus Gauges with the latest scores from DB on startup
+            from api.scoring import update_prometheus_metrics
+            from store import repo
+            for agent_row, score_row in repo.latest_scores_for_all(session):
+                if score_row:
+                    from contract import Rating
+                    rating = Rating(
+                        score=score_row.score,
+                        raw_score=score_row.raw_score,
+                        band=score_row.band,
+                        unsafe=score_row.unsafe,
+                        gate_failures=score_row.gate_failures,
+                        metrics=score_row.metrics,
+                        sub_metrics=score_row.sub_metrics,
+                        missing=score_row.missing,
+                    )
+                    update_prometheus_metrics(agent_row.id, rating)
         except Exception as e:
             # Prevent startup failure if DB is locked/uninitialized during schema migration/testing
             print(f"Error seeding cost resource registry: {e}")

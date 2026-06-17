@@ -14,6 +14,19 @@ from contract import AgentBaseline, AgentObservation, PartialObservation, Rating
 from engine import metrics_from_observation, metrics_from_partial, rate
 from store import repo
 
+from prometheus_client import Gauge
+
+# Define Gauges exactly matching the required DPI-LS metric names
+model_cost_gauge = Gauge('model_cost', 'Model cost in USD', ['agent_id'])
+token_cost_gauge = Gauge('token_cost', 'Token cost in USD', ['agent_id'])
+prompt_cost_gauge = Gauge('prompt_cost', 'Prompt cost', ['agent_id'])
+completion_cost_gauge = Gauge('completion_cost', 'Completion cost', ['agent_id'])
+ai_cost_per_output_gauge = Gauge('AI_cost_per_output', 'AI cost per output', ['agent_id'])
+total_cost_of_ownership_gauge = Gauge('total_cost_of_ownership', 'Total cost of ownership', ['agent_id'])
+validated_components_gauge = Gauge('validated_components', 'Validated components count', ['agent_id'])
+required_components_gauge = Gauge('required_components', 'Required components count', ['agent_id'])
+validation_score_gauge = Gauge('validation_score', 'Validation score', ['agent_id'])
+
 
 def score_and_persist(
     s: Session,
@@ -40,6 +53,7 @@ def score_and_persist(
     rating.sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj)
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
+    update_prometheus_metrics(obs.agent_id, rating)
     return rating
 
 
@@ -90,6 +104,7 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
             "rescore_from_partials: no partial row found for agent '%s'; "
             "score not persisted.", agent_id,
         )
+    update_prometheus_metrics(agent_id, rating)
     return rating
 
 
@@ -149,3 +164,45 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         # observability fields (cloud_cost, systems_accessed).
         res["C"] = obs.cost.model_dump(mode="json")
     return res
+
+
+def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
+    try:
+        # Cost sub-metrics
+        c_sub = rating.sub_metrics.get("C", {})
+        mc = c_sub.get("model_cost") or 0.0
+        in_t = c_sub.get("input_tokens") or 0
+        out_t = c_sub.get("output_tokens") or 0
+        
+        tc = (in_t + out_t) * 0.00001
+        pc = in_t * 0.000005
+        cc = out_t * 0.000015
+        
+        # AI cost per output
+        completed_tasks = rating.sub_metrics.get("P", {}).get("AI_output_per_period") or 1
+        ai_cost = mc / max(completed_tasks, 1)
+        
+        # Total cost of ownership
+        hc = c_sub.get("Human_cost") or 0.0
+        tco = mc + hc
+
+        # Update Gauges
+        model_cost_gauge.labels(agent_id=agent_id).set(mc)
+        token_cost_gauge.labels(agent_id=agent_id).set(tc)
+        prompt_cost_gauge.labels(agent_id=agent_id).set(pc)
+        completion_cost_gauge.labels(agent_id=agent_id).set(cc)
+        ai_cost_per_output_gauge.labels(agent_id=agent_id).set(ai_cost)
+        total_cost_of_ownership_gauge.labels(agent_id=agent_id).set(tco)
+
+        # Validation sub-metrics
+        v_sub = rating.sub_metrics.get("V", {})
+        val_comp = v_sub.get("validated_components") or 0
+        req_comp = v_sub.get("required_components") or 0
+        val_score = val_comp / max(req_comp, 1) if req_comp > 0 else 1.0
+
+        validated_components_gauge.labels(agent_id=agent_id).set(val_comp)
+        required_components_gauge.labels(agent_id=agent_id).set(req_comp)
+        validation_score_gauge.labels(agent_id=agent_id).set(val_score)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error updating prometheus metrics: {e}")

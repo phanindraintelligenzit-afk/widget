@@ -33,6 +33,7 @@ dependencies = [
     "openinference-instrumentation-bedrock>=0.1.41",
     "openinference-instrumentation-langchain>=0.1.66",
     "langfuse>=2.0.0,<3.0.0",
+    "prometheus-client>=0.20.0",
 ]
 
 [project.optional-dependencies]

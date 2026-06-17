@@ -43,6 +43,8 @@ class CostResourceEvaluationService:
             ("Prometheus", True, True, False, True),
             ("Pinecone Billing", False, True, True, True),
             ("Jira Service Desk", False, True, True, True),
+            ("OpenTelemetry", True, True, False, True),
+            ("Grafana", False, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             # Check SDK dynamically
@@ -67,6 +69,7 @@ class CostResourceEvaluationService:
             "LangSmith": "langsmith",
             "Langfuse": "langfuse",
             "Prometheus": "prometheus_client",
+            "OpenTelemetry": "opentelemetry",
         }
         module_name = sdk_map.get(name)
         if not module_name:
@@ -86,6 +89,9 @@ class CostResourceEvaluationService:
             "Human_cost_per_output",
             "utilization",
             "total_cost_of_ownership",
+            "validated_components",
+            "required_components",
+            "validation_score",
         ]
 
         # Fetch all registered resources
@@ -222,6 +228,9 @@ class CostResourceEvaluationService:
             "Oracle HCM": ["ORACLE_HCM_URL"],
             "Pinecone Billing": ["PINECONE_API_KEY"],
             "Jira Service Desk": ["JIRA_SD_API_TOKEN"],
+            "Grafana": ["GRAFANA_URL"],
+            "Prometheus": ["PROMETHEUS_URL"],
+            "OpenTelemetry": ["OTEL_EXPORTER_OTLP_ENDPOINT"],
         }
         return keys_map.get(name, [])
 
@@ -240,10 +249,15 @@ class CostResourceEvaluationService:
             "SAP SuccessFactors": ["sap_hr"],
             "Jira / Timesheets": ["jira"],
             "Jira Service Desk": ["jira"],
+            "OpenTelemetry": ["otel"],
+            "Grafana": ["prometheus", "otel", "langfuse", "grafana"],
         }
         return mapping.get(name, [name.lower().replace(" ", "_")])
 
     def _is_metric_in_payload(self, metric: str, cost: dict, tasks: dict, payload: dict) -> bool:
+        cost = cost or {}
+        tasks = tasks or {}
+        payload = payload or {}
         if metric == "model_cost":
             return "model_cost" in cost or "spend_usd" in payload or "spend" in payload
         elif metric == "token_cost":
@@ -261,9 +275,18 @@ class CostResourceEvaluationService:
             return "utilization" in payload or "utilization_factor" in payload
         elif metric == "total_cost_of_ownership":
             return "model_cost" in cost or "spend_usd" in payload or "Human_cost" in cost or "total_cost" in payload
+        elif metric == "validated_components":
+            return "validated_components" in (payload.get("validation") or {}) or "validated_components" in payload
+        elif metric == "required_components":
+            return "required_components" in (payload.get("validation") or {}) or "required_components" in payload
+        elif metric == "validation_score":
+            return "validation_score" in (payload.get("validation") or {}) or "validation" in payload or "validation_score" in payload
         return False
 
     def _extract_value_from_payload(self, metric: str, cost: dict, tasks: dict, payload: dict) -> Any:
+        cost = cost or {}
+        tasks = tasks or {}
+        payload = payload or {}
         if metric == "model_cost":
             return cost.get("model_cost") or payload.get("spend_usd") or payload.get("spend") or 0.0
         elif metric == "token_cost":
@@ -286,6 +309,15 @@ class CostResourceEvaluationService:
             mc = cost.get("model_cost") or payload.get("spend_usd") or 0.0
             hc = cost.get("Human_cost") or payload.get("human_cost_per_output") or 0.0
             return mc + hc
+        elif metric == "validated_components":
+            return (payload.get("validation") or {}).get("validated_components") or payload.get("validated_components") or 0
+        elif metric == "required_components":
+            return (payload.get("validation") or {}).get("required_components") or payload.get("required_components") or 0
+        elif metric == "validation_score":
+            val_dict = payload.get("validation") or {}
+            req = val_dict.get("required_components") or payload.get("required_components") or 0
+            val = val_dict.get("validated_components") or payload.get("validated_components") or 0
+            return val / max(req, 1) if req > 0 else 1.0
         return 0.0
 
     def _resource_supports_metric(self, resource_name: str, metric: str) -> bool:
@@ -299,7 +331,7 @@ class CostResourceEvaluationService:
             "GCP Cloud Billing": ["model_cost", "total_cost_of_ownership"],
             "OpenAI Usage API": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
             "LangSmith": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
-            "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
+            "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
             "Kubecost": ["model_cost", "total_cost_of_ownership"],
             "CloudZero": ["model_cost", "total_cost_of_ownership"],
             "Spot by NetApp": ["model_cost", "total_cost_of_ownership"],
@@ -307,9 +339,11 @@ class CostResourceEvaluationService:
             "Workday": ["Human_cost_per_output", "total_cost_of_ownership"],
             "SAP SuccessFactors": ["Human_cost_per_output", "total_cost_of_ownership"],
             "Oracle HCM": ["Human_cost_per_output", "total_cost_of_ownership"],
-            "Prometheus": ["utilization"],
+            "Prometheus": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
             "Pinecone Billing": ["model_cost", "total_cost_of_ownership"],
             "Jira Service Desk": ["Human_cost_per_output", "total_cost_of_ownership"],
+            "OpenTelemetry": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "Grafana": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
         }
         return metric in capabilities.get(resource_name, [])
 
@@ -323,5 +357,8 @@ class CostResourceEvaluationService:
             "Human_cost_per_output": "50.0",
             "utilization": "0.85",
             "total_cost_of_ownership": "51.24",
+            "validated_components": "2",
+            "required_components": "2",
+            "validation_score": "1.0",
         }
         return vals.get(metric, "0.0")

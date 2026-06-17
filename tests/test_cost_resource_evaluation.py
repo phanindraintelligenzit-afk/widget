@@ -13,7 +13,7 @@ def test_seeding_and_evaluation(client):
         # Check resources in DB (should have been seeded on startup by bootstrap)
         stmt = select(CostResourceRegistryRow)
         resources = list(session.scalars(stmt))
-        assert len(resources) == 19
+        assert len(resources) == 21
 
         resource_names = {r.name for r in resources}
         expected_names = {
@@ -46,21 +46,21 @@ def test_api_endpoints_cost_evaluation(client):
     r_res = client.get("/api/cost-evaluation/resources")
     assert r_res.status_code == 200
     resources = r_res.json()
-    assert len(resources) == 19
+    assert len(resources) == 21
 
     # 2. POST /api/cost-evaluation/evaluate
     os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
     r_eval = client.post("/api/cost-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
-    # 19 resources * 8 metrics = 152 evaluation results
-    assert len(eval_results) == 152
+    # 21 resources * 11 metrics = 231 evaluation results
+    assert len(eval_results) == 231
 
     # 3. GET /api/cost-evaluation/results
     r_results = client.get("/api/cost-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 152
+    assert len(latest_results) == 231
 
     # Check that OpenAI Usage API got token_cost detected as True in mock test environment
     openai_token_cost = [
