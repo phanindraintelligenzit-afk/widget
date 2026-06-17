@@ -40,6 +40,7 @@ dependencies = [
     "trulens>=2.8.1",
     "trulens-providers-bedrock>=2.8.1",
     "trulens-apps-langchain>=2.8.1",
+    "requests>=2.34.2",
 ]
 
 [project.optional-dependencies]
