@@ -20,6 +20,7 @@ from .opik import OpikAdapter
 from .langfuse import LangfuseAdapter
 from .agentops import AgentOpsAdapter
 from .openllmetry import OpenLLMetryAdapter
+from .mlflow import MlflowAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
@@ -44,6 +45,7 @@ REAL_ADAPTERS = (
     LangfuseAdapter,
     AgentOpsAdapter,
     OpenLLMetryAdapter,
+    MlflowAdapter,
 )
 
 
@@ -74,6 +76,7 @@ __all__ = [
     "LangfuseAdapter",
     "AgentOpsAdapter",
     "OpenLLMetryAdapter",
+    "MlflowAdapter",
     "clear",
     "get",
     "list_sources",

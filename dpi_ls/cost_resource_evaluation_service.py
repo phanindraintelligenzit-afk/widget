@@ -1,12 +1,13 @@
-"""Service for executing technical evaluation of Cost resources at runtime.
+"""Service for executing technical evaluation of Cost and Validation resources at runtime.
 
-It checks SDK availability, environment configuration, connection validation,
+It checks SDK availability, environment configuration, connection validation (port-level),
 and queries stored telemetry observations for runtime evidence of detected metrics.
 """
 from __future__ import annotations
 
 import importlib.util
 import os
+import socket
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -22,29 +23,23 @@ class CostResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        """Register the 19 standard cost resources."""
+        """Register the 15 baseline cost and validation resources."""
         resources = [
-            ("AWS Bedrock Pricing", True, True, True, True),
-            ("AWS Cost Explorer", True, True, True, True),
-            ("AWS CUR", True, True, True, True),
-            ("AWS Budgets", True, True, True, True),
-            ("Azure Cost Management", False, True, True, True),
-            ("GCP Cloud Billing", False, True, True, True),
-            ("OpenAI Usage API", True, True, True, True),
-            ("LangSmith", True, True, True, True),
             ("Langfuse", True, True, True, True),
-            ("Kubecost", False, True, False, True),
-            ("CloudZero", False, True, True, True),
-            ("Spot by NetApp", False, True, True, True),
-            ("Jira / Timesheets", False, True, True, True),
-            ("Workday", False, True, True, True),
-            ("SAP SuccessFactors", False, True, True, True),
-            ("Oracle HCM", False, True, True, True),
             ("Prometheus", True, True, False, True),
-            ("Pinecone Billing", False, True, True, True),
-            ("Jira Service Desk", False, True, True, True),
-            ("OpenTelemetry", True, True, False, True),
             ("Grafana", False, True, False, True),
+            ("OpenTelemetry", True, True, False, True),
+            ("OpenMeter", True, True, True, True),
+            ("SigNoz", True, True, False, True),
+            ("Arize Phoenix", True, True, False, True),
+            ("Helicone", True, True, True, True),
+            ("OpenObserve", True, True, True, True),
+            ("Uptrace", True, True, True, True),
+            ("Apache SkyWalking", True, True, False, True),
+            ("Jaeger", True, True, False, True),
+            ("MLflow", True, True, False, True),
+            ("Elastic APM", True, True, True, True),
+            ("SigNoz + OpenTelemetry Stack", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             # Check SDK dynamically
@@ -61,20 +56,53 @@ class CostResourceEvaluationService:
     def _check_sdk_avail(self, name: str) -> bool:
         """Helper to check if python SDK is importable for a given resource name."""
         sdk_map = {
-            "AWS Bedrock Pricing": "boto3",
-            "AWS Cost Explorer": "boto3",
-            "AWS CUR": "boto3",
-            "AWS Budgets": "boto3",
-            "OpenAI Usage API": "openai",
-            "LangSmith": "langsmith",
             "Langfuse": "langfuse",
             "Prometheus": "prometheus_client",
             "OpenTelemetry": "opentelemetry",
+            "OpenMeter": "openmeter",
+            "SigNoz": "opentelemetry",
+            "Arize Phoenix": "phoenix",
+            "Helicone": "openai",
+            "OpenObserve": "opentelemetry",
+            "Uptrace": "uptrace",
+            "Apache SkyWalking": "skywalking",
+            "Jaeger": "opentelemetry",
+            "MLflow": "mlflow",
+            "Elastic APM": "elasticapm",
+            "SigNoz + OpenTelemetry Stack": "opentelemetry",
         }
         module_name = sdk_map.get(name)
         if not module_name:
             return False
         return importlib.util.find_spec(module_name) is not None
+
+    def _is_service_listening(self, name: str) -> bool:
+        """Check if the service port is open and listening locally."""
+        port_map = {
+            "Langfuse": 4000,
+            "Prometheus": 9090,
+            "Grafana": 3000,
+            "OpenTelemetry": 4317,
+            "OpenMeter": 8888,
+            "SigNoz": 3301,
+            "Arize Phoenix": 6006,
+            "Helicone": 80,
+            "OpenObserve": 5080,
+            "Uptrace": 14318,
+            "Apache SkyWalking": 8080,
+            "Jaeger": 16686,
+            "MLflow": 5000,
+            "Elastic APM": 5601,
+            "SigNoz + OpenTelemetry Stack": 3301,
+        }
+        port = port_map.get(name)
+        if not port:
+            return True
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                return True
+        except (socket.timeout, ConnectionRefusedError, OSError):
+            return False
 
     def run_evaluations(self) -> list[CostResourceEvaluationRow]:
         """Perform evaluation workflow for all resources and metrics."""
@@ -98,12 +126,18 @@ class CostResourceEvaluationService:
         from store.repo import list_cost_resources
         resources = list_cost_resources(self.session)
 
+        # Cache service liveness status per resource
+        liveness_cache = {}
+        for resource in resources:
+            liveness_cache[resource.name] = self._is_service_listening(resource.name)
+
         # Query all observations and partials once to search for runtime telemetry evidence (latest first)
         obs_rows = list(self.session.scalars(select(ObservationRow).order_by(ObservationRow.id.desc())))
         partial_rows = list(self.session.scalars(select(PartialObservationRow).order_by(PartialObservationRow.id.desc())))
 
         results = []
         for resource in resources:
+            service_running = liveness_cache.get(resource.name, True)
             for metric in metrics:
                 # 1. Initialize Integration & SDK check
                 sdk_ok = resource.sdk_available
@@ -112,9 +146,14 @@ class CostResourceEvaluationService:
                 # Check if credentials exist in env
                 env_keys = self._get_env_keys(resource.name)
                 credentials_configured = any(os.environ.get(k) for k in env_keys) if env_keys else (not api_key_req)
-                
+
                 # Connection status
-                status = "SUCCESS" if credentials_configured else "CREDENTIALS_MISSING"
+                if not credentials_configured:
+                    status = "CREDENTIALS_MISSING"
+                elif not service_running:
+                    status = "FAILED"
+                else:
+                    status = "SUCCESS"
 
                 # 2. Check Database observations/partials for real runtime telemetry
                 telemetry_detected = False
@@ -159,6 +198,11 @@ class CostResourceEvaluationService:
                             )
                             break
 
+                # Adjust status and evidence text if service is down but telemetry exists (Partially Verified case)
+                if telemetry_detected and not service_running:
+                    status = "FAILED"
+                    evidence_text = f"Telemetry found, but local service/dashboard port is unreachable. Verification status: Partially Verified. {evidence_text}"
+
                 # 3. Fallback/Mock logic for testing if we run in test/demo mode
                 is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
                 
@@ -183,7 +227,7 @@ class CostResourceEvaluationService:
                         detected = True
                         current_val = self._get_mock_metric_value(metric)
                         evidence_text = f"Simulated Runtime Check: Verified {resource.name} API response structures for metric '{metric}'."
-                        status = "SUCCESS"
+                        status = "SUCCESS" if service_running else "FAILED"
                         agent_run_executed = True
                     else:
                         evidence_text = f"Resource lacks capability to detect '{metric}' or credentials are unconfigured."
@@ -191,6 +235,8 @@ class CostResourceEvaluationService:
                     # Production / default case: credentials missing or no runtime data ingested
                     if not credentials_configured:
                         evidence_text = f"SDK/Connection validation failed: missing credentials in env. Required: {', '.join(env_keys or [])}"
+                    elif not service_running:
+                        evidence_text = f"Service unreachable. Dashboard/collector port is closed. Verification status: Unverified."
                     else:
                         evidence_text = f"Connection validated successfully, but no telemetry has been emitted for '{metric}' during agent execution."
 
@@ -211,46 +257,42 @@ class CostResourceEvaluationService:
 
     def _get_env_keys(self, name: str) -> list[str]:
         keys_map = {
-            "AWS Bedrock Pricing": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-            "AWS Cost Explorer": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-            "AWS CUR": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-            "AWS Budgets": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"],
-            "Azure Cost Management": ["AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET", "AZURE_TENANT_ID"],
-            "GCP Cloud Billing": ["GOOGLE_APPLICATION_CREDENTIALS"],
-            "OpenAI Usage API": ["OPENAI_API_KEY"],
-            "LangSmith": ["LANGCHAIN_API_KEY"],
             "Langfuse": ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"],
-            "CloudZero": ["CLOUDZERO_API_KEY"],
-            "Spot by NetApp": ["SPOT_API_KEY"],
-            "Jira / Timesheets": ["JIRA_API_TOKEN", "JIRA_URL"],
-            "Workday": ["WORKDAY_API_TOKEN"],
-            "SAP SuccessFactors": ["SAP_SF_CLIENT_ID"],
-            "Oracle HCM": ["ORACLE_HCM_URL"],
-            "Pinecone Billing": ["PINECONE_API_KEY"],
-            "Jira Service Desk": ["JIRA_SD_API_TOKEN"],
-            "Grafana": ["GRAFANA_URL"],
             "Prometheus": ["PROMETHEUS_URL"],
+            "Grafana": ["GRAFANA_URL"],
             "OpenTelemetry": ["OTEL_EXPORTER_OTLP_ENDPOINT"],
+            "OpenMeter": ["OPENMETER_API_KEY", "OPENMETER_ENDPOINT"],
+            "SigNoz": ["SIGNOZ_URL"],
+            "Arize Phoenix": ["PHOENIX_PORT", "PHOENIX_HOST"],
+            "Helicone": ["HELICONE_API_KEY"],
+            "OpenObserve": ["OPENOBSERVE_API_KEY", "OPENOBSERVE_URL"],
+            "Uptrace": ["UPTRACE_DSN"],
+            "Apache SkyWalking": ["SW_AGENT_COLLECTOR_BACKEND_SERVICES"],
+            "Jaeger": ["JAEGER_ENDPOINT"],
+            "MLflow": ["MLFLOW_TRACKING_URI"],
+            "Elastic APM": ["ELASTIC_APM_SERVER_URL", "ELASTIC_APM_SECRET_TOKEN"],
+            "SigNoz + OpenTelemetry Stack": ["SIGNOZ_URL", "OTEL_EXPORTER_OTLP_ENDPOINT"],
         }
         return keys_map.get(name, [])
 
     def _map_resource_to_sources(self, name: str) -> list[str]:
         """Map resource names to adapter sources stored in observations."""
         mapping = {
-            "AWS Bedrock Pricing": ["bedrock", "aws_cost"],
-            "AWS Cost Explorer": ["aws_cost"],
-            "AWS CUR": ["aws_cost", "cur"],
-            "AWS Budgets": ["aws_cost", "budgets"],
-            "OpenAI Usage API": ["openai", "openai_usage"],
-            "LangSmith": ["langsmith"],
             "Langfuse": ["langfuse"],
             "Prometheus": ["prometheus"],
-            "Workday": ["workday", "sap_hr"],
-            "SAP SuccessFactors": ["sap_hr"],
-            "Jira / Timesheets": ["jira"],
-            "Jira Service Desk": ["jira"],
+            "Grafana": ["grafana", "prometheus", "otel", "langfuse"],
             "OpenTelemetry": ["otel"],
-            "Grafana": ["prometheus", "otel", "langfuse", "grafana"],
+            "OpenMeter": ["openmeter"],
+            "SigNoz": ["signoz", "otel"],
+            "Arize Phoenix": ["arize", "phoenix", "otel"],
+            "Helicone": ["helicone"],
+            "OpenObserve": ["openobserve", "otel"],
+            "Uptrace": ["uptrace", "otel"],
+            "Apache SkyWalking": ["skywalking"],
+            "Jaeger": ["jaeger", "otel"],
+            "MLflow": ["mlflow", "otel"],
+            "Elastic APM": ["elastic_apm", "elasticapm"],
+            "SigNoz + OpenTelemetry Stack": ["signoz", "otel"],
         }
         return mapping.get(name, [name.lower().replace(" ", "_")])
 
@@ -269,7 +311,6 @@ class CostResourceEvaluationService:
         elif metric == "AI_cost_per_output":
             return ("model_cost" in cost or "spend_usd" in payload) and ("completed" in tasks or "output_count" in payload)
         elif metric == "Human_cost_per_output":
-            # HR source systems
             return "Human_cost" in cost or "human_cost_per_output" in payload or "salary_cost" in payload or "human_salary" in payload
         elif metric == "utilization":
             return "utilization" in payload or "utilization_factor" in payload
@@ -323,27 +364,21 @@ class CostResourceEvaluationService:
     def _resource_supports_metric(self, resource_name: str, metric: str) -> bool:
         """Map static capability matrices (which resource can technical detect which metric)."""
         capabilities = {
-            "AWS Bedrock Pricing": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
-            "AWS Cost Explorer": ["model_cost", "total_cost_of_ownership"],
-            "AWS CUR": ["model_cost", "total_cost_of_ownership"],
-            "AWS Budgets": ["utilization", "total_cost_of_ownership"],
-            "Azure Cost Management": ["model_cost", "total_cost_of_ownership"],
-            "GCP Cloud Billing": ["model_cost", "total_cost_of_ownership"],
-            "OpenAI Usage API": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
-            "LangSmith": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership"],
             "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "Kubecost": ["model_cost", "total_cost_of_ownership"],
-            "CloudZero": ["model_cost", "total_cost_of_ownership"],
-            "Spot by NetApp": ["model_cost", "total_cost_of_ownership"],
-            "Jira / Timesheets": ["Human_cost_per_output", "total_cost_of_ownership"],
-            "Workday": ["Human_cost_per_output", "total_cost_of_ownership"],
-            "SAP SuccessFactors": ["Human_cost_per_output", "total_cost_of_ownership"],
-            "Oracle HCM": ["Human_cost_per_output", "total_cost_of_ownership"],
             "Prometheus": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "Pinecone Billing": ["model_cost", "total_cost_of_ownership"],
-            "Jira Service Desk": ["Human_cost_per_output", "total_cost_of_ownership"],
-            "OpenTelemetry": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
             "Grafana": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "OpenTelemetry": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "OpenMeter": ["model_cost", "token_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization"],
+            "SigNoz": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
+            "Arize Phoenix": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "Helicone": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "OpenObserve": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
+            "Uptrace": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
+            "Apache SkyWalking": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
+            "Jaeger": ["total_cost_of_ownership", "validation_score"],
+            "MLflow": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "Elastic APM": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "SigNoz + OpenTelemetry Stack": ["validated_components", "required_components", "validation_score"],
         }
         return metric in capabilities.get(resource_name, [])
 

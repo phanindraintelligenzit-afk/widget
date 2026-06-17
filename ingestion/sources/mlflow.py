@@ -1,10 +1,6 @@
-"""Arize model monitoring → G (governance) + Q (quality).
+"""MLflow model tracking → C (cost) + V (validation).
 
-Arize emits two kinds of signals we care about:
-    * monitor breaches  → policy violations (drives G)
-    * quality scores    → accuracy / consistency / hallucination_rate (drives Q)
-
-Either or both may be present per agent. Missing dimensions stay None.
+MLflow tracks agent runs, inputs, costs, and audit-readiness checklists.
 """
 from __future__ import annotations
 
@@ -13,13 +9,14 @@ from typing import Any
 
 from fastapi import HTTPException
 
-from contract import PartialObservation, Policy, PolicyViolation, Quality
+from contract import PartialObservation
+from contract.models import Cost, Validation
 
 from .base import SourceAdapter
 
 
-class ArizeAdapter(SourceAdapter):
-    name = "arize"
+class MlflowAdapter(SourceAdapter):
+    name = "mlflow"
 
     def to_partials(self, payload: Any) -> list[PartialObservation]:
         """Expected payload shape::
@@ -29,15 +26,17 @@ class ArizeAdapter(SourceAdapter):
               "agents": [
                 {
                   "agent_id": "...",
-                  "model_inferences": 1200,
-                  "monitor_breaches": [
-                    {"monitor": "drift.embedding_l2", "at": "..."},
-                    ...
-                  ],
-                  "quality": {                 # optional
-                    "accuracy": 0.93,
-                    "consistency": 0.91,
-                    "hallucination_rate": 0.04
+                  "cost": {                 # optional
+                    "input_tokens": 120000,
+                    "output_tokens": 40000,
+                    "model_cost": 1.24,
+                    "number_of_llm_calls": 5,
+                    "Human_cost": 50.0
+                  },
+                  "validation": {           # optional
+                    "required_components": 2,
+                    "validated_components": 2,
+                    "audit_ready": true
                   }
                 }
               ]
@@ -49,28 +48,9 @@ class ArizeAdapter(SourceAdapter):
         end = _parse_dt(payload["period_end"])
         out: list[PartialObservation] = []
         for a in payload.get("agents", []):
-            policy = None
-            if "monitor_breaches" in a or "model_inferences" in a:
-                breaches = a.get("monitor_breaches", [])
-                policy = Policy(
-                    total_actions=int(a.get("model_inferences", len(breaches))),
-                    violations=[
-                        PolicyViolation(rule=b["monitor"], when=_parse_dt(b["at"]))
-                        for b in breaches
-                    ],
-                )
-            quality = None
-            if "quality" in a and a["quality"] is not None:
-                q = a["quality"]
-                quality = Quality(
-                    accuracy=float(q["accuracy"]),
-                    consistency=float(q["consistency"]),
-                    hallucination_rate=float(q["hallucination_rate"]),
-                )
             cost = None
             if "cost" in a and a["cost"] is not None:
                 c = a["cost"]
-                from contract.models import Cost
                 cost = Cost(
                     input_tokens=int(c.get("input_tokens", 0)),
                     output_tokens=int(c.get("output_tokens", 0)),
@@ -81,7 +61,6 @@ class ArizeAdapter(SourceAdapter):
             validation = None
             if "validation" in a and a["validation"] is not None:
                 v = a["validation"]
-                from contract.models import Validation
                 validation = Validation(
                     required_components=int(v.get("required_components", 0)),
                     validated_components=int(v.get("validated_components", 0)),
@@ -93,8 +72,6 @@ class ArizeAdapter(SourceAdapter):
                 period_start=start,
                 period_end=end,
                 source=self.name,
-                policy=policy,
-                quality=quality,
                 cost=cost,
                 validation=validation,
             ))
