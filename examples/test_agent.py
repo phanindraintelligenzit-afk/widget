@@ -304,6 +304,31 @@ async def run_agent_observation() -> None:
     print(safe)
     print("─" * 55)
 
+    # ── Evaluate Quality and Post Observation explicitly ───────────
+    collector.mark_end()
+    outputs = collector.outputs_for_q()
+    if outputs:
+        source_data = collector.source_data_for_q()
+        try:
+            from dpi_ls.evaluator import evaluate_quality
+            q = evaluate_quality(outputs, source_data=source_data)
+            collector.set_quality(
+                q.accuracy, q.consistency, q.hallucination_rate,
+            )
+            print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
+        except Exception as e:
+            print(f"Failed to evaluate quality: {e}")
+
+    # Now post the observation
+    from dpi_ls.poster import post_observation
+    base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
+    rating = post_observation(collector, base_url)
+    if rating:
+        print_score_card(rating)
+    else:
+        print("Failed to post observation to the server.")
+
+
 
 
 
