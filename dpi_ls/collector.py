@@ -21,9 +21,14 @@ import re
 import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 from .policy import scan_policy_violations
+from .risk import scan_lakera_risks
+
+# Global thread pool for async Lakera Guard risk scanning
+_risk_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dpi_risk_scan")
 
 # Cap how many full outputs we keep for the LLM evaluator. The last N are
 # the most representative of how the run actually ended, and feeding the
@@ -189,6 +194,15 @@ class SignalCollector:
             self._source_data.append(labelled)
             if len(self._source_data) > _MAX_SOURCE_DATA:
                 del self._source_data[: len(self._source_data) - _MAX_SOURCE_DATA]
+                
+        # R: Asynchronous Lakera Guard scan on source inputs (catches prompt injections/jailbreaks)
+        def _scan_and_record():
+            incidents = scan_lakera_risks(text)
+            if incidents:
+                with self._lock:
+                    self.incidents.extend(incidents)
+        
+        _risk_executor.submit(_scan_and_record)
 
     def record_tool_call(self, *, ok: bool = True, action_name: str | None = None) -> None:
         with self._lock:
@@ -199,6 +213,11 @@ class SignalCollector:
                 self.failed += 1
             if action_name:
                 self.execution_details.append({"name": action_name, "ok": ok})
+            
+            # Log the tool call in the governance list so its length matches total_actions
+            now = _utcnow().isoformat()
+            label = action_name if action_name else "Tool execution"
+            self.violations.append({"rule": "none", "when": now, "action_name": label})
 
     def record_retrieval(
         self,
@@ -282,6 +301,9 @@ class SignalCollector:
         """Called by the atexit finalizer so the observation's period is correct."""
         if self.period_end is None:
             self.period_end = _utcnow()
+            
+        # Ensure all pending Lakera Guard async scans complete before finalizing
+        _risk_executor.shutdown(wait=True)
 
     # ---- accessors used by finalize() ---------------------------------
 
@@ -348,6 +370,15 @@ class SignalCollector:
                 self.violations.append({"rule": rule, "when": now, "action_name": action_label})
         else:
             self.violations.append({"rule": "none", "when": now, "action_name": action_label})
+
+        # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
+        def _scan_and_record():
+            incidents = scan_lakera_risks(output)
+            if incidents:
+                with self._lock:
+                    self.incidents.extend(incidents)
+        
+        _risk_executor.submit(_scan_and_record)
         # V: best-effort structural check.
         if _looks_structured(output):
             with self._lock:
@@ -412,6 +443,34 @@ class SignalCollector:
             required = self.attempts
         validated = self.validated_outputs
 
+        # Aggregate incidents by source and severity bucket
+        aggregated_incidents = {}
+        for inc in self.incidents:
+            sev = float(inc.get("severity_weight", 0.2))
+            if sev >= 0.7:
+                bucket = "High"
+            elif sev >= 0.3:
+                bucket = "Medium"
+            else:
+                bucket = "Low"
+                
+            key = (inc.get("source"), bucket)
+            if key not in aggregated_incidents:
+                aggregated_incidents[key] = inc.copy()
+            else:
+                existing = aggregated_incidents[key]
+                old_freq = existing.get("frequency", 1)
+                old_sev = float(existing.get("severity_weight", 0))
+                
+                new_freq = inc.get("frequency", 1)
+                new_sev = sev
+                
+                total_freq = old_freq + new_freq
+                avg_sev = ((old_freq * old_sev) + (new_freq * new_sev)) / total_freq
+                
+                existing["frequency"] = total_freq
+                existing["severity_weight"] = avg_sev
+                
         obs: dict[str, Any] = {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name or self.agent_id,
@@ -431,7 +490,7 @@ class SignalCollector:
                 "total_actions": max(self.attempts, 1),
                 "violations": self.violations,
             },
-            "incidents": self.incidents,
+            "incidents": list(aggregated_incidents.values()),
             "validation": {
                 "required_components": required,
                 "validated_components": validated,

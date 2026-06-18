@@ -90,10 +90,24 @@ def _capture_graph_result(collector: SignalCollector, result: Any) -> None:
     final state dictionary so the Q evaluator can assess the entire 
     agent output.
     """
+    t_in, t_out = 0, 0
+    def _crawl(obj, depth=0):
+        nonlocal t_in, t_out
+        if depth > 5: return
+        if hasattr(obj, "usage_metadata") and isinstance(obj.usage_metadata, dict):
+            t_in += obj.usage_metadata.get("input_tokens", 0)
+            t_out += obj.usage_metadata.get("output_tokens", 0)
+        if isinstance(obj, dict):
+            for v in obj.values(): _crawl(v, depth + 1)
+        elif isinstance(obj, list) or isinstance(obj, tuple):
+            for v in obj: _crawl(v, depth + 1)
+            
+    _crawl(result)
+
     text = _safe_text(result)
     if text:
-        collector.record_llm_call(text, ok=True, action_name="langgraph_invoke")
+        collector.record_llm_call(text, ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out)
     else:
         # We got an empty response but the run completed without raising.
         # Record it so the execution attempt matches the agent run.
-        collector.record_llm_call("", ok=True, action_name="langgraph_invoke")
+        collector.record_llm_call("", ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out)

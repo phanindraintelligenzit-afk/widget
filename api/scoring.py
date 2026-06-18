@@ -139,7 +139,13 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         high = sum(1 for i in obs.incidents if float(i.severity_weight) >= 0.7)
         med  = sum(1 for i in obs.incidents if 0.3 <= float(i.severity_weight) < 0.7)
         low  = sum(1 for i in obs.incidents if float(i.severity_weight) < 0.3)
-        res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
+        res["R"] = {
+            "high_incidents": high, 
+            "medium_incidents": med, 
+            "low_incidents": low,
+            "incidents": [i.model_dump(mode="json") for i in obs.incidents],
+            "r_max": settings.r_max
+        }
     if obs.validation:
         res["V"] = obs.validation.model_dump(mode="json")
     if obs.cost:

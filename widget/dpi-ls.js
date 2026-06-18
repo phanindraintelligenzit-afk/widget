@@ -214,7 +214,7 @@
 
     if (sub && Object.keys(sub).length > 0) {
       const parts = Object.entries(sub).map(([k, v]) => {
-         if (k === 'violations' || k === 'details') return "";
+         if (k === 'violations' || k === 'details' || k === 'incidents') return "";
          let disp = v;
          if (typeof v === 'number') disp = parseFloat(v.toFixed(6));
          if (Array.isArray(v)) disp = v.length + ' items';
@@ -222,6 +222,7 @@
       }).join("");
       const displayStyle = isExpanded ? 'block' : 'none';
       let formulaDisplay = formula;
+      
       if (formula && typeof value === 'number') {
         // Show the formula, the value, and the weighted contribution
         // to the raw score — e.g.
@@ -236,11 +237,11 @@
             ? contrib.toString()
             : contrib.toFixed(1);
           formulaDisplay =
-            `${formula} = ${valueStr}<br>` +
+            `${formulaDisplay} = ${valueStr}<br>` +
             `<span style="color:#475569">weighted contribution: ` +
             `${valueStr} × ${w}% = <strong>${contribStr}</strong></span>`;
         } else {
-          formulaDisplay = `${formula} = ${valueStr}`;
+          formulaDisplay = `${formulaDisplay} = ${valueStr}`;
         }
       }
 
@@ -255,7 +256,9 @@
         const byAction = new Map();
         for (const v of sub.violations) {
           const entry = byAction.get(v.when) || { actionName: v.action_name, rules: [] };
-          entry.rules.push(v.rule);
+          if (v.rule && v.rule !== "none") {
+            entry.rules.push(v.rule);
+          }
           byAction.set(v.when, entry);
         }
         
@@ -290,7 +293,7 @@
           : `${violatingActions} violating action${violatingActions === 1 ? "" : "s"}`;
         violationsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
           <div style="font-weight:600;color:#991b1b;margin-bottom:4px">${rateStr}</div>
-          <div style="font-size:10px;line-height:1.4">${rows}</div>
+          <div style="font-size:10px;line-height:1.4;max-height:120px;overflow-y:auto;padding-right:4px">${rows}</div>
         </div>`;
       }
 
@@ -312,11 +315,47 @@
         </div>`;
       }
 
+      let risksHtml = "";
+      if (key === "R" && Array.isArray(sub.incidents) && sub.incidents.length) {
+        const risksList = sub.incidents.map((inc, i) => {
+          let source = inc.source || "unknown_incident";
+          if (source.startsWith("lakera:")) {
+              source = source.substring(7);
+          }
+          const freq = inc.frequency || 1;
+          const sevNum = Number(inc.severity_weight || 0);
+          const sev = sevNum.toFixed(1);
+          
+          let label = "";
+          if (sevNum >= 0.7) label = " (High)";
+          else if (sevNum >= 0.3) label = " (Medium)";
+          else label = " (Low)";
+          source = source + label;
+          
+          let sevColor = "#3b82f6"; // Low
+          if (sevNum >= 0.7) sevColor = "#ef4444"; // High
+          else if (sevNum >= 0.3) sevColor = "#f59e0b"; // Medium
+          
+          return `<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
+            <code style="background:#f1f5f9;color:#334155;padding:2px 6px;border-radius:4px;font-size:10px">${escapeHtml(source)}</code>
+            <div style="display:flex;gap:12px;font-size:10px;">
+              <span><span style="color:#64748b">Freq:</span> <strong>${freq}</strong></span>
+              <span><span style="color:#64748b">Sev:</span> <strong style="color:${sevColor}">${sev}</strong></span>
+            </div>
+          </div>`;
+        }).join("");
+        risksHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
+          <div style="font-weight:600;color:#991b1b;margin-bottom:4px">Logged Incidents</div>
+          <div style="font-size:10px;line-height:1.4;max-height:120px;overflow-y:auto;padding-right:4px">${risksList}</div>
+        </div>`;
+      }
+
       subHtml = `<div class="metric-detail" style="display:${displayStyle}; grid-column: 1 / -1; padding: 10px; background: #f8fafc; border-radius: 8px; margin-top: 6px; font-size: 11px; color: var(--muted); cursor: text;">
         <div style="font-family: monospace; margin-bottom: 8px; color: #334155; padding-bottom: 6px; border-bottom: 1px solid #e2e8f0;">${formulaDisplay}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">${parts}</div>
         ${violationsHtml}
         ${executionsHtml}
+        ${risksHtml}
       </div>`;
     }
 
@@ -550,12 +589,31 @@
       }
     }
     _render({ loading, notFound, rating, error, id }) {
+      const scrollPositions = new Map();
+      if (this.shadowRoot) {
+        this.shadowRoot.querySelectorAll('.has-detail').forEach(wrapper => {
+          const key = wrapper.dataset.metricKey;
+          const scrollable = wrapper.querySelector('div[style*="overflow-y"]');
+          if (key && scrollable) scrollPositions.set(key, scrollable.scrollTop);
+        });
+      }
+      
       let body;
       if (loading) body = `<div class="empty">Loading…</div>`;
       else if (error) body = `<div class="err">${escapeHtml(error)}</div>`;
       else if (notFound) body = `<div class="empty">No score yet for <code>${escapeHtml(id)}</code>.</div>`;
       else body = agentCardHtml(rating, this._expandedMetrics);
       this._renderShell(body);
+      
+      if (this.shadowRoot) {
+        this.shadowRoot.querySelectorAll('.has-detail').forEach(wrapper => {
+          const key = wrapper.dataset.metricKey;
+          const scrollable = wrapper.querySelector('div[style*="overflow-y"]');
+          if (key && scrollable && scrollPositions.has(key)) {
+            scrollable.scrollTop = scrollPositions.get(key);
+          }
+        });
+      }
     }
   }
 
