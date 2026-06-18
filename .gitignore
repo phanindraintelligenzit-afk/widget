@@ -76,4 +76,6 @@ evals/reports/
 sandbox_*
 *mcp
 data/
-scratch/run_mock_phoenix.py
+scratch/run_mock_phoenix.py
+*.bak
+
