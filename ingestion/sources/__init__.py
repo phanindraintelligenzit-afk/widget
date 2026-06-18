@@ -21,6 +21,8 @@ from .langfuse import LangfuseAdapter
 from .agentops import AgentOpsAdapter
 from .openllmetry import OpenLLMetryAdapter
 from .mlflow import MlflowAdapter
+from .prometheus import PrometheusAdapter
+from .otel import OtelAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
     ALL_STUBS,
@@ -46,6 +48,8 @@ REAL_ADAPTERS = (
     AgentOpsAdapter,
     OpenLLMetryAdapter,
     MlflowAdapter,
+    PrometheusAdapter,
+    OtelAdapter,
 )
 
 
@@ -77,6 +81,8 @@ __all__ = [
     "AgentOpsAdapter",
     "OpenLLMetryAdapter",
     "MlflowAdapter",
+    "PrometheusAdapter",
+    "OtelAdapter",
     "clear",
     "get",
     "list_sources",

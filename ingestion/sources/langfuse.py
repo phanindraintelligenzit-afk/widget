@@ -32,12 +32,35 @@ class LangfuseAdapter(SourceAdapter):
             if attempts == 0:
                 continue
             
+            cost = None
+            if "cost" in exec_data and exec_data["cost"] is not None:
+                c = exec_data["cost"]
+                from contract.models import Cost
+                cost = Cost(
+                    input_tokens=int(c.get("input_tokens", 0)),
+                    output_tokens=int(c.get("output_tokens", 0)),
+                    model_cost=float(c.get("model_cost", 0.0)),
+                    number_of_llm_calls=int(c.get("number_of_llm_calls", 0)),
+                    Human_cost=float(c.get("Human_cost", 0.0)),
+                )
+            validation = None
+            if "validation" in exec_data and exec_data["validation"] is not None:
+                v = exec_data["validation"]
+                from contract.models import Validation
+                validation = Validation(
+                    required_components=int(v.get("required_components", 0)),
+                    validated_components=int(v.get("validated_components", 0)),
+                    audit_ready=bool(v.get("audit_ready", False)),
+                )
+            
             out.append(PartialObservation(
                 agent_id=aid,
                 period_start=start,
                 period_end=end,
                 source=self.name,
                 executions=Executions(successful=successful, attempts=attempts),
+                cost=cost,
+                validation=validation,
             ))
             
         return out
