@@ -13,12 +13,22 @@ import sys
 # Disable Pydantic plugins to bypass importlib metadata scan hang on Windows
 os.environ["PYDANTIC_DISABLE_PLUGINS"] = "1"
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 print("Loading verification script... Please wait...")
 sys.stdout.flush()
 
 import httpx
 import time
 import socket
+import logging
+# Suppress mlflow INFO logs that print emoji characters
+logging.getLogger("mlflow").setLevel(logging.WARNING)
 
 def check_port(name: str, port: int) -> bool:
     try:
@@ -91,32 +101,44 @@ def main():
     print("\n3. Logging run parameters and metrics to MLflow tracking server...")
     try:
         import mlflow
-        mlflow.set_tracking_uri("http://localhost:5000")
-        mlflow.set_experiment("Chandra_FinOps_Evaluation")
-        with mlflow.start_run() as run:
-            mlflow.log_param("model_name", "qwen.qwen3-next-80b-a3b")
-            mlflow.log_metric("model_cost", 1.24)
-            mlflow.log_metric("token_cost", 0.15)
-            mlflow.log_metric("prompt_cost", 0.05)
-            mlflow.log_metric("completion_cost", 0.10)
-            mlflow.log_metric("AI_cost_per_output", 0.014)
-            mlflow.log_metric("total_cost_of_ownership", 51.24)
-            mlflow.log_metric("validated_components", 2)
-            mlflow.log_metric("required_components", 2)
-            mlflow.log_metric("validation_score", 1.0)
-            print(f"  [OK] Created MLflow run ID: {run.info.run_id}")
-            
-            with mlflow.start_span(name="ChandraFinOpsRun") as mlflow_span:
-                mlflow_span.set_inputs({"prompt": "Run FinOps cost validation evaluation on model qwen."})
-                mlflow_span.set_outputs({"output": "TCO: 51.24, Validation Score: 1.0, AI Cost: 1.24, Human Cost: 50.0"})
-                mlflow_span.set_attribute("gen_ai.request.model", "gpt-4")
-                mlflow_span.set_attribute("gen_ai.usage.input_tokens", 120000)
-                mlflow_span.set_attribute("gen_ai.usage.output_tokens", 40000)
-                mlflow_span.set_attribute("model_name", "qwen.qwen3-next-80b-a3b")
-                mlflow_span.set_attribute("model_cost", 1.24)
-                mlflow_span.set_attribute("validation_score", 1.0)
-                time.sleep(0.25)
-            print("  [OK] Sent trace span to MLflow.")
+        import io
+        # Suppress MLflow's emoji-laden stdout prints (e.g. "🏃 View run...") which
+        # crash on Windows cp1252 terminals.
+        _old_stdout = sys.stdout
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        try:
+            mlflow.set_tracking_uri("http://localhost:5000")
+            mlflow.set_experiment("Chandra_FinOps_Evaluation")
+            with mlflow.start_run() as run:
+                mlflow.log_param("model_name", "qwen.qwen3-next-80b-a3b")
+                mlflow.log_metric("model_cost", 1.24)
+                mlflow.log_metric("token_cost", 0.15)
+                mlflow.log_metric("prompt_cost", 0.05)
+                mlflow.log_metric("completion_cost", 0.10)
+                mlflow.log_metric("AI_cost_per_output", 0.014)
+                mlflow.log_metric("total_cost_of_ownership", 51.24)
+                mlflow.log_metric("validated_components", 2)
+                mlflow.log_metric("required_components", 2)
+                mlflow.log_metric("validation_score", 1.0)
+                run_id = run.info.run_id
+
+                with mlflow.start_span(name="ChandraFinOpsRun") as mlflow_span:
+                    mlflow_span.set_inputs({"prompt": "Run FinOps cost validation evaluation on model qwen."})
+                    mlflow_span.set_outputs({"output": "TCO: 51.24, Validation Score: 1.0, AI Cost: 1.24, Human Cost: 50.0"})
+                    mlflow_span.set_attribute("gen_ai.request.model", "gpt-4")
+                    mlflow_span.set_attribute("gen_ai.usage.input_tokens", 120000)
+                    mlflow_span.set_attribute("gen_ai.usage.output_tokens", 40000)
+                    mlflow_span.set_attribute("model_name", "qwen.qwen3-next-80b-a3b")
+                    mlflow_span.set_attribute("model_cost", 1.24)
+                    mlflow_span.set_attribute("validation_score", 1.0)
+                    time.sleep(0.25)
+        finally:
+            sys.stdout.flush()
+            sys.stdout = _old_stdout
+        print(f"  [OK] Created MLflow run ID: {run_id}")
+        print("  [OK] Logged cost and validation metrics to MLflow.")
+        print("  [OK] Sent trace span to MLflow.")
+        print(f"  [OK] MLflow Experiment UI: http://localhost:5000/#/experiments/1")
     except Exception as e:
         print(f"  [ERROR] Failed to log to MLflow: {e}")
         sys.exit(1)
