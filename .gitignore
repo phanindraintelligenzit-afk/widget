@@ -75,3 +75,5 @@ iac/
 evals/reports/
 sandbox_*
 *mcp
+data/
+scratch/run_mock_phoenix.py
