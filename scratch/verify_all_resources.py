@@ -54,8 +54,75 @@ def main():
         print("\n[WARNING] Some services are not running. Please start the mock server and try again.")
         sys.exit(1)
 
-    # 2. Ingest Telemetry
-    print("\n2. Ingesting telemetry into DPI-LS source adapters...")
+    # 2. Push real OTel traces to Arize Phoenix (port 6006)
+    print("\n2. Pushing real trace span to Arize Phoenix collector...")
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        provider = TracerProvider()
+        processor = SimpleSpanProcessor(OTLPSpanExporter(endpoint="http://localhost:6006/v1/traces"))
+        provider.add_span_processor(processor)
+        trace.set_tracer_provider(provider)
+        tracer = trace.get_tracer("chandra-finops-verifier")
+
+        with tracer.start_as_current_span("ChandraFinOpsRun") as span:
+            span.set_attribute("openinference.span.kind", "LLM")
+            span.set_attribute("llm.model_name", "gpt-4")
+            span.set_attribute("llm.token_count.prompt", 120000)
+            span.set_attribute("llm.token_count.completion", 40000)
+            span.set_attribute("llm.token_count.total", 160000)
+            span.set_attribute("llm.cost.prompt", 0.60)
+            span.set_attribute("llm.cost.completion", 0.64)
+            span.set_attribute("input.value", "Run FinOps cost validation evaluation on model qwen.")
+            span.set_attribute("output.value", "TCO: 51.24, Validation Score: 1.0, AI Cost: 1.24, Human Cost: 50.0")
+            span.set_attribute("model_id", "qwen.qwen3-next-80b-a3b")
+            span.set_attribute("model_cost", 1.24)
+            span.set_attribute("validation_score", 1.0)
+            time.sleep(0.25)
+            print("  [OK] Sent trace span 'ChandraFinOpsRun' to Arize Phoenix.")
+    except Exception as e:
+        print(f"  [ERROR] Failed to send trace to Phoenix: {e}")
+        sys.exit(1)
+
+    # 3. Log real metrics/spans to MLflow server (port 5000)
+    print("\n3. Logging run parameters and metrics to MLflow tracking server...")
+    try:
+        import mlflow
+        mlflow.set_tracking_uri("http://localhost:5000")
+        mlflow.set_experiment("Chandra_FinOps_Evaluation")
+        with mlflow.start_run() as run:
+            mlflow.log_param("model_name", "qwen.qwen3-next-80b-a3b")
+            mlflow.log_metric("model_cost", 1.24)
+            mlflow.log_metric("token_cost", 0.15)
+            mlflow.log_metric("prompt_cost", 0.05)
+            mlflow.log_metric("completion_cost", 0.10)
+            mlflow.log_metric("AI_cost_per_output", 0.014)
+            mlflow.log_metric("total_cost_of_ownership", 51.24)
+            mlflow.log_metric("validated_components", 2)
+            mlflow.log_metric("required_components", 2)
+            mlflow.log_metric("validation_score", 1.0)
+            print(f"  [OK] Created MLflow run ID: {run.info.run_id}")
+            
+            with mlflow.start_span(name="ChandraFinOpsRun") as mlflow_span:
+                mlflow_span.set_inputs({"prompt": "Run FinOps cost validation evaluation on model qwen."})
+                mlflow_span.set_outputs({"output": "TCO: 51.24, Validation Score: 1.0, AI Cost: 1.24, Human Cost: 50.0"})
+                mlflow_span.set_attribute("gen_ai.request.model", "gpt-4")
+                mlflow_span.set_attribute("gen_ai.usage.input_tokens", 120000)
+                mlflow_span.set_attribute("gen_ai.usage.output_tokens", 40000)
+                mlflow_span.set_attribute("model_name", "qwen.qwen3-next-80b-a3b")
+                mlflow_span.set_attribute("model_cost", 1.24)
+                mlflow_span.set_attribute("validation_score", 1.0)
+                time.sleep(0.25)
+            print("  [OK] Sent trace span to MLflow.")
+    except Exception as e:
+        print(f"  [ERROR] Failed to log to MLflow: {e}")
+        sys.exit(1)
+
+    # 4. Ingest Telemetry into DPI-LS source adapters
+    print("\n4. Ingesting telemetry into DPI-LS source adapters...")
     client = httpx.Client(timeout=10.0)
     agent_id = "chandra-finops"
 
@@ -141,8 +208,8 @@ def main():
             print(f"  [ERROR] Failed to ingest telemetry for source '{src_name}': {e}")
             sys.exit(1)
 
-    # 3. Execute DPI-LS Evaluation Service
-    print("\n3. Executing DPI-LS Cost/Validation Resource Evaluation...")
+    # 5. Execute DPI-LS Evaluation Service
+    print("\n5. Executing DPI-LS Cost/Validation Resource Evaluation...")
     try:
         if "DPI_LS_TEST_MOCK_EVAL" in os.environ:
             del os.environ["DPI_LS_TEST_MOCK_EVAL"]
@@ -155,8 +222,8 @@ def main():
         print(f"  [ERROR] Failed to run DPI-LS evaluation: {e}")
         sys.exit(1)
 
-    # 4. Verify Detection Outcomes
-    print("\n4. Verification Results:")
+    # 6. Verify Detection Outcomes
+    print("\n6. Verification Results:")
     try:
         r_results = client.get("http://localhost:8000/api/cost-evaluation/results")
         r_results.raise_for_status()
