@@ -456,6 +456,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
     service = CostResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
+    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"}
     return [
         {
             "id": r.id,
@@ -469,13 +470,14 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
             "dashboard_verified": r.dashboard_verified,
             "agent_executed": r.agent_executed,
         }
-        for r in eval_rows
+        for r in eval_rows if r.resource_name in active_resources
     ]
 
 
 @app.get("/api/cost-evaluation/results")
 def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     eval_rows = repo.list_latest_cost_resource_evaluations(s)
+    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"}
     return [
         {
             "id": r.id,
@@ -489,7 +491,7 @@ def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[s
             "dashboard_verified": r.dashboard_verified,
             "agent_executed": r.agent_executed,
         }
-        for r in eval_rows
+        for r in eval_rows if r.resource_name in active_resources
     ]
 
 
