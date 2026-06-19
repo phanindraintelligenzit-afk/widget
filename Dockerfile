@@ -18,7 +18,12 @@ RUN uv pip install --system --no-cache \
     "uvicorn>=0.29.0" \
     "python-dotenv>=1.0" \
     "httpx>=0.27" \
-    "aiofiles>=23.0"
+    "aiofiles>=23.0" \
+    "presidio-analyzer" \
+    "spacy"
+
+# Download the Spacy English NLP model required by Presidio
+RUN python -m spacy download en_core_web_lg
 
 # If uv.lock exists, do a full locked install on top
 RUN /bin/bash -c "if [ -f uv.lock ]; then uv pip install --system --no-cache -r <(uv export --no-dev 2>/dev/null || true) 2>/dev/null || true; fi"
