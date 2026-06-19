@@ -810,7 +810,9 @@ async function runEvaluation() {
       headers: { 'Accept': 'application/json' }
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    allData = await r.json();
+    const rawData = await r.json();
+    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
   } catch (e) {
@@ -825,7 +827,9 @@ async function loadData() {
   try {
     const r = await fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    allData = await r.json();
+    const rawData = await r.json();
+    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
   } catch (e) {
     document.getElementById('resources-grid').innerHTML = `

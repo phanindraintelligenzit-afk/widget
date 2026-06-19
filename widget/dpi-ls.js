@@ -910,7 +910,9 @@
         return;
       }
 
-      const rows = this._results.map(r => {
+      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+      const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
+      const rows = filteredResults.map(r => {
         const detectedHtml = r.detected 
           ? `<span style="color:#15803d;font-weight:600">TRUE</span>`
           : `<span style="color:#b91c1c;font-weight:600">FALSE</span>`;
