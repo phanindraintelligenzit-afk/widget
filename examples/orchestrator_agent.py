@@ -50,7 +50,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
-logger = logging.getLogger("AwsUnifiedAgent")
+logger = logging.getLogger("ExecutionAgents")
 
 MAX_ITERATIONS = 5
 DEFAULT_COMMAND_TIMEOUT = 300  # seconds
@@ -271,11 +271,11 @@ def execute_shell_command(command: str, cwd: str, timeout: int) -> Dict[str, Any
 
 # ── Unified Agent ─────────────────────────────────────────────────────────────
 
-class AwsUnifiedAgent:
+class ExecutionAgents:
 
     def __init__(self, max_iterations: int = MAX_ITERATIONS) -> None:
         self.max_iterations = max_iterations
-        logger.info("Initialising AwsUnifiedAgent (max_iterations=%d)", max_iterations)
+        logger.info("Initialising ExecutionAgents (max_iterations=%d)", max_iterations)
         try:
             model_name = os.getenv("MODEL_NAME")
             if not model_name:
@@ -286,9 +286,9 @@ class AwsUnifiedAgent:
             self.Llm = ChatBedrockConverse(model_id=model_name)
             self.Checkpointer = _build_checkpointer()
             self.Graph = self._build_graph()
-            logger.info("AwsUnifiedAgent initialised successfully")
+            logger.info("ExecutionAgents initialised successfully")
         except Exception as exc:
-            logger.exception("Failed to initialise AwsUnifiedAgent: %s", exc)
+            logger.exception("Failed to initialise ExecutionAgents: %s", exc)
             raise
 
     # ── helpers ───────────────────────────────────────────────────────────────
@@ -1251,9 +1251,9 @@ Rules:
 if __name__ == "__main__":
     import dpi_ls
     
-    agent = AwsUnifiedAgent(max_iterations=2)
+    agent = ExecutionAgents(max_iterations=2)
     
-    dpi_ls.monitor(agent.Graph, agent_id="aws-unified-agent", human_baseline=1)
+    dpi_ls.monitor(agent.Graph, agent_id="execution-agents", human_baseline=1)
 
     action_payload = {
         "actionName": "Deploy Production RDS Instance with Terraform",
@@ -1271,4 +1271,4 @@ if __name__ == "__main__":
         command_timeout=180,
     )
     print(response.model_dump_json(indent=2))
-
+
