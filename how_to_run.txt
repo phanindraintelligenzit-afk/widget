@@ -1,10 +1,42 @@
-in cmd terminal
+Instructions for running the DPI-LS Technical Evaluation & Observability Dashboards:
 
-uv sync
-uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
+Before running:
+- Open a PowerShell terminal in the project directory (d:\Projects\widget\widget)
+- Activate the virtual environment in every terminal tab:
+  Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+  .venv\Scripts\Activate.ps1
 
-in other terminal git bash
-./scripts/demo_seed.sh
+--------------------------------------------------
+1. TERMINAL TAB 1 - Start DPI-LS Backend Server
+--------------------------------------------------
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
 
-to run example agent
-uv run examples/run_all.py 
+--------------------------------------------------
+2. TERMINAL TAB 2 - Start MLflow server
+--------------------------------------------------
+uv run mlflow server --host 127.0.0.1 --port 5000
+
+--------------------------------------------------
+3. TERMINAL TAB 3 - Start Arize Phoenix UI Mock
+--------------------------------------------------
+uv run scratch/run_mock_phoenix.py
+
+--------------------------------------------------
+4. TERMINAL TAB 4 - Start Observability UI Mock (Prometheus, Grafana, Langfuse, OTel)
+--------------------------------------------------
+uv run scratch/run_mock_observability.py
+
+--------------------------------------------------
+5. TERMINAL TAB 5 - Run Agent & Technical Evaluation
+--------------------------------------------------
+$env:PYTHONIOENCODING="utf-8"
+uv run examples/test_agent.py
+uv run scratch/verify_all_resources.py
+
+--------------------------------------------------
+6. URLs to Open in Your Web Browser:
+--------------------------------------------------
+- DPI-LS Dashboard:        http://localhost:8000/widget/demo.html?agent=chandra-finops
+- Resource Evaluation UI:  http://localhost:8000/widget/resources.html
+- Arize Phoenix UI:        http://localhost:6006
+- MLflow server:           http://localhost:5000/#/experiments/1
