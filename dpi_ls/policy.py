@@ -22,7 +22,28 @@ try:
     analyzer = AnalyzerEngine()
     log.info("DPI-LS Policy Scanner: Using Presidio NLP Engine.")
 except ImportError:
-    log.debug("DPI-LS Policy Scanner: presidio-analyzer not installed. Governance detection disabled.")
+    log.debug("DPI-LS Policy Scanner: presidio-analyzer not installed. PII detection disabled.")
+
+HAS_DETECT_SECRETS = False
+secrets_plugins = []
+
+try:
+    from detect_secrets.plugins.aws import AWSKeyDetector
+    from detect_secrets.plugins.slack import SlackDetector
+    from detect_secrets.plugins.private_key import PrivateKeyDetector
+    from detect_secrets.plugins.basic_auth import BasicAuthDetector
+    from detect_secrets.plugins.jwt import JwtTokenDetector
+    HAS_DETECT_SECRETS = True
+    secrets_plugins = [
+        AWSKeyDetector(),
+        SlackDetector(),
+        PrivateKeyDetector(),
+        BasicAuthDetector(),
+        JwtTokenDetector()
+    ]
+    log.info("DPI-LS Policy Scanner: Using detect-secrets engine.")
+except ImportError:
+    log.debug("DPI-LS Policy Scanner: detect-secrets not installed. Secrets detection disabled.")
 
 def scan_policy_violations(text: str) -> set[str]:
     """Return the set of raw Presidio entity types found in ``text``.
@@ -45,6 +66,15 @@ def scan_policy_violations(text: str) -> set[str]:
                     seen.add(result.entity_type)
         except Exception as e:
             log.warning("Presidio analysis failed: %s", e)
+            
+    if HAS_DETECT_SECRETS:
+        for plugin in secrets_plugins:
+            try:
+                # analyze_string yields the matched string value itself, not an object
+                for secret_match in plugin.analyze_string(text):
+                    seen.add(type(plugin).__name__)
+            except Exception as e:
+                log.warning("detect-secrets plugin %s failed: %s", type(plugin).__name__, e)
             
     return seen
 

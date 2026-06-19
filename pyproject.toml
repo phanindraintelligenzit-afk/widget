@@ -41,6 +41,7 @@ dependencies = [
     "trulens-providers-bedrock>=2.8.1",
     "trulens-apps-langchain>=2.8.1",
     "requests>=2.34.2",
+    "detect-secrets>=1.5.0",
 ]
 
 [project.optional-dependencies]
