@@ -71,7 +71,7 @@ def check_secrets_leakage(text: str) -> list[str]:
             "AKIA": "AWS Access Key",
             "xoxb-": "Slack Bot Token",
             "-----BEGIN PRIVATE KEY-----": "Private Key",
-            "sk_live_": "Stripe Live Key",
+            "sk_test_": "Stripe Test Key",
             "password": "Password",
             "secret_key": "Secret Key",
         }
@@ -98,7 +98,7 @@ SYSTEM_CONFIG = {
         "token": "xoxb-1234567890-123456789012-abcdef123456",
     },
     "api_service": {
-        "key": "sk_live_9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c",
+        "key": "sk_test_9f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c",
         "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBC8wggQrAgEAAoIBAQC...\n-----END PRIVATE KEY-----",
     },
     "stripe": {

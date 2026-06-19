@@ -96,6 +96,7 @@ class SignalCollector:
 
     # G — governance. Each violation is a (rule, when) tuple.
     violations: list[dict] = field(default_factory=list)
+    policy_evaluations: int = 0
 
     # R — risk. Each incident is a (severity_weight, frequency, source).
     incidents: list[dict] = field(default_factory=list)
@@ -213,11 +214,6 @@ class SignalCollector:
                 self.failed += 1
             if action_name:
                 self.execution_details.append({"name": action_name, "ok": ok})
-            
-            # Log the tool call in the governance list so its length matches total_actions
-            now = _utcnow().isoformat()
-            label = action_name if action_name else "Tool execution"
-            self.violations.append({"rule": "none", "when": now, "action_name": label})
 
     def record_retrieval(
         self,
@@ -361,24 +357,29 @@ class SignalCollector:
                 del self._output_kinds[: len(self._output_kinds) - _MAX_OUTPUT_BUFFER]
         with self._lock:
             self.total_outputs += 1
-        # G: deterministic policy scan over the output text.
-        rules = scan_policy_violations(output)
-        now = _utcnow().isoformat()
-        action_label = system if system else "LLM Generation"
-        if rules:
-            for rule in rules:
-                self.violations.append({"rule": rule, "when": now, "action_name": action_label})
-        else:
-            self.violations.append({"rule": "none", "when": now, "action_name": action_label})
 
-        # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
-        def _scan_and_record():
-            incidents = scan_lakera_risks(output)
-            if incidents:
-                with self._lock:
-                    self.incidents.extend(incidents)
-        
-        _risk_executor.submit(_scan_and_record)
+        if kind == _KIND_AGENT:
+            # G: deterministic policy scan over the output text.
+            rules = scan_policy_violations(output)
+            action_label = system if system else "LLM Generation"
+            
+            with self._lock:
+                self.policy_evaluations += 1
+                now = _utcnow().isoformat()
+                if rules:
+                    for rule in rules:
+                        self.violations.append({"rule": rule, "when": now, "action_name": action_label})
+                else:
+                    self.violations.append({"rule": "none", "when": now, "action_name": action_label})
+
+            # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
+            def _scan_and_record():
+                incidents = scan_lakera_risks(output)
+                if incidents:
+                    with self._lock:
+                        self.incidents.extend(incidents)
+            
+            _risk_executor.submit(_scan_and_record)
         # V: best-effort structural check.
         if _looks_structured(output):
             with self._lock:
@@ -487,7 +488,7 @@ class SignalCollector:
                 "details": self.execution_details,
             },
             "policy": {
-                "total_actions": max(self.attempts, 1),
+                "total_actions": max(self.policy_evaluations, 1),
                 "violations": self.violations,
             },
             "incidents": list(aggregated_incidents.values()),
