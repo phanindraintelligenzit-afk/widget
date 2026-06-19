@@ -139,6 +139,7 @@ def main():
         print("  [OK] Logged cost and validation metrics to MLflow.")
         print("  [OK] Sent trace span to MLflow.")
         print(f"  [OK] MLflow Experiment UI: http://localhost:5000/#/experiments/1")
+        time.sleep(2.0)
     except Exception as e:
         print(f"  [ERROR] Failed to log to MLflow: {e}")
         sys.exit(1)

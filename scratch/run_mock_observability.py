@@ -328,6 +328,10 @@ def get_prometheus_html(data) -> str:
     .targets-table td {{
       font-size: 13px;
     }}
+    .nav-tab-link:hover {{
+      background: rgba(255,255,255,0.05);
+      color: #fff !important;
+    }}
   </style>
 </head>
 <body>
@@ -335,11 +339,16 @@ def get_prometheus_html(data) -> str:
     <div class="logo-container">
       <div class="logo-icon">P</div>
       <div>
-        <h1>Prometheus Expression Browser</h1>
-        <div style="font-size:12px; color:var(--muted)">v3.12.0</div>
+        <h1 style="font-size: 20px; font-weight: 700;">Prometheus</h1>
+        <div style="font-size:12px; color:var(--muted)">Time-Series Metrics</div>
       </div>
     </div>
-    <div class="status-badge">
+    <div class="nav-tabs" style="display:flex; gap:16px; margin-left:40px;">
+      <a href="/" class="nav-tab-link" style="color:#ff7e47; background: rgba(230, 82, 44, 0.1); border: 1px solid rgba(230, 82, 44, 0.2); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px;">Graph</a>
+      <a href="/targets" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Targets</a>
+      <a href="/service-discovery" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Service Discovery</a>
+    </div>
+    <div class="status-badge" style="margin-left:auto;">
       <div class="pulse-dot"></div>
       Server UP (Port 9090)
     </div>
@@ -496,6 +505,315 @@ def get_prometheus_html(data) -> str:
 </html>
 """
 
+def get_prometheus_targets_html(data) -> str:
+  return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Prometheus Scrape Targets</title>
+  <style>
+    {SHARED_STYLES}
+    :root {{
+      --accent: #e6522c;
+      --glow-blue: 0 0 20px rgba(230, 82, 44, 0.3);
+    }}
+    .logo-icon {{
+      background: linear-gradient(135deg, #e6522c, #ff7e47);
+    }}
+    .nav-tab-link:hover {{
+      background: rgba(255,255,255,0.05);
+      color: #fff !important;
+    }}
+    .targets-group {{
+      margin-bottom: 30px;
+    }}
+    .targets-group-header {{
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }}
+    .targets-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 16px;
+    }}
+    .targets-table th, .targets-table td {{
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }}
+    .targets-table th {{
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }}
+    .targets-table td {{
+      font-size: 13px;
+    }}
+    .label-badge {{
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+      margin-right: 4px;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">P</div>
+      <div>
+        <h1 style="font-size: 20px; font-weight: 700;">Prometheus</h1>
+        <div style="font-size:12px; color:var(--muted)">Time-Series Metrics</div>
+      </div>
+    </div>
+    <div class="nav-tabs" style="display:flex; gap:16px; margin-left:40px;">
+      <a href="/" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Graph</a>
+      <a href="/targets" class="nav-tab-link" style="color:#ff7e47; background: rgba(230, 82, 44, 0.1); border: 1px solid rgba(230, 82, 44, 0.2); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px;">Targets</a>
+      <a href="/service-discovery" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Service Discovery</a>
+    </div>
+    <div class="status-badge" style="margin-left:auto;">
+      <div class="pulse-dot"></div>
+      Server UP (Port 9090)
+    </div>
+  </header>
+  
+  <main>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+      <h2 style="font-size: 22px; font-weight: 700; color: #fff;">Targets</h2>
+      <div style="font-size: 13px; color: var(--muted);">
+        Show: <span style="color:#ff7e47; font-weight:600; cursor:pointer;">All (4)</span> | <span style="cursor:pointer;">Active (4)</span> | <span style="cursor:pointer;">Dropped (0)</span>
+      </div>
+    </div>
+
+    <!-- Target Group 1 -->
+    <div class="targets-group">
+      <div class="targets-group-header">
+        <span>chandra-finops-backend</span>
+        <span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-size: 12px; padding: 2px 8px; border-radius: 20px; font-weight: 600;">1 / 1 UP</span>
+      </div>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table class="targets-table">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>State</th>
+              <th>Labels</th>
+              <th>Last Scrape</th>
+              <th>Scrape Duration</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#06b6d4; font-family:monospace; font-weight:600;">http://localhost:8000/metrics</td>
+              <td><span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-weight:600; padding: 2px 6px; border-radius: 4px;">UP</span></td>
+              <td>
+                <span class="label-badge">instance="localhost:8000"</span>
+                <span class="label-badge">job="chandra-finops-backend"</span>
+                <span class="label-badge">env="local"</span>
+              </td>
+              <td>1.2s ago</td>
+              <td>4.2ms</td>
+              <td style="color:var(--muted)">None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Target Group 2 -->
+    <div class="targets-group">
+      <div class="targets-group-header">
+        <span>arize-phoenix</span>
+        <span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-size: 12px; padding: 2px 8px; border-radius: 20px; font-weight: 600;">1 / 1 UP</span>
+      </div>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table class="targets-table">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>State</th>
+              <th>Labels</th>
+              <th>Last Scrape</th>
+              <th>Scrape Duration</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#06b6d4; font-family:monospace; font-weight:600;">http://localhost:6006/metrics</td>
+              <td><span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-weight:600; padding: 2px 6px; border-radius: 4px;">UP</span></td>
+              <td>
+                <span class="label-badge">instance="localhost:6006"</span>
+                <span class="label-badge">job="arize-phoenix"</span>
+              </td>
+              <td>0.8s ago</td>
+              <td>3.1ms</td>
+              <td style="color:var(--muted)">None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Target Group 3 -->
+    <div class="targets-group">
+      <div class="targets-group-header">
+        <span>mlflow</span>
+        <span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-size: 12px; padding: 2px 8px; border-radius: 20px; font-weight: 600;">1 / 1 UP</span>
+      </div>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table class="targets-table">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>State</th>
+              <th>Labels</th>
+              <th>Last Scrape</th>
+              <th>Scrape Duration</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#06b6d4; font-family:monospace; font-weight:600;">http://localhost:5000/metrics</td>
+              <td><span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-weight:600; padding: 2px 6px; border-radius: 4px;">UP</span></td>
+              <td>
+                <span class="label-badge">instance="localhost:5000"</span>
+                <span class="label-badge">job="mlflow"</span>
+              </td>
+              <td>2.4s ago</td>
+              <td>5.0ms</td>
+              <td style="color:var(--muted)">None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Target Group 4 -->
+    <div class="targets-group">
+      <div class="targets-group-header">
+        <span>otel-collector</span>
+        <span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-size: 12px; padding: 2px 8px; border-radius: 20px; font-weight: 600;">1 / 1 UP</span>
+      </div>
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table class="targets-table">
+          <thead>
+            <tr>
+              <th>Endpoint</th>
+              <th>State</th>
+              <th>Labels</th>
+              <th>Last Scrape</th>
+              <th>Scrape Duration</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="color:#06b6d4; font-family:monospace; font-weight:600;">http://localhost:4318/metrics</td>
+              <td><span style="background: rgba(16, 185, 129, 0.15); color: var(--success); font-weight:600; padding: 2px 6px; border-radius: 4px;">UP</span></td>
+              <td>
+                <span class="label-badge">instance="localhost:4318"</span>
+                <span class="label-badge">job="otel-collector"</span>
+              </td>
+              <td>1.8s ago</td>
+              <td>6.2ms</td>
+              <td style="color:var(--muted)">None</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+"""
+
+def get_prometheus_sd_html(data) -> str:
+  return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Prometheus Service Discovery</title>
+  <style>
+    {SHARED_STYLES}
+    :root {{
+      --accent: #e6522c;
+      --glow-blue: 0 0 20px rgba(230, 82, 44, 0.3);
+    }}
+    .logo-icon {{
+      background: linear-gradient(135deg, #e6522c, #ff7e47);
+    }}
+    .nav-tab-link:hover {{
+      background: rgba(255,255,255,0.05);
+      color: #fff !important;
+    }}
+    .sd-card {{
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">P</div>
+      <div>
+        <h1 style="font-size: 20px; font-weight: 700;">Prometheus</h1>
+        <div style="font-size:12px; color:var(--muted)">Time-Series Metrics</div>
+      </div>
+    </div>
+    <div class="nav-tabs" style="display:flex; gap:16px; margin-left:40px;">
+      <a href="/" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Graph</a>
+      <a href="/targets" class="nav-tab-link" style="color:var(--muted); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px; transition: all 0.2s;">Targets</a>
+      <a href="/service-discovery" class="nav-tab-link" style="color:#ff7e47; background: rgba(230, 82, 44, 0.1); border: 1px solid rgba(230, 82, 44, 0.2); text-decoration:none; font-size:14px; font-weight:600; padding:6px 12px; border-radius:4px;">Service Discovery</a>
+    </div>
+    <div class="status-badge" style="margin-left:auto;">
+      <div class="pulse-dot"></div>
+      Server UP (Port 9090)
+    </div>
+  </header>
+  
+  <main>
+    <h2 style="font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 24px;">Service Discovery Status</h2>
+
+    <div class="sd-card">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-weight: 600; font-size: 15px; color: #fff;">static_configs (4 active groups)</span>
+        <span style="color: var(--success); font-size: 12px; font-weight: 600;">ACTIVE</span>
+      </div>
+      <div style="font-size: 13px; color: var(--muted); margin-top: 10px; line-height: 1.6;">
+        Prometheus has discovered 4 target configurations statically via local daemon config.
+        <ul style="margin-left: 20px; margin-top: 8px;">
+          <li>chandra-finops-backend: Discovered 1 target (http://localhost:8000/metrics)</li>
+          <li>arize-phoenix: Discovered 1 target (http://localhost:6006/metrics)</li>
+          <li>mlflow: Discovered 1 target (http://localhost:5000/metrics)</li>
+          <li>otel-collector: Discovered 1 target (http://localhost:4318/metrics)</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
+"""
+
+
 def get_grafana_html(data) -> str:
   val_pct = (data['validated'] / max(data['required'], 1)) * 100
   return f"""<!DOCTYPE html>
@@ -512,13 +830,21 @@ def get_grafana_html(data) -> str:
       --accent: #f99f1b;
       --glow-blue: 0 0 20px rgba(249, 159, 27, 0.2);
     }}
+    body {{
+      flex-direction: row !important;
+    }}
     header {{
       background: #181b1f;
       border-bottom: 2px solid #202226;
+      width: 100%;
     }}
     .logo-icon {{
       background: linear-gradient(135deg, #f99f1b, #f97316);
       color: #111217;
+    }}
+    .menu-item:hover {{
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text) !important;
     }}
     .metric-value {{
       font-size: 32px;
@@ -548,116 +874,419 @@ def get_grafana_html(data) -> str:
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo-container">
-      <div class="logo-icon">G</div>
-      <div>
-        <h1>Grafana - DPI-LS scorecard Dashboard</h1>
-        <div style="font-size:12px; color:var(--muted)">Home / Dashboards / AI Agents / Digital FTE Index</div>
-      </div>
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar" style="width: 250px; background: #111217; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; padding: 20px 10px; gap: 20px;">
+    <div class="logo-container" style="display: flex; align-items: center; gap: 12px; padding: 0 10px;">
+      <div class="logo-icon" style="background: linear-gradient(135deg, #f99f1b, #f97316); color: #111217; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">G</div>
+      <h1 style="font-size: 18px; font-weight: 700; color: #fff;">Grafana</h1>
     </div>
-    <div class="status-badge">
-      <div class="pulse-dot"></div>
-      Grafana Live (Port 3000)
+    <div class="sidebar-menu" style="display: flex; flex-direction: column; gap: 6px;">
+      <a href="/" class="menu-item active" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #c084fc; background: rgba(249, 159, 27, 0.1); border: 1px solid rgba(249, 159, 27, 0.2); text-decoration: none;">
+        <span class="menu-item-icon">📊</span> Dashboards
+      </a>
+      <a href="/datasources" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">🔌</span> Data Sources
+      </a>
+      <a href="http://localhost:8000/widget/resources.html" target="_blank" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">📋</span> Resource Eval UI
+      </a>
+      <a href="/explore" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">🔍</span> Explore
+      </a>
     </div>
-  </header>
-  <main>
-    <div class="panel-grid">
-      <div class="card">
-        <div class="card-title">Digital FTE composite score</div>
-        <div class="metric-value" style="color:var(--success)">{data['score']:.2f} <span style="font-size:14px; font-weight:400; color:var(--muted)">/ 100</span></div>
-        <div class="metric-sub">
-          <span style="font-size:14px">▲</span> 2.1% improvement (last 24h)
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Total Cost of Ownership (TCO)</div>
-        <div class="metric-value">${data['total_cost']:.2f} <span style="font-size:14px; font-weight:400; color:var(--muted)">/ task</span></div>
-        <div class="metric-sub" style="color:#06b6d4">
-          <span>▼</span> -12.4% cost reduction
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Validation Compliance</div>
-        <div class="metric-value">{val_pct:.1f}%</div>
-        <div class="metric-sub">
-          <span>✓</span> Audit checklist fully compliant
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">Metric Scraping Rate</div>
-        <div class="metric-value">0.33 <span style="font-size:14px; font-weight:400; color:var(--muted)">req / sec</span></div>
-        <div class="metric-sub">
-          <span>✓</span> Active (Prometheus metrics collector)
-        </div>
-      </div>
+    <div class="sidebar-footer" style="margin-top: auto; padding: 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border);">
+      <div>Grafana v10.4.1</div>
+      <div>Local Host Integration</div>
     </div>
+  </div>
 
-    <div class="grid" style="grid-template-columns: 2fr 1fr; gap:20px">
-      <div class="card" style="height: 400px; display:flex; flex-direction:column">
-        <div class="card-title">Dimension Breakdown Over Time</div>
-        <div style="flex:1; border:1px solid var(--border); border-radius:12px; background:rgba(0,0,0,0.15); padding:10px; overflow:hidden">
-          <svg style="width:100%; height:100%" viewBox="0 0 800 300">
-            <!-- Grid lines -->
-            <line x1="50" y1="50" x2="750" y2="50" stroke="#222" />
-            <line x1="50" y1="125" x2="750" y2="125" stroke="#222" />
-            <line x1="50" y1="200" x2="750" y2="200" stroke="#222" />
-            <line x1="50" y1="275" x2="750" y2="275" stroke="var(--border)" />
+  <!-- MAIN CONTENT AREA -->
+  <div class="content-area" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+    <header>
+      <div class="logo-container">
+        <div>
+          <h1>Grafana - DPI-LS scorecard Dashboard</h1>
+          <div style="font-size:12px; color:var(--muted)">Home / Dashboards / AI Agents / Digital FTE Index</div>
+        </div>
+      </div>
+      <div class="status-badge">
+        <div class="pulse-dot"></div>
+        Grafana Live (Port 3000)
+      </div>
+    </header>
+    <main>
+      <div class="panel-grid">
+        <div class="card">
+          <div class="card-title">Digital FTE composite score</div>
+          <div class="metric-value" style="color:var(--success)">{data['score']:.2f} <span style="font-size:14px; font-weight:400; color:var(--muted)">/ 100</span></div>
+          <div class="metric-sub">
+            <span style="font-size:14px">▲</span> 2.1% improvement (last 24h)
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Total Cost of Ownership (TCO)</div>
+          <div class="metric-value">${data['total_cost']:.2f} <span style="font-size:14px; font-weight:400; color:var(--muted)">/ task</span></div>
+          <div class="metric-sub" style="color:#06b6d4">
+            <span>▼</span> -12.4% cost reduction
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Validation Compliance</div>
+          <div class="metric-value">{val_pct:.1f}%</div>
+          <div class="metric-sub">
+            <span>✓</span> Audit checklist fully compliant
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Metric Scraping Rate</div>
+          <div class="metric-value">0.33 <span style="font-size:14px; font-weight:400; color:var(--muted)">req / sec</span></div>
+          <div class="metric-sub">
+            <span>✓</span> Active (Prometheus metrics collector)
+          </div>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns: 2fr 1fr; gap:20px">
+        <div class="card" style="height: 400px; display:flex; flex-direction:column">
+          <div class="card-title">Dimension Breakdown Over Time</div>
+          <div style="flex:1; border:1px solid var(--border); border-radius:12px; background:rgba(0,0,0,0.15); padding:10px; overflow:hidden">
+            <svg style="width:100%; height:100%" viewBox="0 0 800 300">
+              <!-- Grid lines -->
+              <line x1="50" y1="50" x2="750" y2="50" stroke="#222" />
+              <line x1="50" y1="125" x2="750" y2="125" stroke="#222" />
+              <line x1="50" y1="200" x2="750" y2="200" stroke="#222" />
+              <line x1="50" y1="275" x2="750" y2="275" stroke="var(--border)" />
+              
+              <!-- Curves -->
+              <!-- Q (Quality): teal -->
+              <path fill="none" stroke="#06b6d4" stroke-width="2.5" d="M 50 150 Q 200 130 350 90 T 700 80" />
+              <!-- G (Governance): green -->
+              <path fill="none" stroke="var(--success)" stroke-width="2.5" d="M 50 90 Q 200 85 350 75 T 700 75" />
+              <!-- C (Cost): orange -->
+              <path fill="none" stroke="var(--accent)" stroke-width="2.5" d="M 50 220 Q 200 210 350 180 T 700 120" />
+              
+              <circle cx="700" cy="80" r="4" fill="#06b6d4"/>
+              <circle cx="700" cy="75" r="4" fill="var(--success)"/>
+              <circle cx="700" cy="120" r="4" fill="var(--accent)"/>
+
+              <legend>
+                <text x="60" y="40" fill="var(--success)" font-size="11">Governance (G)</text>
+                <text x="200" y="40" fill="#06b6d4" font-size="11">Quality (Q)</text>
+                <text x="320" y="40" fill="var(--accent)" font-size="11">Cost (C)</text>
+              </legend>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card" style="display:flex; flex-direction:column">
+          <div class="card-title">Prometheus Targets Status</div>
+          <div style="flex:1; display:flex; flex-direction:column; gap:12px; justify-content:center">
+            <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
+              <div>
+                <div style="font-weight:600; font-size:14px">prometheus_endpoint</div>
+                <div style="font-size:11px; color:var(--muted)">http://localhost:8000/metrics</div>
+              </div>
+              <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
+            </div>
             
-            <!-- Curves -->
-            <!-- Q (Quality): teal -->
-            <path fill="none" stroke="#06b6d4" stroke-width="2.5" d="M 50 150 Q 200 130 350 90 T 700 80" />
-            <!-- G (Governance): green -->
-            <path fill="none" stroke="var(--success)" stroke-width="2.5" d="M 50 90 Q 200 85 350 75 T 700 75" />
-            <!-- C (Cost): orange -->
-            <path fill="none" stroke="var(--accent)" stroke-width="2.5" d="M 50 220 Q 200 210 350 180 T 700 120" />
-            
-            <circle cx="700" cy="80" r="4" fill="#06b6d4"/>
-            <circle cx="700" cy="75" r="4" fill="var(--success)"/>
-            <circle cx="700" cy="120" r="4" fill="var(--accent)"/>
-
-            <legend>
-              <text x="60" y="40" fill="var(--success)" font-size="11">Governance (G)</text>
-              <text x="200" y="40" fill="#06b6d4" font-size="11">Quality (Q)</text>
-              <text x="320" y="40" fill="var(--accent)" font-size="11">Cost (C)</text>
-            </legend>
-          </svg>
-        </div>
-      </div>
-
-      <div class="card" style="display:flex; flex-direction:column">
-        <div class="card-title">Prometheus Targets Status</div>
-        <div style="flex:1; display:flex; flex-direction:column; gap:12px; justify-content:center">
-          <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
-            <div>
-              <div style="font-weight:600; font-size:14px">prometheus_endpoint</div>
-              <div style="font-size:11px; color:var(--muted)">http://localhost:8000/metrics</div>
+            <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
+              <div>
+                <div style="font-weight:600; font-size:14px">otel_exporter_endpoint</div>
+                <div style="font-size:11px; color:var(--muted)">http://localhost:4317</div>
+              </div>
+              <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
             </div>
-            <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
-          </div>
-          
-          <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
-            <div>
-              <div style="font-weight:600; font-size:14px">otel_exporter_endpoint</div>
-              <div style="font-size:11px; color:var(--muted)">http://localhost:4317</div>
-            </div>
-            <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
-          </div>
 
-          <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
-            <div>
-              <div style="font-weight:600; font-size:14px">langfuse_webhook</div>
-              <div style="font-size:11px; color:var(--muted)">http://localhost:4000</div>
+            <div style="display:flex; justify-content:space-between; padding:12px; background:rgba(255,255,255,0.02); border-radius:8px; border-left:4px solid var(--success)">
+              <div>
+                <div style="font-weight:600; font-size:14px">langfuse_webhook</div>
+                <div style="font-size:11px; color:var(--muted)">http://localhost:4000</div>
+              </div>
+              <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
             </div>
-            <div style="color:var(--success); font-weight:600; font-size:13px">ONLINE</div>
           </div>
         </div>
       </div>
+    </main>
+  </div>
+</body>
+</html>
+"""
+
+def get_grafana_datasources_html(data) -> str:
+  return f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Grafana - Data Sources Configuration</title>
+  <style>
+    {SHARED_STYLES}
+    :root {{
+      --bg: #111217;
+      --panel-bg: #181b1f;
+      --border: #2c323d;
+      --accent: #f99f1b;
+      --glow-blue: 0 0 20px rgba(249, 159, 27, 0.2);
+    }}
+    body {{
+      flex-direction: row !important;
+    }}
+    header {{
+      background: #181b1f;
+      border-bottom: 2px solid #202226;
+      width: 100%;
+    }}
+    .logo-icon {{
+      background: linear-gradient(135deg, #f99f1b, #f97316);
+      color: #111217;
+    }}
+    .menu-item:hover {{
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text) !important;
+    }}
+    .ds-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }}
+    .ds-table th, .ds-table td {{
+      padding: 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }}
+    .ds-table th {{
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      font-weight: 600;
+    }}
+    .ds-table tr:hover {{
+      background: rgba(255, 255, 255, 0.01);
+    }}
+    .ds-card-logo {{
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 16px;
+      color: #fff;
+    }}
+    .btn-secondary {{
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }}
+    .btn-secondary:hover {{
+      background: rgba(255, 255, 255, 0.1);
+    }}
+  </style>
+</head>
+<body>
+  <!-- LEFT SIDEBAR -->
+  <div class="sidebar" style="width: 250px; background: #111217; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; padding: 20px 10px; gap: 20px;">
+    <div class="logo-container" style="display: flex; align-items: center; gap: 12px; padding: 0 10px;">
+      <div class="logo-icon" style="background: linear-gradient(135deg, #f99f1b, #f97316); color: #111217; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px;">G</div>
+      <h1 style="font-size: 18px; font-weight: 700; color: #fff;">Grafana</h1>
     </div>
-  </main>
+    <div class="sidebar-menu" style="display: flex; flex-direction: column; gap: 6px;">
+      <a href="/" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">📊</span> Dashboards
+      </a>
+      <a href="/datasources" class="menu-item active" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; color: #c084fc; background: rgba(249, 159, 27, 0.1); border: 1px solid rgba(249, 159, 27, 0.2); text-decoration: none;">
+        <span class="menu-item-icon">🔌</span> Data Sources
+      </a>
+      <a href="http://localhost:8000/widget/resources.html" target="_blank" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">📋</span> Resource Eval UI
+      </a>
+      <a href="/explore" class="menu-item" style="display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; color: var(--muted); text-decoration: none; transition: background 0.2s;">
+        <span class="menu-item-icon">🔍</span> Explore
+      </a>
+    </div>
+    <div class="sidebar-footer" style="margin-top: auto; padding: 10px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border);">
+      <div>Grafana v10.4.1</div>
+      <div>Local Host Integration</div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="content-area" style="flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
+    <header>
+      <div class="logo-container">
+        <div>
+          <h1>Connections</h1>
+          <div style="font-size:12px; color:var(--muted)">Home / Connections / Data sources</div>
+        </div>
+      </div>
+      <div class="status-badge">
+        <div class="pulse-dot"></div>
+        Grafana Live (Port 3000)
+      </div>
+    </header>
+    
+    <main style="padding: 40px; max-width: 1200px; margin: 0; width: 100%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+          <h2 style="font-size: 22px; font-weight: 700; color: #fff;">Data sources</h2>
+          <p style="font-size: 13px; color: var(--muted); margin-top: 4px;">Data sources configured for the DPI-LS observability system</p>
+        </div>
+        <button class="btn" style="padding: 10px 16px; font-size: 13px; font-weight: 600;">Add data source</button>
+      </div>
+
+      <div class="card" style="padding: 0; overflow: hidden;">
+        <table class="ds-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Endpoint / Path</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #e6522c, #ff7e47);">P</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">Prometheus <span style="background: rgba(249, 159, 27, 0.15); color: #f99f1b; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold;">default</span></div>
+                    <div style="font-size: 11px; color: var(--muted);">Primary Infrastructure Metrics</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">Prometheus</td>
+              <td style="font-family: monospace; font-size: 12px; color: #06b6d4;">http://localhost:9090</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Active (4 Targets UP)
+                </div>
+              </td>
+              <td><button class="btn-secondary" onclick="window.open('http://localhost:9090')">Explore</button></td>
+            </tr>
+            
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #7c3aed, #db2777);">🦅</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">Arize Phoenix</div>
+                    <div style="font-size: 11px; color: var(--muted);">LLM Traces & Evaluations</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">OTLP Trace Engine</td>
+              <td style="font-family: monospace; font-size: 12px; color: #06b6d4;">http://localhost:6006</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Active
+                </div>
+              </td>
+              <td><button class="btn-secondary" onclick="window.open('http://localhost:6006')">Explore</button></td>
+            </tr>
+
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #2563eb, #3b82f6);">L</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">Langfuse</div>
+                    <div style="font-size: 11px; color: var(--muted);">Agent Trace Explorer</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">Langfuse API</td>
+              <td style="font-family: monospace; font-size: 12px; color: #06b6d4;">http://localhost:4000</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Connected
+                </div>
+              </td>
+              <td><button class="btn-secondary" onclick="window.open('http://localhost:4000')">Explore</button></td>
+            </tr>
+
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #6246ea, #7f5af0);">O</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">OpenTelemetry</div>
+                    <div style="font-size: 11px; color: var(--muted);">OTel Collector Ingest</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">OTLP gRPC</td>
+              <td style="font-family: monospace; font-size: 12px; color: #06b6d4;">http://localhost:4317</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Receiving Spans
+                </div>
+              </td>
+              <td><button class="btn-secondary" onclick="window.open('http://localhost:4317')">Explore</button></td>
+            </tr>
+
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #0ea5e9, #38bdf8);">🧪</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">MLflow</div>
+                    <div style="font-size: 11px; color: var(--muted);">MLOps Experiment Tracking</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">MLflow Server</td>
+              <td style="font-family: monospace; font-size: 12px; color: #06b6d4;">http://localhost:5000</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Active
+                </div>
+              </td>
+              <td><button class="btn-secondary" onclick="window.open('http://localhost:5000')">Explore</button></td>
+            </tr>
+
+            <tr>
+              <td>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div class="ds-card-logo" style="background: linear-gradient(135deg, #4b5563, #6b7280);">💾</div>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px; color: #fff;">dpi_ls.db</div>
+                    <div style="font-size: 11px; color: var(--muted);">Local SQLite Master Store</div>
+                  </div>
+                </div>
+              </td>
+              <td style="font-family: monospace; font-size: 12px; color: var(--muted);">SQLite Database</td>
+              <td style="font-family: monospace; font-size: 11px; color: #f59e0b;">d:\\Projects\\widget\\widget\\dpi_ls.db</td>
+              <td>
+                <div style="display: flex; align-items: center; gap: 6px; color: var(--success); font-size: 12px; font-weight: 600;">
+                  <div style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></div>
+                  Connected
+                </div>
+              </td>
+              <td><button class="btn-secondary">Test Connection</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
 </body>
 </html>
 """
@@ -948,33 +1577,47 @@ class MockHTTPRequestHandler(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
-        port = self.server.server_port
-        
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        
-        data = get_latest_data()
-        
-        if port == 9090:
-            self.wfile.write(get_prometheus_html(data).encode("utf-8"))
-        elif port == 3000:
-            self.wfile.write(get_grafana_html(data).encode("utf-8"))
-        elif port == 4000:
-            self.wfile.write(get_langfuse_html(data).encode("utf-8"))
-        else:
-            self.wfile.write(b"Mock Server running successfully.")
+        try:
+            port = self.server.server_port
+            
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            
+            data = get_latest_data()
+            
+            if port == 9090:
+                if self.path.startswith("/targets"):
+                    self.wfile.write(get_prometheus_targets_html(data).encode("utf-8"))
+                elif self.path.startswith("/service-discovery"):
+                    self.wfile.write(get_prometheus_sd_html(data).encode("utf-8"))
+                else:
+                    self.wfile.write(get_prometheus_html(data).encode("utf-8"))
+            elif port == 3000:
+                if self.path.startswith("/datasources") or self.path.startswith("/connections"):
+                    self.wfile.write(get_grafana_datasources_html(data).encode("utf-8"))
+                else:
+                    self.wfile.write(get_grafana_html(data).encode("utf-8"))
+            elif port == 4000:
+                self.wfile.write(get_langfuse_html(data).encode("utf-8"))
+            else:
+                self.wfile.write(b"Mock Server running successfully.")
+        except (ConnectionAbortedError, ConnectionResetError, OSError):
+            pass
 
     def do_POST(self):
-        # Accept telemetry posts to simulate receivers
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.wfile.write(b'{"status": "success", "message": "Telemetry accepted"}')
+        try:
+            # Accept telemetry posts to simulate receivers
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(b'{"status": "success", "message": "Telemetry accepted"}')
+        except (ConnectionAbortedError, ConnectionResetError, OSError):
+            pass
 
 def handle_otel_conn(conn):
     try:

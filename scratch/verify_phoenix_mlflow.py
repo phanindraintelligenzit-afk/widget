@@ -112,6 +112,7 @@ def main():
                 print("  [OK] Sent trace span to MLflow.")
             except Exception as trace_err:
                 print(f"  [WARNING] Failed to send trace to MLflow: {trace_err}")
+        time.sleep(2.0)
     except Exception as e:
         print(f"  [ERROR] Failed to log to MLflow: {e}")
         traceback.print_exc()

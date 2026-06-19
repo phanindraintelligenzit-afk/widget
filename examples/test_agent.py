@@ -364,7 +364,7 @@ if __name__ == "__main__":
     # Keep the dashboard alive for browsing
     from dpi_ls import _state
     info = _state.get_server_info()
-    if info is not None:
+    if info is not None and os.getenv("DPI_LS_NO_BLOCK") != "1":
         print(f"Dashboard is live → open  {info.base_url}  in your browser.")
         try:
             input("Press Enter to exit ...")
