@@ -33,9 +33,9 @@ def main():
     print("  [1/3] Running full technical evaluation …")
     try:
         results = call("POST", "/api/cost-evaluation/evaluate")
-        print(f"  ✓  Evaluation complete: {len(results)} metric rows saved")
+        print(f"  [V]  Evaluation complete: {len(results)} metric rows saved")
     except Exception as e:
-        print(f"  ✗  Evaluation failed: {e}")
+        print(f"  [X]  Evaluation failed: {e}")
         print("     Make sure the backend is running:  uv run uvicorn api.app:app --host 127.0.0.1 --port 8000")
         sys.exit(1)
 
@@ -47,9 +47,9 @@ def main():
         try:
             call("POST", "/api/cost-evaluation/verify-dashboard",
                  {"resource_name": res, "metric": None})
-            print(f"       ✓  {res}")
+            print(f"       [V]  {res}")
         except Exception as e:
-            print(f"       ✗  {res}: {e}")
+            print(f"       [X]  {res}: {e}")
     time.sleep(0.5)
 
     # Step 3 — Fetch and summarise results
@@ -58,7 +58,7 @@ def main():
     try:
         rows = call("GET", "/api/cost-evaluation/results")
     except Exception as e:
-        print(f"  ✗  Could not fetch results: {e}")
+        print(f"  [X]  Could not fetch results: {e}")
         sys.exit(1)
 
     GROUPS = {
@@ -93,12 +93,12 @@ def main():
                 continue
             print(f"    {GROUP_COLOR[grp_key]}")
             for m in grp_rows:
-                icon = "True ✓" if m.get("detected") else "False ✗"
+                icon = "[V]" if m.get("detected") else "[X]"
                 val = m.get("current_value", "0.0")
                 print(f"      {m['metric']:<30} {val:<12} {icon}")
 
     print()
-    print("  ✅ Done! Open http://localhost:8000/widget/resources.html to see the full UI.")
+    print("  [V] Done! Open http://localhost:8000/widget/resources.html to see the full UI.")
     print()
 
 
