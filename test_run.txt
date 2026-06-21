@@ -1,0 +1,171 @@
+================================================================
+  DPI-LS PROJECT — COMPLETE RUN GUIDE (Start to End)
+  Project: D:\Projects\widget\widget
+  Branch:  claude/gallant-dirac-02u1M
+================================================================
+
+STEP 0 — ONE-TIME SETUP (run only first time)
+----------------------------------------------------------------
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+
+
+================================================================
+  OPEN 4 TERMINAL TABS AND RUN EACH COMMAND IN ORDER
+================================================================
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  TAB 1 — BACKEND SERVER  (Start this FIRST)                  │
+└──────────────────────────────────────────────────────────────┘
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+
+  → Wait until you see: "Uvicorn running on http://127.0.0.1:8000"
+  → Keep this tab open. Do NOT close it.
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  TAB 2 — MOCK SERVICES (Prometheus, Grafana, Langfuse, OTel) │
+└──────────────────────────────────────────────────────────────┘
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run scratch/run_mock_observability.py
+
+  → Wait until you see ports starting (3000, 4000, 4317)
+  → NOTE: Port 9090 may show [SKIP] — that is NORMAL (real Prometheus on 9090)
+  → Keep this tab open.
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  TAB 3 — MOCK PHOENIX UI (Port 6006)                         │
+└──────────────────────────────────────────────────────────────┘
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run python scratch/run_mock_phoenix.py
+
+  → Wait until you see: "Phoenix mock started on http://127.0.0.1:6006"
+  → Keep this tab open.
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  TAB 4 — RUN EVALUATION (Run after Tabs 1, 2, 3 are ready)  │
+└──────────────────────────────────────────────────────────────┘
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run python scratch/run_evaluation.py
+
+  → This runs the full DPI-LS evaluation.
+  → You will see a summary table with Cost, Validation, Quality metrics.
+  → True ✓ means detected. False ✗ means not detected.
+  → Run this command AGAIN if you want to re-evaluate.
+
+
+================================================================
+  OPEN THESE URLS IN BROWSER (after all 4 tabs are running)
+================================================================
+
+  Main DPI-LS Dashboard:
+    http://localhost:8000/widget/index.html
+
+  Resources Page (Cost / Validation / Quality cards):
+    http://localhost:8000/widget/resources.html
+
+  Prometheus UI:
+    http://localhost:9090
+
+  Grafana Dashboard:
+    http://localhost:3000
+
+  Langfuse Trace Explorer:
+    http://localhost:4000
+
+  Arize Phoenix UI:
+    http://localhost:6006
+
+  MLflow UI:
+    http://localhost:5000
+
+
+================================================================
+  WHAT YOU WILL SEE IN THE RESOURCES PAGE
+================================================================
+
+  6 Resources (cards):
+    1. Langfuse          — LLM Observability     (PRIMARY)
+    2. Arize Phoenix     — LLM Eval              (PRIMARY)
+    3. OpenTelemetry     — Instrumentation       (FOUNDATIONAL)
+    4. Prometheus        — Infrastructure        (RECOMMENDED)
+    5. Grafana           — Metrics Visualization (RECOMMENDED)
+    6. MLflow            — MLOps Registry        (CANDIDATE)
+
+  3 Metric Groups per resource:
+    💰 Cost (C)      — 8 metrics: Model Cost, Token Cost,
+                       Prompt Cost, Completion Cost,
+                       AI Cost/Output, Human Cost/Output,
+                       Utilization, Total Cost (TCO)
+
+    ✅ Validation (V) — 3 metrics: Required Components,
+                        Validated Components, Validation Score
+
+    🧬 Quality (Q)   — 5 metrics: Hallucination Score,
+                        Relevance Score, Groundedness Score,
+                        User Feedback Score, Model Correctness
+
+  5-Step Workflow per resource:
+    Step 1: Setup ✓
+    Step 2: Instrument ✓
+    Step 3: Execute ✓
+    Step 4: Validate ✓
+    Step 5: Document ✓
+
+
+================================================================
+  7 DPI-LS PARAMETERS (Full Dashboard)
+================================================================
+
+  P — Performance      (latency, throughput, uptime)
+  Q — Quality          (hallucination, relevance, groundedness)
+  E — Execution        (agent steps, task completion)
+  G — Governance       (compliance, audit, traceability)
+  R — Risk             (failure rate, anomaly detection)
+  V — Validation       (component checks, schema validation)
+  C — Cost             (model cost, token cost, TCO)
+
+  C and V — managed in Resources Page (your current work)
+  P, Q, E, G, R — shown in Main DPI-LS Dashboard
+
+
+================================================================
+  BUTTON ACTIONS IN RESOURCES PAGE
+================================================================
+
+  "Run Evaluation" button → Runs full C/V/Q evaluation for all 6 resources
+  "Open UI" buttons       → Opens the resource dashboard in a new browser tab
+  "Mark Verified" button  → Marks Step 5 (Document) as complete for that resource
+  Filter buttons          → SUCCESS (all metrics True), FAILED (some False), ALL
+
+
+================================================================
+  STOP ALL SERVICES
+================================================================
+
+  In each terminal tab: press CTRL + C
+
+
+================================================================
+  GIT — Push latest changes
+================================================================
+
+  cd d:\Projects\widget\widget
+  git add .
+  git status
+  git commit -m "your message here"
+  git push origin HEAD:claude/gallant-dirac-02u1M
+
+
+================================================================
+  END OF GUIDE
+================================================================
