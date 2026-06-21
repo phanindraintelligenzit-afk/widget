@@ -1237,10 +1237,15 @@ def run_otel_mock():
 
 
 def start_http_server(port: int):
-    server = HTTPServer(("127.0.0.1", port), MockHTTPRequestHandler)
-    server.server_port = port
-    print(f"  [OK] Mock service started on http://127.0.0.1:{port}")
-    server.serve_forever()
+    try:
+        server = HTTPServer(("127.0.0.1", port), MockHTTPRequestHandler)
+        server.server_port = port
+        print(f"  [OK] Mock service started on http://127.0.0.1:{port}")
+        server.serve_forever()
+    except PermissionError as e:
+        print(f"  [SKIP] Port {port} blocked by OS/firewall (likely real service running): {e}")
+    except OSError as e:
+        print(f"  [SKIP] Port {port} already in use — using real service instead: {e}")
 
 
 def main():

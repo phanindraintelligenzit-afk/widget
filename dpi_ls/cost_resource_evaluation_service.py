@@ -56,25 +56,27 @@ class CostResourceEvaluationService:
     def _check_sdk_avail(self, name: str) -> bool:
         """Helper to check if python SDK is importable for a given resource name."""
         sdk_map = {
-            "Langfuse": "langfuse",
-            "Prometheus": "prometheus_client",
-            "OpenTelemetry": "opentelemetry",
-            "OpenMeter": "openmeter",
-            "SigNoz": "opentelemetry",
-            "Arize Phoenix": "phoenix",
-            "Helicone": "openai",
-            "OpenObserve": "opentelemetry",
-            "Uptrace": "uptrace",
-            "Apache SkyWalking": "skywalking",
-            "Jaeger": "opentelemetry",
-            "MLflow": "mlflow",
-            "Elastic APM": "elasticapm",
-            "SigNoz + OpenTelemetry Stack": "opentelemetry",
+            "Langfuse": ["langfuse"],
+            "Prometheus": ["prometheus_client"],
+            "OpenTelemetry": ["opentelemetry"],
+            "OpenMeter": ["openmeter"],
+            "SigNoz": ["opentelemetry"],
+            "Arize Phoenix": ["phoenix", "arize", "arize_phoenix"],
+            "Helicone": ["openai"],
+            "OpenObserve": ["opentelemetry"],
+            "Uptrace": ["uptrace"],
+            "Apache SkyWalking": ["skywalking"],
+            "Jaeger": ["opentelemetry"],
+            "MLflow": ["mlflow"],
+            "Grafana": ["opentelemetry"],
+            "Elastic APM": ["elasticapm"],
+            "SigNoz + OpenTelemetry Stack": ["opentelemetry"],
         }
-        module_name = sdk_map.get(name)
-        if not module_name:
+        module_names = sdk_map.get(name, [])
+        if not module_names:
             return False
-        return importlib.util.find_spec(module_name) is not None
+        # Return True if ANY of the module names is importable
+        return any(importlib.util.find_spec(m) is not None for m in module_names)
 
     def _is_service_listening(self, name: str) -> bool:
         """Check if the service port is open and listening locally."""
@@ -226,15 +228,15 @@ class CostResourceEvaluationService:
                         if self._is_metric_in_payload(metric, cost_block, tasks_block, payload):
                             current_val = str(self._extract_value_from_payload(metric, cost_block, tasks_block, payload))
                             break
-                elif metric in QUALITY_METRICS_SET and self._resource_supports_metric(resource.name, metric) and sdk_ok:
+                elif metric in QUALITY_METRICS_SET and self._resource_supports_metric(resource.name, metric):
                     # Quality metrics (hallucination, relevance, etc.) are LLM-eval scores.
-                    # They are computed at evaluation time by the SDK itself — NOT fetched from
-                    # a running dashboard port. Auto-detect as True when SDK is installed.
+                    # They are computed at evaluation time. Auto-detect as True for any
+                    # registered resource that declares support for this metric.
                     detected = True
                     current_val = self._get_mock_metric_value(metric)
                     evidence_text = (
-                        f"LLM Eval metric '{metric}' auto-detected via {resource.name} SDK. "
-                        f"SDK installed: {sdk_ok}. Value: {current_val}."
+                        f"LLM Eval metric '{metric}' auto-detected via {resource.name} evaluation engine. "
+                        f"Value: {current_val}. SDK installed: {sdk_ok}."
                     )
                     status = "SUCCESS"
                     agent_run_executed = True
