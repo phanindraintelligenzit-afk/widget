@@ -362,6 +362,20 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Langfuse flush skipped: {exc}")
 
+    # Automatically trigger the Cost/Validation/Quality resource evaluation pipeline
+    try:
+        import urllib.request
+        import urllib.parse
+        host = os.getenv("DPI_LS_HOST", "127.0.0.1")
+        port = os.getenv("DPI_LS_PORT", "8000")
+        url = f"http://{host}:{port}/api/cost-evaluation/evaluate"
+        req = urllib.request.Request(url, method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+                print("Resource evaluation triggered successfully (Cost/Validation/Quality metrics updated).")
+    except Exception as e:
+        print(f"Failed to trigger resource evaluation: {e}")
+
     # Keep the dashboard alive for browsing
     from dpi_ls import _state
     info = _state.get_server_info()
