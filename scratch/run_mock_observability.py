@@ -29,8 +29,8 @@ def get_latest_data():
         row = cursor.fetchone()
         score = 94.42
         model_cost = 1.24
-        from dpi_ls import _state
-        human_cost = _state.get_settings().human_cost_per_output
+        from contract.settings import Settings
+        human_cost = Settings().human_cost_per_output
         total_cost = 51.24
         input_tokens = 120000
         output_tokens = 40000
@@ -44,8 +44,8 @@ def get_latest_data():
                 details = json.loads(row[3])
                 cost_dict = details.get("C", {})
                 model_cost = cost_dict.get("model_cost", 1.24)
-                from dpi_ls import _state
-                default_hc = _state.get_settings().human_cost_per_output
+                from contract.settings import Settings
+                default_hc = Settings().human_cost_per_output
                 human_cost = cost_dict.get("Human_cost", default_hc)
                 total_cost = model_cost + human_cost
                 input_tokens = cost_dict.get("input_tokens", 120000)
@@ -66,8 +66,8 @@ def get_latest_data():
             "validated": validated, "accuracy": accuracy, "hallucination": hallucination,
         }
     except Exception:
-        from dpi_ls import _state
-        default_hc = _state.get_settings().human_cost_per_output
+        from contract.settings import Settings
+        default_hc = Settings().human_cost_per_output
         return {
             "score": 94.42, "model_cost": 1.24, "human_cost": default_hc,
             "total_cost": 51.24, "input_tokens": 120000, "output_tokens": 40000,
