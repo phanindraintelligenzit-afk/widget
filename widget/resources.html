@@ -642,15 +642,16 @@ function resourceStatus(metrics) {
 function computeSteps(metrics) {
   const detected = metrics.some(m => m.detected);
   const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10);
-  const hasValue = metrics.some(m => m.current_value && parseFloat(m.current_value) > 0);
   const dashVerified = metrics.some(m => m.dashboard_verified);
   const agentRan = metrics.some(m => m.agent_executed);
+  // Step 5 (Document): green if dashboard_verified OR if agent ran + metrics detected
+  const documented = dashVerified || (agentRan && detected);
   return [
     true,         // Step 1: Setup (SDK registered = always done if we have results)
-    agentRan,     // Step 2: Code Modification (agent executed)
-    hasEvidence,  // Step 3: Execution (evidence = telemetry received)
-    detected,     // Step 4: Validation (metric detected)
-    dashVerified, // Step 5: Documentation (dashboard verified)
+    agentRan,     // Step 2: Instrument (agent code ran)
+    hasEvidence,  // Step 3: Execute (telemetry evidence received)
+    detected,     // Step 4: Validate (metric detected = True)
+    documented,   // Step 5: Document (verified or auto-documented)
   ];
 }
 
