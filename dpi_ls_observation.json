@@ -1,8 +1,8 @@
 {
   "agent_id": "chandra-finops",
   "agent_name": "Chandra",
-  "period_start": "2026-06-19T07:57:02.596578+00:00",
-  "period_end": "2026-06-19T07:57:26.111067+00:00",
+  "period_start": "2026-06-19T12:21:22.126282+00:00",
+  "period_end": "2026-06-19T12:21:59.227752+00:00",
   "tasks": {
     "assigned": 1,
     "completed": 1,
@@ -23,12 +23,12 @@
     "violations": [
       {
         "rule": "none",
-        "when": "2026-06-19T07:57:09.994412+00:00",
+        "when": "2026-06-19T12:21:32.438870+00:00",
         "action_name": "LLM Generation"
       },
       {
         "rule": "none",
-        "when": "2026-06-19T07:57:26.106447+00:00",
+        "when": "2026-06-19T12:21:59.225864+00:00",
         "action_name": "LLM Generation"
       }
     ]
@@ -40,9 +40,9 @@
     "audit_ready": true
   },
   "cost": {
-    "input_tokens": 3055,
-    "output_tokens": 1009,
-    "model_cost": 0.004064,
+    "input_tokens": 3125,
+    "output_tokens": 1160,
+    "model_cost": 0.004285,
     "number_of_llm_calls": 2,
     "Human_cost": 0.0
   },
