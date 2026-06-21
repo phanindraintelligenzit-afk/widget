@@ -41,6 +41,7 @@ from dotenv import load_dotenv
 # ── Load .env FIRST so all os.getenv() calls below pick it up ─────────────────
 load_dotenv(override=True)
 
+os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import litellm
 if os.getenv("LANGFUSE_PUBLIC_KEY"):
     litellm.success_callback = ["langfuse"]
