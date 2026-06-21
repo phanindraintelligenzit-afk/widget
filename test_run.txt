@@ -11,7 +11,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 
 
 ================================================================
-  OPEN 4 TERMINAL TABS AND RUN EACH COMMAND IN ORDER
+  OPEN 5 TERMINAL TABS AND RUN EACH COMMAND IN ORDER
 ================================================================
 
 
@@ -51,16 +51,26 @@ uv run python scratch/run_mock_phoenix.py
 
 
 ┌──────────────────────────────────────────────────────────────┐
-│  TAB 4 — RUN EVALUATION (Run after Tabs 1, 2, 3 are ready)  │
+│  TAB 4 — RUN COST/VALIDATION/QUALITY EVALUATION             │
 └──────────────────────────────────────────────────────────────┘
 & d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
 cd d:\Projects\widget\widget
 uv run python scratch/run_evaluation.py
 
-  → This runs the full DPI-LS evaluation.
+  → This runs the full DPI-LS resource evaluation.
   → You will see a summary table with Cost, Validation, Quality metrics.
-  → True ✓ means detected. False ✗ means not detected.
   → Run this command AGAIN if you want to re-evaluate.
+
+
+┌──────────────────────────────────────────────────────────────┐
+│  TAB 5 — POPULATE MAIN DASHBOARD (P, Q, E, G, R)             │
+└──────────────────────────────────────────────────────────────┘
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run python scratch/populate_dashboard.py
+
+  → This generates realistic mock data for chandra-finops, risk-evaluator, etc.
+  → Run this so the main DPI-LS dashboard shows agents instead of "No agents scored yet".
 
 
 ================================================================
