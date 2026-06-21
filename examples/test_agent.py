@@ -322,6 +322,11 @@ async def run_agent_observation() -> None:
 
     # Now post the observation
     from dpi_ls.poster import post_observation
+    from dpi_ls import _state
+    
+    # Dynamically apply the human_cost setting so the payload correctly records it
+    collector.human_cost = _state.get_settings().human_cost_per_output
+    
     base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
     rating = post_observation(collector, base_url)
     if rating:

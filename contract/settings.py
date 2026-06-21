@@ -34,7 +34,7 @@ class Settings(BaseModel):
         default_factory=lambda: dict(DEFAULT_GATE_THRESHOLDS)
     )
     r_max: float = 3.0
-    human_cost_per_output: float = 1.0
+    human_cost_per_output: float = 50.0
     utilization: float = 1.0
     normalization_factor: float = 1.0
 

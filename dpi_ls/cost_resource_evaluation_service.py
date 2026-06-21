@@ -373,12 +373,16 @@ class CostResourceEvaluationService:
             completed = tasks.get("completed") or payload.get("output_count") or 1
             return mc / max(completed, 1)
         elif metric == "Human_cost_per_output":
-            return cost.get("Human_cost") or payload.get("human_cost_per_output") or payload.get("salary_cost") or 50.0
+            from dpi_ls import _state
+            default_hc = _state.get_settings().human_cost_per_output
+            return cost.get("Human_cost") or payload.get("human_cost_per_output") or payload.get("salary_cost") or default_hc
         elif metric == "utilization":
             return payload.get("utilization") or payload.get("utilization_factor") or 0.85
         elif metric == "total_cost_of_ownership":
+            from dpi_ls import _state
+            default_hc = _state.get_settings().human_cost_per_output
             mc = cost.get("model_cost") or payload.get("spend_usd") or 0.0
-            hc = cost.get("Human_cost") or payload.get("human_cost_per_output") or 0.0
+            hc = cost.get("Human_cost") or payload.get("human_cost_per_output") or default_hc
             return mc + hc
         elif metric == "validated_components":
             return (payload.get("validation") or {}).get("validated_components") or payload.get("validated_components") or 0
