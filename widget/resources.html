@@ -321,6 +321,8 @@
       padding: 6px 12px;
       border: 1px solid rgba(99,102,241,0.3);
       border-radius: 8px;
+      background: transparent;
+      cursor: pointer;
       transition: all 0.15s;
     }
     .rc-dashboard-link:hover { background: rgba(99,102,241,0.1); }
@@ -746,7 +748,7 @@ function renderResourceCard(name, metrics) {
   else                                   { statusCardBadge = 'badge-partial'; }
 
   const dashHtml = meta.dashboard_url
-    ? `<a href="${escHtml(meta.dashboard_url)}" target="_blank" class="rc-dashboard-link">🔗 ${escHtml(meta.dashboard_label)}</a>`
+    ? `<button class="rc-dashboard-link" onclick="window.open('${meta.dashboard_url}', '_blank')">🔗 ${escHtml(meta.dashboard_label)}</button>`
     : `<span style="font-size:11px;color:var(--muted2)">No local dashboard</span>`;
 
   const verifyHtml = dashVerified

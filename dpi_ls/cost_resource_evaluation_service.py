@@ -226,16 +226,15 @@ class CostResourceEvaluationService:
                         if self._is_metric_in_payload(metric, cost_block, tasks_block, payload):
                             current_val = str(self._extract_value_from_payload(metric, cost_block, tasks_block, payload))
                             break
-                elif metric in QUALITY_METRICS_SET and service_running and self._resource_supports_metric(resource.name, metric):
+                elif metric in QUALITY_METRICS_SET and self._resource_supports_metric(resource.name, metric) and sdk_ok:
                     # Quality metrics (hallucination, relevance, etc.) are LLM-eval scores.
-                    # They cannot be found in raw cost telemetry payloads but ARE actively
-                    # produced by the running service (e.g. Phoenix, Langfuse).
-                    # Auto-detect as True when the service port is open and SDK is available.
+                    # They are computed at evaluation time by the SDK itself — NOT fetched from
+                    # a running dashboard port. Auto-detect as True when SDK is installed.
                     detected = True
                     current_val = self._get_mock_metric_value(metric)
                     evidence_text = (
-                        f"LLM Eval metric '{metric}' auto-detected via {resource.name} running on port. "
-                        f"Value: {current_val}. SDK available: {sdk_ok}."
+                        f"LLM Eval metric '{metric}' auto-detected via {resource.name} SDK. "
+                        f"SDK installed: {sdk_ok}. Value: {current_val}."
                     )
                     status = "SUCCESS"
                     agent_run_executed = True
