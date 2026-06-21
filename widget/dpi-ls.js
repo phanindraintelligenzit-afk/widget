@@ -910,40 +910,129 @@
         return;
       }
 
+      // Resource dashboard URLs — must match the 6 active resources
+      const RESOURCE_URLS = {
+        'Langfuse':       'https://cloud.langfuse.com',
+        'Prometheus':     'http://localhost:9090',
+        'Grafana':        'http://localhost:3000',
+        'OpenTelemetry':  'http://localhost:4317',
+        'Arize Phoenix':  'http://localhost:6006',
+        'MLflow':         'http://localhost:5000',
+      };
+
+      // Nice display names for each metric key
+      const METRIC_NICE = {
+        model_cost: 'Model Cost', token_cost: 'Token Cost',
+        prompt_cost: 'Prompt Cost', completion_cost: 'Completion Cost',
+        AI_cost_per_output: 'AI Cost / Output', Human_cost_per_output: 'Human Cost / Output',
+        utilization: 'Utilization', total_cost_of_ownership: 'Total Cost (TCO)',
+        validated_components: 'Validated Components', required_components: 'Required Components',
+        validation_score: 'Validation Score',
+        hallucination_score: 'Hallucination Score', relevance_score: 'Relevance Score',
+        groundedness_score: 'Groundedness Score', user_feedback_score: 'User Feedback Score',
+        model_correctness: 'Model Correctness',
+      };
+      const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
+      const VALID_M    = ['validated_components','required_components','validation_score'];
+      const QUALITY_M  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
+
+      function metricGroup(m) {
+        if (COST_M.includes(m))    return 'C';
+        if (VALID_M.includes(m))   return 'V';
+        if (QUALITY_M.includes(m)) return 'Q';
+        return 'other';
+      }
+
       const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
-      const rows = filteredResults.map(r => {
-        const detectedHtml = r.detected 
-          ? `<span style="color:#15803d;font-weight:600">TRUE</span>`
-          : `<span style="color:#b91c1c;font-weight:600">FALSE</span>`;
-        
-        const verifiedBtn = r.dashboard_verified 
-          ? `<span style="color:#15803d;font-weight:600">✓ Verified</span>`
-          : `<button class="secondary verify-btn" data-resource="${escapeHtml(r.resource_name)}" data-metric="${escapeHtml(r.metric)}" style="padding:4px 8px;font-size:11px">Verify</button>`;
 
-        const runTimeStr = r.last_run ? new Date(r.last_run).toLocaleTimeString() : "—";
-        const statusPill = r.status === "SUCCESS"
-          ? `<span class="pill" style="color:#15803d;background:#dcfce7">SUCCESS</span>`
-          : `<span class="pill" style="color:#b91c1c;background:#fee2e2" title="${escapeHtml(r.evidence)}">FAILED</span>`;
+      // Group by resource → then by C/V/Q
+      const byResource = {};
+      for (const r of filteredResults) {
+        if (!byResource[r.resource_name]) byResource[r.resource_name] = [];
+        byResource[r.resource_name].push(r);
+      }
 
-        return `
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:10px;font-size:12px;font-weight:600">${escapeHtml(r.resource_name)}</td>
-            <td style="padding:10px;font-size:12px;font-family:monospace">${escapeHtml(r.metric)}</td>
-            <td style="padding:10px;font-size:12px;font-variant-numeric:tabular-nums">${escapeHtml(r.current_value || '0.0')}</td>
-            <td style="padding:10px;font-size:12px;text-align:center">${detectedHtml}</td>
-            <td style="padding:10px;font-size:11px;color:var(--muted);max-width:300px;word-break:break-all">${escapeHtml(r.evidence)}</td>
-            <td style="padding:10px;font-size:11px;color:var(--muted)">${escapeHtml(runTimeStr)}</td>
-            <td style="padding:10px;text-align:center">${statusPill}</td>
-            <td style="padding:10px;text-align:center">${verifiedBtn}</td>
-          </tr>
-        `;
-      }).join("");
+      let rows = '';
+      const GROUP_LABELS = {
+        C: { label: '💰 Cost (C)',       color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
+        V: { label: '✅ Validation (V)', color: '#22c55e', bg: 'rgba(34,197,94,0.08)'  },
+        Q: { label: '🧬 Quality (Q)',    color: '#a78bfa', bg: 'rgba(167,139,250,0.08)'},
+      };
+
+      for (const resourceName of activeResources) {
+        const metrics = byResource[resourceName] || [];
+        if (metrics.length === 0) continue;
+
+        const detectedCount = metrics.filter(m => m.detected).length;
+        const dashUrl = RESOURCE_URLS[resourceName];
+        const dashBtn = dashUrl
+          ? `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open UI</button>`
+          : `<span style="font-size:11px;color:#6b7280">No local UI</span>`;
+
+        // Resource header row
+        rows += `<tr style="background:rgba(15,23,42,0.6)">
+          <td colspan="8" style="padding:10px 12px">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:13px;font-weight:700;color:#e2e8f0">${escapeHtml(resourceName)}</span>
+              <span style="font-size:11px;color:#64748b">${detectedCount}/${metrics.length} detected</span>
+              ${dashBtn}
+            </div>
+          </td>
+        </tr>`;
+
+        // Render each group
+        for (const [grpKey, grpInfo] of Object.entries(GROUP_LABELS)) {
+          const grpMetrics = metrics.filter(m => metricGroup(m.metric) === grpKey);
+          if (grpMetrics.length === 0) continue;
+
+          // Group sub-header
+          rows += `<tr style="background:${grpInfo.bg}">
+            <td colspan="8" style="padding:5px 20px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${grpInfo.color}">
+              ${grpInfo.label}
+            </td>
+          </tr>`;
+
+          for (const r of grpMetrics) {
+            const niceName = METRIC_NICE[r.metric] || r.metric;
+            const detectedHtml = r.detected
+              ? `<span style="color:#34d399;font-weight:700">True ✓</span>`
+              : `<span style="color:#f87171;font-weight:700">False ✗</span>`;
+            const verifiedBtn = r.dashboard_verified
+              ? `<span style="color:#34d399;font-weight:600">✓ Verified</span>`
+              : `<button class="secondary verify-btn" data-resource="${escapeHtml(r.resource_name)}" data-metric="${escapeHtml(r.metric)}" style="padding:3px 8px;font-size:11px">Verify</button>`;
+            const runTimeStr = r.last_run ? new Date(r.last_run).toLocaleTimeString() : '—';
+            const statusPill = r.status === 'SUCCESS'
+              ? `<span class="pill" style="color:#15803d;background:#dcfce7">SUCCESS</span>`
+              : `<span class="pill" style="color:#b91c1c;background:#fee2e2">FAILED</span>`;
+
+            rows += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+              <td style="padding:7px 12px 7px 28px;font-size:12px;color:#94a3b8">${escapeHtml(resourceName)}</td>
+              <td style="padding:7px 10px;font-size:12px;font-weight:600;color:#cbd5e1">${escapeHtml(niceName)}</td>
+              <td style="padding:7px 10px;font-size:12px;font-variant-numeric:tabular-nums;color:#e2e8f0">${escapeHtml(r.current_value || '0.0')}</td>
+              <td style="padding:7px 10px;font-size:12px;text-align:center">${detectedHtml}</td>
+              <td style="padding:7px 10px;font-size:11px;color:#64748b;max-width:260px;word-break:break-all">${escapeHtml(r.evidence || '')}</td>
+              <td style="padding:7px 10px;font-size:11px;color:#64748b">${escapeHtml(runTimeStr)}</td>
+              <td style="padding:7px 10px;text-align:center">${statusPill}</td>
+              <td style="padding:7px 10px;text-align:center">${verifiedBtn}</td>
+            </tr>`;
+          }
+        }
+      }
 
       const tableHtml = `
         <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-bottom:24px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <span style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600">Evaluation Matrix</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <span style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600">Evaluation Matrix</span>
+              <div style="font-size:11px;color:#64748b;margin-top:3px">
+                DPI-LS Observability Stack &nbsp;|&nbsp;
+                <span style="color:#f97316">C: Cost</span> &nbsp;·&nbsp;
+                <span style="color:#22c55e">V: Validation</span> &nbsp;·&nbsp;
+                <span style="color:#a78bfa">Q: Quality</span> &nbsp;·&nbsp;
+                <span style="color:#94a3b8">P · E · G · R via Agent Dashboard</span>
+              </div>
+            </div>
             <button data-action="run-eval">Run Full Technical Evaluation</button>
           </div>
           <div style="overflow-x:auto">
@@ -952,12 +1041,12 @@
                 <tr style="border-bottom:2px solid var(--border);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.05em">
                   <th style="padding:10px">Resource</th>
                   <th style="padding:10px">Metric</th>
-                  <th style="padding:10px">Current Value</th>
+                  <th style="padding:10px">Value</th>
                   <th style="padding:10px;text-align:center">Detected</th>
                   <th style="padding:10px">Evidence</th>
                   <th style="padding:10px">Last Run</th>
                   <th style="padding:10px;text-align:center">Status</th>
-                  <th style="padding:10px;text-align:center">Dashboard Verified</th>
+                  <th style="padding:10px;text-align:center">Dashboard</th>
                 </tr>
               </thead>
               <tbody>
