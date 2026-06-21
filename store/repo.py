@@ -368,17 +368,13 @@ def list_latest_cost_resource_evaluations(s: Session) -> list[CostResourceEvalua
     return list(s.scalars(stmt))
 
 
-def verify_dashboard_cost_resource_evaluation(s: Session, resource_name: str, metric: str) -> bool:
-    """Flag all evaluations for this resource/metric as dashboard_verified."""
-    rows = list(
-        s.scalars(
-            select(CostResourceEvaluationRow)
-            .where(
-                CostResourceEvaluationRow.resource_name == resource_name,
-                CostResourceEvaluationRow.metric == metric,
-            )
-        )
-    )
+def verify_dashboard_cost_resource_evaluation(s: Session, resource_name: str, metric: Optional[str] = None) -> bool:
+    """Flag evaluations for this resource (and optionally specific metric) as dashboard_verified."""
+    query = select(CostResourceEvaluationRow).where(CostResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        query = query.where(CostResourceEvaluationRow.metric == metric)
+        
+    rows = list(s.scalars(query))
     if not rows:
         return False
     for r in rows:

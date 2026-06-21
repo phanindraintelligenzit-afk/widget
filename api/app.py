@@ -498,7 +498,7 @@ def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[s
 @app.post("/api/cost-evaluation/verify-dashboard")
 def verify_dashboard_result(
     resource_name: str = Body(..., embed=True),
-    metric: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
     s: Session = Depends(db_session),
 ) -> dict[str, bool]:
     ok = repo.verify_dashboard_cost_resource_evaluation(s, resource_name, metric)

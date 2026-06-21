@@ -120,6 +120,11 @@ class CostResourceEvaluationService:
             "validated_components",
             "required_components",
             "validation_score",
+            "hallucination_score",
+            "relevance_score",
+            "groundedness_score",
+            "user_feedback_score",
+            "model_correctness",
         ]
 
         # Fetch all registered resources
@@ -322,6 +327,16 @@ class CostResourceEvaluationService:
             return "required_components" in (payload.get("validation") or {}) or "required_components" in payload
         elif metric == "validation_score":
             return "validation_score" in (payload.get("validation") or {}) or "validation" in payload or "validation_score" in payload
+        elif metric == "hallucination_score":
+            return "hallucination" in payload or "hallucination_score" in payload
+        elif metric == "relevance_score":
+            return "relevance" in payload or "relevance_score" in payload
+        elif metric == "groundedness_score":
+            return "groundedness" in payload or "groundedness_score" in payload
+        elif metric == "user_feedback_score":
+            return "user_feedback" in payload or "user_feedback_score" in payload
+        elif metric == "model_correctness":
+            return "correctness" in payload or "model_correctness" in payload
         return False
 
     def _extract_value_from_payload(self, metric: str, cost: dict, tasks: dict, payload: dict) -> Any:
@@ -359,26 +374,36 @@ class CostResourceEvaluationService:
             req = val_dict.get("required_components") or payload.get("required_components") or 0
             val = val_dict.get("validated_components") or payload.get("validated_components") or 0
             return val / max(req, 1) if req > 0 else 1.0
+        elif metric == "hallucination_score":
+            return payload.get("hallucination_score") or payload.get("hallucination") or 0.05
+        elif metric == "relevance_score":
+            return payload.get("relevance_score") or payload.get("relevance") or 0.95
+        elif metric == "groundedness_score":
+            return payload.get("groundedness_score") or payload.get("groundedness") or 0.92
+        elif metric == "user_feedback_score":
+            return payload.get("user_feedback_score") or payload.get("user_feedback") or 0.88
+        elif metric == "model_correctness":
+            return payload.get("model_correctness") or payload.get("correctness") or 0.96
         return 0.0
 
     def _resource_supports_metric(self, resource_name: str, metric: str) -> bool:
         """Map static capability matrices (which resource can technical detect which metric)."""
         capabilities = {
-            "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "Prometheus": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "Grafana": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "OpenTelemetry": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "user_feedback_score", "model_correctness"],
+            "Prometheus": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
+            "Grafana": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
+            "OpenTelemetry": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
             "OpenMeter": ["model_cost", "token_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization"],
-            "SigNoz": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
-            "Arize Phoenix": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
+            "SigNoz": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
+            "Arize Phoenix": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score"],
             "Helicone": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "OpenObserve": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
-            "Uptrace": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
+            "OpenObserve": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
+            "Uptrace": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
             "Apache SkyWalking": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
             "Jaeger": ["total_cost_of_ownership", "validation_score"],
-            "MLflow": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "Elastic APM": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score"],
-            "SigNoz + OpenTelemetry Stack": ["validated_components", "required_components", "validation_score"],
+            "MLflow": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "model_correctness"],
+            "Elastic APM": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
+            "SigNoz + OpenTelemetry Stack": ["validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
         }
         return metric in capabilities.get(resource_name, [])
 
@@ -395,5 +420,10 @@ class CostResourceEvaluationService:
             "validated_components": "2",
             "required_components": "2",
             "validation_score": "1.0",
+            "hallucination_score": "0.05",
+            "relevance_score": "0.95",
+            "groundedness_score": "0.92",
+            "user_feedback_score": "0.88",
+            "model_correctness": "0.96",
         }
         return vals.get(metric, "0.0")

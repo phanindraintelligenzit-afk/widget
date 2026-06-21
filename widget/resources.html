@@ -633,12 +633,9 @@ function groupByResource(data) {
 
 // Determine overall status per resource
 function resourceStatus(metrics) {
-  const total = metrics.length;
   const ok = metrics.filter(m => m.detected).length;
-  const hasSuccess = metrics.some(m => m.status === 'SUCCESS');
-  if (ok === total && hasSuccess) return 'success';
-  if (ok === 0) return 'failed';
-  return 'partial';
+  if (ok > 0) return 'success';
+  return 'failed';
 }
 
 // Which evaluation step is complete for a resource
