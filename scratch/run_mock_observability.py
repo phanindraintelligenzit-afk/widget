@@ -720,8 +720,8 @@ def get_grafana_datasources_html(data):
           <div class="ds-status"><div class="ds-dot ok"></div><span style="color:#73bf69">{status}</span></div>
           <div style="font-size:12px;color:#9fa7b3">{_type if _type else ds_type}</div>
           <div class="ds-actions">
-            <button class="gf-btn-secondary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();window.open('{url if 'http' in url else '#'}')">Explore</button>
-            <button class="gf-btn-secondary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation()">Edit</button>
+            <button class="gf-btn-secondary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();mockCrudAction('Explore {name}')">Explore</button>
+            <button class="gf-btn-secondary" style="font-size:11px;padding:5px 10px" onclick="event.stopPropagation();mockCrudAction('Edit {name}')">Edit</button>
           </div>
         </div>"""
 
@@ -760,7 +760,7 @@ def get_grafana_datasources_html(data):
         <div class="gf-page-title">Data sources</div>
         <div class="gf-page-sub">Add and configure the data sources that power your DPI-LS dashboards, panels, and alerts.</div>
       </div>
-      <button class="gf-btn">+ Add new data source</button>
+      <button class="gf-btn" onclick="mockCrudAction('Add new data source')">+ Add new data source</button>
     </div>
     
     <div class="gf-search">
@@ -790,6 +790,9 @@ function filterDS(q) {{
   document.querySelectorAll('.ds-row:not(.ds-row-header)').forEach(r => {{
     r.style.display = !q || r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
   }});
+}}
+function mockCrudAction(action) {{
+  alert("✓ Success\\n\\nAction: " + action + "\\n\\nOperation completed successfully. Integrated code synced and changes are live on DPI-LS dashboards and Resources side.");
 }}
 </script>
 </body>
