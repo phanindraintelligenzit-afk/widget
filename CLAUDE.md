@@ -143,7 +143,8 @@ dpi-ls/
 │   ├── heuristics.py    Deterministic Q fallback when LLM unreachable
 │   ├── poster.py        post_observation() — POSTs AgentObservation to /ingest
 │   ├── server.py        Background uvicorn launcher (idempotent, daemon thread)
-│   ├── policy.py        Deterministic G policy scan (PII, secrets, prompt-injection)
+│   ├── policy.py        Multi-engine G policy scanner: Presidio (NLP/PII), detect-secrets, semantic RAG, OPA rules
+│   ├── risk.py          Lakera Guard API integration — detects prompt injections, jailbreaks, toxicity in text
 │   └── frameworks/      Framework-specific patchers
 │       ├── base.py, openai_agents.py, langchain.py, langgraph.py,
 │       │   crewai.py, autogen.py, llama_index.py, rag.py,
@@ -184,8 +185,8 @@ Each sub-metric is normalized to **[0, 1]**. None is a valid value (means "needs
 | **P** Productivity | `min(1, AI_output_per_period / human_baseline)` | 0.0 (no baseline) | `tasks.completed` / per-agent `human_baseline` from DB |
 | **Q** Quality | `0.7·Accuracy + 0.2·Consistency + 0.1·(1−Hallucination)` | computed | LangGraph LLM evaluator on the last N agent prose outputs |
 | **E** Execution | `successful_executions / total_attempts` | 0.0 | LLM + tool call success rate |
-| **G** Governance | `1 − policy_violations / total_actions` | **1.0** | Deterministic policy scan (PII, auth errors, secrets, prompt-injection) |
-| **R** Risk | `1 − min(1, Σ(freq×severity) / R_max)` | **1.0** | Recorded exceptions and incidents |
+| **G** Governance | `1 − policy_violations / total_actions` | **1.0** | Multi-engine policy scan: NLP-based (Presidio), secrets detection, semantic RAG, OPA rules |
+| **R** Risk | `1 − min(1, Σ(freq×severity) / R_max)` | **1.0** | Lakera Guard API (prompt injection, jailbreaks, toxicity) + exceptions/incidents |
 | **V** Validation | `validated_components / total_required` | **1.0** | JSON / `## headers` / `<answer>` / markdown tables detector |
 | **C** Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | 0.0 / 1.0 (see `engine/metrics.compute_C`) | Token-estimated cost vs `human_cost_per_output` |
 
@@ -327,11 +328,24 @@ Each `agent_id` lands as a separate row on the board. `_finalize` and `_state` a
 uv run pytest tests/test_engine_reference.py -v     # the 4 spec numbers
 uv run pytest tests/test_api_ingest.py -v          # ingest path round-trip
 uv run pytest -k "gate" -v                          # all gate-related tests
+uv run pytest -k "policy" -v                        # policy/governance scanner tests
 uv run pytest tests/ --co -q                        # list test IDs only
 uv run pytest tests/ -q --tb=short                  # short tracebacks on failure
 ```
 
 The full suite is **302 tests, < 12 s** on a developer laptop.
+
+**Governance testing notes**: Tests for the policy scanner in `dpi_ls/policy.py` gracefully skip optional engines if their dependencies are not installed. For instance, `test_presidio_*` tests skip if `presidio-analyzer` is not in the venv. To test all governance engines, run:
+```bash
+uv pip install presidio-analyzer detect-secrets chromadb sentence-transformers
+uv run pytest -k "policy" -v
+```
+
+**Risk testing notes**: Lakera Guard tests require `LAKERA_API_KEY` env var set. Tests that call the Lakera API will skip if the key is missing. To test risk scanning:
+```bash
+export LAKERA_API_KEY=your_key_here  # or .env file
+uv run pytest -k "risk" -v
+```
 
 ---
 
@@ -344,8 +358,9 @@ The full suite is **302 tests, < 12 s** on a developer laptop.
 - **M4** `widget/` (vanilla web components, no framework) — done
 - **M5** Real source adapters: `aws_cost`, `puvi_noise`, `arize`, `bedrock`, `sap_hr`, `audit_trail`, `ray`, `servicenow`, `bmc`, `jira`, `langgraph`, `langsmith`, `agentops`, `langfuse`, `braintrust`, `galileo`, `openllmetry`, `opik` — done. `stubs.py` now has `ALL_STUBS = ()` — there are no real stubs left.
 - **M6** Conversational Q-capture (`engine/sme_flow.py` + `api/sme_orchestration.py`) — done.
+- **M7 (current)** Enhanced governance detection: replaced regex-based scanner with multi-engine approach (Presidio NLP, detect-secrets, semantic RAG, OPA Rego rules). Added compliance rule sets (SOX/GDPR/SOC2, HIPAA, PCI-DSS, ISO27001) and governance examples.
 
-Current work is post-M5 hardening: the latest commits calibrate `R_max` to 3.0, finish the last source adapters, add test coverage, and remove the final TODOs. The demo target — *score one real agent, live* — is reachable via `examples/llamaindex_rag.py` (no AWS required) or `examples/test_agent.py` (needs Bedrock access).
+Current work is post-M6 hardening: recent commits integrate OPA policy engine, NLP-based PII detection via Presidio, and semantic policy matching via Chroma embeddings. The demo target — *score one real agent with full governance scanning* — is reachable via `examples/test_governance_agent.py`.
 
 **`dpi_ls` package is a separate concern from the server.** They share `contract/` (the observation schema is the wire format) but the package never imports from `engine/`, `store/`, or `api/` — it talks to the server over HTTP via `dpi_ls/poster.py`.
 
@@ -359,6 +374,58 @@ Current work is post-M5 hardening: the latest commits calibrate `R_max` to 3.0, 
 - **Real math only.** No fudged scores, no fabricated agent data in demos — synthetic fixtures are clearly labelled as fixtures (`_label` field is stripped by `scripts/demo_seed.sh` before posting).
 - **Secrets via env vars** (`.env.example` is the template), never hardcoded. The venv is at `.venv/` and is `.gitignore`d.
 - **All tunables live in settings**, not in code. See "Settings / tunables" above.
+
+---
+
+## Governance detection (G dimension) — multi-engine scanning
+
+The G-dimension policy scanner in `dpi_ls/policy.py` uses four detection engines (all optional; gracefully degrade if not installed):
+
+1. **Presidio (NLP-based PII detection)** — Installs: `pip install presidio-analyzer`. Detects credit cards, SSNs, emails, phone numbers, auth tokens, and more by entity type. High-confidence threshold = 0.6 to reduce false positives. Replaces legacy regex-based scanning.
+
+2. **detect-secrets (credential scanning)** — Installs: `pip install detect-secrets`. Detects AWS keys, Slack tokens, private keys, basic auth, JWT tokens, and other secrets. Plugin-based; enabled plugins are AWS, Slack, PrivateKey, BasicAuth, JWT.
+
+3. **Semantic RAG (Chroma + embeddings)** — Installs: `pip install chromadb sentence-transformers`. Uses vector similarity to detect policy violations by matching agent outputs against a semantic embedding database of known violations. Threshold = 0.45. Useful for domain-specific or custom policies. Maintained in `examples/governance_dimension/embedding/chroma.sqlite3`.
+
+4. **OPA (Open Policy Agent)** — Installs: `opa` CLI tool or `pip install pydantic-opa`. Runs deterministic Rego rules against agent actions. Rules live in `examples/governance_dimension/policies/`. Covers enterprise compliance (SOX, GDPR, SOC2), cloud infrastructure, healthcare (HIPAA), PCI-DSS, ISO27001, and custom policies.
+
+All engines are independent; violations from any engine count toward the G-score floor. The collector in `monitor()` calls `scan_policy_violations()` on every agent action; if any engine detects a violation, the action is flagged.
+
+**Useful governance examples**:
+- `examples/test_governance_agent.py` — End-to-end agent with OPA rule enforcement.
+- `examples/governance_dimension/yaml_governance_guard.py` — YAML-based policy definitions.
+- `examples/governance_dimension/presidio_governance_guard.py` — Presidio PII detection demo.
+- `examples/governance_dimension/detect_secrets_governance_guard.py` — Credential detection demo.
+- `examples/governance_dimension/policies/*.yaml` — Pre-built compliance rule sets.
+
+---
+
+## Risk detection (R dimension) — Lakera Guard + incident tracking
+
+The R-dimension risk scanner in `dpi_ls/risk.py` uses **Lakera Guard API** to detect adversarial threats in agent inputs and outputs:
+
+**Lakera Guard coverage**:
+- **Prompt Injection** — Detects attempts to override system instructions or manipulate agent behavior.
+- **Jailbreaks** — Identifies techniques to bypass safety constraints.
+- **Toxicity** — Flags offensive, harmful, or abusive language.
+- **PII Detection** — Catches sensitive data like credit cards, SSNs, credentials in outputs.
+
+The API returns confidence levels (l1 = most confident, l5 = least confident), mapped to severity weights (1.0 to 0.2) that feed into the R metric formula. Requires `LAKERA_API_KEY` env var; gracefully returns empty list if not set or API calls fail.
+
+**How it integrates**: The collector in `dpi_ls/monitor()` runs Lakera scans **asynchronously** on:
+- **Inputs** (user prompts) — catches adversarial prompts before the agent sees them.
+- **Outputs** (agent responses) — catches PII leaks or toxic outputs after generation.
+
+When Lakera detects a threat, it's recorded as an incident with `source=lakera:{detector_type}`. All incidents (Lakera + framework exceptions + tool errors) contribute to the R-score via the formula:
+```
+R = 1 − min(1, Σ(frequency × severity_weight) / R_max)
+```
+
+Where `R_max = 3.0` (calibrated default; tunable via `/settings` API).
+
+**Useful risk examples**:
+- `examples/test_risk_agent.py` — End-to-end agent with intentionally risky tool use (deletion, wire transfers, admin grants). Demonstrates Lakera Guard detecting both prompt-injection inputs and tool-action risks.
+- `examples/risk_dimension/lakera_risk_guard.py` — Direct Lakera Guard API integration demo.
 
 ---
 
@@ -396,3 +463,8 @@ A handful of files at the repo root are **dev scratch, not part of the product**
 - `cost.py` — a stray AWS Cost Explorer boto3 client that does **not** import from this project at all. Old exploration code. Don't conflate with `ingestion/sources/aws_cost.py`.
 
 A future Claude asked to "tidy the root" should leave these alone unless explicitly directed. The product surface is everything in `contract/`, `engine/`, `ingestion/`, `api/`, `store/`, `dpi_ls/`, `widget/`, `tests/`, `examples/`, `fixtures/`, and `scripts/`.
+
+**Non-product directories**:
+- `documents/` — LaTeX source (`.tex`) and PDF render of the 7-dimension formulas (cost, execution, governance, productivity, quality, risk, validation). Reference material; the source of truth is `engine/metrics.py` and `contract/models.py`.
+- `resourceDocuments/` — MS Word `.docx` files with detection strategy and resource lists for E, G, and R dimensions. Development reference; not packaged with the product.
+- `images/` — Project screenshots and diagrams. Documentation assets; not part of the API or package.
