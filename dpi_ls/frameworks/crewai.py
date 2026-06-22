@@ -56,6 +56,15 @@ class CrewAIPatcher(BasePatcher):
                         "Could not patch Crew.%s (read-only, even via __dict__): %s",
                         attr, inner,
                     )
+                    
+        try:
+            from crewai.tools.base_tool import BaseTool
+            from .base import _try_wrap
+            for attr in ("run", "_run", "execute", "invoke"):
+                patched.extend(_try_wrap(BaseTool, attr, _wrap_tool, prefix="tool."))
+        except ImportError:
+            pass
+            
         if patched:
             _log.debug("Patched CrewAI crew: %s", patched)
         return patched
@@ -118,3 +127,29 @@ def _capture_crew_output(collector: SignalCollector, result: Any) -> None:
     if not text and not tasks:
         # Kickoff produced nothing we could parse — still count it.
         collector.record_llm_call("", ok=True)
+
+def _wrap_tool(original, collector_ref: SignalCollector | None, attr: str):
+    import functools
+    def sync_call(self, *args, **kwargs):
+        from .base import resolve_collector
+        collector = resolve_collector(self, collector_ref)
+        tool_name = getattr(self, "name", "tool")
+        
+        tool_args = kwargs.copy()
+        if args:
+            if len(args) == 1 and isinstance(args[0], dict):
+                tool_args.update(args[0])
+            else:
+                tool_args["__args"] = args
+
+        if not collector:
+            return original(self, *args, **kwargs)
+        try:
+            result = original(self, *args, **kwargs)
+            collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
+            return result
+        except Exception as e:
+            collector.record_error(e, source="crewai")
+            collector.record_tool_call(ok=False, action_name=tool_name, tool_args=tool_args)
+            raise
+    return functools.wraps(original)(sync_call)

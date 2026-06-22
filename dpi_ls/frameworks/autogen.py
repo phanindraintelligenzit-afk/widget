@@ -43,6 +43,20 @@ class AutoGenPatcher(BasePatcher):
                 patched.append(f"agent.{attr}")
             except (AttributeError, TypeError):
                 _log.debug("Could not patch agent.%s (read-only).", attr)
+                
+        # Patch tool execution
+        for attr in ("execute_function", "a_execute_function"):
+            original = getattr(agent, attr, None)
+            if original is None or already_patched(original):
+                continue
+            wrapped = _wrap_autogen_tool(original, collector, attr)
+            try:
+                setattr(agent, attr, wrapped)
+                mark_patched(wrapped)
+                patched.append(f"agent.{attr}")
+            except (AttributeError, TypeError):
+                pass
+                
         if patched:
             _log.debug("Patched AutoGen agent: %s", patched)
         return patched
@@ -91,3 +105,47 @@ def _capture_text(collector: SignalCollector, result: Any) -> None:
         collector.record_llm_call(text, ok=True)
     else:
         collector.successful += 1
+
+
+def _wrap_autogen_tool(original, collector: SignalCollector, attr: str):
+    import functools
+    is_async = attr.startswith("a_")
+    
+    if is_async:
+        async def async_wrapper(self, func_call, *args, **kwargs):
+            tool_name = func_call.get("name", "tool") if isinstance(func_call, dict) else "tool"
+            tool_args = func_call.get("arguments", {}) if isinstance(func_call, dict) else {}
+            if isinstance(tool_args, str):
+                try:
+                    import json
+                    tool_args = json.loads(tool_args)
+                except Exception:
+                    tool_args = {"input": tool_args}
+            try:
+                result = await original(self, func_call, *args, **kwargs)
+                collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
+                return result
+            except Exception as e:
+                collector.record_error(e, source="autogen")
+                collector.record_tool_call(ok=False, action_name=tool_name, tool_args=tool_args)
+                raise
+        return functools.wraps(original)(async_wrapper)
+    else:
+        def sync_wrapper(self, func_call, *args, **kwargs):
+            tool_name = func_call.get("name", "tool") if isinstance(func_call, dict) else "tool"
+            tool_args = func_call.get("arguments", {}) if isinstance(func_call, dict) else {}
+            if isinstance(tool_args, str):
+                try:
+                    import json
+                    tool_args = json.loads(tool_args)
+                except Exception:
+                    tool_args = {"input": tool_args}
+            try:
+                result = original(self, func_call, *args, **kwargs)
+                collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
+                return result
+            except Exception as e:
+                collector.record_error(e, source="autogen")
+                collector.record_tool_call(ok=False, action_name=tool_name, tool_args=tool_args)
+                raise
+        return functools.wraps(original)(sync_wrapper)

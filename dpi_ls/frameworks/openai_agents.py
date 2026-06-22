@@ -68,7 +68,28 @@ def _make_hooks(collector: SignalCollector):
             # cannot verify factual accuracy of raw API data.
             text = _safe_text(result)
             tool_name = getattr(tool, "name", "tool")
-            collector.record_tool_call(ok=True, action_name=tool_name)
+            
+            tool_args = None
+            if hasattr(tool, "args"):
+                tool_args = tool.args
+            elif hasattr(tool, "kwargs"):
+                tool_args = tool.kwargs
+            elif hasattr(tool, "arguments"):
+                tool_args = tool.arguments
+            elif hasattr(tool, "input"):
+                tool_args = tool.input
+                
+            if not isinstance(tool_args, dict):
+                if isinstance(tool_args, str):
+                    try:
+                        import json
+                        tool_args = json.loads(tool_args)
+                    except:
+                        tool_args = {"input": tool_args}
+                elif tool_args is not None:
+                    tool_args = {"input": tool_args}
+                    
+            collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
             if text:
                 collector._capture_output(text, kind="tool")
 

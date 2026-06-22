@@ -91,6 +91,14 @@ class LlamaIndexPatcher(BasePatcher):
             attach_collector_ref(retriever, collector)
             for attr in _RETRIEVE_METHODS:
                 patched.extend(_try_wrap(retriever, attr, _wrap_retrieve, prefix="retriever."))
+                
+        try:
+            from llama_index.core.tools.types import BaseTool
+            for attr in ("__call__", "call", "acall"):
+                patched.extend(_try_wrap(BaseTool, attr, _wrap_tool, prefix="tool."))
+        except ImportError:
+            pass
+            
         if patched:
             _log.debug("Patched LlamaIndex object: %s", patched)
         return patched
@@ -334,3 +342,57 @@ def _summarise_nodes(nodes: Any) -> tuple[int, float, list[str]]:
         snippets.append(text)
 
     return len(snippets), top_score, snippets
+
+def _wrap_tool(original, collector_ref: SignalCollector | None, attr: str):
+    is_async = attr == "acall"
+
+    if is_async:
+        async def async_call(self, *args, **kwargs):
+            collector = resolve_collector(self, collector_ref)
+            tool_name = getattr(self, "metadata", None)
+            if tool_name: tool_name = getattr(tool_name, "name", "tool")
+            else: tool_name = getattr(self, "name", "tool")
+            
+            tool_args = kwargs.copy()
+            if args:
+                if len(args) == 1 and isinstance(args[0], dict):
+                    tool_args.update(args[0])
+                else:
+                    tool_args["__args"] = args
+
+            if not collector:
+                return await original(self, *args, **kwargs)
+            try:
+                result = await original(self, *args, **kwargs)
+                collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
+                return result
+            except Exception as e:
+                collector.record_error(e, source="llama_index")
+                collector.record_tool_call(ok=False, action_name=tool_name, tool_args=tool_args)
+                raise
+        return functools.wraps(original)(async_call)
+    else:
+        def sync_call(self, *args, **kwargs):
+            collector = resolve_collector(self, collector_ref)
+            tool_name = getattr(self, "metadata", None)
+            if tool_name: tool_name = getattr(tool_name, "name", "tool")
+            else: tool_name = getattr(self, "name", "tool")
+            
+            tool_args = kwargs.copy()
+            if args:
+                if len(args) == 1 and isinstance(args[0], dict):
+                    tool_args.update(args[0])
+                else:
+                    tool_args["__args"] = args
+
+            if not collector:
+                return original(self, *args, **kwargs)
+            try:
+                result = original(self, *args, **kwargs)
+                collector.record_tool_call(ok=True, action_name=tool_name, tool_args=tool_args)
+                return result
+            except Exception as e:
+                collector.record_error(e, source="llama_index")
+                collector.record_tool_call(ok=False, action_name=tool_name, tool_args=tool_args)
+                raise
+        return functools.wraps(original)(sync_call)

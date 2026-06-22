@@ -107,6 +107,27 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
     if is_async:
         async def async_invoke(*args, **kwargs):
             runnable_name, is_tool = _get_runnable_info(args)
+            
+            tool_args = None
+            if is_tool:
+                has_self = hasattr(original, "__self__")
+                input_idx = 0 if has_self else 1
+                if len(args) > input_idx:
+                    tool_args = args[input_idx]
+                elif "input" in kwargs:
+                    tool_args = kwargs["input"]
+                else:
+                    tool_args = kwargs
+                if not isinstance(tool_args, dict):
+                    if isinstance(tool_args, str):
+                        try:
+                            import json
+                            tool_args = json.loads(tool_args)
+                        except:
+                            tool_args = {"input": tool_args}
+                    else:
+                        tool_args = {"input": tool_args}
+
             input_text = _extract_input_text(args, kwargs)
             if input_text:
                 collector.record_source(input_text, kind="input")
@@ -115,11 +136,11 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="langchain")
                 if is_tool:
-                    collector.record_tool_call(ok=False, action_name=runnable_name)
+                    collector.record_tool_call(ok=False, action_name=runnable_name, tool_args=tool_args)
                 else:
                     collector.record_llm_call("", ok=False, system=input_text or runnable_name, action_name=runnable_name)
                 raise
-            _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name)
+            _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args)
             return result
         return functools.wraps(original)(async_invoke)
 
@@ -143,6 +164,27 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
 
     def sync_invoke(*args, **kwargs):
         runnable_name, is_tool = _get_runnable_info(args)
+        
+        tool_args = None
+        if is_tool:
+            has_self = hasattr(original, "__self__")
+            input_idx = 0 if has_self else 1
+            if len(args) > input_idx:
+                tool_args = args[input_idx]
+            elif "input" in kwargs:
+                tool_args = kwargs["input"]
+            else:
+                tool_args = kwargs
+            if not isinstance(tool_args, dict):
+                if isinstance(tool_args, str):
+                    try:
+                        import json
+                        tool_args = json.loads(tool_args)
+                    except:
+                        tool_args = {"input": tool_args}
+                else:
+                    tool_args = {"input": tool_args}
+
         input_text = _extract_input_text(args, kwargs)
         if input_text:
             collector.record_source(input_text, kind="input")
@@ -151,23 +193,23 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
         except Exception as e:
             collector.record_error(e, source="langchain")
             if is_tool:
-                collector.record_tool_call(ok=False, action_name=runnable_name)
+                collector.record_tool_call(ok=False, action_name=runnable_name, tool_args=tool_args)
             else:
                 collector.record_llm_call("", ok=False, system=input_text or runnable_name, action_name=runnable_name)
             raise
-        _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name)
+        _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args)
         return result
     return functools.wraps(original)(sync_invoke)
 
 
-def _capture_runnable_result(collector: SignalCollector, result: Any, is_tool: bool, system: str | None = None, action_name: str | None = None) -> None:
+def _capture_runnable_result(collector: SignalCollector, result: Any, is_tool: bool, system: str | None = None, action_name: str | None = None, tool_args: dict | None = None) -> None:
     text = _safe_text(result)
     in_t, out_t = _safe_iter_tokens(result)
     if is_tool:
         ok = True
         if isinstance(result, dict) and "return_code" in result:
             ok = result["return_code"] == 0
-        collector.record_tool_call(ok=ok, action_name=action_name)
+        collector.record_tool_call(ok=ok, action_name=action_name, tool_args=tool_args)
     else:
         if text:
             collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True, system=system, action_name=action_name)

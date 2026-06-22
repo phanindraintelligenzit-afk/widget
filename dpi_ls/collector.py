@@ -96,6 +96,7 @@ class SignalCollector:
 
     # G — governance. Each violation is a (rule, when) tuple.
     violations: list[dict] = field(default_factory=list)
+    _pending_tool_violations: list[dict] = field(default_factory=list)
     policy_evaluations: int = 0
 
     # R — risk. Each incident is a (severity_weight, frequency, source).
@@ -205,7 +206,7 @@ class SignalCollector:
         
         _risk_executor.submit(_scan_and_record)
 
-    def record_tool_call(self, *, ok: bool = True, action_name: str | None = None) -> None:
+    def record_tool_call(self, *, ok: bool = True, action_name: str | None = None, tool_args: dict | None = None) -> None:
         with self._lock:
             self.attempts += 1
             if ok:
@@ -214,6 +215,20 @@ class SignalCollector:
                 self.failed += 1
             if action_name:
                 self.execution_details.append({"name": action_name, "ok": ok})
+                
+        # G: Semantic Tool Policy Scan
+        if action_name and tool_args is not None:
+            from .policy import scan_tool_policy_violations
+            violations = scan_tool_policy_violations(action_name, tool_args, {})
+            
+            with self._lock:
+                if violations:
+                    for rule in violations:
+                        self._pending_tool_violations.append({
+                            "rule": rule,
+                            "action_name": action_name,
+                            "context": "tool_semantic_check"
+                        })
 
     def record_retrieval(
         self,
@@ -371,6 +386,13 @@ class SignalCollector:
                         self.violations.append({"rule": rule, "when": now, "action_name": action_label})
                 else:
                     self.violations.append({"rule": "none", "when": now, "action_name": action_label})
+                    
+                # Flush pending semantic tool violations and give them the SAME timestamp
+                # so they group into this exact action in the UI.
+                for tv in self._pending_tool_violations:
+                    tv["when"] = now
+                    self.violations.append(tv)
+                self._pending_tool_violations.clear()
 
             # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
             def _scan_and_record():

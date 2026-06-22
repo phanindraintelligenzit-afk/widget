@@ -109,6 +109,19 @@ def monitor(
         human_baseline=human_baseline,
     )
     _state.set_collector(collector)
+    
+    # Initialize policy scanners (Semantic RAG & OPA)
+    from pathlib import Path
+    from .policy import init_semantic_scanner, init_opa_scanner
+    
+    # By default, look for 'embedding' in the examples dir, or use env var
+    default_chroma = str(Path(__file__).parent.parent / "examples" / "governance_dimension" / "embedding")
+    chroma_db_dir = os.environ.get("DPI_CHROMA_DB_DIR", default_chroma)
+    if os.path.exists(chroma_db_dir):
+        init_semantic_scanner(chroma_db_dir)
+
+    opa_endpoint = os.environ.get("DPI_OPA_ENDPOINT", "http://localhost:8181/v1/data/dpi_ls/violations")
+    init_opa_scanner(opa_endpoint)
 
     # 3. Install the framework-specific patcher on all agents.
     all_patched = []
