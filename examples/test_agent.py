@@ -182,16 +182,16 @@ def _to_bedrock_tool(tool) -> FunctionTool:
     )
 
 
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 #  Score display helpers — shows all 7 dimensions
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 
 def _bar(value: float | None, width: int = 20) -> str:
     """ASCII progress bar for a [0,1] metric."""
     if value is None:
         return "[" + "-" * width + "] N/A"
     filled = int(round(value * width))
-    return "[" + "█" * filled + "░" * (width - filled) + f"] {value:.3f}"
+    return "[" + "#" * filled + "-" * (width - filled) + f"] {value:.3f}"
 
 
 DIMENSION_LABELS = {
@@ -216,56 +216,56 @@ def print_score_card(rating: dict) -> None:
     capped   = rating.get("capped", False)
 
     BAND_ICONS = {
-        "Exceptional":       "★  EXCEPTIONAL",
-        "Strong":            "▲  STRONG",
-        "Needs Optimization":"▼  NEEDS OPTIMIZATION",
-        "Underperforming":   "✗  UNDERPERFORMING",
+        "Exceptional":       "*  EXCEPTIONAL",
+        "Strong":            "^  STRONG",
+        "Needs Optimization":"v  NEEDS OPTIMIZATION",
+        "Underperforming":   "x  UNDERPERFORMING",
     }
     band_label = BAND_ICONS.get(band, band)
-    unsafe_tag = "  ⚠  UNSAFE — compliance gate fired" if unsafe else ""
+    unsafe_tag = "  !  UNSAFE - compliance gate fired" if unsafe else ""
 
     print()
-    print("╔" + "═" * 55 + "╗")
-    print(f"║  DPI-LS SCORE CARD  ·  {AGENT_NAME:<32}║")
-    print("╠" + "═" * 55 + "╣")
-    print(f"║  Final Score : {score:>6.1f} / 100{' (capped)' if capped else '         '}    ║")
-    print(f"║  Raw Score   : {raw:>6.1f}                              ║")
-    print(f"║  Band        : {band_label:<39}║")
+    print("+" + "-" * 55 + "+")
+    print(f"|  DPI-LS SCORE CARD  .  {AGENT_NAME:<32}|")
+    print("+" + "-" * 55 + "+")
+    print(f"|  Final Score : {score:>6.1f} / 100{' (capped)' if capped else '         '}    |")
+    print(f"|  Raw Score   : {raw:>6.1f}                              |")
+    print(f"|  Band        : {band_label:<39}|")
     if unsafe_tag:
-        print(f"║  {unsafe_tag:<53}║")
+        print(f"|  {unsafe_tag:<53}|")
     if gates:
-        print(f"║  Gate failures: {', '.join(gates):<38}║")
-    print("╠" + "═" * 55 + "╣")
-    print("║  7 DIMENSIONS                                         ║")
-    print("╠" + "═" * 55 + "╣")
+        print(f"|  Gate failures: {', '.join(gates):<38}|")
+    print("+" + "-" * 55 + "+")
+    print("|  7 DIMENSIONS                                         |")
+    print("+" + "-" * 55 + "+")
     for key in ["P", "Q", "E", "G", "R", "V", "C"]:
         label = DIMENSION_LABELS[key]
         val   = metrics.get(key)
-        gate_flag = " ← GATE FAIL" if key in gates else ""
+        gate_flag = " <- GATE FAIL" if key in gates else ""
         bar_str = _bar(val)
-        print(f"║  {label:<18} {bar_str}{gate_flag:<13}║")
-    print("╠" + "═" * 55 + "╣")
-    print(f"║  Agent ID    : {AGENT_ID:<39}║")
-    print(f"║  Framework   : openai_agents (AWS Bedrock / LiteLLM)  ║")
-    print(f"║  Model       : {BEDROCK_MODEL_ID[:37]:<39}║")
-    print("╚" + "═" * 55 + "╝")
+        print(f"|  {label:<18} {bar_str}{gate_flag:<13}|")
+    print("+" + "-" * 55 + "+")
+    print(f"|  Agent ID    : {AGENT_ID:<39}|")
+    print(f"|  Framework   : openai_agents (AWS Bedrock / LiteLLM)  |")
+    print(f"|  Model       : {BEDROCK_MODEL_ID[:37]:<39}|")
+    print("+" + "-" * 55 + "+")
     print()
 
 
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 #  Main agent run
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 
 async def run_agent_observation() -> None:
     if not BEDROCK_MODEL_ID:
         print("ERROR: BEDROCK_MODEL_ID is not set in .env")
         sys.exit(1)
 
-    print(f"\n{'─'*55}")
-    print(f"  DPI-LS Monitor  ·  Agent: {AGENT_NAME}  ·  ID: {AGENT_ID}")
+    print(f"\n{'-'*55}")
+    print(f"  DPI-LS Monitor  .  Agent: {AGENT_NAME}  .  ID: {AGENT_ID}")
     print(f"  Model : bedrock/{BEDROCK_MODEL_ID}")
     print(f"  Lookback: {LOOKBACK_DAYS} days  |  Human baseline: {HUMAN_BASELINE}")
-    print(f"{'─'*55}\n")
+    print(f"{'-'*55}\n")
 
     fetcher = AWSCostExplorerFetcher()
 
@@ -273,7 +273,7 @@ async def run_agent_observation() -> None:
     raw_tools    = [function_tool(fetcher.fetch_costs_summary)]
     bedrock_tools = [_to_bedrock_tool(t.__dict__) for t in raw_tools]
 
-    # ── Build the agent (all config from env) ─────────────────────
+    # -- Build the agent (all config from env) ---------------------
     agent = Agent(
         name=AGENT_NAME,
         instructions=AGENT_PROMPT,
@@ -281,7 +281,7 @@ async def run_agent_observation() -> None:
         tools=bedrock_tools,
     )
 
-    # ── LINE 2: Monitor the agent ─────────────────────────────────
+    # -- LINE 2: Monitor the agent ---------------------------------
     collector = dpi_ls.monitor(          # line 2
         agent,
         agent_id=AGENT_ID,
@@ -293,17 +293,17 @@ async def run_agent_observation() -> None:
         post=False,                      # we post explicitly after Q eval
     )
 
-    # ── Run the agent ─────────────────────────────────────────────
+    # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
     result = await Runner.run(agent, AGENT_QUESTION)
 
-    print("\n" + "─" * 55)
+    print("\n" + "-" * 55)
     print("  AGENT ANSWER")
-    print("─" * 55)
+    print("-" * 55)
     # Strip non-ASCII so Windows cp1252 terminals don't crash
     safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
     print(safe)
-    print("─" * 55)
+    print("-" * 55)
 
     # ── Evaluate Quality and Post Observation explicitly ───────────
     collector.mark_end()
@@ -340,14 +340,14 @@ async def run_agent_observation() -> None:
 
 
 
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 #  Entry point
-# ═══════════════════════════════════════════════════════════════════
+# ===================================================================
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
 
-    # ── Flush Langfuse traces before exit ─────────────────────────────
+    # -- Flush Langfuse traces before exit -----------------------------
     # litellm queues Langfuse events in a background thread.
     # Without an explicit flush, the process exits before traces are sent.
     try:
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     from dpi_ls import _state
     info = _state.get_server_info()
     if info is not None and os.getenv("DPI_LS_NO_BLOCK") != "1":
-        print(f"Dashboard is live → open  {info.base_url}  in your browser.")
+        print(f"Dashboard is live -> open  {info.base_url}  in your browser.")
         try:
             input("Press Enter to exit ...")
         except (EOFError, KeyboardInterrupt):

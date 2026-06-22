@@ -172,6 +172,11 @@ def main():
 
     # 4. Ingest Telemetry into DPI-LS source adapters
     print("\n4. Ingesting telemetry into DPI-LS source adapters...")
+    from datetime import datetime, timezone, timedelta
+    current_time = datetime.now(timezone.utc)
+    current_start = (current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    current_end = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     client = httpx.Client(timeout=10.0)
     agent_id = "chandra-finops"
 
@@ -196,8 +201,8 @@ def main():
     # Ingest paths
     ingestions = [
         ("arize", {
-            "period_start": "2026-06-18T00:00:00Z",
-            "period_end": "2026-06-18T01:00:00Z",
+            "period_start": current_start,
+            "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
                 "cost": shared_cost,
@@ -206,8 +211,8 @@ def main():
             }]
         }),
         ("mlflow", {
-            "period_start": "2026-06-18T00:00:00Z",
-            "period_end": "2026-06-18T01:00:00Z",
+            "period_start": current_start,
+            "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
                 "cost": shared_cost,
@@ -216,8 +221,8 @@ def main():
             }]
         }),
         ("langfuse", {
-            "period_start": "2026-06-18T00:00:00Z",
-            "period_end": "2026-06-18T01:00:00Z",
+            "period_start": current_start,
+            "period_end": current_end,
             "runs": [{
                 "agent_id": agent_id,
                 "attempts": 10,
@@ -227,8 +232,8 @@ def main():
             }]
         }),
         ("prometheus", {
-            "period_start": "2026-06-18T00:00:00Z",
-            "period_end": "2026-06-18T01:00:00Z",
+            "period_start": current_start,
+            "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
                 "cost": shared_cost,
@@ -237,8 +242,8 @@ def main():
             }]
         }),
         ("otel", {
-            "period_start": "2026-06-18T00:00:00Z",
-            "period_end": "2026-06-18T01:00:00Z",
+            "period_start": current_start,
+            "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
                 "cost": shared_cost,

@@ -146,12 +146,17 @@ def main():
 
     # 4. Ingest Telemetry into DPI-LS
     print("\n4. Ingesting telemetry into DPI-LS source adapters...")
+    from datetime import datetime, timezone, timedelta
+    current_time = datetime.now(timezone.utc)
+    current_start = (current_time - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    current_end = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+
     client = httpx.Client(timeout=10.0)
     
     # Ingest Arize partial observation
     arize_payload = {
-        "period_start": "2026-06-01T00:00:00Z",
-        "period_end": "2026-06-02T00:00:00Z",
+        "period_start": current_start,
+        "period_end": current_end,
         "agents": [
             {
                 "agent_id": "chandra-finops",
@@ -187,8 +192,8 @@ def main():
 
     # Ingest MLflow partial observation
     mlflow_payload = {
-        "period_start": "2026-06-01T00:00:00Z",
-        "period_end": "2026-06-02T00:00:00Z",
+        "period_start": current_start,
+        "period_end": current_end,
         "agents": [
             {
                 "agent_id": "chandra-finops",
