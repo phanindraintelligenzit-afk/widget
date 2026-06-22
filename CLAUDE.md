@@ -400,6 +400,26 @@ All engines are independent; violations from any engine count toward the G-score
 
 ---
 
+## Quality evaluation (Q dimension) — LangGraph + fallback heuristics
+
+The Q-dimension evaluator in `dpi_ls/evaluator.py` scores agent prose outputs on three sub-metrics:
+
+**LangGraph Evaluator (primary)**: Uses a three-node state machine running on AWS Bedrock (model ID from `BEDROCK_MODEL_ID` or `MODEL_NAME` env vars):
+- **Accuracy** (0.7 weight) — Does the agent's analysis accurately reflect the retrieved/tool data?
+- **Consistency** (0.2 weight) — Is the output logically coherent, free of contradictions?
+- **Hallucination Rate** (0.1 weight) — What fraction of specific factual claims lack grounding in the source data?
+
+Each node prompts the LLM to score 0–1, parsed strictly. Source data (tool results, retrieved docs) is included when available to ground hallucination scoring.
+
+**Fallback Heuristics** (`dpi_ls/heuristics.py`): If Bedrock is unavailable (no credentials, misconfigured, or API fails), the evaluator transparently falls back to deterministic rules:
+- Accuracy penalizes error-shaped or very-short/very-long outputs; bonuses reasonable length (50–5000 chars)
+- Consistency measures variance between successive outputs
+- Hallucination estimates based on concrete tokens (numbers, UUIDs, file paths, IDs)
+
+The heuristics are rough but prevent silent Q drops during demo/testing. Real Q signal should come from the LangGraph evaluator or the SME conversational flow.
+
+---
+
 ## Risk detection (R dimension) — Lakera Guard + incident tracking
 
 The R-dimension risk scanner in `dpi_ls/risk.py` uses **Lakera Guard API** to detect adversarial threats in agent inputs and outputs:
@@ -426,6 +446,79 @@ Where `R_max = 3.0` (calibrated default; tunable via `/settings` API).
 **Useful risk examples**:
 - `examples/test_risk_agent.py` — End-to-end agent with intentionally risky tool use (deletion, wire transfers, admin grants). Demonstrates Lakera Guard detecting both prompt-injection inputs and tool-action risks.
 - `examples/risk_dimension/lakera_risk_guard.py` — Direct Lakera Guard API integration demo.
+
+---
+
+## Execution detection (E dimension) — tool success tracking
+
+The E-dimension metric tracks tool execution success: `E = successful_executions / total_attempts`. The collector in `dpi_ls/collector.py` auto-detects LLM tool calls via framework patchers:
+
+**How it works**:
+- Each framework patcher (`langchain.py`, `langgraph.py`, `openai_agents.py`, etc.) intercepts tool invocations
+- On call, `collector.attempts += 1`
+- On success, `collector.successful += 1`
+- On error, `collector.record_error(exc)` (recorded as an R-dimension incident, not an E failure)
+- Final metric: `E = successful / attempts`, clamped to [0, 1]
+
+**Edge case**: Tool calls that return structured data (e.g. API responses) without text output still count as successful in E. The output text is captured separately for V (validation) and Q (quality) evaluation.
+
+**Framework coverage**: All supported frameworks (LangChain, LangGraph, CrewAI, Autogen, LlamaIndex, OpenAI Agents, raw OpenAI/Anthropic) auto-increment attempts/successful via their respective patcher.
+
+---
+
+## Validation detection (V dimension) — structured output patterns
+
+The V-dimension metric detects whether agent outputs are *properly formatted* and *validated*: `V = validated_components / total_required`. The collector in `dpi_ls/collector.py` scans each output text for structured patterns:
+
+**Patterns detected** (in `_VALIDATION_PATTERNS` and `_VALIDATION_SEARCH_PATTERNS`):
+- **JSON/YAML/CSV blocks** — Fenced code blocks (` ``` ` delimiters) containing structured data
+- **XML/HTML tags** — Semantic wrappers like `<answer>`, `<result>`, `<response>`
+- **Markdown tables** — Pipe-delimited columns (`| Col1 | Col2 |`)
+- **Markdown headers** — Structured sections with `## Title` or `### Subtitle`
+
+An output is considered "structured" if it matches ANY of these patterns. The collector counts:
+- **validated_components** — number of outputs with detected structure
+- **total_required** — total number of outputs captured
+
+V is then clamped to [0, 1]. A 100%-structured agent (all outputs JSON, markdown tables, or tagged) scores `V=1.0`. A prose-only agent with no structure scores `V=0.0`.
+
+**Use case**: V protects against agents that produce correct *content* but in unstructured formats that are hard for downstream consumers to parse. Combined with Q, it ensures both *quality of reasoning* and *usability of output format*.
+
+---
+
+## Cost calculation (C dimension) — dynamic AWS Bedrock pricing
+
+The C-dimension cost metric tracks AI cost efficiency: `C = min(1, human_cost_per_output / AI_cost_per_output) × utilization`.
+
+**Dynamic Pricing (`dpi_ls/cost_calculator.py`)**:
+The `BedrockDynamicCostCalculator` fetches live Bedrock model pricing from AWS Pricing API at runtime — no hardcoded model IDs or fallback prices:
+- Lists all available foundation models via `bedrock.list_foundation_models()`
+- Queries AWS Pricing API for each model's input and output pricing (per 1M tokens)
+- Matches catalog entries by model ID, model name, or usage type
+- Returns `(input_price_per_1M, output_price_per_1M)` tuples
+
+**Cost calculation**:
+```
+model_cost_usd = (input_tokens / 1_000_000) × input_rate + (output_tokens / 1_000_000) × output_rate
+```
+
+Token counts come from LLM response metadata (`usage.prompt_tokens` / `usage.completion_tokens`). All framework patchers extract tokens and pass them to `collector.record_llm_call(..., tokens_in=N, tokens_out=M)`.
+
+**Human cost baseline**: Operators set `human_cost_per_output` (e.g., `$0.50` for a support ticket resolved by a human) via the `/settings` API. The C metric then expresses: "For every $1 we pay humans, we pay $X to the AI model." Lower X = better efficiency.
+
+**Utilization factor**: The C formula also includes a `utilization` multiplier (default 1.0, tunable) to account for idle time or partial use of resources.
+
+---
+
+## Multi-agent orchestration patterns
+
+**Single-file orchestrator** (`examples/orchestrator_agent.py`): A 50KB+ LangGraph state machine that combines generator, executor, and orchestrator phases into one self-healing AWS automation pipeline. Features:
+- Checkpointer fallback: Postgres → SQLite → in-memory
+- Interruption support: `langgraph.types.interrupt()` for human-in-the-loop
+- Retry loop with feedback: up to 5 iterations, reads existing state, learns from failures
+- File and command execution: Uses `FileManagementToolkit` and subprocess isolation
+
+**Multi-agent pattern** (`examples/run_all.py`): How to score multiple agents in a single process using the `_finalize()` / `_state.reset_for_tests()` escape hatch (since `SignalCollector` is a process-wide singleton).
 
 ---
 
