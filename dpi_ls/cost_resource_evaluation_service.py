@@ -420,7 +420,7 @@ class CostResourceEvaluationService:
             "Uptrace": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
             "Apache SkyWalking": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score"],
             "Jaeger": ["total_cost_of_ownership", "validation_score"],
-            "MLflow": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "model_correctness"],
+            "MLflow": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
             "Elastic APM": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
             "SigNoz + OpenTelemetry Stack": ["validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
         }
