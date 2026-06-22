@@ -510,6 +510,25 @@ Token counts come from LLM response metadata (`usage.prompt_tokens` / `usage.com
 
 ---
 
+## Observability platform integrations (Arize, LangFuse, etc.)
+
+The system integrates with external observability platforms as **source adapters** (`ingestion/sources/`), allowing those platforms' signals to feed into DPI-LS scoring:
+
+**Arize** (`ingestion/sources/arize.py` + `examples/arize_governance_violator.py`):
+- Consumes Arize model monitoring data: drift detection, embedding L2 divergence, custom monitors
+- Monitor breaches → **G (Governance)** dimension violations
+- Arize quality scores (accuracy, consistency, hallucination) → **Q (Quality)** dimension
+- Routes via `POST /ingest/source/arize` with agent list + breaches per monitoring period
+
+**Framework instrumentation examples**:
+- `examples/arize_governance_violator.py` — Governance violator scenarios instrumented with Arize OTel, traces sent to Arize platform
+- `examples/execution_dimension/test_langfuse.py` — Orchestrator agent instrumented with LangFuse tracing (execution/tool call tracking)
+- `examples/execution_dimension/test_traceloop.py` — Orchestrator agent with Traceloop instrumentation
+
+These are **optional parallel signals**: an agent can be scored by `dpi_ls.monitor()` alone, or have external platform data merged in via source adapters, or both (dpi_ls signals + Arize breaches + LangFuse traces all combined).
+
+---
+
 ## Multi-agent orchestration patterns
 
 **Single-file orchestrator** (`examples/orchestrator_agent.py`): A 50KB+ LangGraph state machine that combines generator, executor, and orchestrator phases into one self-healing AWS automation pipeline. Features:
