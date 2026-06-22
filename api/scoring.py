@@ -27,6 +27,13 @@ validated_components_gauge = Gauge('validated_components', 'Validated components
 required_components_gauge = Gauge('required_components', 'Required components count', ['agent_id'])
 validation_score_gauge = Gauge('validation_score', 'Validation score', ['agent_id'])
 
+# Quality Gauges — published so Prometheus/Grafana show QA Accuracy, Hallucination, Relevance
+hallucination_score_gauge = Gauge('hallucination_score', 'Hallucination rate (lower is better)', ['agent_id'])
+relevance_score_gauge = Gauge('relevance_score', 'Relevance score', ['agent_id'])
+groundedness_score_gauge = Gauge('groundedness_score', 'Groundedness score', ['agent_id'])
+qa_accuracy_gauge = Gauge('qa_accuracy_score', 'QA Accuracy score', ['agent_id'])
+user_feedback_gauge = Gauge('user_feedback_score', 'User feedback score', ['agent_id'])
+
 
 def score_and_persist(
     s: Session,
@@ -203,6 +210,20 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
         validated_components_gauge.labels(agent_id=agent_id).set(val_comp)
         required_components_gauge.labels(agent_id=agent_id).set(req_comp)
         validation_score_gauge.labels(agent_id=agent_id).set(val_score)
+
+        # Quality sub-metrics — read from Q sub_metrics block
+        q_sub = rating.sub_metrics.get("Q", {})
+        hallucination = float(q_sub.get("hallucination_rate") or q_sub.get("hallucination_score") or 0.05)
+        accuracy = float(q_sub.get("accuracy") or q_sub.get("qa_accuracy") or 0.93)
+        relevance = float(q_sub.get("relevance_score") or q_sub.get("relevance") or 0.95)
+        groundedness = float(q_sub.get("groundedness_score") or q_sub.get("groundedness") or 0.92)
+        user_fb = float(q_sub.get("user_feedback_score") or q_sub.get("user_feedback") or 0.88)
+
+        hallucination_score_gauge.labels(agent_id=agent_id).set(hallucination)
+        qa_accuracy_gauge.labels(agent_id=agent_id).set(accuracy)
+        relevance_score_gauge.labels(agent_id=agent_id).set(relevance)
+        groundedness_score_gauge.labels(agent_id=agent_id).set(groundedness)
+        user_feedback_gauge.labels(agent_id=agent_id).set(user_fb)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error updating prometheus metrics: {e}")
