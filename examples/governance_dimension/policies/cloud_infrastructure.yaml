@@ -1,0 +1,1354 @@
+# Cloud Infrastructure Governance Policies
+# Exhaustive compliance mapping for AWS, Azure, GCP
+policies:
+
+  # ==========================================
+  # Resource Provisioning Controls
+  # ==========================================
+  - action: "ec2InstanceCreated"
+    message: "CLOUD-PRV-01: Usage of older generation t2 instances is prohibited."
+    when:
+      any:
+        - field: args.instance_type
+          aliases: [instanceType, vmSize, size, computeType]
+          op: contains
+          value: "t2."
+
+  - action: "virtualMachineCreated"
+    message: "CLOUD-PRV-02: Virtual machines must have basic monitoring enabled upon creation."
+    when:
+      all:
+        - field: args.monitoring_enabled
+          aliases: [monitoring, hasMonitoring, basicMetrics]
+          op: is_false
+
+  - action: "computeResourceProvisioned"
+    message: "CLOUD-PRV-03: Provisioning in non-standard tiers requires director approval."
+    when:
+      all:
+        - field: args.tier
+          aliases: [computeTier, resourceTier, performanceTier]
+          op: not_in
+          value: ["standard", "general_purpose", "memory_optimized"]
+        - field: context.director_approval
+          aliases: [approvedByDirector, hasApproval, managementApproval]
+          op: is_false
+
+  - action: "cloudResourceProvisioned"
+    message: "CLOUD-PRV-04: Cannot provision resources outside of defined operating hours without emergency context."
+    when:
+      all:
+        - field: context.is_outside_business_hours
+          aliases: [afterHours, weekendDeployment, offHours]
+          op: is_true
+        - field: context.is_emergency_breakglass
+          aliases: [emergency, breakglass, sev1Deployment]
+          op: is_false
+
+  - action: "resourceGroupCreated"
+    message: "CLOUD-PRV-05: Resource group names must follow the enterprise naming convention (rg-<app>-<env>)."
+    when:
+      any:
+        - field: args.resource_group_name
+          aliases: [rgName, groupName, name]
+          op: eq
+          value: "default"
+        - field: args.resource_group_name
+          aliases: [rgName, groupName, name]
+          op: contains
+          value: "test"
+
+  - action: "loadBalancerCreated"
+    message: "CLOUD-PRV-06: Classic Load Balancers are deprecated. Use Application or Network Load Balancers."
+    when:
+      all:
+        - field: args.load_balancer_type
+          aliases: [lbType, balancerType, type]
+          op: eq
+          value: "classic"
+
+  - action: "autoScalingGroupCreated"
+    message: "CLOUD-PRV-07: Auto-scaling groups must have a defined maximum capacity of 50 or less."
+    when:
+      all:
+        - field: args.max_capacity
+          aliases: [maxSize, maximumNodes, upperLimit]
+          op: gt
+          value: 50
+
+  # ==========================================
+  # Cost & Budget Controls
+  # ==========================================
+  - action: "budgetThresholdExceeded"
+    message: "FINOPS-CST-01: Deployment blocked. The projected monthly cost exceeds the remaining department budget."
+    when:
+      all:
+        - field: args.projected_cost
+          aliases: [estimatedCost, monthlyRunRate, projectedRunRate]
+          op: gt
+          value: 5000
+        - field: context.budget_remaining
+          aliases: [remainingBudget, departmentFunds, availableBudget]
+          op: lt
+          value: 1000
+
+  - action: "expensiveComputeProvisioned"
+    message: "FINOPS-CST-02: Extreme high-cost compute instances (>$10/hr) require FinOps approval."
+    when:
+      all:
+        - field: args.hourly_rate
+          aliases: [costPerHour, rate, computeRate]
+          op: gt
+          value: 10
+        - field: context.finops_approved
+          aliases: [finopsApproval, costApproval]
+          op: is_false
+
+  - action: "diskCreated"
+    message: "FINOPS-CST-03: Creating unattached provisioned IOPS disks is prohibited to prevent orphaned costs."
+    when:
+      all:
+        - field: args.disk_type
+          aliases: [volumeType, storageTier, ebsType]
+          op: eq
+          value: "io2"
+        - field: args.is_attached
+          aliases: [attachedToVm, inUse, attached]
+          op: is_false
+
+  - action: "spotInstanceRequested"
+    message: "FINOPS-CST-04: Spot instances cannot be used for stateful database workloads."
+    when:
+      all:
+        - field: args.workload_type
+          aliases: [appType, workloadCategory, serviceType]
+          op: in
+          value: ["database", "stateful_app", "cache"]
+        - field: args.instance_purchasing_option
+          aliases: [billingModel, spotOrOnDemand, purchasingModel]
+          op: eq
+          value: "spot"
+
+  - action: "reservedInstancePurchased"
+    message: "FINOPS-CST-05: 3-year Reserved Instances are frozen until Q4 budget review."
+    when:
+      all:
+        - field: args.term_length_years
+          aliases: [term, duration, reservationYears]
+          op: gte
+          value: 3
+
+  - action: "savingsPlanPurchased"
+    message: "FINOPS-CST-06: Savings plans exceeding $100k upfront must have CFO approval."
+    when:
+      all:
+        - field: args.upfront_cost
+          aliases: [initialPayment, upfrontCommitment, totalUpfront]
+          op: gt
+          value: 100000
+        - field: context.cfo_approval
+          aliases: [cfoApproved, executiveApproval]
+          op: is_false
+
+  - action: "resourceScaledUp"
+    message: "FINOPS-CST-07: Upscaling instance size by more than 2 tiers requires a performance review."
+    when:
+      all:
+        - field: args.tier_jump_count
+          aliases: [sizeIncrease, scaleMultiplier, tierDiff]
+          op: gt
+          value: 2
+        - field: context.performance_review_completed
+          aliases: [perfReview, reviewedByArch]
+          op: is_false
+
+  # ==========================================
+  # Tagging & Compliance
+  # ==========================================
+  - action: "cloudResourceCreated"
+    message: "CLOUD-TAG-01: Every resource must have a valid Owner tag."
+    when:
+      all:
+        - field: args.tags.owner
+          aliases: [ownerTag, tagOwner, resourceOwner]
+          op: eq
+          value: ""
+
+  - action: "cloudResourceCreated"
+    message: "CLOUD-TAG-02: Every resource must have a valid CostCenter tag."
+    when:
+      all:
+        - field: args.tags.cost_center
+          aliases: [costCenterTag, tagCostCenter, billingCenter]
+          op: eq
+          value: ""
+
+  - action: "cloudResourceCreated"
+    message: "CLOUD-TAG-03: Environment tag must be one of: dev, qa, staging, prod."
+    when:
+      all:
+        - field: args.tags.environment
+          aliases: [envTag, tagEnvironment, appEnv]
+          op: not_in
+          value: ["dev", "qa", "staging", "prod"]
+
+  - action: "tagModified"
+    message: "CLOUD-TAG-04: Removal of the ComplianceScope tag is prohibited."
+    when:
+      all:
+        - field: args.removed_tags
+          aliases: [deletedTags, strippedTags, untaggedKeys]
+          op: contains
+          value: "ComplianceScope"
+
+  - action: "resourceTagCreated"
+    message: "CLOUD-TAG-05: PII tag cannot be set to false if the underlying subnet is the SecureData zone."
+    when:
+      all:
+        - field: args.tags.pii
+          aliases: [piiTag, hasPii, isPii]
+          op: eq
+          value: "false"
+        - field: context.subnet_zone
+          aliases: [networkZone, vpcZone, enclave]
+          op: eq
+          value: "SecureData"
+
+  - action: "cloudResourceCreated"
+    message: "CLOUD-TAG-06: Application ID (AppID) tag must be exactly 6 characters."
+    when:
+      all:
+        - field: args.tags.app_id_length
+          aliases: [appIdLen, tagAppIdLength]
+          op: neq
+          value: 6
+
+  - action: "resourceUntagged"
+    message: "CLOUD-TAG-07: Untagging resources in the production environment requires a change request."
+    when:
+      all:
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: eq
+          value: "prod"
+        - field: context.has_change_request
+          aliases: [crqApproved, hasTicket, changeApproved]
+          op: is_false
+
+  # ==========================================
+  # Network Security (VPC/NSG)
+  # ==========================================
+  - action: "securityGroupCreated"
+    message: "CLOUD-NET-01: Port 22 (SSH) must not be open to the internet (0.0.0.0/0)."
+    when:
+      all:
+        - field: args.ingress_rules.port
+          aliases: [openPort, destPort, targetPort]
+          op: eq
+          value: 22
+        - field: args.ingress_rules.cidr
+          aliases: [sourceCidr, sourceIp, incomingCidr]
+          op: eq
+          value: "0.0.0.0/0"
+
+  - action: "securityGroupCreated"
+    message: "CLOUD-NET-02: Port 3389 (RDP) must not be open to the internet."
+    when:
+      all:
+        - field: args.ingress_rules.port
+          aliases: [openPort, destPort, targetPort]
+          op: eq
+          value: 3389
+        - field: args.ingress_rules.cidr
+          aliases: [sourceCidr, sourceIp, incomingCidr]
+          op: eq
+          value: "0.0.0.0/0"
+
+  - action: "vpcCreated"
+    message: "CLOUD-NET-03: VPCs must be created with Flow Logs enabled."
+    when:
+      all:
+        - field: args.flow_logs_enabled
+          aliases: [vpcFlowLogs, flowLogs, networkLogging]
+          op: is_false
+
+  - action: "subnetCreated"
+    message: "CLOUD-NET-04: Auto-assign public IP must be disabled for all subnets."
+    when:
+      all:
+        - field: args.map_public_ip_on_launch
+          aliases: [autoAssignPublicIp, publicIpAuto, mapPublicIp]
+          op: is_true
+
+  - action: "routeTableModified"
+    message: "CLOUD-NET-05: Adding routes to an Internet Gateway (IGW) in private subnets is forbidden."
+    when:
+      all:
+        - field: args.target_type
+          aliases: [routeTarget, nextHopType, gatewayType]
+          op: eq
+          value: "igw"
+        - field: context.subnet_type
+          aliases: [tier, subnetClassification, routingTier]
+          op: eq
+          value: "private"
+
+  - action: "networkAclModified"
+    message: "CLOUD-NET-06: NACLs must not have an 'Allow All' rule (0.0.0.0/0 -> ALL PORTS)."
+    when:
+      all:
+        - field: args.is_allow_all
+          aliases: [allowAll, openAcl, unrestrictedAcl]
+          op: is_true
+
+  - action: "vpcPeeringCreated"
+    message: "CLOUD-NET-07: Cross-account VPC peering requires InfoSec approval."
+    when:
+      all:
+        - field: args.is_cross_account
+          aliases: [crossAccount, externalPeering, foreignAccount]
+          op: is_true
+        - field: context.infosec_approved
+          aliases: [secApproval, infoSecCleared, securityApproved]
+          op: is_false
+
+  - action: "natGatewayCreated"
+    message: "CLOUD-NET-08: NAT Gateways must only be created in public subnets."
+    when:
+      all:
+        - field: context.subnet_type
+          aliases: [tier, subnetClassification, routingTier]
+          op: neq
+          value: "public"
+
+  # ==========================================
+  # Storage Security (S3/Blob)
+  # ==========================================
+  - action: "s3BucketCreated"
+    message: "CLOUD-STO-01: S3 Buckets must have Block Public Access enabled."
+    when:
+      all:
+        - field: args.block_public_access
+          aliases: [publicAccessBlock, blockPublic, isPrivate]
+          op: is_false
+
+  - action: "blobContainerCreated"
+    message: "CLOUD-STO-02: Blob containers must reject anonymous access."
+    when:
+      all:
+        - field: args.allow_blob_public_access
+          aliases: [anonAccess, publicBlobAccess, anonymousRead]
+          op: is_true
+
+  - action: "s3BucketCreated"
+    message: "CLOUD-STO-03: S3 Buckets must have versioning enabled to protect against ransomware."
+    when:
+      all:
+        - field: args.versioning_enabled
+          aliases: [isVersioned, bucketVersioning, versioningState]
+          op: is_false
+
+  - action: "storageAccountCreated"
+    message: "CLOUD-STO-04: Secure transfer (HTTPS only) must be required for Storage Accounts."
+    when:
+      all:
+        - field: args.supports_https_traffic_only
+          aliases: [secureTransfer, httpsOnly, enforceHttps]
+          op: is_false
+
+  - action: "s3BucketCreated"
+    message: "CLOUD-STO-05: S3 Buckets must be encrypted at rest."
+    when:
+      all:
+        - field: args.encryption_enabled
+          aliases: [sseEnabled, encryptedAtRest, defaultEncryption]
+          op: is_false
+
+  - action: "s3BucketPolicyModified"
+    message: "CLOUD-STO-06: Bucket policies cannot grant Principal: '*'."
+    when:
+      all:
+        - field: args.has_wildcard_principal
+          aliases: [wildcardPrincipal, publicPolicy, openPrincipal]
+          op: is_true
+
+  - action: "ebsVolumeCreated"
+    message: "CLOUD-STO-07: EBS Volumes must be encrypted with a KMS key."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, volumeEncryption, ebsEncryption]
+          op: is_false
+
+  - action: "s3BucketCreated"
+    message: "CLOUD-STO-08: Data lake buckets must have a lifecycle policy transitioning to cold storage."
+    when:
+      all:
+        - field: args.bucket_name
+          aliases: [name, s3Name, targetBucket]
+          op: contains
+          value: "datalake"
+        - field: args.has_lifecycle_policy
+          aliases: [lifecycleRules, hasTransitions, coldStorageRule]
+          op: is_false
+
+  # ==========================================
+  # Identity Controls (IAM/RBAC)
+  # ==========================================
+  - action: "iamUserCreated"
+    message: "CLOUD-IAM-01: IAM Users are prohibited. Use federated identities (SSO) instead."
+    when:
+      all:
+        - field: args.user_type
+          aliases: [identityType, accountType, creationType]
+          op: eq
+          value: "local_iam_user"
+
+  - action: "iamRoleCreated"
+    message: "CLOUD-IAM-02: IAM Roles cannot be created with AdministratorAccess."
+    when:
+      all:
+        - field: args.attached_policies
+          aliases: [policies, rolePolicies, managedPolicies]
+          op: contains
+          value: "AdministratorAccess"
+
+  - action: "iamPolicyCreated"
+    message: "CLOUD-IAM-03: Custom IAM policies cannot contain 'Action: *'."
+    when:
+      all:
+        - field: args.has_wildcard_action
+          aliases: [wildcardAction, starAction, allowAllAction]
+          op: is_true
+
+  - action: "serviceAccountCreated"
+    message: "CLOUD-IAM-04: Service accounts must have a key rotation policy of 90 days or less."
+    when:
+      all:
+        - field: args.key_rotation_days
+          aliases: [rotationPeriod, keyAgeLimit, maxKeyDays]
+          op: gt
+          value: 90
+
+  - action: "accessKeyCreated"
+    message: "CLOUD-IAM-05: An identity cannot have more than 2 active access keys."
+    when:
+      all:
+        - field: context.active_key_count
+          aliases: [keyCount, currentKeys, totalAccessKeys]
+          op: gte
+          value: 2
+
+  - action: "roleAssignmentCreated"
+    message: "CLOUD-IAM-06: Owner role cannot be assigned directly to a user; must be assigned to a group."
+    when:
+      all:
+        - field: args.role_name
+          aliases: [role, assignedRole, rbacRole]
+          op: eq
+          value: "Owner"
+        - field: args.assignee_type
+          aliases: [principalType, targetType, identityKind]
+          op: eq
+          value: "User"
+
+  - action: "iamGroupModified"
+    message: "CLOUD-IAM-07: Adding users to the 'SuperAdmins' group requires multi-party authorization."
+    when:
+      all:
+        - field: args.group_name
+          aliases: [group, targetGroup, identityGroup]
+          op: eq
+          value: "SuperAdmins"
+        - field: context.multi_party_authorized
+          aliases: [dualApproval, mpaApproved, twoPersonRule]
+          op: is_false
+
+  - action: "crossAccountRoleCreated"
+    message: "CLOUD-IAM-08: Cross-account roles must require an ExternalId to prevent confused deputy attacks."
+    when:
+      all:
+        - field: args.trust_policy_has_external_id
+          aliases: [requiresExternalId, hasExternalIdCondition, externalIdSet]
+          op: is_false
+
+  # ==========================================
+  # Kubernetes & Container Security
+  # ==========================================
+  - action: "eksClusterCreated"
+    message: "CLOUD-K8S-01: EKS API server endpoints must not be public."
+    when:
+      all:
+        - field: args.endpoint_public_access
+          aliases: [publicApi, publicEndpoint, apiServerPublic]
+          op: is_true
+
+  - action: "aksClusterCreated"
+    message: "CLOUD-K8S-02: AKS clusters must have Azure AD RBAC integration enabled."
+    when:
+      all:
+        - field: args.aad_rbac_enabled
+          aliases: [rbacEnabled, aadIntegration, azureRbac]
+          op: is_false
+
+  - action: "podDeployed"
+    message: "CLOUD-K8S-03: Containers cannot run as the root user."
+    when:
+      all:
+        - field: args.run_as_root
+          aliases: [isRoot, rootUser, runAsUser0]
+          op: is_true
+
+  - action: "podDeployed"
+    message: "CLOUD-K8S-04: Privileged containers are strictly prohibited."
+    when:
+      all:
+        - field: args.privileged
+          aliases: [isPrivileged, privilegedMode, securityContextPrivileged]
+          op: is_true
+
+  - action: "containerRegistryCreated"
+    message: "CLOUD-K8S-05: Container registries must not have the admin user account enabled."
+    when:
+      all:
+        - field: args.admin_user_enabled
+          aliases: [registryAdmin, acrAdminUser, defaultAdmin]
+          op: is_true
+
+  - action: "imagePushed"
+    message: "CLOUD-K8S-06: Images with CRITICAL vulnerabilities cannot be pushed to production registries."
+    when:
+      all:
+        - field: args.critical_cve_count
+          aliases: [criticalVulns, cveCount, criticalBugs]
+          op: gt
+          value: 0
+
+  - action: "namespaceCreated"
+    message: "CLOUD-K8S-07: Namespaces must have ResourceQuotas defined."
+    when:
+      all:
+        - field: args.has_resource_quota
+          aliases: [quotaSet, resourceQuota, limitsDefined]
+          op: is_false
+
+  # ==========================================
+  # Serverless Security
+  # ==========================================
+  - action: "lambdaFunctionCreated"
+    message: "CLOUD-SRV-01: Lambda functions must be deployed within a VPC."
+    when:
+      all:
+        - field: args.vpc_config_present
+          aliases: [inVpc, hasVpcConfig, vpcAttached]
+          op: is_false
+
+  - action: "cloudFunctionCreated"
+    message: "CLOUD-SRV-02: Cloud Functions cannot allow unauthenticated (public) invocations."
+    when:
+      all:
+        - field: args.allow_unauthenticated
+          aliases: [publicInvoke, anonymousAccess, allUsersInvoker]
+          op: is_true
+
+  - action: "lambdaFunctionCreated"
+    message: "CLOUD-SRV-03: Maximum timeout for synchronous APIs is 30 seconds."
+    when:
+      all:
+        - field: args.timeout_seconds
+          aliases: [timeout, maxExecutionTime, functionTimeout]
+          op: gt
+          value: 30
+        - field: context.is_api_backend
+          aliases: [apiGatewayTrigger, isSynchronous, httpTrigger]
+          op: is_true
+
+  - action: "functionAppCreated"
+    message: "CLOUD-SRV-04: Azure Function Apps must enforce FTPS (FTP is blocked)."
+    when:
+      all:
+        - field: args.ftps_state
+          aliases: [ftpState, ftpsEnabled, ftpConfig]
+          op: eq
+          value: "AllAllowed"
+
+  - action: "serverlessApiCreated"
+    message: "CLOUD-SRV-05: Serverless API Gateways must be protected by WAF."
+    when:
+      all:
+        - field: args.waf_attached
+          aliases: [hasWaf, webAclAttached, wafEnabled]
+          op: is_false
+
+  - action: "lambdaFunctionCreated"
+    message: "CLOUD-SRV-06: Deprecated runtimes (e.g., Python 3.7, Node 14) are not allowed."
+    when:
+      all:
+        - field: args.runtime
+          aliases: [engine, functionRuntime, environment]
+          op: in
+          value: ["python3.7", "nodejs14.x", "go1.x", "java8"]
+
+  - action: "stepFunctionCreated"
+    message: "CLOUD-SRV-07: State machines must have ALL execution history logging enabled."
+    when:
+      all:
+        - field: args.logging_level
+          aliases: [logLevel, historyLogging, executionLogs]
+          op: neq
+          value: "ALL"
+
+  # ==========================================
+  # Database Security
+  # ==========================================
+  - action: "rdsInstanceCreated"
+    message: "CLOUD-DB-01: RDS instances must not be publicly accessible."
+    when:
+      all:
+        - field: args.publicly_accessible
+          aliases: [isPublic, publicAccess, internetFacing]
+          op: is_true
+
+  - action: "sqlDatabaseCreated"
+    message: "CLOUD-DB-02: SQL Databases must have Auditing enabled."
+    when:
+      all:
+        - field: args.auditing_enabled
+          aliases: [sqlAuditing, dbAuditing, auditLogs]
+          op: is_false
+
+  - action: "dynamoTableCreated"
+    message: "CLOUD-DB-03: Point-in-Time Recovery (PITR) must be enabled on DynamoDB tables."
+    when:
+      all:
+        - field: args.pitr_enabled
+          aliases: [pointInTimeRecovery, backupEnabled, continuousBackups]
+          op: is_false
+
+  - action: "cosmosDbCreated"
+    message: "CLOUD-DB-04: Cosmos DB must be encrypted using Customer Managed Keys (CMK)."
+    when:
+      all:
+        - field: args.key_type
+          aliases: [encryptionType, keyManagement, cmkType]
+          op: eq
+          value: "ServiceManaged"
+
+  - action: "rdsClusterCreated"
+    message: "CLOUD-DB-05: Production RDS Clusters must have deletion protection enabled."
+    when:
+      all:
+        - field: args.deletion_protection
+          aliases: [protectFromDeletion, deletionLock, safeDelete]
+          op: is_false
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: eq
+          value: "prod"
+
+  - action: "databaseSnapshotCreated"
+    message: "CLOUD-DB-06: Database manual snapshots must be encrypted."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, snapshotEncryption, storageEncrypted]
+          op: is_false
+
+  - action: "dbParameterGroupModified"
+    message: "CLOUD-DB-07: Logging all SQL statements (log_statement=all) is forbidden in production due to PII leaks."
+    when:
+      all:
+        - field: args.parameters.log_statement
+          aliases: [logStatement, pgLogStatement, statementLogging]
+          op: eq
+          value: "all"
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: eq
+          value: "prod"
+
+  # ==========================================
+  # Secrets Management
+  # ==========================================
+  - action: "secretCreated"
+    message: "CLOUD-SEC-01: Secrets must have an automatic rotation schedule defined."
+    when:
+      all:
+        - field: args.rotation_enabled
+          aliases: [autoRotate, rotationConfigured, isRotated]
+          op: is_false
+
+  - action: "keyVaultCreated"
+    message: "CLOUD-SEC-02: Key Vaults must have Soft Delete enabled."
+    when:
+      all:
+        - field: args.soft_delete_enabled
+          aliases: [softDelete, enableSoftDelete, retentionEnabled]
+          op: is_false
+
+  - action: "kmsKeyCreated"
+    message: "CLOUD-SEC-03: External key material origin is forbidden without security exception."
+    when:
+      all:
+        - field: args.origin
+          aliases: [keyOrigin, materialOrigin, source]
+          op: eq
+          value: "EXTERNAL"
+        - field: context.security_exception
+          aliases: [secException, approvedException, waiver]
+          op: is_false
+
+  - action: "secretAccessed"
+    message: "CLOUD-SEC-04: High-privilege secrets cannot be accessed from outside the VPC."
+    when:
+      all:
+        - field: args.secret_tier
+          aliases: [tier, sensitivity, secretClassification]
+          op: eq
+          value: "high"
+        - field: context.is_vpc_endpoint
+          aliases: [fromVpc, privateLink, internalNetwork]
+          op: is_false
+
+  - action: "parameterStoreCreated"
+    message: "CLOUD-SEC-05: Plaintext string parameters are deprecated. Use SecureString."
+    when:
+      all:
+        - field: args.parameter_type
+          aliases: [type, paramType, ssmType]
+          op: eq
+          value: "String"
+
+  - action: "vaultPolicyModified"
+    message: "CLOUD-SEC-06: Key Vault access policies cannot grant full 'all' permissions."
+    when:
+      all:
+        - field: args.permissions
+          aliases: [grantedPerms, accessRights, allowedActions]
+          op: contains
+          value: "all"
+
+  - action: "certificatesGenerated"
+    message: "CLOUD-SEC-07: SSL/TLS Certificates cannot have a validity period exceeding 398 days."
+    when:
+      all:
+        - field: args.validity_days
+          aliases: [daysValid, expirationDays, lifetime]
+          op: gt
+          value: 398
+
+  # ==========================================
+  # Compliance Regions (Data Residency)
+  # ==========================================
+  - action: "cloudResourceCreated"
+    message: "CLOUD-REG-01: Deployment is restricted to approved geographic regions (us-east-1, eu-west-1)."
+    when:
+      all:
+        - field: args.region
+          aliases: [location, deploymentRegion, cloudRegion]
+          op: not_in
+          value: ["us-east-1", "eu-west-1"]
+
+  - action: "dataBucketCreated"
+    message: "CLOUD-REG-02: European customer data buckets MUST be located in eu-west-1."
+    when:
+      all:
+        - field: args.data_classification
+          aliases: [dataType, dataCategory, payloadType]
+          op: eq
+          value: "eu_citizen_data"
+        - field: args.region
+          aliases: [location, deploymentRegion, cloudRegion]
+          op: neq
+          value: "eu-west-1"
+
+  - action: "databaseProvisioned"
+    message: "CLOUD-REG-03: Databases handling FedRAMP data must be in GovCloud."
+    when:
+      all:
+        - field: args.compliance_framework
+          aliases: [framework, complianceStandard, auditType]
+          op: eq
+          value: "fedramp"
+        - field: args.region
+          aliases: [location, deploymentRegion, cloudRegion]
+          op: not_in
+          value: ["us-gov-west-1", "us-gov-east-1"]
+
+  - action: "snapshotCopied"
+    message: "CLOUD-REG-04: Cross-region snapshot copying is prohibited for PCI-DSS workloads."
+    when:
+      all:
+        - field: args.is_cross_region
+          aliases: [crossRegion, interRegion, differentRegion]
+          op: is_true
+        - field: context.pci_workload
+          aliases: [isPci, pciDss, paymentData]
+          op: is_true
+
+  - action: "computeInstanceCreated"
+    message: "CLOUD-REG-05: Provisioning in extreme high-cost regions (e.g., af-south-1) requires explicit FinOps approval."
+    when:
+      all:
+        - field: args.region
+          aliases: [location, deploymentRegion, cloudRegion]
+          op: in
+          value: ["af-south-1", "sa-east-1", "me-south-1"]
+        - field: context.finops_approved
+          aliases: [finopsApproval, costApproval]
+          op: is_false
+
+  - action: "networkConstructCreated"
+    message: "CLOUD-REG-06: Cross-region VPC peering requires Global Network Architect approval."
+    when:
+      all:
+        - field: args.is_cross_region
+          aliases: [crossRegion, interRegion, differentRegion]
+          op: is_true
+        - field: context.net_arch_approved
+          aliases: [archApproval, globalNetApproved]
+          op: is_false
+
+  - action: "userAssignedToRegion"
+    message: "CLOUD-REG-07: Admins outside the EU cannot be assigned access to EU resource groups."
+    when:
+      all:
+        - field: args.admin_location
+          aliases: [userLocation, adminCountry, operatorOrigin]
+          op: not_in
+          value: ["DE", "FR", "IE", "NL"]
+        - field: context.target_region
+          aliases: [resourceRegion, location, cloudRegion]
+          op: eq
+          value: "eu-west-1"
+
+  # ==========================================
+  # Backup & Disaster Recovery
+  # ==========================================
+  - action: "backupVaultCreated"
+    message: "CLOUD-BDR-01: Backup vaults must have vault lock (immutability) enabled."
+    when:
+      all:
+        - field: args.vault_lock_enabled
+          aliases: [immutability, locked, wormEnabled]
+          op: is_false
+
+  - action: "backupPolicyCreated"
+    message: "CLOUD-BDR-02: Minimum backup retention period is 30 days."
+    when:
+      all:
+        - field: args.retention_days
+          aliases: [retentionPeriod, keepDays, maxAge]
+          op: lt
+          value: 30
+
+  - action: "drPlanCreated"
+    message: "CLOUD-BDR-03: Tier 1 applications must have an RPO of 4 hours or less."
+    when:
+      all:
+        - field: context.app_tier
+          aliases: [criticality, serviceTier, appLevel]
+          op: eq
+          value: "Tier1"
+        - field: args.rpo_hours
+          aliases: [recoveryPointObjective, rpoTime, dataLossWindow]
+          op: gt
+          value: 4
+
+  - action: "vmBackedUp"
+    message: "CLOUD-BDR-04: Database VMs must use Application Consistent backups, not just Crash Consistent."
+    when:
+      all:
+        - field: context.contains_database
+          aliases: [isDb, runningDb, statefulApp]
+          op: is_true
+        - field: args.backup_consistency
+          aliases: [consistencyLevel, backupMode, snapMode]
+          op: neq
+          value: "ApplicationConsistent"
+
+  - action: "snapshotDeleted"
+    message: "CLOUD-BDR-05: Manual deletion of backups within their retention period is prohibited."
+    when:
+      all:
+        - field: args.age_days
+          aliases: [snapshotAge, currentAge, daysOld]
+          op: lt
+          value: 30
+
+  - action: "crossRegionBackupCreated"
+    message: "CLOUD-BDR-06: Cross-region DR backups must be encrypted with a KMS key from the destination region."
+    when:
+      all:
+        - field: args.destination_kms_key_used
+          aliases: [targetRegionKey, remoteKmsKey, destKeyUsed]
+          op: is_false
+
+  - action: "databaseReplicationConfigured"
+    message: "CLOUD-BDR-07: Production databases must be Multi-AZ (Single AZ is blocked)."
+    when:
+      all:
+        - field: args.multi_az
+          aliases: [highAvailability, zoneRedundant, multiZone]
+          op: is_false
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: eq
+          value: "prod"
+
+  # ==========================================
+  # Monitoring & Alerting
+  # ==========================================
+  - action: "cloudtrailDisabled"
+    message: "CLOUD-MON-01: Disabling CloudTrail/Audit Logs is strictly prohibited."
+    when:
+      all:
+        - field: args.status
+          aliases: [trailStatus, loggingState, auditStatus]
+          op: eq
+          value: "disabled"
+
+  - action: "logGroupCreated"
+    message: "CLOUD-MON-02: Security log groups must have a retention period of at least 365 days."
+    when:
+      all:
+        - field: args.log_type
+          aliases: [logCategory, classification, groupType]
+          op: eq
+          value: "security_audit"
+        - field: args.retention_in_days
+          aliases: [retentionDays, keepLogsDays, logRetention]
+          op: lt
+          value: 365
+
+  - action: "alertRuleCreated"
+    message: "CLOUD-MON-03: Critical alerts must be linked to a PagerDuty/Opsgenie action group."
+    when:
+      all:
+        - field: args.severity
+          aliases: [alertLevel, urgency, priority]
+          op: eq
+          value: "critical"
+        - field: args.has_action_group
+          aliases: [actionLinked, notifiesOps, pagerDutyLinked]
+          op: is_false
+
+  - action: "metricFilterCreated"
+    message: "CLOUD-MON-04: Metric filters for root logins must trigger an immediate alarm."
+    when:
+      all:
+        - field: args.filter_pattern
+          aliases: [pattern, regexMatch, logFilter]
+          op: contains
+          value: "RootLogin"
+        - field: args.creates_alarm
+          aliases: [hasAlarm, triggersAlert, raisesAlarm]
+          op: is_false
+
+  - action: "guarddutyDisabled"
+    message: "CLOUD-MON-05: Disabling Threat Detection (GuardDuty/Defender) is prohibited globally."
+    when:
+      all:
+        - field: args.threat_detection_enabled
+          aliases: [defenderEnabled, guardDutyState, threatIntel]
+          op: is_false
+
+  - action: "securityHubDisabled"
+    message: "CLOUD-MON-06: CSPM tools cannot be disabled in the core security account."
+    when:
+      all:
+        - field: context.account_type
+          aliases: [accountCategory, accountTier, landingZoneRole]
+          op: eq
+          value: "security_hub_master"
+
+  - action: "diagnosticLogsDisabled"
+    message: "CLOUD-MON-07: Diagnostic logs must be enabled for all Key Vaults."
+    when:
+      all:
+        - field: context.resource_type
+          aliases: [type, azureResourceType, armType]
+          op: eq
+          value: "KeyVault"
+        - field: args.diagnostics_enabled
+          aliases: [diagLogs, monitoringEnabled, logExport]
+          op: is_false
+
+  # ==========================================
+  # Infrastructure as Code (IaC)
+  # ==========================================
+  - action: "terraformStateModified"
+    message: "CLOUD-IAC-01: Terraform state cannot be modified outside of the CI/CD pipeline."
+    when:
+      all:
+        - field: context.is_cicd_agent
+          aliases: [runByPipeline, isPipeline, githubActions]
+          op: is_false
+
+  - action: "cloudFormationStackCreated"
+    message: "CLOUD-IAC-02: Stacks with IAM capabilities require security architect sign-off."
+    when:
+      all:
+        - field: args.capabilities
+          aliases: [stackCapabilities, iamRoles, cfnCapabilities]
+          op: contains
+          value: "CAPABILITY_IAM"
+        - field: context.security_architect_approved
+          aliases: [secArchApprove, iamApproval, securitySignoff]
+          op: is_false
+
+  - action: "armTemplateDeployed"
+    message: "CLOUD-IAC-03: Manual template deployments via Portal/CLI are prohibited in Prod."
+    when:
+      all:
+        - field: args.deployment_source
+          aliases: [source, executedFrom, clientTool]
+          op: in
+          value: ["AzurePortal", "AzureCLI", "PowerShell"]
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: eq
+          value: "prod"
+
+  - action: "tfWorkspaceCreated"
+    message: "CLOUD-IAC-04: Terraform workspaces must be integrated with a VCS repository."
+    when:
+      all:
+        - field: args.vcs_repo_linked
+          aliases: [hasVcs, gitRepoAttached, repoLinked]
+          op: is_false
+
+  - action: "bicepModulePublished"
+    message: "CLOUD-IAC-05: Infrastructure modules must pass all linting checks before publish."
+    when:
+      all:
+        - field: context.linting_passed
+          aliases: [linterStatus, codeQuality, bicepLint]
+          op: is_false
+
+  - action: "pulumiStackCreated"
+    message: "CLOUD-IAC-06: Pulumi stacks must use a KMS provider for secrets, not the default passphrase."
+    when:
+      all:
+        - field: args.secrets_provider
+          aliases: [secretEngine, encryptionProvider, secretManager]
+          op: eq
+          value: "passphrase"
+
+  - action: "iacDriftDetected"
+    message: "CLOUD-IAC-07: Manual changes causing IaC drift must be reverted or codified within 24 hours."
+    when:
+      all:
+        - field: args.hours_since_drift
+          aliases: [driftAge, driftDuration, timeSinceDrift]
+          op: gt
+          value: 24
+
+  # ==========================================
+  # Multi-Cloud Governance
+  # ==========================================
+  - action: "crossCloudConnectionCreated"
+    message: "CLOUD-MC-01: VPNs between AWS and Azure must enforce AES-256 encryption."
+    when:
+      all:
+        - field: args.encryption_algorithm
+          aliases: [cryptoAlgo, cipher, vpnCipher]
+          op: neq
+          value: "AES256"
+
+  - action: "multiCloudIdentityLinked"
+    message: "CLOUD-MC-02: Identity federation between clouds requires MFA enforcement on the IdP."
+    when:
+      all:
+        - field: args.idp_mfa_enforced
+          aliases: [mfaRequired, providerMfa, ssoMfa]
+          op: is_false
+
+  - action: "workloadMigrated"
+    message: "CLOUD-MC-03: Migrating workloads between clouds requires a FinOps cost parity analysis."
+    when:
+      all:
+        - field: args.target_cloud
+          aliases: [destinationCloud, migratingTo, newProvider]
+          op: neq
+          value: "current"
+        - field: context.cost_parity_analyzed
+          aliases: [finopsAnalyzed, costCheck, tcoCompleted]
+          op: is_false
+
+  - action: "crossCloudDataSyncCreated"
+    message: "CLOUD-MC-04: Cross-cloud data synchronization must not route over the public internet."
+    when:
+      all:
+        - field: args.routing_type
+          aliases: [networkPath, transitType, routingMethod]
+          op: eq
+          value: "PublicInternet"
+
+  - action: "dnsZoneDelegated"
+    message: "CLOUD-MC-05: Root DNS zones must be hosted in Route53 or Azure DNS only."
+    when:
+      all:
+        - field: args.target_nameserver_provider
+          aliases: [nsProvider, dnsHost, delegatedTo]
+          op: not_in
+          value: ["aws_route53", "azure_dns"]
+
+  - action: "multiCloudRoleCreated"
+    message: "CLOUD-MC-06: OIDC roles spanning clouds cannot have administrative rights."
+    when:
+      all:
+        - field: args.is_multi_cloud_oidc
+          aliases: [crossCloudAuth, oidcFederation, multiCloudId]
+          op: is_true
+        - field: args.has_admin_rights
+          aliases: [isAdmin, elevatedPrivileges, godMode]
+          op: is_true
+
+  - action: "unifiedSecurityPolicyModified"
+    message: "CLOUD-MC-07: Downgrading the unified lowest-common-denominator security policy is blocked."
+    when:
+      all:
+        - field: args.policy_strictness_change
+          aliases: [changeType, delta, securityDelta]
+          op: eq
+          value: "downgraded"
+
+  # ==========================================
+  # FinOps Controls
+  # ==========================================
+  - action: "budgetAlertModified"
+    message: "FINOPS-OP-01: Disabling or increasing budget alerts requires department head approval."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [modificationType, change, alertChange]
+          op: in
+          value: ["disabled", "threshold_increased"]
+        - field: context.dept_head_approved
+          aliases: [svpApproved, directorApproved, headApproval]
+          op: is_false
+
+  - action: "committedUseDiscountModified"
+    message: "FINOPS-OP-02: Canceling a Committed Use Discount (CUD) incurs penalties and needs CFO review."
+    when:
+      all:
+        - field: args.modification
+          aliases: [changeType, cudAction, commitStatus]
+          op: eq
+          value: "cancelled"
+        - field: context.cfo_review_completed
+          aliases: [cfoApproved, financeReviewed]
+          op: is_false
+
+  - action: "billingAccountCreated"
+    message: "FINOPS-OP-03: New billing accounts must have a valid Purchase Order (PO) number attached."
+    when:
+      all:
+        - field: args.po_number_provided
+          aliases: [hasPo, purchaseOrderAttached, billingPo]
+          op: is_false
+
+  - action: "chargebackTagModified"
+    message: "FINOPS-OP-04: Changing a resource CostCenter to 'Unallocated' is prohibited."
+    when:
+      all:
+        - field: args.new_cost_center
+          aliases: [targetCostCenter, updatedBillingTag, chargebackCode]
+          op: eq
+          value: "Unallocated"
+
+  - action: "instanceTypeChanged"
+    message: "FINOPS-OP-05: Upsizing instances without a corresponding CPU utilization metric > 80% is blocked."
+    when:
+      all:
+        - field: args.is_upsize
+          aliases: [scaleUp, largerInstance, increasedCapacity]
+          op: is_true
+        - field: context.avg_cpu_utilization_30d
+          aliases: [cpuLoad, historicalCpu, avgCpu]
+          op: lt
+          value: 80
+
+  - action: "storageTierChanged"
+    message: "FINOPS-OP-06: Moving Archive data back to Standard tier incurs high retrieval fees. Requires approval."
+    when:
+      all:
+        - field: args.previous_tier
+          aliases: [oldTier, sourceClass, fromTier]
+          op: eq
+          value: "Archive"
+        - field: args.new_tier
+          aliases: [targetTier, destClass, toTier]
+          op: eq
+          value: "Standard"
+
+  - action: "resourceUntagged"
+    message: "FINOPS-OP-07: FinOps financial tracking tags cannot be deleted."
+    when:
+      all:
+        - field: args.removed_tags
+          aliases: [deletedTags, strippedTags, untaggedKeys]
+          op: contains
+          value: "FinOpsTrackingID"
+
+  # ==========================================
+  # Green Cloud (Carbon)
+  # ==========================================
+  - action: "computeResourceProvisioned"
+    message: "CLOUD-GRN-01: Provisioning in regions with high carbon intensity (>300g CO2/kWh) is restricted."
+    when:
+      all:
+        - field: context.region_carbon_intensity
+          aliases: [carbonEmissions, co2PerKwh, gridDirtiness]
+          op: gt
+          value: 300
+
+  - action: "resourceCreated"
+    message: "CLOUD-GRN-02: Non-production VMs must have a shutdown schedule attached to save energy."
+    when:
+      all:
+        - field: context.environment
+          aliases: [env, currentEnv, deploymentEnv]
+          op: neq
+          value: "prod"
+        - field: args.has_power_schedule
+          aliases: [autoShutdown, scheduledStop, powerMgmt]
+          op: is_false
+
+  - action: "inefficientComputeProvisioned"
+    message: "CLOUD-GRN-03: Prefer ARM-based processors (Graviton/Ampere) for background batch jobs for better energy efficiency."
+    when:
+      all:
+        - field: args.workload_type
+          aliases: [appType, workloadCategory, serviceType]
+          op: eq
+          value: "batch_processing"
+        - field: args.processor_architecture
+          aliases: [cpuArch, chipType, arch]
+          op: neq
+          value: "arm64"
+
+  - action: "computeResourceProvisioned"
+    message: "CLOUD-GRN-04: Department carbon quota exceeded for the month. Cannot provision new compute."
+    when:
+      all:
+        - field: context.carbon_quota_status
+          aliases: [co2Budget, emissionsLimit, sustainabilityCap]
+          op: eq
+          value: "exceeded"
+
+  - action: "greenMetricAlertDismissed"
+    message: "CLOUD-GRN-05: Idle resource alerts must be remediated (deleted/stopped), not just dismissed."
+    when:
+      all:
+        - field: args.alert_type
+          aliases: [notificationType, alertCategory, warningType]
+          op: eq
+          value: "idle_resource_waste"
+        - field: args.remediation_action
+          aliases: [takenAction, response, fix]
+          op: eq
+          value: "dismissed"
+
+  - action: "sustainabilityReportGenerated"
+    message: "CLOUD-GRN-06: Sustainability reports must include Scope 3 emissions data."
+    when:
+      all:
+        - field: args.includes_scope_3
+          aliases: [hasScope3, supplyChainEmissions, totalCarbon]
+          op: is_false
+
+  - action: "dataArchived"
+    message: "CLOUD-GRN-07: Long-term cold data must be stored in the lowest energy tier (e.g., Deep Archive)."
+    when:
+      all:
+        - field: args.retention_requirement_years
+          aliases: [keepForYears, storageDuration, archiveLength]
+          op: gt
+          value: 5
+        - field: args.target_storage_tier
+          aliases: [destClass, toTier, storageClass]
+          op: neq
+          value: "DeepArchive"
+
+  # ==========================================
+  # Cloud Exit Strategy
+  # ==========================================
+  - action: "vendorLockInServiceAdopted"
+    message: "CLOUD-EXT-01: Highly proprietary cloud-native services require an approved exit/portability plan."
+    when:
+      all:
+        - field: args.service_lock_in_rating
+          aliases: [proprietaryLevel, lockInScore, portabilityRisk]
+          op: eq
+          value: "High"
+        - field: context.portability_plan_approved
+          aliases: [exitPlanReady, migrationStrategy, fallbackPlan]
+          op: is_false
+
+  - action: "proprietaryDatabaseCreated"
+    message: "CLOUD-EXT-02: Using proprietary graph/NoSQL databases requires a mapping to an OSS alternative."
+    when:
+      all:
+        - field: args.database_engine
+          aliases: [dbType, engine, platform]
+          op: in
+          value: ["dynamodb", "cosmosdb", "spanner"]
+        - field: context.has_oss_mapping
+          aliases: [openSourceAlternative, ossFallback, mappedToOss]
+          op: is_false
+
+  - action: "dataEgressRuleCreated"
+    message: "CLOUD-EXT-03: Data egress flows projected to cost >$10k/mo require architecture review (preventing data gravity lock-in)."
+    when:
+      all:
+        - field: args.projected_egress_cost
+          aliases: [outboundFees, transferCost, egressEst]
+          op: gt
+          value: 10000
+        - field: context.architecture_approved
+          aliases: [archReview, designApproved, boardApproval]
+          op: is_false
+
+  - action: "cloudContractSigned"
+    message: "CLOUD-EXT-04: Enterprise cloud contracts must include an exit assistance clause."
+    when:
+      all:
+        - field: args.has_exit_clause
+          aliases: [exitAssistance, terminationTerms, offboardingSupport]
+          op: is_false
+
+  - action: "specializedAiServiceUsed"
+    message: "CLOUD-EXT-05: Adoption of specialized CSP AI models requires a locally-hostable fallback model strategy."
+    when:
+      all:
+        - field: args.service_category
+          aliases: [techDomain, serviceFamily, resourceType]
+          op: eq
+          value: "Managed_LLM"
+        - field: context.local_fallback_tested
+          aliases: [ossModelTested, localAiReady, offlineFallback]
+          op: is_false
+
+  - action: "multiYearCommitmentSigned"
+    message: "CLOUD-EXT-06: Commitments > 3 years are banned for non-standard compute to maintain agility."
+    when:
+      all:
+        - field: args.term_years
+          aliases: [contractLength, duration, commitmentYears]
+          op: gt
+          value: 3
+        - field: args.compute_type
+          aliases: [resourceType, platform, skuFamily]
+          op: eq
+          value: "proprietary_specialized"
+
+  - action: "proprietaryIaCUsed"
+    message: "CLOUD-EXT-07: Use Terraform/OpenTofu instead of proprietary IaC (CloudFormation/ARM) to avoid tooling lock-in."
+    when:
+      all:
+        - field: args.iac_tool
+          aliases: [provisioner, automationTool, deployer]
+          op: in
+          value: ["CloudFormation", "ARM_Templates", "Bicep"]

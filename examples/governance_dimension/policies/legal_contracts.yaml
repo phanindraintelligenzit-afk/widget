@@ -1,0 +1,992 @@
+# Legal & Contract Compliance Governance Policies
+policies:
+  # Contract Approval Thresholds
+  - action: "contractSigned"
+    message: "LEGAL-CON-01: Contracts over $1,000,000 require Legal VP approval."
+    when:
+      all:
+        - field: args.contract_value
+          aliases: [contractValue, amount, totalValue, contractAmount]
+          op: gt
+          value: 1000000
+        - field: context.legal_vp_approved
+          op: is_false
+
+  - action: "contractSigned"
+    message: "LEGAL-CON-02: Contracts over $5,000,000 require Board of Directors approval."
+    when:
+      all:
+        - field: args.contract_value
+          aliases: [contractValue, amount, totalValue, contractAmount]
+          op: gt
+          value: 5000000
+        - field: context.board_approved
+          op: is_false
+
+  - action: "contractSigned"
+    message: "LEGAL-CON-03: Contracts with terms exceeding 3 years require CFO approval."
+    when:
+      all:
+        - field: args.contract_term_months
+          aliases: [termMonths, durationMonths, lengthMonths]
+          op: gt
+          value: 36
+        - field: context.cfo_approved
+          op: is_false
+
+  - action: "contractRenewed"
+    message: "LEGAL-CON-04: Auto-renewing contracts must be reviewed 90 days before renewal."
+    when:
+      all:
+        - field: args.auto_renewal
+          aliases: [autoRenew, isAutoRenewing, renewing]
+          op: is_true
+        - field: context.reviewed_within_90_days
+          op: is_false
+
+  - action: "contractAmended"
+    message: "LEGAL-CON-05: Material amendments to contracts require formal legal review."
+    when:
+      all:
+        - field: args.is_material_change
+          aliases: [materialChange, significantAmendment, materialAmendment]
+          op: is_true
+        - field: context.legal_review_completed
+          op: is_false
+
+  - action: "contractTerminated"
+    message: "LEGAL-CON-06: Termination for convenience (without cause) requires General Counsel approval."
+    when:
+      all:
+        - field: args.termination_type
+          aliases: [termType, reasonForTermination, termReason]
+          op: eq
+          value: "without_cause"
+        - field: context.general_counsel_approved
+          op: is_false
+
+  # NDA & Confidentiality
+  - action: "ndaSigned"
+    message: "LEGAL-NDA-01: Non-standard NDA terms must be approved by the legal department."
+    when:
+      all:
+        - field: args.is_standard_template
+          aliases: [standardTemplate, standardForm, usedTemplate]
+          op: is_false
+        - field: context.legal_approved
+          op: is_false
+
+  - action: "informationDisclosed"
+    message: "LEGAL-NDA-02: Confidential information cannot be disclosed before an NDA is fully executed."
+    when:
+      all:
+        - field: args.info_classification
+          aliases: [classification, sensitivity, dataClass]
+          op: eq
+          value: "confidential"
+        - field: context.nda_active
+          op: is_false
+
+  - action: "confidentialDataShared"
+    message: "LEGAL-NDA-03: Confidential data cannot be shared with unapproved third parties."
+    when:
+      all:
+        - field: args.party_type
+          aliases: [partyType, recipientType, entityType]
+          op: eq
+          value: "third_party"
+        - field: context.third_party_approved
+          op: is_false
+
+  - action: "ndaExpired"
+    message: "LEGAL-NDA-04: Retaining confidential data after NDA expiration violates policy unless legally required."
+    when:
+      all:
+        - field: args.data_retained
+          aliases: [dataRetained, keptData, recordsRetained]
+          op: is_true
+        - field: context.legal_retention_required
+          op: is_false
+
+  - action: "tradeSecretAccessed"
+    message: "LEGAL-NDA-05: Accessing trade secrets requires explicit clearance and valid business justification."
+    when:
+      any:
+        - field: context.has_clearance
+          op: is_false
+        - field: args.business_justification
+          aliases: [justification, reason, businessNeed]
+          op: eq
+          value: "none"
+
+  - action: "documentPrinted"
+    message: "LEGAL-NDA-06: Highly confidential documents cannot be printed by unauthorized roles."
+    when:
+      all:
+        - field: args.document_sensitivity
+          aliases: [sensitivity, docClass, classification]
+          op: eq
+          value: "highly_confidential"
+        - field: context.role_authorized_to_print
+          op: is_false
+
+  # Intellectual Property
+  - action: "ipAssignmentSigned"
+    message: "LEGAL-IP-01: Employees refusing to sign IP assignment agreements must be suspended from technical work."
+    when:
+      all:
+        - field: args.refused_to_sign
+          aliases: [refused, nonCompliant, signatureRefused]
+          op: is_true
+        - field: context.suspended_from_tech_work
+          op: is_false
+
+  - action: "patentFiled"
+    message: "LEGAL-IP-02: Patent filings cannot proceed without all inventor signatures."
+    when:
+      all:
+        - field: args.missing_signatures
+          aliases: [signaturesMissing, unsignedInventors, pendingSignatures]
+          op: is_true
+        - field: context.legal_exemption_granted
+          op: is_false
+
+  - action: "trademarkRegistered"
+    message: "LEGAL-IP-03: Trademark registration requires prior clearance search."
+    when:
+      all:
+        - field: args.mark_type
+          aliases: [markType, classType, tmType]
+          op: eq
+          value: "new_trademark"
+        - field: context.clearance_search_completed
+          op: is_false
+
+  - action: "codeCommitted"
+    message: "LEGAL-IP-04: Copyleft (GPL) open source licenses are prohibited in proprietary codebases."
+    when:
+      all:
+        - field: args.license_type
+          aliases: [license, osLicense, packageLicense]
+          op: in
+          value: ["GPL", "AGPL", "LGPL"]
+        - field: context.is_proprietary_repo
+          op: is_true
+
+  - action: "sourceCodePublished"
+    message: "LEGAL-IP-05: Publishing internal source code requires legal and security review."
+    when:
+      any:
+        - field: context.legal_review_completed
+          op: is_false
+        - field: context.security_review_completed
+          op: is_false
+
+  - action: "inventionDisclosed"
+    message: "LEGAL-IP-06: Public disclosure of inventions before patent filing waives IP rights."
+    when:
+      all:
+        - field: args.disclosure_type
+          aliases: [disclosureType, publicRelease, releaseType]
+          op: eq
+          value: "public"
+        - field: context.patent_filed
+          op: is_false
+
+  # Regulatory Filings
+  - action: "secFilingSubmitted"
+    message: "LEGAL-REG-01: SEC filings must have CFO certification."
+    when:
+      all:
+        - field: args.filing_type
+          aliases: [filingType, secForm, documentType]
+          op: in
+          value: ["10-K", "10-Q", "8-K"]
+        - field: context.cfo_certified
+          op: is_false
+
+  - action: "taxReturnFiled"
+    message: "LEGAL-REG-02: Corporate tax returns must be signed off by external auditors."
+    when:
+      all:
+        - field: args.return_level
+          aliases: [returnLevel, taxLevel, scope]
+          op: eq
+          value: "corporate"
+        - field: context.auditor_signoff
+          op: is_false
+
+  - action: "annualReportPublished"
+    message: "LEGAL-REG-03: Annual reports cannot be published before Board of Directors approval."
+    when:
+      all:
+        - field: args.report_type
+          aliases: [reportType, docType, publicationType]
+          op: eq
+          value: "annual"
+        - field: context.board_approved
+          op: is_false
+
+  - action: "regulatoryNoticeReceived"
+    message: "LEGAL-REG-04: Formal regulatory notices must be escalated to the legal department within 24 hours."
+    when:
+      all:
+        - field: args.escalation_time_hours
+          aliases: [escalationTime, hoursToEscalate, delayHours]
+          op: gt
+          value: 24
+        - field: context.legal_escalated
+          op: is_false
+
+  - action: "lobbyistRegistered"
+    message: "LEGAL-REG-05: Engaging lobbyists requires prior compliance review to avoid corruption risks."
+    when:
+      all:
+        - field: args.entity_type
+          aliases: [entityType, role, engagementType]
+          op: eq
+          value: "lobbyist"
+        - field: context.compliance_reviewed
+          op: is_false
+
+  - action: "politicalContributionMade"
+    message: "LEGAL-REG-06: Corporate political contributions exceeding policy limits are strictly prohibited."
+    when:
+      all:
+        - field: args.contribution_amount
+          aliases: [amount, value, contributionValue]
+          op: gt
+          value: 5000
+        - field: context.pac_approved
+          op: is_false
+
+  # Legal Hold & eDiscovery
+  - action: "legalHoldPlaced"
+    message: "LEGAL-EDISC-01: System failure during legal hold placement requires manual fallback intervention."
+    when:
+      all:
+        - field: args.lock_status
+          aliases: [lockStatus, holdStatus, systemStatus]
+          op: eq
+          value: "failed"
+        - field: context.manual_intervention_triggered
+          op: is_false
+
+  - action: "legalHoldReleased"
+    message: "LEGAL-EDISC-02: Legal holds cannot be released without General Counsel approval."
+    when:
+      all:
+        - field: args.hold_id
+          aliases: [holdId, caseId, matterId]
+          op: neq
+          value: "none"
+        - field: context.general_counsel_approved
+          op: is_false
+
+  - action: "discoveryDataExported"
+    message: "LEGAL-EDISC-03: eDiscovery data exports require a valid chain of custody log."
+    when:
+      all:
+        - field: args.export_type
+          aliases: [exportType, dataType, extractionType]
+          op: eq
+          value: "ediscovery"
+        - field: context.chain_of_custody_logged
+          op: is_false
+
+  - action: "dataDeleted"
+    message: "LEGAL-EDISC-04: Deleting data under active legal hold is a spoliation of evidence."
+    when:
+      all:
+        - field: args.data_status
+          aliases: [dataStatus, recordStatus, holdState]
+          op: eq
+          value: "under_legal_hold"
+        - field: context.authorized_deletion
+          op: is_false
+
+  - action: "deviceWiped"
+    message: "LEGAL-EDISC-05: Wiping an employee device during an active investigation is prohibited."
+    when:
+      all:
+        - field: args.device_owner_status
+          aliases: [ownerStatus, employeeStatus, targetStatus]
+          op: eq
+          value: "under_investigation"
+        - field: context.legal_clearance
+          op: is_false
+
+  - action: "custodianInterviewed"
+    message: "LEGAL-EDISC-06: Custodian interviews for sensitive matters require outside counsel presence."
+    when:
+      all:
+        - field: args.matter_sensitivity
+          aliases: [sensitivity, matterLevel, caseSensitivity]
+          op: eq
+          value: "high"
+        - field: context.outside_counsel_present
+          op: is_false
+
+  # Litigation Controls
+  - action: "lawsuitFiled"
+    message: "LEGAL-LIT-01: Filing a corporate lawsuit requires prior Board notification."
+    when:
+      all:
+        - field: args.plaintiff
+          aliases: [plaintiffName, filingEntity, actingEntity]
+          op: eq
+          value: "corporate"
+        - field: context.board_notified
+          op: is_false
+
+  - action: "settlementAgreed"
+    message: "LEGAL-LIT-02: Settlements over $100,000 must be approved by the Legal VP."
+    when:
+      all:
+        - field: args.settlement_amount
+          aliases: [settlementAmount, value, payout]
+          op: gt
+          value: 100000
+        - field: context.legal_vp_approved
+          op: is_false
+
+  - action: "attorneyRetained"
+    message: "LEGAL-LIT-03: Retaining external counsel not on the approved vendor panel requires an exception."
+    when:
+      all:
+        - field: args.is_approved_panel
+          aliases: [approvedPanel, panelVendor, approvedCounsel]
+          op: is_false
+        - field: context.exception_granted
+          op: is_false
+
+  - action: "legalInvoicePaid"
+    message: "LEGAL-LIT-04: Legal invoices over $10,000 require e-billing audit review."
+    when:
+      all:
+        - field: args.invoice_amount
+          aliases: [invoiceAmount, feeAmount, billedAmount]
+          op: gt
+          value: 10000
+        - field: context.ebilling_audited
+          op: is_false
+
+  - action: "subpoenaResponded"
+    message: "LEGAL-LIT-05: Responding to subpoenas without formal legal review is strictly prohibited."
+    when:
+      all:
+        - field: args.document_type
+          aliases: [docType, requestType, responseType]
+          op: eq
+          value: "subpoena"
+        - field: context.legal_reviewed
+          op: is_false
+
+  - action: "privilegedDocumentShared"
+    message: "LEGAL-LIT-06: Sharing privileged documents with external third parties waives attorney-client privilege."
+    when:
+      all:
+        - field: args.is_privileged
+          aliases: [isPrivileged, attorneyClient, privilegeFlag]
+          op: is_true
+        - field: context.external_sharing_approved
+          op: is_false
+
+  # Sanctions & Export Controls
+  - action: "productExported"
+    message: "EXPORT-CTRL-01: Exporting products to embargoed countries violates trade sanctions."
+    when:
+      all:
+        - field: args.destination_country
+          aliases: [destinationCountry, targetRegion, country]
+          op: in
+          value: ["CU", "IR", "KP", "SY", "RU"]
+        - field: context.ofac_license_granted
+          op: is_false
+
+  - action: "softwareDownloaded"
+    message: "EXPORT-CTRL-02: Software downloads originating from sanctioned IPs must be blocked."
+    when:
+      all:
+        - field: args.origin_ip_status
+          aliases: [ipStatus, ipSanctionStatus, originStatus]
+          op: eq
+          value: "sanctioned"
+        - field: context.blocked_by_firewall
+          op: is_false
+
+  - action: "vendorOnboarded"
+    message: "EXPORT-CTRL-03: Cannot onboard vendors appearing on OFAC SDN lists."
+    when:
+      all:
+        - field: args.ofac_match
+          aliases: [ofacMatch, sdnMatch, sanctionsHit]
+          op: is_true
+        - field: context.false_positive_confirmed
+          op: is_false
+
+  - action: "paymentSent"
+    message: "EXPORT-CTRL-04: Sending payments to restricted entities requires immediate blocking."
+    when:
+      all:
+        - field: args.entity_status
+          aliases: [entityStatus, restrictionStatus, payeeStatus]
+          op: eq
+          value: "restricted"
+        - field: context.payment_blocked
+          op: is_false
+
+  - action: "technologyTransferred"
+    message: "EXPORT-CTRL-05: Transferring controlled technology requires a valid export license."
+    when:
+      all:
+        - field: args.is_controlled_tech
+          aliases: [controlledTech, eccnMatch, dualUse]
+          op: is_true
+        - field: context.export_license_active
+          op: is_false
+
+  - action: "foreignNationalHired"
+    message: "EXPORT-CTRL-06: Deemed export checks are required before hiring foreign nationals for sensitive technical roles."
+    when:
+      all:
+        - field: args.is_foreign_national
+          aliases: [foreignNational, visaHolder, nonCitizen]
+          op: is_true
+        - field: context.deemed_export_checked
+          op: is_false
+
+  # Antitrust Compliance
+  - action: "competitorMet"
+    message: "LEGAL-ANTI-01: Formal meetings with competitors require legal counsel presence."
+    when:
+      all:
+        - field: args.attendee_type
+          aliases: [attendeeType, partyType, meetingWith]
+          op: eq
+          value: "competitor"
+        - field: context.legal_counsel_present
+          op: is_false
+
+  - action: "pricingInformationShared"
+    message: "LEGAL-ANTI-02: Sharing current or future pricing information with competitors is price fixing."
+    when:
+      all:
+        - field: args.data_type
+          aliases: [dataType, sharedData, infoCategory]
+          op: eq
+          value: "pricing"
+        - field: args.recipient_type
+          aliases: [recipientType, sentTo, targetEntity]
+          op: eq
+          value: "competitor"
+
+  - action: "exclusiveTerritoryGranted"
+    message: "LEGAL-ANTI-03: Granting exclusive territories to distributors requires antitrust review."
+    when:
+      all:
+        - field: args.grant_type
+          aliases: [grantType, agreementType, territoryTerms]
+          op: eq
+          value: "exclusive_territory"
+        - field: context.antitrust_reviewed
+          op: is_false
+
+  - action: "jointVentureFormed"
+    message: "LEGAL-ANTI-04: Forming large joint ventures requires an HSR antitrust filing."
+    when:
+      all:
+        - field: args.jv_value
+          aliases: [jvValue, ventureSize, transactionValue]
+          op: gt
+          value: 111400000
+        - field: context.hsr_filed
+          op: is_false
+
+  - action: "marketShareDiscussed"
+    message: "LEGAL-ANTI-05: Discussing market allocation in trade associations is strictly prohibited."
+    when:
+      all:
+        - field: args.discussion_topic
+          aliases: [topic, subject, conversationTheme]
+          op: eq
+          value: "market_allocation"
+        - field: context.forum_type
+          op: eq
+          value: "trade_association"
+
+  - action: "tyingArrangementCreated"
+    message: "LEGAL-ANTI-06: Forcing the purchase of one product to get another (tying) is restricted."
+    when:
+      all:
+        - field: args.is_tying_arrangement
+          aliases: [tyingArrangement, forcedBundle, tyingCondition]
+          op: is_true
+        - field: context.legal_exception_approved
+          op: is_false
+
+  # Whistleblower Protections
+  - action: "whistleblowerReportFiled"
+    message: "LEGAL-WHIST-01: Investigations must be initiated within 48 hours of a whistleblower report."
+    when:
+      all:
+        - field: args.delay_hours
+          aliases: [delayHours, hoursSinceReport, timeElapsed]
+          op: gt
+          value: 48
+        - field: context.investigation_started
+          op: is_false
+
+  - action: "reporterIdentityDisclosed"
+    message: "LEGAL-WHIST-02: Whistleblower identity cannot be disclosed without explicit written consent."
+    when:
+      all:
+        - field: args.disclosure_level
+          aliases: [disclosureLevel, sharedWith, audience]
+          op: neq
+          value: "investigators_only"
+        - field: context.consent_provided
+          op: is_false
+
+  - action: "retaliatoryActionTaken"
+    message: "LEGAL-WHIST-03: HR actions against known whistleblowers require specialized legal review to prevent retaliation claims."
+    when:
+      all:
+        - field: args.is_whistleblower
+          aliases: [isWhistleblower, reporterStatus, protectedStatus]
+          op: is_true
+        - field: context.anti_retaliation_review
+          op: is_false
+
+  - action: "hotlineAccessDenied"
+    message: "LEGAL-WHIST-04: The ethics hotline must maintain 99.9% uptime. Access denial must trigger a P1 incident."
+    when:
+      all:
+        - field: args.system_status
+          aliases: [systemStatus, hotlineState, availability]
+          op: eq
+          value: "offline"
+        - field: context.p1_incident_created
+          op: is_false
+
+  - action: "investigationClosed"
+    message: "LEGAL-WHIST-05: Closing a whistleblower investigation requires independent review by the audit committee."
+    when:
+      all:
+        - field: args.case_type
+          aliases: [caseType, investigationType, matterType]
+          op: eq
+          value: "whistleblower"
+        - field: context.audit_committee_reviewed
+          op: is_false
+
+  - action: "whistleblowerCompensated"
+    message: "LEGAL-WHIST-06: Financial awards or settlements to whistleblowers require Board approval."
+    when:
+      all:
+        - field: args.compensation_type
+          aliases: [compensationType, awardType, settlementType]
+          op: eq
+          value: "whistleblower_award"
+        - field: context.board_approved
+          op: is_false
+
+  # Third-Party Due Diligence
+  - action: "vendorAgreementApproved"
+    message: "LEGAL-TPRM-01: Vendor agreements must contain standard anti-bribery (FCPA) clauses."
+    when:
+      all:
+        - field: args.has_fcpa_clause
+          aliases: [hasFcpaClause, antiBriberyIncluded, fcpaTerms]
+          op: is_false
+        - field: context.is_vendor_agreement
+          op: is_true
+
+  - action: "agentAppointed"
+    message: "LEGAL-TPRM-02: Foreign agents require extensive anti-corruption background checks before appointment."
+    when:
+      all:
+        - field: args.role_type
+          aliases: [roleType, agentType, representativeType]
+          op: eq
+          value: "foreign_agent"
+        - field: context.background_check_passed
+          op: is_false
+
+  - action: "subcontractorEngaged"
+    message: "LEGAL-TPRM-03: Engaging subcontractors without flowing down master agreement terms violates client commitments."
+    when:
+      all:
+        - field: args.flow_down_clauses_included
+          aliases: [flowDownClauses, termsPassedDown, masterTermsIncluded]
+          op: is_false
+        - field: context.client_approval_required
+          op: is_true
+
+  - action: "giftGiven"
+    message: "LEGAL-TPRM-04: Gifts to government officials exceeding $50 are prohibited without legal clearance."
+    when:
+      all:
+        - field: args.recipient_role
+          aliases: [recipientRole, officialStatus, receiverType]
+          op: eq
+          value: "government_official"
+        - field: args.gift_value
+          aliases: [giftValue, amount, valueUSD]
+          op: gt
+          value: 50
+        - field: context.legal_cleared
+          op: is_false
+
+  - action: "hospitalityProvided"
+    message: "LEGAL-TPRM-05: Annual hospitality provided to any single client cannot exceed corporate limits ($500/year)."
+    when:
+      all:
+        - field: args.cumulative_hospitality_value
+          aliases: [cumulativeValue, annualSpend, totalEntertainment]
+          op: gt
+          value: 500
+        - field: context.vp_exception_granted
+          op: is_false
+
+  - action: "vendorOnboarded"
+    message: "LEGAL-TPRM-06: Vendors failing due diligence background checks cannot be onboarded."
+    when:
+      all:
+        - field: args.background_status
+          aliases: [backgroundStatus, ddStatus, clearance]
+          op: eq
+          value: "failed"
+        - field: context.onboarding_blocked
+          op: is_false
+
+  # Data Processing Agreements
+  - action: "dpaSigned"
+    message: "LEGAL-DPA-01: DPAs involving EU data must include standard contractual clauses (SCCs)."
+    when:
+      all:
+        - field: args.region
+          aliases: [region, dataRegion, jurisdiction]
+          op: eq
+          value: "EU"
+        - field: context.includes_sccs
+          op: is_false
+
+  - action: "personalDataTransferred"
+    message: "LEGAL-DPA-02: Cross-border transfer of personal data requires an approved transfer safeguard."
+    when:
+      all:
+        - field: args.is_cross_border
+          aliases: [isCrossBorder, internationalTransfer, crossRegion]
+          op: is_true
+        - field: context.safeguard_in_place
+          op: is_false
+
+  - action: "subprocessorAdded"
+    message: "LEGAL-DPA-03: Adding a new subprocessor requires notifying the data controller at least 30 days prior."
+    when:
+      all:
+        - field: args.days_notice_given
+          aliases: [daysNotice, noticePeriod, warningDays]
+          op: lt
+          value: 30
+        - field: context.controller_approved
+          op: is_false
+
+  - action: "breachNotified"
+    message: "LEGAL-DPA-04: Data breaches must be notified to relevant authorities within 72 hours."
+    when:
+      all:
+        - field: args.hours_since_discovery
+          aliases: [hoursSinceDiscovery, timeElapsed, breachAgeHours]
+          op: gt
+          value: 72
+        - field: context.regulator_notified
+          op: is_false
+
+  - action: "auditDenied"
+    message: "LEGAL-DPA-05: Vendor contracts cannot deny the controller's right to audit."
+    when:
+      all:
+        - field: args.audit_clause
+          aliases: [auditClause, auditRights, inspectionRights]
+          op: eq
+          value: "denied"
+        - field: context.is_processor_agreement
+          op: is_true
+
+  - action: "dataRetained"
+    message: "LEGAL-DPA-06: Retaining personal data beyond DPA deletion requirements violates privacy laws."
+    when:
+      all:
+        - field: args.retention_period_exceeded
+          aliases: [retentionExceeded, pastDeletionDate, expiredData]
+          op: is_true
+        - field: context.legal_hold_active
+          op: is_false
+
+  # Licensing Compliance
+  - action: "licensePurchased"
+    message: "LEGAL-LIC-01: Purchasing software licenses requires review of the End User License Agreement (EULA)."
+    when:
+      all:
+        - field: args.purchase_type
+          aliases: [purchaseType, assetType, acquisitionType]
+          op: eq
+          value: "software_license"
+        - field: context.eula_reviewed
+          op: is_false
+
+  - action: "userSeatsExceeded"
+    message: "LEGAL-LIC-02: Exceeding allocated user seats places the company in breach of software license terms."
+    when:
+      all:
+        - field: args.seats_used
+          aliases: [seatsUsed, activeUsers, licenseCount]
+          op: gt
+          value: 100
+        - field: context.overage_allowed
+          op: is_false
+
+  - action: "contentLicensed"
+    message: "LEGAL-LIC-03: Content licensing should favor term licenses over perpetual to avoid long-term liability."
+    when:
+      all:
+        - field: args.license_duration
+          aliases: [licenseDuration, term, validity]
+          op: eq
+          value: "perpetual"
+        - field: context.perpetual_approved
+          op: is_false
+
+  - action: "franchiseAgreementSigned"
+    message: "LEGAL-LIC-04: Signing a franchise agreement requires the prior issuance of a Franchise Disclosure Document (FDD)."
+    when:
+      all:
+        - field: args.agreement_type
+          aliases: [agreementType, contractType, dealType]
+          op: eq
+          value: "franchise"
+        - field: context.fdd_issued
+          op: is_false
+
+  - action: "rightsAcquired"
+    message: "LEGAL-LIC-05: Music or media rights acquisitions must include unlimited broadcast permissions for corporate use."
+    when:
+      all:
+        - field: args.media_type
+          aliases: [mediaType, assetType, contentCategory]
+          op: in
+          value: ["music", "video", "media"]
+        - field: context.unlimited_broadcast_included
+          op: is_false
+
+  - action: "brandLicensed"
+    message: "LEGAL-LIC-06: Licensing corporate brands to third parties requires stringent quality control provisions."
+    when:
+      all:
+        - field: args.asset_type
+          aliases: [assetType, licensedAsset, intellectualProperty]
+          op: eq
+          value: "corporate_brand"
+        - field: context.quality_control_included
+          op: is_false
+
+  # Insurance Requirements
+  - action: "insuranceCertificateReceived"
+    message: "LEGAL-INS-01: Vendor certificates of insurance (COI) must meet minimum policy limits."
+    when:
+      all:
+        - field: args.liability_limit
+          aliases: [liabilityLimit, coverageAmount, policyLimit]
+          op: lt
+          value: 1000000
+        - field: context.waiver_granted
+          op: is_false
+
+  - action: "policyRenewed"
+    message: "LEGAL-INS-02: Corporate insurance policies cannot be renewed without a coverage gap analysis."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [actionType, eventType, renewalEvent]
+          op: eq
+          value: "renewal"
+        - field: context.gap_analysis_completed
+          op: is_false
+
+  - action: "claimFiled"
+    message: "LEGAL-INS-03: Insurance claims filed past the required notification window risk denial of coverage."
+    when:
+      all:
+        - field: args.days_since_incident
+          aliases: [daysSinceIncident, notificationDelay, timeElapsed]
+          op: gt
+          value: 30
+        - field: context.late_notice_approved
+          op: is_false
+
+  - action: "insuranceLapsed"
+    message: "LEGAL-INS-04: Vendor services must be suspended immediately if their insurance lapses."
+    when:
+      all:
+        - field: args.vendor_status
+          aliases: [vendorStatus, activeStatus, contractState]
+          op: eq
+          value: "active"
+        - field: context.insurance_active
+          op: is_false
+
+  - action: "insurancePurchased"
+    message: "LEGAL-INS-05: Cyber insurance policies must explicitly include ransomware coverage."
+    when:
+      all:
+        - field: args.policy_type
+          aliases: [policyType, insuranceLine, coverageType]
+          op: eq
+          value: "cyber"
+        - field: context.includes_ransomware
+          op: is_false
+
+  - action: "policyAltered"
+    message: "LEGAL-INS-06: Altering Directors & Officers (D&O) policies to reduce coverage requires Board approval."
+    when:
+      all:
+        - field: args.policy_type
+          aliases: [policyType, insuranceLine, coverageType]
+          op: eq
+          value: "d_and_o"
+        - field: args.is_reduction
+          aliases: [isReduction, limitsLowered, coverageDecreased]
+          op: is_true
+        - field: context.board_approved
+          op: is_false
+
+  # Corporate Governance
+  - action: "subsidiaryFormed"
+    message: "CORP-GOV-01: Forming a new subsidiary requires alignment with Tax and Legal departments."
+    when:
+      any:
+        - field: context.tax_aligned
+          op: is_false
+        - field: context.legal_aligned
+          op: is_false
+
+  - action: "registeredAgentChanged"
+    message: "CORP-GOV-02: Changing a registered agent requires appropriate state regulatory filings."
+    when:
+      all:
+        - field: args.change_type
+          aliases: [changeType, updateType, agentAction]
+          op: eq
+          value: "agent_change"
+        - field: context.state_filing_completed
+          op: is_false
+
+  - action: "stockIssued"
+    message: "CORP-GOV-03: Issuing corporate stock requires a formal Board resolution."
+    when:
+      all:
+        - field: args.asset_type
+          aliases: [assetType, securityType, issuanceType]
+          op: eq
+          value: "stock"
+        - field: context.board_resolution_passed
+          op: is_false
+
+  - action: "dividendDeclared"
+    message: "CORP-GOV-04: Declaring dividends is prohibited if it violates existing debt covenants."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [actionType, distributionType, payout]
+          op: eq
+          value: "dividend"
+        - field: context.violates_debt_covenant
+          op: is_true
+
+  - action: "bylawsAmended"
+    message: "CORP-GOV-05: Amending corporate bylaws requires a formal shareholder vote."
+    when:
+      all:
+        - field: args.amendment_type
+          aliases: [amendmentType, changeLevel, documentAmended]
+          op: eq
+          value: "bylaws"
+        - field: context.shareholder_vote_passed
+          op: is_false
+
+  - action: "annualMeetingHeld"
+    message: "CORP-GOV-06: Annual shareholder meetings are invalid without meeting the required quorum."
+    when:
+      all:
+        - field: args.meeting_type
+          aliases: [meetingType, eventType, gathering]
+          op: eq
+          value: "annual_shareholder"
+        - field: context.quorum_met
+          op: is_false
+
+  # Board Approval Requirements
+  - action: "mergerAgreementSigned"
+    message: "CORP-GOV-07: M&A agreements require a Special Committee review if conflicts of interest exist."
+    when:
+      all:
+        - field: args.conflict_exists
+          aliases: [conflictExists, conflictOfInterest, interestedParties]
+          op: is_true
+        - field: context.special_committee_reviewed
+          op: is_false
+
+  - action: "capitalExpenditureApproved"
+    message: "CORP-GOV-08: Capital expenditures over $10,000,000 require full Board approval."
+    when:
+      all:
+        - field: args.capex_amount
+          aliases: [capexAmount, spend, investmentValue]
+          op: gt
+          value: 10000000
+        - field: context.board_approved
+          op: is_false
+
+  - action: "executiveCompensated"
+    message: "CORP-GOV-09: Executive compensation packages falling outside committee guidelines require full Board review."
+    when:
+      all:
+        - field: args.within_guidelines
+          aliases: [withinGuidelines, standardPackage, approvedRange]
+          op: is_false
+        - field: context.board_reviewed
+          op: is_false
+
+  - action: "auditorChanged"
+    message: "CORP-GOV-10: Changing the external auditor requires a formal Audit Committee vote."
+    when:
+      all:
+        - field: args.change_type
+          aliases: [changeType, vendorType, serviceChange]
+          op: eq
+          value: "external_auditor"
+        - field: context.audit_committee_voted
+          op: is_false
+
+  - action: "strategicPlanAdopted"
+    message: "CORP-GOV-11: Multi-year strategic plans must undergo full Board review prior to adoption."
+    when:
+      all:
+        - field: args.plan_duration_years
+          aliases: [planDurationYears, horizon, timelineYears]
+          op: gte
+          value: 2
+        - field: context.board_reviewed
+          op: is_false
+
+  - action: "relatedPartyTransactionApproved"
+    message: "CORP-GOV-12: Related-party transactions must be approved exclusively by independent directors."
+    when:
+      all:
+        - field: args.is_related_party
+          aliases: [isRelatedParty, insiderTransaction, relatedEntity]
+          op: is_true
+        - field: context.independent_directors_approved
+          op: is_false

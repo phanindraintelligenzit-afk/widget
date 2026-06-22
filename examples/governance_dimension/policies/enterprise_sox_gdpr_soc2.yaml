@@ -1,0 +1,1691 @@
+policies:
+  # -------------------------------------------------------------------------
+  # Financial Controls
+  # -------------------------------------------------------------------------
+  - action: "highValuePaymentSent"
+    message: "SOX-FIN-01: Payments over $10,000 require dual approval."
+    when:
+      all:
+        - field: args.amount
+          aliases: [amountUSD, paymentAmount, transferValue, totalUSD]
+          op: gt
+          value: 10000
+        - field: context.dual_approval
+          op: is_false
+  - action: "ledgerEntryModified"
+    message: "SOX-FIN-02: Ledger modifications in closed periods are prohibited."
+    when:
+      all:
+        - field: args.periodStatus
+          aliases: [period, status, fiscalPeriod]
+          op: eq
+          value: "closed"
+        - field: context.cfo_override
+          op: is_false
+  - action: "bankAccountAdded"
+    message: "SOX-FIN-03: Adding a new bank account requires verified status."
+    when:
+      all:
+        - field: args.accountVerification
+          aliases: [verificationStatus, isVerified, status]
+          op: neq
+          value: "verified"
+  - action: "wireTransferInitiated"
+    message: "SOX-FIN-04: Wire transfers to unapproved countries are blocked."
+    when:
+      all:
+        - field: args.destinationCountry
+          aliases: [country, destCountry, recipientCountry]
+          op: in
+          value: ["KP", "IR", "SY"]
+  - action: "creditLimitIncreased"
+    message: "SOX-FIN-05: Credit limit increases above 50k need VP approval."
+    when:
+      all:
+        - field: args.newLimit
+          aliases: [limit, creditLimit, maxCredit]
+          op: gt
+          value: 50000
+        - field: context.vp_approved
+          op: is_false
+  - action: "taxRateAdjusted"
+    message: "SOX-FIN-06: Tax rate adjustments must be done by the tax department."
+    when:
+      all:
+        - field: context.user_department
+          op: neq
+          value: "Tax"
+  - action: "discountApplied"
+    message: "SOX-FIN-07: Discounts over 20% require manager approval."
+    when:
+      all:
+        - field: args.discountPercent
+          aliases: [discount, percent, rate]
+          op: gt
+          value: 20
+        - field: context.manager_approval
+          op: is_false
+  - action: "refundProcessed"
+    message: "SOX-FIN-08: Cash refunds over 1000 are not allowed."
+    when:
+      all:
+        - field: args.refundType
+          aliases: [type, method]
+          op: eq
+          value: "cash"
+        - field: args.amount
+          aliases: [refundAmount, value]
+          op: gt
+          value: 1000
+  - action: "payrollExecuted"
+    message: "SOX-FIN-09: Payroll execution requires HR sign-off."
+    when:
+      all:
+        - field: context.hr_signoff
+          op: is_false
+  - action: "stockOptionGranted"
+    message: "SOX-FIN-10: Stock options can only be granted by the Board."
+    when:
+      all:
+        - field: context.granting_authority
+          op: neq
+          value: "Board"
+  - action: "dividendDeclared"
+    message: "SOX-FIN-11: Dividends must not exceed retained earnings."
+    when:
+      all:
+        - field: args.dividendAmount
+          aliases: [amount, totalDividend]
+          op: gt
+          value: 1000000
+  - action: "capitalAssetPurchased"
+    message: "SOX-FIN-12: Capital assets over 500k require Capex committee approval."
+    when:
+      all:
+        - field: args.cost
+          aliases: [assetCost, price, value]
+          op: gt
+          value: 500000
+        - field: context.capex_approved
+          op: is_false
+  - action: "invoiceApproved"
+    message: "SOX-FIN-13: Invoices must match purchase orders."
+    when:
+      all:
+        - field: args.poMatch
+          aliases: [matched, isPoMatched]
+          op: is_false
+  - action: "fxTradeExecuted"
+    message: "SOX-FIN-14: FX trades require active market hours."
+    when:
+      all:
+        - field: context.market_open
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # Expense & Procurement
+  # -------------------------------------------------------------------------
+  - action: "expenseReportSubmitted"
+    message: "SOX-EXP-01: Expense reports over 5k require receipts."
+    when:
+      all:
+        - field: args.totalAmount
+          aliases: [total, amount]
+          op: gt
+          value: 5000
+        - field: args.hasReceipts
+          aliases: [receiptsProvided, includesReceipts]
+          op: is_false
+  - action: "vendorOnboarded"
+    message: "SOX-EXP-02: New vendors must pass compliance screening."
+    when:
+      all:
+        - field: args.screeningStatus
+          aliases: [status, complianceStatus]
+          op: neq
+          value: "passed"
+  - action: "purchaseOrderCreated"
+    message: "SOX-EXP-03: POs cannot exceed departmental budget."
+    when:
+      all:
+        - field: args.exceedsBudget
+          aliases: [overBudget, isOverBudget]
+          op: is_true
+  - action: "travelBooked"
+    message: "SOX-EXP-04: First-class travel is restricted to executives."
+    when:
+      all:
+        - field: args.travelClass
+          aliases: [class, flightClass]
+          op: eq
+          value: "First"
+        - field: context.user_role
+          op: neq
+          value: "Executive"
+  - action: "corporateCardIssued"
+    message: "SOX-EXP-05: Corporate cards require training completion."
+    when:
+      all:
+        - field: context.training_completed
+          op: is_false
+  - action: "contractSigned"
+    message: "SOX-EXP-06: Contracts over 1 year require legal review."
+    when:
+      all:
+        - field: args.durationMonths
+          aliases: [duration, termMonths]
+          op: gt
+          value: 12
+        - field: context.legal_reviewed
+          op: is_false
+  - action: "supplierPaid"
+    message: "SOX-EXP-07: Suppliers cannot be paid before goods receipt."
+    when:
+      all:
+        - field: args.goodsReceived
+          aliases: [received, grniStatus]
+          op: is_false
+  - action: "bidAccepted"
+    message: "SOX-EXP-08: Bids above 100k require at least 3 competing bids."
+    when:
+      all:
+        - field: args.bidAmount
+          aliases: [amount, value]
+          op: gt
+          value: 100000
+        - field: args.competingBidsCount
+          aliases: [bids, bidCount]
+          op: lt
+          value: 3
+  - action: "budgetReallocated"
+    message: "SOX-EXP-09: Budget reallocations over 10% need Finance VP approval."
+    when:
+      all:
+        - field: args.percentage
+          aliases: [percent, reallocationPercent]
+          op: gt
+          value: 10
+        - field: context.finance_vp_approved
+          op: is_false
+  - action: "procurementPolicyBypassed"
+    message: "SOX-EXP-10: Procurement policy bypass requires emergency declaration."
+    when:
+      all:
+        - field: context.is_emergency
+          op: is_false
+  - action: "softwareLicensePurchased"
+    message: "SOX-EXP-11: Software purchases must be from the approved catalog."
+    when:
+      all:
+        - field: args.isCatalogItem
+          aliases: [approvedSoftware, inCatalog]
+          op: is_false
+  - action: "hardwareProcured"
+    message: "SOX-EXP-12: Hardware procurement requires IT architecture approval."
+    when:
+      all:
+        - field: context.it_approved
+          op: is_false
+  - action: "consultantHired"
+    message: "SOX-EXP-13: Consultants require a signed NDA."
+    when:
+      all:
+        - field: args.ndaSigned
+          aliases: [hasNda, ndaStatus]
+          op: is_false
+  - action: "officeLeaseRenewed"
+    message: "SOX-EXP-14: Office leases must be reviewed by Facilities."
+    when:
+      all:
+        - field: context.facilities_reviewed
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # Audit & Reporting
+  # -------------------------------------------------------------------------
+  - action: "quarterlyReportPublished"
+    message: "SOX-AUD-01: Quarterly reports must be signed by CEO and CFO."
+    when:
+      any:
+        - field: context.ceo_signed
+          op: is_false
+        - field: context.cfo_signed
+          op: is_false
+  - action: "auditLogDeleted"
+    message: "SOX-AUD-02: Audit logs cannot be manually deleted."
+    when:
+      all:
+        - field: context.is_system_process
+          op: is_false
+  - action: "complianceReportGenerated"
+    message: "SOX-AUD-03: Compliance reports require specified date ranges."
+    when:
+      all:
+        - field: args.hasDateRange
+          aliases: [dateRangeProvided, validDates]
+          op: is_false
+  - action: "riskAssessmentCompleted"
+    message: "SOX-AUD-04: High risk items must have a mitigation plan."
+    when:
+      all:
+        - field: args.riskLevel
+          aliases: [risk, severity]
+          op: eq
+          value: "high"
+        - field: args.hasMitigation
+          aliases: [mitigationPlan, planned]
+          op: is_false
+  - action: "boardMinutesRecorded"
+    message: "SOX-AUD-05: Board minutes must be locked within 7 days."
+    when:
+      all:
+        - field: args.daysSinceMeeting
+          aliases: [days, timeSince]
+          op: gt
+          value: 7
+        - field: args.isLocked
+          aliases: [locked, finalized]
+          op: is_false
+  - action: "externalAuditStarted"
+    message: "SOX-AUD-06: External audits require a signed engagement letter."
+    when:
+      all:
+        - field: context.engagement_letter_signed
+          op: is_false
+  - action: "internalFindingClosed"
+    message: "SOX-AUD-07: Internal findings require remediation evidence to close."
+    when:
+      all:
+        - field: args.hasEvidence
+          aliases: [evidenceProvided, proof]
+          op: is_false
+  - action: "financialStatementRestated"
+    message: "SOX-AUD-08: Restatements require Board approval."
+    when:
+      all:
+        - field: context.board_approved
+          op: is_false
+  - action: "fraudInvestigationOpened"
+    message: "SOX-AUD-09: Fraud investigations must notify Legal immediately."
+    when:
+      all:
+        - field: context.legal_notified
+          op: is_false
+  - action: "whistleblowerReportFiled"
+    message: "SOX-AUD-10: Whistleblower reports must be anonymous."
+    when:
+      all:
+        - field: args.isAnonymous
+          aliases: [anonymous, hideIdentity]
+          op: is_false
+  - action: "regulatoryFilingSubmitted"
+    message: "SOX-AUD-11: Regulatory filings must use the SEC portal integration."
+    when:
+      all:
+        - field: context.submission_method
+          op: neq
+          value: "SEC_Portal"
+  - action: "sarbanesOxleyCertificationSigned"
+    message: "SOX-AUD-12: SOX certifications must be signed by executives only."
+    when:
+      all:
+        - field: context.user_role
+          op: not_in
+          value: ["CEO", "CFO"]
+  - action: "auditTrailExported"
+    message: "SOX-AUD-13: Audit trail exports over 1GB require approval."
+    when:
+      all:
+        - field: args.exportSizeMB
+          aliases: [sizeMB, fileSize]
+          op: gt
+          value: 1000
+        - field: context.approved
+          op: is_false
+  - action: "controlDeficiencyIdentified"
+    message: "SOX-AUD-14: Material weaknesses must be escalated."
+    when:
+      all:
+        - field: args.deficiencyType
+          aliases: [type, severity]
+          op: eq
+          value: "material_weakness"
+        - field: context.escalated
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # GDPR Data Subject Rights
+  # -------------------------------------------------------------------------
+  - action: "dsarRequestReceived"
+    message: "GDPR-DSR-01: DSAR requests must have a verified identity."
+    when:
+      all:
+        - field: args.identityVerified
+          aliases: [verified, idChecked]
+          op: is_false
+  - action: "userDataExportedWithPii"
+    message: "GDPR-DSR-02: User data exports must be encrypted."
+    when:
+      all:
+        - field: args.isEncrypted
+          aliases: [encrypted, secured]
+          op: is_false
+  - action: "customerAccountDeleted"
+    message: "GDPR-DSR-03: Deletion requires a 30-day grace period unless expedited."
+    when:
+      all:
+        - field: args.gracePeriodDays
+          aliases: [days, graceDays]
+          op: lt
+          value: 30
+        - field: args.isExpedited
+          aliases: [expedited, immediate]
+          op: is_false
+  - action: "dataRectificationProcessed"
+    message: "GDPR-DSR-04: Data rectification must be completed within 30 days."
+    when:
+      all:
+        - field: args.daysSinceRequest
+          aliases: [daysElapsed, age]
+          op: gt
+          value: 30
+  - action: "processingRestrictionApplied"
+    message: "GDPR-DSR-05: Restrictions require suspending automated processing."
+    when:
+      all:
+        - field: context.processing_suspended
+          op: is_false
+  - action: "automatedDecisionAppealed"
+    message: "GDPR-DSR-06: Automated decision appeals require human intervention."
+    when:
+      all:
+        - field: context.human_reviewer_assigned
+          op: is_false
+  - action: "subjectAccessReportSent"
+    message: "GDPR-DSR-07: Access reports must not contain other users' PII."
+    when:
+      all:
+        - field: args.containsThirdPartyPii
+          aliases: [thirdPartyData, mixedPii]
+          op: is_true
+  - action: "rightToForgetExecuted"
+    message: "GDPR-DSR-08: Right to forget must propagate to backups if possible."
+    when:
+      all:
+        - field: context.backups_notified
+          op: is_false
+  - action: "dataPortabilityArchiveCreated"
+    message: "GDPR-DSR-09: Data portability archives must be in a standard format (JSON/XML/CSV)."
+    when:
+      all:
+        - field: args.format
+          aliases: [fileFormat, exportFormat]
+          op: not_in
+          value: ["json", "xml", "csv"]
+  - action: "piiSearchPerformed"
+    message: "GDPR-DSR-10: Broad PII searches must be logged and justified."
+    when:
+      all:
+        - field: args.searchScope
+          aliases: [scope, breadth]
+          op: eq
+          value: "all_systems"
+        - field: args.hasJustification
+          aliases: [justified, reasonProvided]
+          op: is_false
+  - action: "identityVerifiedForDsar"
+    message: "GDPR-DSR-11: Identity verification must not collect excessive new PII."
+    when:
+      all:
+        - field: args.newPiiFieldsCollected
+          aliases: [newFields, dataMinimization]
+          op: gt
+          value: 2
+  - action: "dsarDeadlineExtended"
+    message: "GDPR-DSR-12: Deadline extensions require notifying the data subject."
+    when:
+      all:
+        - field: context.subject_notified
+          op: is_false
+  - action: "manifestlyUnfoundedRequestRejected"
+    message: "GDPR-DSR-13: Rejections require legal team approval."
+    when:
+      all:
+        - field: context.legal_approved
+          op: is_false
+  - action: "thirdPartyNotifiedOfDeletion"
+    message: "GDPR-DSR-14: Third parties must be notified within 7 days of deletion."
+    when:
+      all:
+        - field: args.daysSinceDeletion
+          aliases: [days, delay]
+          op: gt
+          value: 7
+
+  # -------------------------------------------------------------------------
+  # GDPR Cross-Border
+  # -------------------------------------------------------------------------
+  - action: "dataTransferredToThirdCountry"
+    message: "GDPR-CB-01: Data transfers outside EU require approved mechanisms."
+    when:
+      all:
+        - field: args.transferMechanism
+          aliases: [mechanism, safeguard]
+          op: eq
+          value: "none"
+  - action: "sccSigned"
+    message: "GDPR-CB-02: Standard Contractual Clauses must be the 2021 version."
+    when:
+      all:
+        - field: args.sccVersion
+          aliases: [version, year]
+          op: neq
+          value: "2021"
+  - action: "bcrApproved"
+    message: "GDPR-CB-03: Binding Corporate Rules require supervisory authority approval."
+    when:
+      all:
+        - field: context.dpa_approved
+          op: is_false
+  - action: "transferImpactAssessmentCompleted"
+    message: "GDPR-CB-04: TIAs must be updated annually."
+    when:
+      all:
+        - field: args.monthsSinceLastTia
+          aliases: [ageMonths, timeSince]
+          op: gt
+          value: 12
+  - action: "adequacyDecisionReliedUpon"
+    message: "GDPR-CB-05: Adequacy decisions must be currently valid."
+    when:
+      all:
+        - field: context.adequacy_status
+          op: neq
+          value: "valid"
+  - action: "derogationInvoked"
+    message: "GDPR-CB-06: Derogations can only be used for occasional transfers."
+    when:
+      all:
+        - field: args.transferFrequency
+          aliases: [frequency, recurrence]
+          op: eq
+          value: "routine"
+  - action: "dataStoredOutsideEu"
+    message: "GDPR-CB-07: EU resident data must not be stored outside EU without explicit consent."
+    when:
+      all:
+        - field: args.userRegion
+          aliases: [region, resident]
+          op: eq
+          value: "EU"
+        - field: context.explicit_consent
+          op: is_false
+  - action: "vendorDataProcessingAgreementSigned"
+    message: "GDPR-CB-08: DPAs must include cross-border transfer clauses."
+    when:
+      all:
+        - field: args.includesTransferClauses
+          aliases: [hasClauses, validDpa]
+          op: is_false
+  - action: "internationalCloudRegionProvisioned"
+    message: "GDPR-CB-09: Provisioning US regions requires DPO notification."
+    when:
+      all:
+        - field: args.region
+          aliases: [awsRegion, location]
+          op: contains
+          value: "us-"
+        - field: context.dpo_notified
+          op: is_false
+  - action: "offshoreSupportAccessedPii"
+    message: "GDPR-CB-10: Offshore support accessing PII must use VDI."
+    when:
+      all:
+        - field: context.using_vdi
+          op: is_false
+  - action: "crossBorderDataFlowMapped"
+    message: "GDPR-CB-11: Data flow maps must be reviewed quarterly."
+    when:
+      all:
+        - field: args.daysSinceReview
+          aliases: [reviewAge, days]
+          op: gt
+          value: 90
+  - action: "localizationRequirementBypassed"
+    message: "GDPR-CB-12: Bypassing data localization needs DPO approval."
+    when:
+      all:
+        - field: context.dpo_approved
+          op: is_false
+  - action: "usDataPrivacyFrameworkCertified"
+    message: "GDPR-CB-13: DPF certification must be active."
+    when:
+      all:
+        - field: args.certificationStatus
+          aliases: [status, dpfStatus]
+          op: neq
+          value: "active"
+  - action: "euRepresentativeAppointed"
+    message: "GDPR-CB-14: EU representative must be established in a member state where users reside."
+    when:
+      all:
+        - field: args.hasUsersInMemberState
+          aliases: [usersPresent, validState]
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # GDPR Consent
+  # -------------------------------------------------------------------------
+  - action: "cookieConsentCollected"
+    message: "GDPR-CON-01: Non-essential cookies require opt-in."
+    when:
+      all:
+        - field: args.cookieCategory
+          aliases: [category, type]
+          op: neq
+          value: "essential"
+        - field: args.userOptedIn
+          aliases: [optIn, consentGiven]
+          op: is_false
+  - action: "marketingOptInRecorded"
+    message: "GDPR-CON-02: Pre-ticked boxes are not valid consent."
+    when:
+      all:
+        - field: args.wasPreTicked
+          aliases: [preTicked, defaultChecked]
+          op: is_true
+  - action: "consentWithdrawn"
+    message: "GDPR-CON-03: Withdrawing consent must stop processing immediately."
+    when:
+      all:
+        - field: context.processing_stopped
+          op: is_false
+  - action: "sensitiveDataConsentGiven"
+    message: "GDPR-CON-04: Sensitive data processing requires explicit written consent."
+    when:
+      all:
+        - field: args.consentType
+          aliases: [type, format]
+          op: neq
+          value: "explicit_written"
+  - action: "parentalConsentVerified"
+    message: "GDPR-CON-05: Users under 16 require parental consent."
+    when:
+      all:
+        - field: args.userAge
+          aliases: [age, yearsOld]
+          op: lt
+          value: 16
+        - field: context.parental_consent_verified
+          op: is_false
+  - action: "newsletterUnsubscribed"
+    message: "GDPR-CON-06: Unsubscribes must be processed within 24 hours."
+    when:
+      all:
+        - field: args.hoursToProcess
+          aliases: [processingTime, hours]
+          op: gt
+          value: 24
+  - action: "trackingPixelFired"
+    message: "GDPR-CON-07: Tracking pixels cannot fire without analytics consent."
+    when:
+      all:
+        - field: context.analytics_consent
+          op: is_false
+  - action: "consentFormUpdated"
+    message: "GDPR-CON-08: Consent forms must be written in plain language (reading score > 60)."
+    when:
+      all:
+        - field: args.readingScore
+          aliases: [fleschScore, readability]
+          op: lt
+          value: 60
+  - action: "profilingConsentOptedOut"
+    message: "GDPR-CON-09: Opting out of profiling must disable ML models for user."
+    when:
+      all:
+        - field: context.ml_models_disabled
+          op: is_false
+  - action: "thirdPartySharingConsentGranted"
+    message: "GDPR-CON-10: Third parties must be specifically named in consent."
+    when:
+      all:
+        - field: args.thirdPartiesNamed
+          aliases: [named, explicitNames]
+          op: is_false
+  - action: "softOptInReliedUpon"
+    message: "GDPR-CON-11: Soft opt-in only valid for existing customers."
+    when:
+      all:
+        - field: args.isExistingCustomer
+          aliases: [existingCustomer, hasPurchaseHistory]
+          op: is_false
+  - action: "legitimateInterestAssessmentApproved"
+    message: "GDPR-CON-12: LIA must be approved by Legal before overriding consent."
+    when:
+      all:
+        - field: context.legal_approved
+          op: is_false
+  - action: "consentLogAudited"
+    message: "GDPR-CON-13: Consent logs must contain timestamp and IP."
+    when:
+      any:
+        - field: args.hasTimestamp
+          aliases: [timestamp, timeLogged]
+          op: is_false
+        - field: args.hasIp
+          aliases: [ipLogged, sourceIp]
+          op: is_false
+  - action: "reconsentCampaignLaunched"
+    message: "GDPR-CON-14: Re-consent campaigns cannot be sent to users who previously opted out."
+    when:
+      all:
+        - field: args.targetIncludesOptOuts
+          aliases: [optOutsIncluded, invalidTargets]
+          op: is_true
+
+  # -------------------------------------------------------------------------
+  # GDPR Retention
+  # -------------------------------------------------------------------------
+  - action: "dataRetentionPeriodExpired"
+    message: "GDPR-RET-01: Data exceeding retention period must be purged."
+    when:
+      all:
+        - field: args.actionTaken
+          aliases: [action, status]
+          op: neq
+          value: "purged"
+  - action: "archivedDataDeleted"
+    message: "GDPR-RET-02: Deletion of archived data requires dual validation."
+    when:
+      all:
+        - field: context.dual_validation
+          op: is_false
+  - action: "legalHoldApplied"
+    message: "GDPR-RET-03: Legal holds override standard retention policies."
+    when:
+      all:
+        - field: context.retention_suspended
+          op: is_false
+  - action: "anonymizationExecuted"
+    message: "GDPR-RET-04: Anonymization must be irreversible."
+    when:
+      all:
+        - field: args.isIrreversible
+          aliases: [irreversible, secure]
+          op: is_false
+  - action: "pseudonymizationApplied"
+    message: "GDPR-RET-05: Mapping keys for pseudonymization must be stored separately."
+    when:
+      all:
+        - field: context.keys_separated
+          op: is_false
+  - action: "inactiveAccountPurged"
+    message: "GDPR-RET-06: Accounts inactive for 2 years must be purged."
+    when:
+      all:
+        - field: args.yearsInactive
+          aliases: [inactiveYears, age]
+          op: gte
+          value: 2
+        - field: args.purged
+          aliases: [isPurged, deleted]
+          op: is_false
+  - action: "retentionPolicyUpdated"
+    message: "GDPR-RET-07: Retention policy updates must be approved by DPO."
+    when:
+      all:
+        - field: context.dpo_approved
+          op: is_false
+  - action: "backupTapeDestroyed"
+    message: "GDPR-RET-08: Physical destruction requires a certificate of destruction."
+    when:
+      all:
+        - field: args.hasCertificate
+          aliases: [certified, proof]
+          op: is_false
+  - action: "dataMinimizationRuleEnforced"
+    message: "GDPR-RET-09: Unnecessary fields must be dropped during ETL."
+    when:
+      all:
+        - field: context.fields_dropped
+          op: is_false
+  - action: "temporaryFileCleanedUp"
+    message: "GDPR-RET-10: Temp files with PII must be deleted within 24 hours."
+    when:
+      all:
+        - field: args.ageHours
+          aliases: [hours, fileAge]
+          op: gt
+          value: 24
+        - field: args.containsPii
+          aliases: [hasPii, piiData]
+          op: is_true
+  - action: "hrDataRetainedPostEmployment"
+    message: "GDPR-RET-11: HR data retention is limited to 7 years post-employment."
+    when:
+      all:
+        - field: args.yearsSinceTermination
+          aliases: [years, postEmploymentYears]
+          op: gt
+          value: 7
+  - action: "orphanDataIdentified"
+    message: "GDPR-RET-12: Orphaned data must be assigned an owner or deleted."
+    when:
+      all:
+        - field: context.has_owner
+          op: is_false
+        - field: context.is_deleted
+          op: is_false
+  - action: "retentionScheduleApproved"
+    message: "GDPR-RET-13: Retention schedules require annual review."
+    when:
+      all:
+        - field: args.monthsSinceReview
+          aliases: [reviewAge, months]
+          op: gt
+          value: 12
+  - action: "manualDeletionOverrideUsed"
+    message: "GDPR-RET-14: Manual overrides of retention require justification."
+    when:
+      all:
+        - field: args.hasJustification
+          aliases: [reason, justified]
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # SOC2 Availability
+  # -------------------------------------------------------------------------
+  - action: "systemDowntimeRecorded"
+    message: "SOC2-AVA-01: Downtime exceeding 5 minutes must trigger a P1 incident."
+    when:
+      all:
+        - field: args.downtimeMinutes
+          aliases: [minutes, duration]
+          op: gt
+          value: 5
+        - field: context.incident_created
+          op: is_false
+  - action: "slaBreached"
+    message: "SOC2-AVA-02: SLA breaches require a public status page update."
+    when:
+      all:
+        - field: context.status_page_updated
+          op: is_false
+  - action: "failoverTriggered"
+    message: "SOC2-AVA-03: Failovers must complete within RTO."
+    when:
+      all:
+        - field: args.recoveryTimeMinutes
+          aliases: [rto, recoveryTime]
+          op: gt
+          value: 15
+  - action: "capacityLimitReached"
+    message: "SOC2-AVA-04: Systems exceeding 80% capacity must auto-scale."
+    when:
+      all:
+        - field: args.capacityPercent
+          aliases: [usage, utilization]
+          op: gt
+          value: 80
+        - field: context.auto_scaled
+          op: is_false
+  - action: "ddosAttackMitigated"
+    message: "SOC2-AVA-05: DDoS mitigation must activate within 60 seconds."
+    when:
+      all:
+        - field: args.mitigationDelaySeconds
+          aliases: [delay, timeToMitigate]
+          op: gt
+          value: 60
+  - action: "loadBalancerConfigured"
+    message: "SOC2-AVA-06: Load balancers must have at least 2 instances behind them."
+    when:
+      all:
+        - field: args.instanceCount
+          aliases: [nodes, backends]
+          op: lt
+          value: 2
+  - action: "autoScalingGroupModified"
+    message: "SOC2-AVA-07: Auto-scaling minimum size cannot be less than 2."
+    when:
+      all:
+        - field: args.minSize
+          aliases: [min, minimumInstances]
+          op: lt
+          value: 2
+  - action: "availabilityZoneAdded"
+    message: "SOC2-AVA-08: Multi-AZ deployments must span at least 3 zones."
+    when:
+      all:
+        - field: args.zoneCount
+          aliases: [zones, azCount]
+          op: lt
+          value: 3
+  - action: "drPlanTested"
+    message: "SOC2-AVA-09: DR plans must be tested at least annually."
+    when:
+      all:
+        - field: args.monthsSinceLastTest
+          aliases: [months, age]
+          op: gt
+          value: 12
+  - action: "cdnCachePurged"
+    message: "SOC2-AVA-10: Global CDN cache purges require approval."
+    when:
+      all:
+        - field: args.scope
+          aliases: [purgeScope, level]
+          op: eq
+          value: "global"
+        - field: context.approved
+          op: is_false
+  - action: "rateLimitExceeded"
+    message: "SOC2-AVA-11: Rate limiting must return 429 status code."
+    when:
+      all:
+        - field: args.responseCode
+          aliases: [code, status]
+          op: neq
+          value: 429
+  - action: "maintenanceWindowScheduled"
+    message: "SOC2-AVA-12: Maintenance windows must provide 7 days notice."
+    when:
+      all:
+        - field: args.daysNotice
+          aliases: [notice, leadTime]
+          op: lt
+          value: 7
+  - action: "uptimeReportGenerated"
+    message: "SOC2-AVA-13: Uptime reports must be generated from third-party monitoring."
+    when:
+      all:
+        - field: args.dataSource
+          aliases: [source, origin]
+          op: eq
+          value: "internal"
+  - action: "serviceDegraded"
+    message: "SOC2-AVA-14: Degraded services must page the on-call engineer."
+    when:
+      all:
+        - field: context.on_call_paged
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # SOC2 Change Management
+  # -------------------------------------------------------------------------
+  - action: "productionDeploymentPerformed"
+    message: "SOC2-CM-01: Production deployments require an approved change ticket."
+    when:
+      all:
+        - field: context.ticket_approved
+          op: is_false
+  - action: "emergencyHotfixDeployed"
+    message: "SOC2-CM-02: Emergency hotfixes require post-incident review."
+    when:
+      all:
+        - field: context.post_incident_review_scheduled
+          op: is_false
+  - action: "pullRequestMerged"
+    message: "SOC2-CM-03: Code changes require at least one peer review."
+    when:
+      all:
+        - field: args.approvals
+          aliases: [reviewCount, approverCount]
+          op: lt
+          value: 1
+  - action: "featureFlagToggled"
+    message: "SOC2-CM-04: Feature flags toggled in prod must be logged."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, target]
+          op: eq
+          value: "production"
+        - field: context.is_logged
+          op: is_false
+  - action: "databaseSchemaMigrated"
+    message: "SOC2-CM-05: Schema migrations require a rollback script."
+    when:
+      all:
+        - field: args.hasRollback
+          aliases: [rollbackScript, revertScript]
+          op: is_false
+  - action: "infrastructureAsCodeApplied"
+    message: "SOC2-CM-06: IaC applies must originate from CI/CD, not locally."
+    when:
+      all:
+        - field: args.executionSource
+          aliases: [source, origin]
+          op: eq
+          value: "local_cli"
+  - action: "releaseRollbackExecuted"
+    message: "SOC2-CM-07: Release rollbacks must notify the release manager."
+    when:
+      all:
+        - field: context.manager_notified
+          op: is_false
+  - action: "cabApprovalGranted"
+    message: "SOC2-CM-08: CAB approval requires representatives from Security and Ops."
+    when:
+      any:
+        - field: context.security_approved
+          op: is_false
+        - field: context.ops_approved
+          op: is_false
+  - action: "ciPipelinePassed"
+    message: "SOC2-CM-09: CI pipelines must include SAST scanning."
+    when:
+      all:
+        - field: args.sastIncluded
+          aliases: [hasSast, securityScan]
+          op: is_false
+  - action: "vulnerabilityScanFailed"
+    message: "SOC2-CM-10: Critical vulnerabilities block deployment."
+    when:
+      all:
+        - field: args.criticalCount
+          aliases: [criticals, highSev]
+          op: gt
+          value: 0
+  - action: "codeReviewBypassed"
+    message: "SOC2-CM-11: Admin code review bypass is strictly prohibited."
+    when:
+      all:
+        - field: args.isBypassed
+          aliases: [bypassed, forceMerged]
+          op: is_true
+  - action: "environmentVariableChanged"
+    message: "SOC2-CM-12: Prod env vars cannot be changed via web UI."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, target]
+          op: eq
+          value: "production"
+        - field: args.interface
+          aliases: [source, ui]
+          op: eq
+          value: "web_console"
+  - action: "thirdPartyLibraryUpdated"
+    message: "SOC2-CM-13: Dependency updates require SCA scanning."
+    when:
+      all:
+        - field: context.sca_scanned
+          op: is_false
+  - action: "artifactPublished"
+    message: "SOC2-CM-14: Published artifacts must be signed."
+    when:
+      all:
+        - field: args.isSigned
+          aliases: [signed, signatureValid]
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # SOC2 Logging
+  # -------------------------------------------------------------------------
+  - action: "logLevelChanged"
+    message: "SOC2-LOG-01: Disabling INFO logs in production is prohibited."
+    when:
+      all:
+        - field: args.newLevel
+          aliases: [level, severity]
+          op: in
+          value: ["WARN", "ERROR", "FATAL"]
+        - field: args.environment
+          aliases: [env, contextEnv]
+          op: eq
+          value: "production"
+  - action: "centralizedLoggingAgentRestarted"
+    message: "SOC2-LOG-02: Agent restarts must not result in data loss."
+    when:
+      all:
+        - field: args.bufferFlushed
+          aliases: [flushed, safeRestart]
+          op: is_false
+  - action: "auditLogTampered"
+    message: "SOC2-LOG-03: Log files must be immutable."
+    when:
+      all:
+        - field: args.isImmutable
+          aliases: [immutable, locked]
+          op: is_false
+  - action: "logRetentionPeriodModified"
+    message: "SOC2-LOG-04: Audit logs must be retained for at least 1 year."
+    when:
+      all:
+        - field: args.retentionDays
+          aliases: [days, period]
+          op: lt
+          value: 365
+  - action: "siemAlertTriggered"
+    message: "SOC2-LOG-05: Critical SIEM alerts require acknowledgment within 15 mins."
+    when:
+      all:
+        - field: args.severity
+          aliases: [level, alertSeverity]
+          op: eq
+          value: "critical"
+        - field: args.ackTimeMinutes
+          aliases: [ackTime, delay]
+          op: gt
+          value: 15
+  - action: "logStorageCapacityExpanded"
+    message: "SOC2-LOG-06: Log storage must alert when 85% full."
+    when:
+      all:
+        - field: args.alertThresholdPercent
+          aliases: [threshold, capacityLimit]
+          op: gt
+          value: 85
+  - action: "piiRedactedFromLogs"
+    message: "SOC2-LOG-07: PII redaction must be active on all application logs."
+    when:
+      all:
+        - field: context.redaction_active
+          op: is_false
+  - action: "logForwardingFailed"
+    message: "SOC2-LOG-08: Log forwarding failures must queue locally."
+    when:
+      all:
+        - field: context.local_queueing
+          op: is_false
+  - action: "debugLoggingEnabledInProd"
+    message: "SOC2-LOG-09: Debug logging in prod cannot exceed 2 hours."
+    when:
+      all:
+        - field: args.durationHours
+          aliases: [hours, timeout]
+          op: gt
+          value: 2
+  - action: "logArchiveCreated"
+    message: "SOC2-LOG-10: Log archives must be encrypted at rest."
+    when:
+      all:
+        - field: args.isEncrypted
+          aliases: [encrypted, secured]
+          op: is_false
+  - action: "accessLogQueried"
+    message: "SOC2-LOG-11: Accessing security logs requires Security team role."
+    when:
+      all:
+        - field: context.user_department
+          op: neq
+          value: "Security"
+  - action: "logAggregationRuleUpdated"
+    message: "SOC2-LOG-12: Updating SIEM rules requires dual authorization."
+    when:
+      all:
+        - field: context.dual_authorized
+          op: is_false
+  - action: "cloudTrailDisabled"
+    message: "SOC2-LOG-13: CloudTrail cannot be disabled globally."
+    when:
+      all:
+        - field: args.scope
+          aliases: [level, target]
+          op: eq
+          value: "global"
+  - action: "errorRateSpiked"
+    message: "SOC2-LOG-14: Error rates above 5% trigger an anomaly log."
+    when:
+      all:
+        - field: args.errorRatePercent
+          aliases: [rate, percent]
+          op: gt
+          value: 5
+        - field: context.anomaly_logged
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # SOC2 Backup
+  # -------------------------------------------------------------------------
+  - action: "databaseBackupCompleted"
+    message: "SOC2-BCK-01: Daily backups are mandatory for production DBs."
+    when:
+      all:
+        - field: args.frequency
+          aliases: [schedule, interval]
+          op: neq
+          value: "daily"
+  - action: "snapshotDeleted"
+    message: "SOC2-BCK-02: Snapshots cannot be manually deleted before 30 days."
+    when:
+      all:
+        - field: args.ageDays
+          aliases: [days, snapshotAge]
+          op: lt
+          value: 30
+        - field: args.isManual
+          aliases: [manualDeletion, userInitiated]
+          op: is_true
+  - action: "backupRestoreTested"
+    message: "SOC2-BCK-03: Restores must be tested quarterly."
+    when:
+      all:
+        - field: args.monthsSinceTest
+          aliases: [months, timeSince]
+          op: gt
+          value: 3
+  - action: "crossRegionBackupCopied"
+    message: "SOC2-BCK-04: Cross-region backups are required for disaster recovery."
+    when:
+      all:
+        - field: args.regionsCount
+          aliases: [regions, count]
+          op: lt
+          value: 2
+  - action: "backupEncryptionKeyRotated"
+    message: "SOC2-BCK-05: Backup encryption keys must be rotated annually."
+    when:
+      all:
+        - field: args.keyAgeMonths
+          aliases: [ageMonths, months]
+          op: gt
+          value: 12
+  - action: "immutableBackupLocked"
+    message: "SOC2-BCK-06: Ransomware protection requires WORM backups."
+    when:
+      all:
+        - field: args.isWorm
+          aliases: [worm, immutable]
+          op: is_false
+  - action: "backupScheduleModified"
+    message: "SOC2-BCK-07: Modifying backup schedules requires admin approval."
+    when:
+      all:
+        - field: context.admin_approved
+          op: is_false
+  - action: "tapeSentToOffsiteStorage"
+    message: "SOC2-BCK-08: Physical media requires a bonded courier."
+    when:
+      all:
+        - field: args.courierBonded
+          aliases: [bonded, secureTransport]
+          op: is_false
+  - action: "incrementalBackupFailed"
+    message: "SOC2-BCK-09: Backup failures must alert the storage team."
+    when:
+      all:
+        - field: context.storage_team_alerted
+          op: is_false
+  - action: "pointInTimeRecoveryConfigured"
+    message: "SOC2-BCK-10: PITR must be enabled for at least 7 days."
+    when:
+      all:
+        - field: args.pitrRetentionDays
+          aliases: [days, retention]
+          op: lt
+          value: 7
+  - action: "backupRetentionPolicyChanged"
+    message: "SOC2-BCK-11: Lowering backup retention requires risk acceptance."
+    when:
+      all:
+        - field: args.isReduction
+          aliases: [lowered, reduced]
+          op: is_true
+        - field: context.risk_accepted
+          op: is_false
+  - action: "volumeSnapshotCreated"
+    message: "SOC2-BCK-12: EBS snapshots must be tagged with cost center."
+    when:
+      all:
+        - field: args.hasCostCenterTag
+          aliases: [tagged, costCenter]
+          op: is_false
+  - action: "ransomwareDetectedInBackup"
+    message: "SOC2-BCK-13: Infected backups must be quarantined."
+    when:
+      all:
+        - field: context.is_quarantined
+          op: is_false
+  - action: "coldStorageTierMoved"
+    message: "SOC2-BCK-14: Moving backups to cold storage requires validation."
+    when:
+      all:
+        - field: context.validation_passed
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # IAM Provisioning
+  # -------------------------------------------------------------------------
+  - action: "userAccountCreated"
+    message: "IAM-PRV-01: New accounts require a linked HR profile."
+    when:
+      all:
+        - field: args.hasHrLink
+          aliases: [hrProfile, linked]
+          op: is_false
+  - action: "groupMembershipModified"
+    message: "IAM-PRV-02: Adding to 'Domain Admins' requires CIO approval."
+    when:
+      all:
+        - field: args.groupName
+          aliases: [group, targetGroup]
+          op: eq
+          value: "Domain Admins"
+        - field: context.cio_approved
+          op: is_false
+  - action: "roleAssigned"
+    message: "IAM-PRV-03: Users cannot be assigned conflicting roles (SoD)."
+    when:
+      all:
+        - field: context.sod_conflict
+          op: is_true
+  - action: "contractorAccessProvisioned"
+    message: "IAM-PRV-04: Contractor accounts must have an expiration date."
+    when:
+      all:
+        - field: args.hasExpirationDate
+          aliases: [expires, validUntil]
+          op: is_false
+  - action: "systemAccountGenerated"
+    message: "IAM-PRV-05: Service accounts cannot allow interactive login."
+    when:
+      all:
+        - field: args.interactiveLoginAllowed
+          aliases: [canLogin, interactive]
+          op: is_true
+  - action: "accessRequestApproved"
+    message: "IAM-PRV-06: Access requests must be approved by the data owner."
+    when:
+      all:
+        - field: context.data_owner_approved
+          op: is_false
+  - action: "privilegeEscalated"
+    message: "IAM-PRV-07: Privilege escalation via JIT requires a ticket number."
+    when:
+      all:
+        - field: args.ticketNumberProvided
+          aliases: [hasTicket, jiraIssue]
+          op: is_false
+  - action: "dormantAccountDisabled"
+    message: "IAM-PRV-08: Accounts dormant for 90 days must be disabled."
+    when:
+      all:
+        - field: args.daysDormant
+          aliases: [days, inactiveDays]
+          op: gt
+          value: 90
+        - field: args.isDisabled
+          aliases: [disabled, suspended]
+          op: is_false
+  - action: "offboardingTriggered"
+    message: "IAM-PRV-09: Offboarding must revoke access within 24 hours."
+    when:
+      all:
+        - field: args.hoursSinceTermination
+          aliases: [hours, delay]
+          op: gt
+          value: 24
+        - field: context.access_revoked
+          op: is_false
+  - action: "crossTenantAccessGranted"
+    message: "IAM-PRV-10: Cross-tenant B2B access requires explicit allowlist."
+    when:
+      all:
+        - field: args.tenantDomain
+          aliases: [domain, tenant]
+          op: not_in
+          value: ["partner.com", "vendor.io"]
+  - action: "federatedIdentityLinked"
+    message: "IAM-PRV-11: Federation requires SAML or OIDC protocols."
+    when:
+      all:
+        - field: args.protocol
+          aliases: [authProtocol, method]
+          op: not_in
+          value: ["SAML", "OIDC"]
+  - action: "servicePrincipalCreated"
+    message: "IAM-PRV-12: Service principals must be scoped to least privilege."
+    when:
+      all:
+        - field: args.isBroadScope
+          aliases: [broadScope, adminRights]
+          op: is_true
+  - action: "customRoleDefined"
+    message: "IAM-PRV-13: Custom roles must not contain '*' permissions."
+    when:
+      all:
+        - field: args.hasWildcardPermission
+          aliases: [wildcard, adminPerms]
+          op: is_true
+  - action: "guestInvited"
+    message: "IAM-PRV-14: Guest invitations require sponsor approval."
+    when:
+      all:
+        - field: context.sponsor_approved
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # IAM Authentication
+  # -------------------------------------------------------------------------
+  - action: "userLoggedIn"
+    message: "IAM-AUTH-01: Legacy protocols (Basic Auth) are blocked."
+    when:
+      all:
+        - field: args.authProtocol
+          aliases: [protocol, method]
+          op: eq
+          value: "Basic"
+  - action: "mfaEnrolled"
+    message: "IAM-AUTH-02: SMS MFA is prohibited; use Authenticator App."
+    when:
+      all:
+        - field: args.mfaMethod
+          aliases: [method, type]
+          op: eq
+          value: "SMS"
+  - action: "passwordResetRequested"
+    message: "IAM-AUTH-03: Self-service password reset requires MFA."
+    when:
+      all:
+        - field: context.mfa_verified
+          op: is_false
+  - action: "ssoLoginFailed"
+    message: "IAM-AUTH-04: Over 5 failed SSO attempts locks the account."
+    when:
+      all:
+        - field: args.failedAttempts
+          aliases: [failures, attemptCount]
+          op: gte
+          value: 5
+        - field: context.account_locked
+          op: is_false
+  - action: "biometricAuthUsed"
+    message: "IAM-AUTH-05: Biometrics must meet FIDO2 standards."
+    when:
+      all:
+        - field: args.isFido2
+          aliases: [fido2Compliant, standard]
+          op: is_false
+  - action: "mfaBypassed"
+    message: "IAM-AUTH-06: Conditional access MFA bypass requires trusted IP."
+    when:
+      all:
+        - field: args.sourceIp
+          aliases: [ip, clientIp]
+          op: not_in
+          value: ["10.0.0.0/8", "192.168.0.0/16"]
+  - action: "bruteForceAttackDetected"
+    message: "IAM-AUTH-07: Brute force attacks must block the IP at the WAF."
+    when:
+      all:
+        - field: context.ip_blocked
+          op: is_false
+  - action: "impossibleTravelFlagged"
+    message: "IAM-AUTH-08: Impossible travel requires immediate session revocation."
+    when:
+      all:
+        - field: context.session_revoked
+          op: is_false
+  - action: "sessionTokenRevoked"
+    message: "IAM-AUTH-09: Token revocation must propagate globally within 5 mins."
+    when:
+      all:
+        - field: args.propagationDelayMinutes
+          aliases: [delay, minutes]
+          op: gt
+          value: 5
+  - action: "adaptiveAuthChallenged"
+    message: "IAM-AUTH-10: High risk score requires step-up authentication."
+    when:
+      all:
+        - field: args.riskScore
+          aliases: [risk, score]
+          op: gt
+          value: 80
+        - field: args.stepUpTriggered
+          aliases: [challenged, stepUp]
+          op: is_false
+  - action: "idleSessionTerminated"
+    message: "IAM-AUTH-11: Idle sessions must timeout after 15 minutes."
+    when:
+      all:
+        - field: args.idleMinutes
+          aliases: [minutes, idleTime]
+          op: gt
+          value: 15
+        - field: args.isTerminated
+          aliases: [terminated, ended]
+          op: is_false
+  - action: "passwordPolicyChanged"
+    message: "IAM-AUTH-12: Passwords must require at least 14 characters."
+    when:
+      all:
+        - field: args.minLength
+          aliases: [length, min]
+          op: lt
+          value: 14
+  - action: "unrecognizedDeviceLogged"
+    message: "IAM-AUTH-13: Unrecognized devices require email notification to user."
+    when:
+      all:
+        - field: context.user_notified
+          op: is_false
+  - action: "adminConsoleAccessed"
+    message: "IAM-AUTH-14: Admin console access requires phishing-resistant MFA."
+    when:
+      all:
+        - field: args.mfaType
+          aliases: [type, method]
+          op: neq
+          value: "hardware_key"
+
+  # -------------------------------------------------------------------------
+  # IAM Secrets
+  # -------------------------------------------------------------------------
+  - action: "apiKeyCreatedWithNoExpiry"
+    message: "IAM-SEC-01: API keys must have an expiration date."
+    when:
+      all:
+        - field: args.hasExpiry
+          aliases: [expires, expirySet]
+          op: is_false
+  - action: "secretValueViewed"
+    message: "IAM-SEC-02: Viewing secrets triggers an audit event."
+    when:
+      all:
+        - field: context.audit_event_created
+          op: is_false
+  - action: "passwordRotated"
+    message: "IAM-SEC-03: Passwords cannot be reused across 5 generations."
+    when:
+      all:
+        - field: args.historyMatchCount
+          aliases: [matches, history]
+          op: gt
+          value: 0
+  - action: "sshKeyUploaded"
+    message: "IAM-SEC-04: SSH keys must be RSA 4096 or Ed25519."
+    when:
+      all:
+        - field: args.keyAlgorithm
+          aliases: [algo, type]
+          op: not_in
+          value: ["RSA-4096", "Ed25519"]
+  - action: "vaultAccessGranted"
+    message: "IAM-SEC-05: Vault access requires namespace isolation."
+    when:
+      all:
+        - field: context.namespace_isolated
+          op: is_false
+  - action: "tokenLeakedInCode"
+    message: "IAM-SEC-06: Leaked tokens must be automatically revoked."
+    when:
+      all:
+        - field: context.auto_revoked
+          op: is_false
+  - action: "secretEngineEnabled"
+    message: "IAM-SEC-07: Secret engines cannot be enabled globally."
+    when:
+      all:
+        - field: args.mountPath
+          aliases: [path, mount]
+          op: eq
+          value: "/"
+  - action: "encryptionKeyGenerated"
+    message: "IAM-SEC-08: Master keys must be generated in HSM."
+    when:
+      all:
+        - field: args.backend
+          aliases: [source, origin]
+          op: neq
+          value: "HSM"
+  - action: "kmsKeyDisabled"
+    message: "IAM-SEC-09: Disabling KMS keys requires a 7-day pending window."
+    when:
+      all:
+        - field: args.pendingDays
+          aliases: [days, waitTime]
+          op: lt
+          value: 7
+  - action: "hardcodedSecretDetected"
+    message: "IAM-SEC-10: Commits with hardcoded secrets are blocked."
+    when:
+      all:
+        - field: context.commit_blocked
+          op: is_false
+  - action: "oauthClientSecretRegenerated"
+    message: "IAM-SEC-11: Regenerating OAuth secrets invalidates old ones."
+    when:
+      all:
+        - field: context.old_secret_invalidated
+          op: is_false
+  - action: "jwtSigningKeyRotated"
+    message: "IAM-SEC-12: JWT key rotation must publish to JWKS endpoint."
+    when:
+      all:
+        - field: context.jwks_updated
+          op: is_false
+  - action: "dynamicSecretRevoked"
+    message: "IAM-SEC-13: Dynamic DB credentials must revoke after TTL."
+    when:
+      all:
+        - field: args.ttlExpired
+          aliases: [expired, pastTtl]
+          op: is_true
+        - field: args.isRevoked
+          aliases: [revoked, deleted]
+          op: is_false
+  - action: "secretMetadataModified"
+    message: "IAM-SEC-14: Secret metadata tags cannot remove ownership info."
+    when:
+      all:
+        - field: args.hasOwnerTag
+          aliases: [ownerTag, hasOwner]
+          op: is_false
+
+  # -------------------------------------------------------------------------
+  # IAM Certificates
+  # -------------------------------------------------------------------------
+  - action: "tlsCertificateIssued"
+    message: "IAM-CRT-01: TLS certificates cannot be issued with SHA-1."
+    when:
+      all:
+        - field: args.signatureAlgorithm
+          aliases: [algo, hash]
+          op: eq
+          value: "SHA-1"
+  - action: "certificateRevoked"
+    message: "IAM-CRT-02: Revocations must publish to the CRL within 1 hour."
+    when:
+      all:
+        - field: args.publishDelayHours
+          aliases: [hours, delay]
+          op: gt
+          value: 1
+  - action: "rootCaGenerated"
+    message: "IAM-CRT-03: Root CA generation requires air-gapped environment."
+    when:
+      all:
+        - field: context.is_air_gapped
+          op: is_false
+  - action: "wildcardCertRequested"
+    message: "IAM-CRT-04: Wildcard certificates are forbidden for production."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, target]
+          op: eq
+          value: "production"
+  - action: "certValidityExtended"
+    message: "IAM-CRT-05: Certificate validity cannot exceed 398 days."
+    when:
+      all:
+        - field: args.validityDays
+          aliases: [days, lifetime]
+          op: gt
+          value: 398
+  - action: "crlUpdated"
+    message: "IAM-CRT-06: CRL updates must be signed by the CA."
+    when:
+      all:
+        - field: args.isSigned
+          aliases: [signed, signatureValid]
+          op: is_false
+  - action: "ocspResponderQueried"
+    message: "IAM-CRT-07: OCSP responses must be cached to prevent DDOS."
+    when:
+      all:
+        - field: context.cache_enabled
+          op: is_false
+  - action: "selfSignedCertDeployed"
+    message: "IAM-CRT-08: Self-signed certs are blocked in production."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, target]
+          op: eq
+          value: "production"
+  - action: "mTLSClientCertAuthenticated"
+    message: "IAM-CRT-09: mTLS requires mutual validation of trust anchors."
+    when:
+      all:
+        - field: context.mutual_validation_passed
+          op: is_false
+  - action: "certificateExpired"
+    message: "IAM-CRT-10: Cert expiry within 30 days triggers alerts."
+    when:
+      all:
+        - field: args.daysToExpiry
+          aliases: [days, remaining]
+          op: lt
+          value: 30
+        - field: context.alert_sent
+          op: is_false
+  - action: "keyUsageModified"
+    message: "IAM-CRT-11: Key usage cannot mix serverAuth and codeSigning."
+    when:
+      all:
+        - field: args.usages
+          aliases: [eku, extensions]
+          op: contains
+          value: "serverAuth"
+        - field: args.usages
+          aliases: [eku, extensions]
+          op: contains
+          value: "codeSigning"
+  - action: "trustStoreUpdated"
+    message: "IAM-CRT-12: Adding roots to trust store needs security approval."
+    when:
+      all:
+        - field: context.security_approved
+          op: is_false
+  - action: "certificateAuthorityCompromised"
+    message: "IAM-CRT-13: CA compromise immediately invalidates all issued certs."
+    when:
+      all:
+        - field: context.certs_invalidated
+          op: is_false
+  - action: "acmeChallengeCompleted"
+    message: "IAM-CRT-14: ACME challenges must use DNS-01 for wildcard certs."
+    when:
+      all:
+        - field: args.isWildcard
+          aliases: [wildcard, starCert]
+          op: is_true
+        - field: args.challengeType
+          aliases: [type, acmeMethod]
+          op: neq
+          value: "DNS-01"

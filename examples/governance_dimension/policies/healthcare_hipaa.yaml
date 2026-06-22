@@ -1,0 +1,1383 @@
+# HIPAA (Health Insurance Portability and Accountability Act) Governance Policies
+# Contains 120 policies for comprehensive coverage.
+
+policies:
+  # ==========================================
+  # PHI Access Controls
+  # ==========================================
+  - action: "phiDataAccessed"
+    message: "HIPAA-164-502: PHI access requires an active treatment relationship or explicit authorization."
+    when:
+      all:
+        - field: args.record_id
+          aliases: [recordId, patientRecord, dataId, phiId]
+          op: neq
+          value: ""
+        - field: context.active_treatment_relationship
+          op: is_false
+        - field: context.explicit_authorization
+          op: is_false
+
+  - action: "phiDataViewed"
+    message: "HIPAA-164-502: Staff members may not view their own or family members' PHI outside of patient portals."
+    when:
+      any:
+        - field: context.is_self
+          op: is_true
+        - field: context.is_family_member
+          op: is_true
+
+  - action: "phiRecordOpened"
+    message: "HIPAA-164-502: Opening highly sensitive PHI (mental health, HIV status) requires specialized access roles."
+    when:
+      all:
+        - field: args.record_type
+          aliases: [recordType, type, category, phiCategory]
+          op: in
+          value: ["mental_health", "hiv", "substance_abuse"]
+        - field: context.user_role
+          op: not_in
+          value: ["specialist_psychiatry", "specialist_id", "compliance_officer"]
+
+  - action: "patientChartAccessed"
+    message: "HIPAA-164-502: Patient charts cannot be accessed by inactive or suspended users."
+    when:
+      all:
+        - field: args.chart_id
+          aliases: [chartId, patientChartId, idOfChart, medicalChart]
+          op: neq
+          value: ""
+        - field: context.user_status
+          op: not_in
+          value: ["active", "on_call"]
+
+  - action: "phiRecordDownloaded"
+    message: "HIPAA-164-502: Downloading PHI to local devices is restricted to authorized administrative users."
+    when:
+      all:
+        - field: args.download_target
+          aliases: [downloadTarget, targetDevice, destination, saveLocation]
+          op: in
+          value: ["local_disk", "usb_drive", "mobile_device"]
+        - field: context.user_role
+          op: not_in
+          value: ["admin", "him_director"]
+
+  - action: "sensitivePhiAccessed"
+    message: "HIPAA-164-502: Sensitive PHI access is blocked during non-working hours without emergency override."
+    when:
+      all:
+        - field: args.sensitivity_level
+          aliases: [sensitivityLevel, level, dataSensitivity, riskLevel]
+          op: in
+          value: ["high", "critical", "restricted"]
+        - field: context.is_working_hours
+          op: is_false
+        - field: context.emergency_override
+          op: is_false
+
+  - action: "vipRecordAccessed"
+    message: "HIPAA-164-502: VIP patient records require explicit 'break glass' rationale."
+    when:
+      all:
+        - field: args.is_vip
+          aliases: [isVip, vipStatus, highProfile, celebrityStatus]
+          op: is_true
+        - field: context.break_glass_rationale_provided
+          op: is_false
+
+  - action: "employeeRecordAccessed"
+    message: "HIPAA-164-502: Employee medical records can only be accessed by designated HR/Occupational Health staff."
+    when:
+      all:
+        - field: args.patient_is_employee
+          aliases: [patientIsEmployee, employeePatient, staffPatient, internalPatient]
+          op: is_true
+        - field: context.user_department
+          op: not_in
+          value: ["occupational_health", "human_resources"]
+
+  # ==========================================
+  # PHI Transmission
+  # ==========================================
+  - action: "phiSentExternally"
+    message: "HIPAA-164-312: External transmission of PHI must be encrypted."
+    when:
+      all:
+        - field: args.destination_domain
+          aliases: [destinationDomain, targetDomain, externalDomain, recipientDomain]
+          op: not_in
+          value: ["internal.hospital.org", "secure.network.local"]
+        - field: context.is_encrypted
+          op: is_false
+
+  - action: "phiEmailed"
+    message: "HIPAA-164-312: PHI cannot be emailed to public email providers."
+    when:
+      any:
+        - field: args.recipient_email
+          aliases: [recipientEmail, toEmail, targetEmail, address]
+          op: contains
+          value: "@gmail.com"
+        - field: args.recipient_email
+          aliases: [recipientEmail, toEmail, targetEmail, address]
+          op: contains
+          value: "@yahoo.com"
+
+  - action: "phiTransferred"
+    message: "HIPAA-164-312: File transfers containing PHI over FTP are strictly prohibited."
+    when:
+      all:
+        - field: args.protocol
+          aliases: [protocol, transferProtocol, method, networkProtocol]
+          op: eq
+          value: "ftp"
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "phiFaxed"
+    message: "HIPAA-164-312: Faxing PHI requires a verified recipient fax number on the approved list."
+    when:
+      all:
+        - field: args.fax_number
+          aliases: [faxNumber, targetFax, recipientFax, faxDestination]
+          op: neq
+          value: ""
+        - field: context.is_approved_fax
+          op: is_false
+
+  - action: "phiDataUploaded"
+    message: "HIPAA-164-312: Uploading PHI to unapproved cloud storage services is forbidden."
+    when:
+      all:
+        - field: args.cloud_service
+          aliases: [cloudService, targetCloud, uploadDestination, storageProvider]
+          op: not_in
+          value: ["approved_aws", "approved_azure", "approved_box"]
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "phiMessageSent"
+    message: "HIPAA-164-312: SMS messaging of PHI must use an approved secure messaging application."
+    when:
+      all:
+        - field: args.message_type
+          aliases: [messageType, channel, commType, smsType]
+          op: eq
+          value: "sms"
+        - field: context.is_secure_messaging_app
+          op: is_false
+
+  - action: "phiSharedToPortal"
+    message: "HIPAA-164-312: Sharing PHI to patient portal requires patient consent to electronic communications."
+    when:
+      all:
+        - field: args.portal_id
+          aliases: [portalId, patientPortal, targetPortal, webPortal]
+          op: neq
+          value: ""
+        - field: context.patient_consent_electronic
+          op: is_false
+
+  - action: "phiSentViaSms"
+    message: "HIPAA-164-312: Standard SMS cannot be used to transmit detailed clinical information."
+    when:
+      all:
+        - field: args.content_type
+          aliases: [contentType, payloadType, messageContent, dataCategory]
+          op: eq
+          value: "detailed_clinical"
+        - field: context.channel
+          op: eq
+          value: "standard_sms"
+
+  # ==========================================
+  # PHI Storage
+  # ==========================================
+  - action: "phiDataStored"
+    message: "HIPAA-164-310: PHI stored at rest must utilize AES-256 encryption."
+    when:
+      all:
+        - field: args.storage_type
+          aliases: [storageType, mediaType, driveType, volumeType]
+          op: in
+          value: ["database", "file_system", "block_storage"]
+        - field: context.encryption_algorithm
+          op: neq
+          value: "aes-256"
+
+  - action: "phiArchived"
+    message: "HIPAA-164-310: Long-term PHI archives must be stored in immutable (WORM) storage."
+    when:
+      all:
+        - field: args.archive_tier
+          aliases: [archiveTier, storageTier, tier, backupLevel]
+          op: eq
+          value: "long_term"
+        - field: context.is_worm_storage
+          op: is_false
+
+  - action: "phiBackupCreated"
+    message: "HIPAA-164-312: Database backups containing PHI must be encrypted before writing to storage."
+    when:
+      all:
+        - field: args.backup_format
+          aliases: [backupFormat, dumpType, format, backupExtension]
+          op: eq
+          value: "sql_dump"
+        - field: context.encrypted_at_source
+          op: is_false
+
+  - action: "phiSavedLocally"
+    message: "HIPAA-164-310: Saving PHI to local workstation drives is prohibited."
+    when:
+      all:
+        - field: args.drive_letter
+          aliases: [driveLetter, localDrive, partition, disk]
+          op: in
+          value: ["C:", "D:"]
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "phiDatabaseCreated"
+    message: "HIPAA-164-310: New databases storing PHI must have auditing enabled by default."
+    when:
+      all:
+        - field: args.schema_type
+          aliases: [schemaType, databaseType, dbKind, storageSchema]
+          op: eq
+          value: "patient_data"
+        - field: context.audit_enabled
+          op: is_false
+
+  - action: "phiStoredInCloud"
+    message: "HIPAA-164-310: PHI in the cloud must be in a region geographically located within the United States."
+    when:
+      all:
+        - field: args.cloud_region
+          aliases: [cloudRegion, region, zone, awsRegion]
+          op: not_in
+          value: ["us-east-1", "us-east-2", "us-west-1", "us-west-2"]
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "phiCacheCreated"
+    message: "HIPAA-164-310: Temporary cache files containing PHI must have a TTL of less than 24 hours."
+    when:
+      all:
+        - field: args.ttl_hours
+          aliases: [ttlHours, expirationHours, cacheLife, timeoutHours]
+          op: gt
+          value: 24
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "phiExportStored"
+    message: "HIPAA-164-310: Exported PHI datasets must be password protected."
+    when:
+      all:
+        - field: args.file_format
+          aliases: [fileFormat, exportFormat, format, extension]
+          op: in
+          value: ["csv", "xlsx", "pdf"]
+        - field: context.is_password_protected
+          op: is_false
+
+  # ==========================================
+  # Medical Record Access
+  # ==========================================
+  - action: "medicalRecordExported"
+    message: "HIPAA-164-524: Patient requests for medical records must be fulfilled in a secure format."
+    when:
+      all:
+        - field: args.export_reason
+          aliases: [exportReason, purpose, justification, reason]
+          op: eq
+          value: "patient_request"
+        - field: context.secure_delivery_method
+          op: is_false
+
+  - action: "medicalRecordPrinted"
+    message: "HIPAA-164-524: Printing medical records requires logging the physical printer location."
+    when:
+      all:
+        - field: args.printer_id
+          aliases: [printerId, destinationPrinter, hardwareId, deviceId]
+          op: neq
+          value: ""
+        - field: context.printer_location_logged
+          op: is_false
+
+  - action: "medicalRecordUpdated"
+    message: "HIPAA-164-524: Updates to medical records must preserve the previous version."
+    when:
+      all:
+        - field: args.update_type
+          aliases: [updateType, editType, changeCategory, modification]
+          op: eq
+          value: "clinical_note"
+        - field: context.version_history_maintained
+          op: is_false
+
+  - action: "medicalRecordDeleted"
+    message: "HIPAA-164-524: Medical records cannot be hard-deleted before the statutory retention period (e.g., 6 years)."
+    when:
+      all:
+        - field: args.record_age_years
+          aliases: [recordAgeYears, ageYears, retentionYears, timeSinceCreation]
+          op: lt
+          value: 6
+        - field: context.is_hard_delete
+          op: is_true
+
+  - action: "medicalRecordCopied"
+    message: "HIPAA-164-524: Copying entire medical records requires HIM (Health Information Management) approval."
+    when:
+      all:
+        - field: args.copy_scope
+          aliases: [copyScope, scope, recordPortion, amount]
+          op: eq
+          value: "entire_record"
+        - field: context.him_approval
+          op: is_false
+
+  - action: "medicalRecordMerged"
+    message: "HIPAA-164-524: Merging duplicate patient records requires identity verification."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [actionType, mergeAction, taskType, operation]
+          op: eq
+          value: "duplicate_merge"
+        - field: context.identity_verified
+          op: is_false
+
+  - action: "medicalHistoryViewed"
+    message: "HIPAA-164-524: Viewing comprehensive medical history outside of an active encounter is flagged."
+    when:
+      all:
+        - field: args.view_scope
+          aliases: [viewScope, dataScope, historyRange, span]
+          op: eq
+          value: "comprehensive"
+        - field: context.active_encounter
+          op: is_false
+
+  - action: "labResultsAccessed"
+    message: "HIPAA-164-524: Highly sensitive lab results cannot be released to patient portals before provider review."
+    when:
+      all:
+        - field: args.lab_type
+          aliases: [labType, testType, resultCategory, labCategory]
+          op: in
+          value: ["pathology", "genetics", "std"]
+        - field: context.provider_reviewed
+          op: is_false
+
+  # ==========================================
+  # Prescription Data
+  # ==========================================
+  - action: "prescriptionModified"
+    message: "HIPAA-164-312: Modifying an active prescription requires re-authentication."
+    when:
+      all:
+        - field: args.rx_status
+          aliases: [rxStatus, prescriptionStatus, status, state]
+          op: eq
+          value: "active"
+        - field: context.reauthenticated_recently
+          op: is_false
+
+  - action: "prescriptionFilled"
+    message: "HIPAA-164-312: Filling prescriptions requires verifying the prescribing provider's DEA number."
+    when:
+      all:
+        - field: args.drug_schedule
+          aliases: [drugSchedule, schedule, deaSchedule, controlledClass]
+          op: in
+          value: ["II", "III", "IV", "V"]
+        - field: context.dea_number_verified
+          op: is_false
+
+  - action: "prescriptionViewed"
+    message: "HIPAA-164-312: Viewing PDMP (Prescription Drug Monitoring Program) data must be logged with purpose."
+    when:
+      all:
+        - field: args.data_source
+          aliases: [dataSource, sourceSystem, origin, registry]
+          op: eq
+          value: "pdmp"
+        - field: context.purpose_logged
+          op: is_false
+
+  - action: "prescriptionRefilled"
+    message: "HIPAA-164-312: Auto-refill requests for controlled substances are prohibited."
+    when:
+      all:
+        - field: args.refill_type
+          aliases: [refillType, requestType, autoType, trigger]
+          op: eq
+          value: "automated"
+        - field: context.is_controlled_substance
+          op: is_true
+
+  - action: "medicationHistoryAccessed"
+    message: "HIPAA-164-312: Pharmacy staff accessing full medication history requires patient consent."
+    when:
+      all:
+        - field: args.staff_role
+          aliases: [staffRole, userRole, role, position]
+          op: eq
+          value: "pharmacy_tech"
+        - field: context.patient_consent_on_file
+          op: is_false
+
+  - action: "ePrescriptionSent"
+    message: "HIPAA-164-312: Electronic prescriptions must use a certified EPCS network."
+    when:
+      all:
+        - field: args.network
+          aliases: [network, transmissionNetwork, routingService, eRxNetwork]
+          op: not_in
+          value: ["surescripts", "certified_epcs"]
+        - field: context.is_epcs_certified
+          op: is_false
+
+  - action: "prescriptionDeleted"
+    message: "HIPAA-164-312: Prescriptions cannot be deleted; they must be marked as discontinued or voided."
+    when:
+      all:
+        - field: args.action_verb
+          aliases: [actionVerb, operation, command, dbAction]
+          op: eq
+          value: "hard_delete"
+        - field: context.is_prescription_record
+          op: is_true
+
+  - action: "controlledSubstancePrescribed"
+    message: "HIPAA-164-312: Prescribing controlled substances requires Two-Factor Authentication (EPCS requirement)."
+    when:
+      all:
+        - field: args.drug_class
+          aliases: [drugClass, controlledClass, deaClass, classification]
+          op: eq
+          value: "controlled"
+        - field: context.mfa_used_for_signing
+          op: is_false
+
+  # ==========================================
+  # Clinical Trial Data
+  # ==========================================
+  - action: "clinicalTrialAccessed"
+    message: "HIPAA-164-514: Accessing clinical trial data requires IRB (Institutional Review Board) approval."
+    when:
+      all:
+        - field: args.trial_id
+          aliases: [trialId, studyId, protocolNumber, researchId]
+          op: neq
+          value: ""
+        - field: context.irb_approval_active
+          op: is_false
+
+  - action: "clinicalDataExported"
+    message: "HIPAA-164-514: Exporting clinical data for research must use a Limited Data Set or be fully de-identified."
+    when:
+      all:
+        - field: args.export_purpose
+          aliases: [exportPurpose, purpose, reason, intent]
+          op: eq
+          value: "research"
+        - field: context.is_deidentified
+          op: is_false
+        - field: context.is_limited_data_set
+          op: is_false
+
+  - action: "trialParticipantViewed"
+    message: "HIPAA-164-514: Viewing trial participant identities is restricted to the Principal Investigator and key staff."
+    when:
+      all:
+        - field: args.contains_phi
+          aliases: [containsPhi, hasPhi, identified, unmasked]
+          op: is_true
+        - field: context.user_role
+          op: not_in
+          value: ["principal_investigator", "study_coordinator"]
+
+  - action: "clinicalTrialDeleted"
+    message: "HIPAA-164-514: Clinical trial records cannot be deleted; they must be archived per FDA/HIPAA guidelines."
+    when:
+      all:
+        - field: args.action
+          aliases: [action, operation, task, command]
+          op: eq
+          value: "delete"
+        - field: context.is_trial_data
+          op: is_true
+
+  - action: "trialDataShared"
+    message: "HIPAA-164-514: Sharing trial data with external sponsors requires a Data Use Agreement (DUA)."
+    when:
+      all:
+        - field: args.recipient_type
+          aliases: [recipientType, targetType, shareDestination, entityType]
+          op: eq
+          value: "external_sponsor"
+        - field: context.dua_signed
+          op: is_false
+
+  - action: "trialDataPublished"
+    message: "HIPAA-164-514: Publishing trial data requires Safe Harbor or Expert Determination de-identification."
+    when:
+      all:
+        - field: args.destination
+          aliases: [destination, target, publishLocation, venue]
+          op: eq
+          value: "public_journal"
+        - field: context.safe_harbor_certified
+          op: is_false
+        - field: context.expert_determination_certified
+          op: is_false
+
+  - action: "trialDataAnonymized"
+    message: "HIPAA-164-514: Anonymization algorithms must strip all 18 HIPAA identifiers."
+    when:
+      all:
+        - field: args.algorithm_profile
+          aliases: [algorithmProfile, profile, maskingMethod, ruleSet]
+          op: neq
+          value: "hipaa_18_identifiers"
+        - field: context.is_anonymization_job
+          op: is_true
+
+  - action: "trialDataMerged"
+    message: "HIPAA-164-514: Merging identified patient data into a research database is prohibited without consent."
+    when:
+      all:
+        - field: args.target_db
+          aliases: [targetDb, destinationDb, database, schema]
+          op: eq
+          value: "research_registry"
+        - field: context.patient_research_consent
+          op: is_false
+
+  # ==========================================
+  # Business Associate Agreements
+  # ==========================================
+  - action: "dataSharedWithVendor"
+    message: "HIPAA-164-504: PHI cannot be shared with a vendor without an active Business Associate Agreement (BAA)."
+    when:
+      all:
+        - field: args.vendor_id
+          aliases: [vendorId, partnerId, associateId, companyId]
+          op: neq
+          value: ""
+        - field: context.active_baa_exists
+          op: is_false
+
+  - action: "vendorAccessedPhi"
+    message: "HIPAA-164-504: Vendor access to PHI must be restricted to their necessary scope of work."
+    when:
+      all:
+        - field: args.access_scope
+          aliases: [accessScope, scope, permissionLevel, accessType]
+          op: eq
+          value: "full_database"
+        - field: context.vendor_approved_for_full_access
+          op: is_false
+
+  - action: "baaFileViewed"
+    message: "HIPAA-164-504: BAA files can only be viewed by Legal and Compliance departments."
+    when:
+      all:
+        - field: args.document_type
+          aliases: [documentType, docType, fileCategory, contractType]
+          op: eq
+          value: "baa_contract"
+        - field: context.user_department
+          op: not_in
+          value: ["legal", "compliance", "procurement"]
+
+  - action: "subcontractorReceivedPhi"
+    message: "HIPAA-164-504: Subcontractors receiving PHI must also have a BAA in place with the primary Business Associate."
+    when:
+      all:
+        - field: args.entity_type
+          aliases: [entityType, partnerLevel, orgType, companyType]
+          op: eq
+          value: "subcontractor"
+        - field: context.downstream_baa_verified
+          op: is_false
+
+  - action: "vendorContractSigned"
+    message: "HIPAA-164-504: Vendor contracts involving PHI must include mandatory breach notification clauses."
+    when:
+      all:
+        - field: args.handles_phi
+          aliases: [handlesPhi, processesPhi, phiInvolved, storesPhi]
+          op: is_true
+        - field: context.breach_clause_included
+          op: is_false
+
+  - action: "vendorAuditCompleted"
+    message: "HIPAA-164-504: High-risk vendors must have an annual security audit (e.g., SOC 2, HITRUST) on file."
+    when:
+      all:
+        - field: args.vendor_risk_tier
+          aliases: [vendorRiskTier, riskLevel, tier, criticality]
+          op: eq
+          value: "high"
+        - field: context.has_recent_security_audit
+          op: is_false
+
+  - action: "baaUpdated"
+    message: "HIPAA-164-504: Updates to a BAA must be approved by the Chief Privacy Officer."
+    when:
+      all:
+        - field: args.update_nature
+          aliases: [updateNature, changeType, modificationType, edit]
+          op: eq
+          value: "terms_change"
+        - field: context.cpo_approved
+          op: is_false
+
+  - action: "vendorRemoved"
+    message: "HIPAA-164-504: Removing a vendor requires certification of PHI destruction or return."
+    when:
+      all:
+        - field: args.termination_status
+          aliases: [terminationStatus, status, endState, removalStatus]
+          op: eq
+          value: "final"
+        - field: context.phi_destruction_certified
+          op: is_false
+
+  # ==========================================
+  # Minimum Necessary Standard
+  # ==========================================
+  - action: "phiBulkExported"
+    message: "HIPAA-164-502: Bulk export of PHI violates the minimum necessary standard unless specifically justified."
+    when:
+      all:
+        - field: args.record_count
+          aliases: [recordCount, numRecords, rows, amount]
+          op: gt
+          value: 500
+        - field: context.bulk_justification_provided
+          op: is_false
+
+  - action: "patientListDownloaded"
+    message: "HIPAA-164-502: Downloading patient lists must be filtered to only include patients relevant to the user's shift/role."
+    when:
+      all:
+        - field: args.list_scope
+          aliases: [listScope, filter, scope, queryBreadth]
+          op: eq
+          value: "all_admitted_patients"
+        - field: context.role_requires_global_list
+          op: is_false
+
+  - action: "reportGenerated"
+    message: "HIPAA-164-502: Financial reports should default to masking clinical data fields."
+    when:
+      all:
+        - field: args.report_type
+          aliases: [reportType, category, reportClass, type]
+          op: eq
+          value: "financial_billing"
+        - field: context.clinical_data_masked
+          op: is_false
+
+  - action: "datasetQueried"
+    message: "HIPAA-164-502: Queries returning more than 1000 records require secondary review for 'minimum necessary'."
+    when:
+      all:
+        - field: args.result_size
+          aliases: [resultSize, querySize, count, totalRows]
+          op: gt
+          value: 1000
+        - field: context.minimum_necessary_reviewed
+          op: is_false
+
+  - action: "allPatientDataAccessed"
+    message: "HIPAA-164-502: 'Select *' queries on patient tables are prohibited in production environments."
+    when:
+      all:
+        - field: args.query_string
+          aliases: [queryString, sql, commandText, query]
+          op: contains
+          value: "SELECT *"
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "phiFullRecordViewed"
+    message: "HIPAA-164-502: Viewing a full medical record is restricted if the user only requires access to a specific encounter."
+    when:
+      all:
+        - field: args.view_mode
+          aliases: [viewMode, displayMode, accessLevel, mode]
+          op: eq
+          value: "full_chart"
+        - field: context.encounter_only_access
+          op: is_true
+
+  - action: "phiSnapshotTaken"
+    message: "HIPAA-164-502: Screen snapshots containing PHI trigger a minimum necessary audit."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [actionType, captureType, method, tool]
+          op: eq
+          value: "screen_capture"
+        - field: context.contains_phi
+          op: is_true
+
+  - action: "analyticsReportCreated"
+    message: "HIPAA-164-502: Analytics reports must aggregate data to obscure individual patient identities."
+    when:
+      all:
+        - field: args.report_granularity
+          aliases: [reportGranularity, level, detail, granularity]
+          op: eq
+          value: "patient_level"
+        - field: context.is_aggregated
+          op: is_false
+
+  # ==========================================
+  # Breach Notification
+  # ==========================================
+  - action: "breachDiscovered"
+    message: "HIPAA-164-404: Potential breaches must be logged within 24 hours of discovery."
+    when:
+      all:
+        - field: args.hours_since_discovery
+          aliases: [hoursSinceDiscovery, timeElapsed, delayHours, discoveryTime]
+          op: gt
+          value: 24
+        - field: context.logged_in_system
+          op: is_false
+
+  - action: "breachReported"
+    message: "HIPAA-164-404: Unsecured PHI breaches affecting 500+ individuals require immediate HHS notification."
+    when:
+      all:
+        - field: args.individuals_affected
+          aliases: [individualsAffected, patientCount, affectedCount, size]
+          op: gte
+          value: 500
+        - field: context.hhs_notified
+          op: is_false
+
+  - action: "patientNotified"
+    message: "HIPAA-164-404: Patients must be notified of a breach within 60 days of discovery without unreasonable delay."
+    when:
+      all:
+        - field: args.days_since_discovery
+          aliases: [daysSinceDiscovery, delayDays, duration, ageInDays]
+          op: gt
+          value: 60
+        - field: context.patient_notification_sent
+          op: is_false
+
+  - action: "hhsNotified"
+    message: "HIPAA-164-408: Breaches affecting <500 individuals must be reported to HHS annually, not immediately required."
+    when:
+      all:
+        - field: args.individuals_affected
+          aliases: [individualsAffected, patientCount, affectedCount, size]
+          op: lt
+          value: 500
+        - field: context.is_annual_report
+          op: is_false
+        - field: context.is_immediate_report
+          op: is_true
+
+  - action: "mediaNotified"
+    message: "HIPAA-164-406: Breaches affecting >500 residents of a State/Jurisdiction require notifying prominent media outlets."
+    when:
+      all:
+        - field: args.state_residents_affected
+          aliases: [stateResidentsAffected, localCount, stateImpact, stateSize]
+          op: gt
+          value: 500
+        - field: context.media_notified
+          op: is_false
+
+  - action: "breachInvestigationStarted"
+    message: "HIPAA-164-404: Breach investigations must document the risk assessment determining probability of PHI compromise."
+    when:
+      all:
+        - field: args.investigation_phase
+          aliases: [investigationPhase, phase, step, status]
+          op: eq
+          value: "initial_assessment"
+        - field: context.risk_assessment_documented
+          op: is_false
+
+  - action: "breachLogUpdated"
+    message: "HIPAA-164-404: Updates to the official breach log can only be made by the Privacy Officer."
+    when:
+      all:
+        - field: args.log_type
+          aliases: [logType, registry, tracker, logName]
+          op: eq
+          value: "official_breach_log"
+        - field: context.user_role
+          op: neq
+          value: "privacy_officer"
+
+  - action: "breachResolved"
+    message: "HIPAA-164-404: Closing a breach incident requires a documented mitigation and remediation plan."
+    when:
+      all:
+        - field: args.resolution_status
+          aliases: [resolutionStatus, status, endState, condition]
+          op: eq
+          value: "closed"
+        - field: context.remediation_plan_documented
+          op: is_false
+
+  # ==========================================
+  # Patient Rights
+  # ==========================================
+  - action: "patientRecordAmended"
+    message: "HIPAA-164-526: Patients have the right to request amendments to their medical record; denials must be documented."
+    when:
+      all:
+        - field: args.request_status
+          aliases: [requestStatus, status, outcome, decision]
+          op: eq
+          value: "denied"
+        - field: context.denial_reason_documented
+          op: is_false
+
+  - action: "accessRequestReceived"
+    message: "HIPAA-164-524: Patient access requests must be fulfilled within 30 days."
+    when:
+      all:
+        - field: args.days_since_request
+          aliases: [daysSinceRequest, age, requestAge, delay]
+          op: gt
+          value: 30
+        - field: context.request_fulfilled
+          op: is_false
+        - field: context.extension_requested
+          op: is_false
+
+  - action: "accessRequestDenied"
+    message: "HIPAA-164-524: Denying patient access to their own records is only permitted under specific unreviewable/reviewable grounds."
+    when:
+      all:
+        - field: args.denial_type
+          aliases: [denialType, reasonCode, justification, code]
+          op: not_in
+          value: ["unreviewable_ground", "reviewable_ground"]
+        - field: context.is_patient_request
+          op: is_true
+
+  - action: "accountingOfDisclosuresRequested"
+    message: "HIPAA-164-528: Systems must track disclosures of PHI to provide an accounting upon patient request."
+    when:
+      all:
+        - field: args.request_type
+          aliases: [requestType, task, action, reqType]
+          op: eq
+          value: "accounting_of_disclosures"
+        - field: context.disclosure_tracking_system_active
+          op: is_false
+
+  - action: "restrictionRequested"
+    message: "HIPAA-164-522: Providers must honor requests to restrict disclosure to health plans if the service is paid out-of-pocket."
+    when:
+      all:
+        - field: args.paid_in_full_out_of_pocket
+          aliases: [paidInFullOutOfPocket, selfPay, cashPay, fullyPaid]
+          op: is_true
+        - field: context.disclosure_restricted_to_health_plan
+          op: is_false
+
+  - action: "confidentialCommunicationRequested"
+    message: "HIPAA-164-522: Requests for confidential communications (e.g., alternate address) must be accommodated."
+    when:
+      all:
+        - field: args.has_alternate_address
+          aliases: [hasAlternateAddress, alternateContact, altAddress, diffLocation]
+          op: is_true
+        - field: context.communications_routed_to_alternate
+          op: is_false
+
+  - action: "optOutProcessed"
+    message: "HIPAA-164-510: Patients can opt-out of the facility directory; their information must not be shared with callers."
+    when:
+      all:
+        - field: args.directory_opt_out
+          aliases: [directoryOptOut, optedOut, privateStatus, hideInDir]
+          op: is_true
+        - field: context.shown_in_facility_directory
+          op: is_true
+
+  - action: "patientRecordProvided"
+    message: "HIPAA-164-524: Covered entities may only charge a reasonable, cost-based fee for copies of records."
+    when:
+      all:
+        - field: args.fee_charged
+          aliases: [feeCharged, amountBilled, cost, price]
+          op: gt
+          value: 50.00
+        - field: context.fee_is_cost_based
+          op: is_false
+
+  # ==========================================
+  # Audit Controls
+  # ==========================================
+  - action: "auditLogAccessed"
+    message: "HIPAA-164-312: Audit logs can only be accessed by authorized compliance/security personnel."
+    when:
+      all:
+        - field: args.log_source
+          aliases: [logSource, logType, source, system]
+          op: eq
+          value: "phi_access_logs"
+        - field: context.user_department
+          op: not_in
+          value: ["compliance", "it_security", "internal_audit"]
+
+  - action: "auditLogDeleted"
+    message: "HIPAA-164-312: Audit logs cannot be deleted or modified manually."
+    when:
+      all:
+        - field: args.operation
+          aliases: [operation, action, dbAction, command]
+          op: in
+          value: ["delete", "truncate", "drop"]
+        - field: context.is_audit_table
+          op: is_true
+
+  - action: "auditLogExported"
+    message: "HIPAA-164-312: Exporting system audit logs requires generating an integrity hash (e.g., SHA-256)."
+    when:
+      all:
+        - field: args.export_target
+          aliases: [exportTarget, destination, targetSystem, fileType]
+          op: neq
+          value: ""
+        - field: context.integrity_hash_generated
+          op: is_false
+
+  - action: "auditLogModified"
+    message: "HIPAA-164-312: System administrators cannot alter audit logs; logs must be append-only."
+    when:
+      all:
+        - field: args.table_type
+          aliases: [tableType, storageType, schemaType, category]
+          op: eq
+          value: "audit_trail"
+        - field: context.is_append_only
+          op: is_false
+
+  - action: "systemActivityReviewed"
+    message: "HIPAA-164-312: Regular review of information system activity records is required."
+    when:
+      all:
+        - field: args.days_since_last_review
+          aliases: [daysSinceLastReview, reviewAge, timePassed, days]
+          op: gt
+          value: 90
+        - field: context.system_holds_phi
+          op: is_true
+
+  - action: "userActivityQueried"
+    message: "HIPAA-164-312: Queries for user activity must log the reviewer's ID."
+    when:
+      all:
+        - field: args.target_user_id
+          aliases: [targetUserId, searchSubject, userObserved, employeeId]
+          op: neq
+          value: ""
+        - field: context.reviewer_id_logged
+          op: is_false
+
+  - action: "auditLogArchived"
+    message: "HIPAA-164-312: Audit logs must be retained for a minimum of 6 years."
+    when:
+      all:
+        - field: args.retention_period_years
+          aliases: [retentionPeriodYears, yearsToKeep, duration, lifespan]
+          op: lt
+          value: 6
+        - field: context.is_audit_archive
+          op: is_true
+
+  - action: "auditReportGenerated"
+    message: "HIPAA-164-312: Generating a comprehensive audit report requires dual authorization."
+    when:
+      all:
+        - field: args.report_scope
+          aliases: [reportScope, scope, breadth, reportSize]
+          op: eq
+          value: "comprehensive"
+        - field: context.dual_authorization_present
+          op: is_false
+
+  # ==========================================
+  # Authentication & Authorization
+  # ==========================================
+  - action: "userAuthenticated"
+    message: "HIPAA-164-312: Multi-factor authentication is required for remote access to PHI systems."
+    when:
+      all:
+        - field: args.network_origin
+          aliases: [networkOrigin, sourceIp, connectionType, origin]
+          op: eq
+          value: "external_remote"
+        - field: context.mfa_completed
+          op: is_false
+
+  - action: "passwordChanged"
+    message: "HIPAA-164-312: Passwords must meet complexity requirements and avoid recent usage."
+    when:
+      any:
+        - field: context.meets_complexity
+          op: is_false
+        - field: context.is_recent_password
+          op: is_true
+
+  - action: "mfaBypassed"
+    message: "HIPAA-164-312: Bypassing MFA is strictly prohibited unless an emergency break-glass procedure is invoked."
+    when:
+      all:
+        - field: args.bypass_reason
+          aliases: [bypassReason, reason, excuse, justification]
+          op: neq
+          value: "emergency_break_glass"
+        - field: context.mfa_enforced
+          op: is_false
+
+  - action: "userRoleChanged"
+    message: "HIPAA-164-312: Changes to user roles affecting PHI access must be approved by a supervisor."
+    when:
+      all:
+        - field: args.grants_phi_access
+          aliases: [grantsPhiAccess, givesAccess, opensPhi, elevatesPrivilege]
+          op: is_true
+        - field: context.supervisor_approved
+          op: is_false
+
+  - action: "adminAccessGranted"
+    message: "HIPAA-164-312: Administrative access to EMR systems must use a separate, dedicated administrative account."
+    when:
+      all:
+        - field: args.target_system
+          aliases: [targetSystem, app, software, environment]
+          op: eq
+          value: "emr_production"
+        - field: context.is_dedicated_admin_account
+          op: is_false
+
+  - action: "sessionExpired"
+    message: "HIPAA-164-312: Electronic sessions must automatically terminate after a period of inactivity (e.g., 15 mins)."
+    when:
+      all:
+        - field: args.idle_minutes
+          aliases: [idleMinutes, inactiveTime, timeout, minutes]
+          op: gt
+          value: 15
+        - field: context.auto_logoff_triggered
+          op: is_false
+
+  - action: "emergencyAccessUsed"
+    message: "HIPAA-164-312: Emergency 'break-glass' access triggers an immediate alert to the Security Officer."
+    when:
+      all:
+        - field: args.access_type
+          aliases: [accessType, loginMethod, procedure, authType]
+          op: eq
+          value: "emergency_override"
+        - field: context.security_officer_alerted
+          op: is_false
+
+  - action: "failedLoginAttempted"
+    message: "HIPAA-164-312: Systems must lock the account after a specified number of failed login attempts."
+    when:
+      all:
+        - field: args.failed_attempts
+          aliases: [failedAttempts, attemptCount, errors, failures]
+          op: gte
+          value: 5
+        - field: context.account_locked
+          op: is_false
+
+  # ==========================================
+  # Physical Safeguards
+  # ==========================================
+  - action: "workstationUnlocked"
+    message: "HIPAA-164-310: Workstations in public areas must not be left unlocked."
+    when:
+      all:
+        - field: args.location_type
+          aliases: [locationType, zone, area, physicalLocation]
+          op: eq
+          value: "public_facing"
+        - field: context.is_locked
+          op: is_false
+
+  - action: "deviceRegistered"
+    message: "HIPAA-164-310: Mobile devices accessing PHI must be enrolled in Mobile Device Management (MDM)."
+    when:
+      all:
+        - field: args.device_type
+          aliases: [deviceType, platform, hardware, os]
+          op: in
+          value: ["smartphone", "tablet"]
+        - field: context.mdm_enrolled
+          op: is_false
+
+  - action: "deviceWiped"
+    message: "HIPAA-164-310: Remote wipe capability must be tested/verified before assigning devices to staff."
+    when:
+      all:
+        - field: args.action
+          aliases: [action, task, command, step]
+          op: eq
+          value: "provision_device"
+        - field: context.remote_wipe_verified
+          op: is_false
+
+  - action: "serverRoomAccessed"
+    message: "HIPAA-164-310: Access to facilities housing PHI servers requires biometric or badge authentication."
+    when:
+      all:
+        - field: args.room_classification
+          aliases: [roomClassification, securityZone, roomType, area]
+          op: eq
+          value: "datacenter"
+        - field: context.strong_physical_auth_used
+          op: is_false
+
+  - action: "mediaDestructionLogged"
+    message: "HIPAA-164-310: Electronic media containing PHI must be properly sanitized and destruction logged before disposal."
+    when:
+      all:
+        - field: args.media_state
+          aliases: [mediaState, status, lifecycle, condition]
+          op: eq
+          value: "end_of_life"
+        - field: context.destruction_certificate_issued
+          op: is_false
+
+  - action: "visitorBadgeIssued"
+    message: "HIPAA-164-310: Visitors to areas with restricted PHI access must be escorted and logged."
+    when:
+      all:
+        - field: args.visitor_destination
+          aliases: [visitorDestination, targetArea, zone, building]
+          op: eq
+          value: "restricted_phi_zone"
+        - field: context.escort_assigned
+          op: is_false
+
+  - action: "hardwareDisposed"
+    message: "HIPAA-164-310: Hard drives must be completely wiped (e.g., DoD 5220.22-M) prior to disposal."
+    when:
+      all:
+        - field: args.component_type
+          aliases: [componentType, part, hardwareType, item]
+          op: eq
+          value: "storage_drive"
+        - field: context.wipe_standard_met
+          op: is_false
+
+  - action: "offlineBackupMoved"
+    message: "HIPAA-164-310: Movement of physical backup tapes/drives containing PHI requires chain-of-custody documentation."
+    when:
+      all:
+        - field: args.media_type
+          aliases: [mediaType, format, backupMedia, objectType]
+          op: eq
+          value: "magnetic_tape"
+        - field: context.chain_of_custody_logged
+          op: is_false
+
+  # ==========================================
+  # Administrative Safeguards
+  # ==========================================
+  - action: "riskAssessmentCompleted"
+    message: "HIPAA-164-308: A comprehensive security risk assessment must be conducted annually."
+    when:
+      all:
+        - field: args.assessment_type
+          aliases: [assessmentType, reviewType, auditKind, evaluation]
+          op: eq
+          value: "enterprise_security_risk"
+        - field: context.is_annual_cadence
+          op: is_false
+
+  - action: "securityPolicyUpdated"
+    message: "HIPAA-164-308: Information security policies must be reviewed and approved by management."
+    when:
+      all:
+        - field: args.document_category
+          aliases: [documentCategory, docClass, category, policyType]
+          op: eq
+          value: "infosec_policy"
+        - field: context.management_approved
+          op: is_false
+
+  - action: "trainingCompleted"
+    message: "HIPAA-164-308: All workforce members must complete security awareness training upon hire and annually."
+    when:
+      any:
+        - field: context.new_hire_training_completed
+          op: is_false
+        - field: context.annual_training_current
+          op: is_false
+
+  - action: "userAccountCreated"
+    message: "HIPAA-164-308: Workforce clearance procedures must be completed before granting PHI access."
+    when:
+      all:
+        - field: args.account_type
+          aliases: [accountType, roleLevel, userClass, profileType]
+          op: eq
+          value: "clinical_staff"
+        - field: context.background_check_cleared
+          op: is_false
+
+  - action: "userAccountTerminated"
+    message: "HIPAA-164-308: Access to electronic systems must be terminated immediately upon employment termination."
+    when:
+      all:
+        - field: args.employment_status
+          aliases: [employmentStatus, hrStatus, workState, workerStatus]
+          op: eq
+          value: "terminated"
+        - field: context.system_access_revoked
+          op: is_false
+
+  - action: "incidentReported"
+    message: "HIPAA-164-308: Security incidents must be tracked and mitigating actions documented."
+    when:
+      all:
+        - field: args.incident_severity
+          aliases: [incidentSeverity, riskLevel, impact, tier]
+          op: in
+          value: ["medium", "high", "critical"]
+        - field: context.mitigation_documented
+          op: is_false
+
+  - action: "sanctionApplied"
+    message: "HIPAA-164-308: Sanction policies must be applied consistently to workforce members violating security policies."
+    when:
+      all:
+        - field: args.violation_type
+          aliases: [violationType, infraction, ruleBroken, offense]
+          op: neq
+          value: ""
+        - field: context.sanction_documented_in_hr
+          op: is_false
+
+  - action: "contingencyPlanTested"
+    message: "HIPAA-164-308: The disaster recovery and contingency plan must be tested periodically."
+    when:
+      all:
+        - field: args.plan_type
+          aliases: [planType, documentType, processType, strategy]
+          op: eq
+          value: "disaster_recovery"
+        - field: context.tested_within_last_year
+          op: is_false
+
+  # ==========================================
+  # Technical Safeguards
+  # ==========================================
+  - action: "encryptionKeyRotated"
+    message: "HIPAA-164-312: Cryptographic keys protecting PHI must be rotated annually or upon staff termination."
+    when:
+      all:
+        - field: args.key_purpose
+          aliases: [keyPurpose, usage, target, role]
+          op: eq
+          value: "phi_database_encryption"
+        - field: context.key_age_days
+          op: gt
+          value: 365
+
+  - action: "firewallRuleChanged"
+    message: "HIPAA-164-312: Changes to network firewalls protecting PHI zones require Change Advisory Board (CAB) approval."
+    when:
+      all:
+        - field: args.zone_impacted
+          aliases: [zoneImpacted, networkSegment, area, subnet]
+          op: eq
+          value: "secure_phi_enclave"
+        - field: context.cab_approved
+          op: is_false
+
+  - action: "dataIntegrityChecked"
+    message: "HIPAA-164-312: Mechanisms must be in place to corroborate that electronic PHI has not been altered or destroyed."
+    when:
+      all:
+        - field: args.data_flow
+          aliases: [dataFlow, transmission, direction, path]
+          op: eq
+          value: "system_to_system_sync"
+        - field: context.checksum_verified
+          op: is_false
+
+  - action: "ephiDecrypted"
+    message: "HIPAA-164-312: Decryption of EPHI for bulk processing must occur within isolated, secure compute environments."
+    when:
+      all:
+        - field: args.processing_type
+          aliases: [processingType, computeType, jobType, task]
+          op: eq
+          value: "bulk_analytics"
+        - field: context.environment_is_isolated
+          op: is_false
+
+  - action: "tlsCertificateRenewed"
+    message: "HIPAA-164-312: Transmission security requires TLS 1.2 or higher for all web-facing PHI interfaces."
+    when:
+      all:
+        - field: args.interface_type
+          aliases: [interfaceType, endpoint, connection, facing]
+          op: eq
+          value: "public_web"
+        - field: context.tls_version
+          op: not_in
+          value: ["TLSv1.2", "TLSv1.3"]
+
+  - action: "vulnerabilityScanRun"
+    message: "HIPAA-164-312: Systems hosting EPHI must undergo regular vulnerability scanning."
+    when:
+      all:
+        - field: args.system_classification
+          aliases: [systemClassification, tier, infoLevel, dataClass]
+          op: eq
+          value: "ephi_host"
+        - field: context.days_since_last_scan
+          op: gt
+          value: 30
+
+  - action: "systemPatched"
+    message: "HIPAA-164-312: Critical security patches on EPHI systems must be applied within 14 days of release."
+    when:
+      all:
+        - field: args.patch_severity
+          aliases: [patchSeverity, criticality, urgency, risk]
+          op: eq
+          value: "critical"
+        - field: context.days_since_patch_release
+          op: gt
+          value: 14
+
+  - action: "malwareDetected"
+    message: "HIPAA-164-312: Protection from malicious software is required; detected malware must isolate the host automatically."
+    when:
+      all:
+        - field: args.detection_source
+          aliases: [detectionSource, tool, avEngine, sensor]
+          op: eq
+          value: "endpoint_detection_response"
+        - field: context.host_isolated
+          op: is_false

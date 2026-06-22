@@ -1,0 +1,1432 @@
+# IT Security Governance Policies based on ISO 27001 and NIST CSF
+policies:
+  # ==========================================
+  # Encryption Standards
+  # ==========================================
+  - action: "encryptionDisabled"
+    message: "ISO27001-A-10-1: Encryption must not be disabled for sensitive data stores."
+    when:
+      all:
+        - field: args.data_store_type
+          aliases: [dataStoreType, storeType, dbType, storageKind]
+          op: in
+          value: ["database", "s3", "blob", "ebs"]
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "cipherSuiteDowngraded"
+    message: "NIST-CSF-PR-DS-1: Downgrading to weak cipher suites is prohibited."
+    when:
+      all:
+        - field: args.cipher_suite
+          aliases: [cipherSuite, suite, sslCipher, tlsCipher]
+          op: in
+          value: ["TLS_RSA_WITH_AES_128_CBC_SHA", "TLS_RSA_WITH_RC4_128_MD5", "DES", "3DES"]
+        - field: context.user_role
+          op: neq
+          value: "security_admin"
+
+  - action: "nonTlsConnectionEstablished"
+    message: "ISO27001-A-13-1: All external connections must use TLS 1.2 or higher."
+    when:
+      all:
+        - field: args.protocol
+          aliases: [connectionProtocol, protocolName, transport, connType]
+          op: in
+          value: ["http", "ftp", "telnet", "smtp"]
+        - field: context.is_external
+          op: is_true
+
+  - action: "databaseEncryptionRemoved"
+    message: "NIST-CSF-PR-DS-1: Removing database encryption at rest is highly restricted."
+    when:
+      all:
+        - field: args.db_classification
+          aliases: [dbClassification, dataClassification, sensitivityLevel, dataSensitivity]
+          op: in
+          value: ["confidential", "restricted", "pii"]
+        - field: context.approved_by_ciso
+          op: is_false
+
+  - action: "volumeEncryptionDisabled"
+    message: "ISO27001-A-10-1: EBS volumes must always be encrypted."
+    when:
+      all:
+        - field: args.volume_type
+          aliases: [volumeType, diskType, storageType, blockType]
+          op: eq
+          value: "ebs"
+        - field: context.auto_remediate
+          op: is_false
+
+  - action: "objectStorageEncryptionDisabled"
+    message: "NIST-CSF-PR-DS-1: S3 buckets must enforce server-side encryption."
+    when:
+      all:
+        - field: args.bucket_policy
+          aliases: [bucketPolicy, s3Policy, storagePolicy, policyDoc]
+          op: contains
+          value: "sse_disabled"
+        - field: context.is_public
+          op: is_true
+
+  # ==========================================
+  # Certificate Management
+  # ==========================================
+  - action: "expiredCertificateDeployed"
+    message: "ISO27001-A-10-1: Do not deploy expired SSL/TLS certificates."
+    when:
+      all:
+        - field: args.days_to_expiry
+          aliases: [daysToExpiry, expirationDays, ttlDays, validDays]
+          op: lt
+          value: 0
+        - field: context.environment
+          op: in
+          value: ["production", "staging"]
+
+  - action: "selfSignedCertificateUsed"
+    message: "NIST-CSF-PR-DS-2: Self-signed certificates are prohibited in production."
+    when:
+      all:
+        - field: args.certificate_issuer
+          aliases: [certIssuer, issuerName, issuedBy, caName]
+          op: eq
+          value: "self_signed"
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "weakCertificateKeySizeUsed"
+    message: "ISO27001-A-10-1: Minimum RSA key size is 2048 bits."
+    when:
+      all:
+        - field: args.key_size
+          aliases: [keySize, certKeySize, bitLength, rsaKeySize]
+          op: lt
+          value: 2048
+        - field: context.algorithm
+          op: eq
+          value: "RSA"
+
+  - action: "wildcardCertificateDeployed"
+    message: "NIST-CSF-PR-DS-2: Wildcard certificates are discouraged for high-security domains."
+    when:
+      all:
+        - field: args.domain_name
+          aliases: [domainName, subjectName, san, fqdn]
+          op: contains
+          value: "*."
+        - field: context.domain_criticality
+          op: eq
+          value: "high"
+
+  - action: "certificateRotationSkipped"
+    message: "ISO27001-A-10-1: Certificates must be rotated 30 days prior to expiry."
+    when:
+      all:
+        - field: args.days_to_expiry
+          aliases: [daysToExpiry, expirationDays, ttlDays, validDays]
+          op: lte
+          value: 30
+        - field: context.auto_rotate_enabled
+          op: is_false
+
+  - action: "caTrustStoreModified"
+    message: "NIST-CSF-PR-DS-2: Unauthorized modification of the CA trust store."
+    when:
+      all:
+        - field: args.action_type
+          aliases: [actionType, modifyAction, trustAction, changeType]
+          op: in
+          value: ["add", "remove"]
+        - field: context.user_role
+          op: not_in
+          value: ["pki_admin", "security_admin"]
+
+  # ==========================================
+  # Secret & Key Management
+  # ==========================================
+  - action: "secretExposedInLogs"
+    message: "ISO27001-A-14-1: Secrets must be redacted from application logs."
+    when:
+      any:
+        - field: args.log_content
+          aliases: [logContent, logMessage, rawLog, logEntry]
+          op: contains
+          value: "password="
+        - field: args.log_content
+          aliases: [logContent, logMessage, rawLog, logEntry]
+          op: contains
+          value: "api_key="
+
+  - action: "hardcodedSecretCommitted"
+    message: "NIST-CSF-PR-IP-1: Hardcoded secrets in source code are prohibited."
+    when:
+      all:
+        - field: args.commit_diff
+          aliases: [commitDiff, codeDiff, patchContent, changedLines]
+          op: contains
+          value: "secret_key"
+        - field: context.branch
+          op: eq
+          value: "main"
+
+  - action: "keyRotationSkipped"
+    message: "ISO27001-A-10-1: Cryptographic keys must be rotated annually."
+    when:
+      all:
+        - field: args.key_age_days
+          aliases: [keyAgeDays, ageInDays, keyLifespan, daysSinceCreation]
+          op: gt
+          value: 365
+        - field: context.key_type
+          op: eq
+          value: "master"
+
+  - action: "weakEncryptionKeyGenerated"
+    message: "NIST-CSF-PR-DS-1: Generated keys must meet minimum entropy requirements."
+    when:
+      all:
+        - field: args.entropy_bits
+          aliases: [entropyBits, keyEntropy, randomness, entropyScore]
+          op: lt
+          value: 128
+        - field: context.algorithm
+          op: eq
+          value: "AES"
+
+  - action: "kmsKeyDeleted"
+    message: "ISO27001-A-10-1: Deletion of KMS keys requires dual approval."
+    when:
+      all:
+        - field: args.key_state
+          aliases: [keyState, status, currentStatus, keyStatus]
+          op: eq
+          value: "pending_deletion"
+        - field: context.dual_approval
+          op: is_false
+
+  - action: "secretAccessedUnauthorized"
+    message: "NIST-CSF-PR-AC-4: Unauthorized access to secret manager."
+    when:
+      all:
+        - field: args.secret_path
+          aliases: [secretPath, vaultPath, secretName, keyPath]
+          op: contains
+          value: "/prod/"
+        - field: context.has_prod_access
+          op: is_false
+
+  # ==========================================
+  # Vulnerability Management
+  # ==========================================
+  - action: "vulnerabilityScanSkipped"
+    message: "ISO27001-A-12-6: Vulnerability scans are mandatory before production deployment."
+    when:
+      all:
+        - field: args.scan_status
+          aliases: [scanStatus, vulnScan, scanResult, scanState]
+          op: eq
+          value: "skipped"
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "criticalVulnerabilityIgnored"
+    message: "NIST-CSF-ID-RA-1: Critical vulnerabilities cannot be ignored or bypassed."
+    when:
+      all:
+        - field: args.vuln_severity
+          aliases: [vulnSeverity, severityLevel, cvssLevel, riskLevel]
+          op: eq
+          value: "critical"
+        - field: context.exception_approved
+          op: is_false
+
+  - action: "containerImageDeployedUnscanned"
+    message: "ISO27001-A-14-2: Container images must be scanned before deployment."
+    when:
+      all:
+        - field: args.image_scanned
+          aliases: [imageScanned, isScanned, scanCompleted, scannedFlag]
+          op: is_false
+        - field: context.orchestrator
+          op: eq
+          value: "kubernetes"
+
+  - action: "cvssThresholdExceeded"
+    message: "NIST-CSF-PR-IP-12: Deployment blocked due to high CVSS score."
+    when:
+      all:
+        - field: args.max_cvss_score
+          aliases: [maxCvssScore, cvssScore, highestCvss, vulnerabilityScore]
+          op: gte
+          value: 9.0
+        - field: context.mitigating_controls
+          op: is_false
+
+  - action: "outdatedSoftwareDeployed"
+    message: "ISO27001-A-12-6: Deploying end-of-life (EOL) software is not permitted."
+    when:
+      all:
+        - field: args.is_eol
+          aliases: [isEol, endOfLife, eolStatus, unsupportedVersion]
+          op: is_true
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "vulnerableLibraryImported"
+    message: "NIST-CSF-ID-RA-1: Prevent importing known vulnerable third-party libraries."
+    when:
+      all:
+        - field: args.library_status
+          aliases: [libraryStatus, libState, packageStatus, depStatus]
+          op: eq
+          value: "known_vulnerability"
+        - field: context.build_stage
+          op: eq
+          value: "ci_pipeline"
+
+  # ==========================================
+  # Patch Management
+  # ==========================================
+  - action: "criticalPatchDelayed"
+    message: "ISO27001-A-12-6: Critical patches must be applied within 7 days."
+    when:
+      all:
+        - field: args.days_since_release
+          aliases: [daysSinceRelease, patchAge, releaseDays, timeSinceRelease]
+          op: gt
+          value: 7
+        - field: context.patch_severity
+          op: eq
+          value: "critical"
+
+  - action: "unpatchedOsDeployed"
+    message: "NIST-CSF-PR-IP-1: Operating systems must have latest security patches."
+    when:
+      all:
+        - field: args.missing_patches
+          aliases: [missingPatches, unappliedPatches, pendingUpdates, unpatchedCount]
+          op: gt
+          value: 0
+        - field: context.image_type
+          op: eq
+          value: "golden_image"
+
+  - action: "outOfBandPatchMissed"
+    message: "ISO27001-A-12-6: Zero-day vulnerabilities require immediate out-of-band patching."
+    when:
+      all:
+        - field: args.patch_type
+          aliases: [patchType, updateType, releaseType, fixType]
+          op: eq
+          value: "out_of_band"
+        - field: context.applied
+          op: is_false
+
+  - action: "emergencyPatchRejected"
+    message: "NIST-CSF-PR-IP-12: Emergency patches cannot be rejected without CISO approval."
+    when:
+      all:
+        - field: args.patch_action
+          aliases: [patchAction, updateAction, deploymentAction, patchDecision]
+          op: eq
+          value: "reject"
+        - field: context.approved_by_ciso
+          op: is_false
+
+  - action: "thirdPartyAppUpdateSkipped"
+    message: "ISO27001-A-12-6: Third-party applications must be kept up to date."
+    when:
+      all:
+        - field: args.app_type
+          aliases: [appType, softwareType, applicationCategory, programType]
+          op: eq
+          value: "third_party"
+        - field: context.update_skipped
+          op: is_true
+
+  - action: "patchRollbackFailed"
+    message: "NIST-CSF-PR-IP-1: Failed patch rollbacks must trigger immediate alerts."
+    when:
+      all:
+        - field: args.rollback_status
+          aliases: [rollbackStatus, revertStatus, undoStatus, rollbackState]
+          op: eq
+          value: "failed"
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  # ==========================================
+  # Incident Response
+  # ==========================================
+  - action: "incidentNotReported"
+    message: "ISO27001-A-16-1: Security incidents must be reported within 24 hours."
+    when:
+      all:
+        - field: args.hours_since_detection
+          aliases: [hoursSinceDetection, detectionTime, timeSinceDiscovery, hoursPassed]
+          op: gt
+          value: 24
+        - field: context.incident_logged
+          op: is_false
+
+  - action: "irPlanTestingSkipped"
+    message: "NIST-CSF-PR-IP-10: Incident response plans must be tested annually."
+    when:
+      all:
+        - field: args.months_since_last_test
+          aliases: [monthsSinceLastTest, lastTestMonths, timeSinceTest, testAgeMonths]
+          op: gt
+          value: 12
+        - field: context.plan_type
+          op: eq
+          value: "incident_response"
+
+  - action: "containmentSlaViolated"
+    message: "ISO27001-A-16-1: High-severity incidents must be contained within 4 hours."
+    when:
+      all:
+        - field: args.containment_hours
+          aliases: [containmentHours, hoursToContain, containmentTime, resolutionHours]
+          op: gt
+          value: 4
+        - field: context.incident_severity
+          op: eq
+          value: "high"
+
+  - action: "rootCauseAnalysisSkipped"
+    message: "NIST-CSF-RS-AN-4: Root cause analysis is required for all major incidents."
+    when:
+      all:
+        - field: args.incident_tier
+          aliases: [incidentTier, severityTier, eventTier, incidentLevel]
+          op: in
+          value: ["tier1", "tier2"]
+        - field: context.rca_completed
+          op: is_false
+
+  - action: "evidenceNotPreserved"
+    message: "ISO27001-A-16-1: Digital evidence must be preserved for forensic analysis."
+    when:
+      all:
+        - field: args.evidence_secured
+          aliases: [evidenceSecured, forensicDataSaved, artifactsPreserved, evidenceSaved]
+          op: is_false
+        - field: context.is_breach
+          op: is_true
+
+  - action: "postIncidentReviewMissed"
+    message: "NIST-CSF-RS-IM-1: Post-incident reviews must occur within 14 days."
+    when:
+      all:
+        - field: args.days_since_closure
+          aliases: [daysSinceClosure, closureDays, postIncidentDays, timeSinceClosed]
+          op: gt
+          value: 14
+        - field: context.review_completed
+          op: is_false
+
+  # ==========================================
+  # Threat Detection
+  # ==========================================
+  - action: "idsAlertIgnored"
+    message: "ISO27001-A-12-4: IDS alerts cannot be closed without investigation."
+    when:
+      all:
+        - field: args.alert_status
+          aliases: [alertStatus, idsStatus, notificationStatus, eventStatus]
+          op: eq
+          value: "closed"
+        - field: context.investigated
+          op: is_false
+
+  - action: "threatFeedDisconnected"
+    message: "NIST-CSF-DE-CM-1: Threat intelligence feeds must remain active."
+    when:
+      all:
+        - field: args.feed_status
+          aliases: [feedStatus, intelStatus, connectionState, feedState]
+          op: eq
+          value: "disconnected"
+        - field: context.feed_criticality
+          op: eq
+          value: "high"
+
+  - action: "anomalyDetectionDisabled"
+    message: "ISO27001-A-12-4: Behavioral anomaly detection must be enabled on critical segments."
+    when:
+      all:
+        - field: args.feature_state
+          aliases: [featureState, anomalyEnabled, moduleStatus, configState]
+          op: eq
+          value: "disabled"
+        - field: context.network_segment
+          op: eq
+          value: "pci_zone"
+
+  - action: "malwareDetected"
+    message: "NIST-CSF-DE-CM-4: Malware execution prevented by endpoint protection."
+    when:
+      all:
+        - field: args.threat_type
+          aliases: [threatType, malwareFamily, virusType, payloadType]
+          op: eq
+          value: "malware"
+        - field: context.action_taken
+          op: eq
+          value: "none"
+
+  - action: "suspiciousProcessExecuted"
+    message: "ISO27001-A-12-2: Execution of known malicious processes is blocked."
+    when:
+      all:
+        - field: args.process_name
+          aliases: [processName, exeName, procName, executable]
+          op: in
+          value: ["mimikatz.exe", "psexec.exe", "nc.exe"]
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "c2TrafficDetected"
+    message: "NIST-CSF-DE-CM-1: Command and Control (C2) traffic must be blocked and investigated."
+    when:
+      all:
+        - field: args.destination_ip_category
+          aliases: [destinationIpCategory, dstIpType, ipReputation, targetCategory]
+          op: eq
+          value: "known_c2"
+        - field: context.traffic_blocked
+          op: is_false
+
+  # ==========================================
+  # Network Security
+  # ==========================================
+  - action: "firewallRulesModified"
+    message: "ISO27001-A-13-1: Any Any firewall rules are prohibited."
+    when:
+      all:
+        - field: args.source_ip
+          aliases: [sourceIp, srcIp, originIp, fromIp]
+          op: eq
+          value: "0.0.0.0/0"
+        - field: context.destination_port
+          op: in
+          value: [22, 3389]
+
+  - action: "insecurePortExposed"
+    message: "NIST-CSF-PR-PT-4: Exposing insecure protocols externally is blocked."
+    when:
+      all:
+        - field: args.exposed_port
+          aliases: [exposedPort, openPort, servicePort, dstPort]
+          op: in
+          value: [21, 23, 80]
+        - field: context.is_public_facing
+          op: is_true
+
+  - action: "networkSegmentationBypassed"
+    message: "ISO27001-A-13-1: Bypassing internal network segmentation is unauthorized."
+    when:
+      all:
+        - field: args.route_action
+          aliases: [routeAction, routingChange, vpcAction, subnetChange]
+          op: eq
+          value: "create_peering"
+        - field: context.approved
+          op: is_false
+
+  - action: "vpnDisconnectionForced"
+    message: "NIST-CSF-PR-AC-3: VPN access must drop automatically on policy violation."
+    when:
+      all:
+        - field: args.session_duration_hours
+          aliases: [sessionDurationHours, vpnDuration, connectionTime, hoursConnected]
+          op: gt
+          value: 24
+        - field: context.auto_disconnect
+          op: is_false
+
+  - action: "ddosProtectionDisabled"
+    message: "ISO27001-A-12-1: DDoS protection must remain active on edge services."
+    when:
+      all:
+        - field: args.service_name
+          aliases: [serviceName, edgeService, wafName, protectionService]
+          op: eq
+          value: "cloudflare_ddos"
+        - field: context.status
+          op: eq
+          value: "disabled"
+
+  - action: "rogueDeviceConnected"
+    message: "NIST-CSF-PR-PT-4: Unauthorized devices must be blocked via NAC."
+    when:
+      all:
+        - field: args.mac_address_known
+          aliases: [macAddressKnown, isKnownDevice, registeredDevice, macRegistered]
+          op: is_false
+        - field: context.nac_enforcement
+          op: eq
+          value: "monitor_only"
+
+  # ==========================================
+  # Endpoint Security
+  # ==========================================
+  - action: "edrAgentDisabled"
+    message: "ISO27001-A-12-2: Disabling EDR agents requires an exception token."
+    when:
+      all:
+        - field: args.edr_status
+          aliases: [edrStatus, agentStatus, endpointStatus, edrState]
+          op: eq
+          value: "disabled"
+        - field: context.exception_token_provided
+          op: is_false
+
+  - action: "localAdminCreated"
+    message: "NIST-CSF-PR-AC-4: Creation of local admin accounts is heavily restricted."
+    when:
+      all:
+        - field: args.group_name
+          aliases: [groupName, userGroup, localGroup, privilegeGroup]
+          op: eq
+          value: "Administrators"
+        - field: context.laps_managed
+          op: is_false
+
+  - action: "antivirusSignatureOutdated"
+    message: "ISO27001-A-12-2: Antivirus signatures must be updated within 24 hours."
+    when:
+      all:
+        - field: args.signature_age_hours
+          aliases: [signatureAgeHours, defAge, updateAge, hoursSinceUpdate]
+          op: gt
+          value: 24
+        - field: context.network_connected
+          op: is_true
+
+  - action: "usbStorageConnected"
+    message: "NIST-CSF-PR-PT-2: Removable USB storage devices are blocked."
+    when:
+      all:
+        - field: args.device_class
+          aliases: [deviceClass, usbType, hardwareClass, peripheralType]
+          op: eq
+          value: "mass_storage"
+        - field: context.usb_exception
+          op: is_false
+
+  - action: "unauthorizedSoftwareInstalled"
+    message: "ISO27001-A-12-5: Installation of unapproved software is blocked by application control."
+    when:
+      all:
+        - field: args.software_hash_known
+          aliases: [softwareHashKnown, hashWhitelisted, isApprovedApp, knownHash]
+          op: is_false
+        - field: context.app_control_mode
+          op: eq
+          value: "enforce"
+
+  - action: "endpointFirewallDisabled"
+    message: "NIST-CSF-PR-PT-4: Host-based firewalls cannot be disabled."
+    when:
+      all:
+        - field: args.firewall_state
+          aliases: [firewallState, hostFwStatus, fwState, endpointFwStatus]
+          op: eq
+          value: "disabled"
+        - field: context.os_type
+          op: in
+          value: ["windows", "macos"]
+
+  # ==========================================
+  # Email Security
+  # ==========================================
+  - action: "spfRecordDeleted"
+    message: "ISO27001-A-13-2: SPF records must not be deleted for corporate domains."
+    when:
+      all:
+        - field: args.dns_record_type
+          aliases: [dnsRecordType, recordType, dnsType, zoneRecord]
+          op: eq
+          value: "TXT_SPF"
+        - field: context.action
+          op: eq
+          value: "delete"
+
+  - action: "dkimSignatureFailed"
+    message: "NIST-CSF-PR-DS-2: Emails with failed DKIM signatures must be quarantined."
+    when:
+      all:
+        - field: args.dkim_status
+          aliases: [dkimStatus, sigStatus, validationStatus, dkimResult]
+          op: eq
+          value: "fail"
+        - field: context.routing_action
+          op: neq
+          value: "quarantine"
+
+  - action: "dmarcPolicyDowngraded"
+    message: "ISO27001-A-13-2: DMARC policy must remain at 'reject' or 'quarantine'."
+    when:
+      all:
+        - field: args.dmarc_policy
+          aliases: [dmarcPolicy, pValue, dmarcRule, policyLevel]
+          op: eq
+          value: "none"
+        - field: context.domain_type
+          op: eq
+          value: "primary"
+
+  - action: "maliciousAttachmentOpened"
+    message: "NIST-CSF-DE-CM-4: Sandboxing blocked execution of malicious email attachment."
+    when:
+      all:
+        - field: args.attachment_verdict
+          aliases: [attachmentVerdict, sandboxResult, fileVerdict, scanResult]
+          op: eq
+          value: "malicious"
+        - field: context.sandbox_bypassed
+          op: is_true
+
+  - action: "phishingLinkClicked"
+    message: "ISO27001-A-13-2: Click-time URL protection blocked a known phishing link."
+    when:
+      all:
+        - field: args.url_category
+          aliases: [urlCategory, linkCategory, siteReputation, categoryName]
+          op: eq
+          value: "phishing"
+        - field: context.user_warned
+          op: is_false
+
+  - action: "externalEmailWarningRemoved"
+    message: "NIST-CSF-PR-AT-1: External email warning tags cannot be stripped."
+    when:
+      all:
+        - field: args.mail_rule_action
+          aliases: [mailRuleAction, exchangeRule, transportRule, processingAction]
+          op: eq
+          value: "remove_tag"
+        - field: context.tag_content
+          op: contains
+          value: "[EXTERNAL]"
+
+  # ==========================================
+  # Mobile Device Management
+  # ==========================================
+  - action: "mdmProfileRemoved"
+    message: "ISO27001-A-6-2: Removing MDM profiles will trigger corporate data wipe."
+    when:
+      all:
+        - field: args.profile_status
+          aliases: [profileStatus, mdmState, enrollmentStatus, managementState]
+          op: eq
+          value: "removed"
+        - field: context.wipe_triggered
+          op: is_false
+
+  - action: "jailbrokenDeviceEnrolled"
+    message: "NIST-CSF-PR-PT-3: Jailbroken/Rooted devices are blocked from MDM enrollment."
+    when:
+      all:
+        - field: args.device_compliance
+          aliases: [deviceCompliance, healthStatus, integrityStatus, rootStatus]
+          op: eq
+          value: "compromised"
+        - field: context.action
+          op: eq
+          value: "enroll"
+
+  - action: "pinRequirementDisabled"
+    message: "ISO27001-A-9-2: Mobile devices must require a minimum 6-digit PIN."
+    when:
+      all:
+        - field: args.pin_length
+          aliases: [pinLength, passcodeLength, passwordLength, minPinSize]
+          op: lt
+          value: 6
+        - field: context.device_type
+          op: eq
+          value: "mobile"
+
+  - action: "remoteWipeFailed"
+    message: "NIST-CSF-PR-DS-3: Failed remote wipes must alert the helpdesk."
+    when:
+      all:
+        - field: args.wipe_status
+          aliases: [wipeStatus, eraseStatus, commandStatus, resetStatus]
+          op: eq
+          value: "failed"
+        - field: context.device_lost
+          op: is_true
+
+  - action: "unapprovedMobileAppInstalled"
+    message: "ISO27001-A-12-5: Installation of apps outside the corporate store is blocked."
+    when:
+      all:
+        - field: args.app_source
+          aliases: [appSource, storeType, installOrigin, downloadSource]
+          op: neq
+          value: "managed_store"
+        - field: context.device_ownership
+          op: eq
+          value: "corporate"
+
+  - action: "osVersionTooOld"
+    message: "NIST-CSF-PR-IP-1: Mobile OS must be within the latest 2 major versions."
+    when:
+      all:
+        - field: args.os_versions_behind
+          aliases: [osVersionsBehind, versionLag, outdatedCount, behindMajor]
+          op: gt
+          value: 2
+        - field: context.access_allowed
+          op: is_true
+
+  # ==========================================
+  # Physical Security
+  # ==========================================
+  - action: "badgeSwipeBypassed"
+    message: "ISO27001-A-11-1: Tailgating detected without valid badge swipe."
+    when:
+      all:
+        - field: args.door_event
+          aliases: [doorEvent, accessEvent, entryType, badgeEvent]
+          op: eq
+          value: "forced_open"
+        - field: context.badge_swiped
+          op: is_false
+
+  - action: "serverRoomDoorPropOpen"
+    message: "NIST-CSF-PR-PT-4: Server room doors cannot be propped open > 60 seconds."
+    when:
+      all:
+        - field: args.door_open_seconds
+          aliases: [doorOpenSeconds, propTime, openDuration, heldOpenTime]
+          op: gt
+          value: 60
+        - field: context.location_type
+          op: eq
+          value: "datacenter"
+
+  - action: "cctvCameraDisabled"
+    message: "ISO27001-A-11-1: CCTV cameras in secure areas must not go offline."
+    when:
+      all:
+        - field: args.camera_status
+          aliases: [cameraStatus, cctvState, feedStatus, videoState]
+          op: eq
+          value: "offline"
+        - field: context.zone_security_level
+          op: eq
+          value: "high"
+
+  - action: "unauthorizedVisitorEscorted"
+    message: "NIST-CSF-PR-PT-3: Visitors in restricted zones must be badged and escorted."
+    when:
+      all:
+        - field: args.visitor_badge_valid
+          aliases: [visitorBadgeValid, hasBadge, validVisitor, activeBadge]
+          op: is_false
+        - field: context.zone
+          op: eq
+          value: "restricted"
+
+  - action: "hardwareAssetLost"
+    message: "ISO27001-A-8-1: Lost hardware assets must be marked in inventory immediately."
+    when:
+      all:
+        - field: args.asset_status
+          aliases: [assetStatus, inventoryStatus, hardwareState, deviceStatus]
+          op: eq
+          value: "lost"
+        - field: context.cmdb_updated
+          op: is_false
+
+  - action: "cleanDeskPolicyViolated"
+    message: "ISO27001-A-11-2: Sensitive documents left unattended during audit."
+    when:
+      all:
+        - field: args.finding_type
+          aliases: [findingType, auditFinding, violationType, observation]
+          op: eq
+          value: "unattended_documents"
+        - field: context.document_sensitivity
+          op: eq
+          value: "confidential"
+
+  # ==========================================
+  # Business Continuity
+  # ==========================================
+  - action: "bcpPlanNotUpdated"
+    message: "ISO27001-A-17-1: BCP plans must be updated annually."
+    when:
+      all:
+        - field: args.months_since_bcp_update
+          aliases: [monthsSinceBcpUpdate, bcpAgeMonths, timeSinceBcpUpdate, lastUpdatedMonths]
+          op: gt
+          value: 12
+        - field: context.plan_type
+          op: eq
+          value: "bcp"
+
+  - action: "bcpTestFailed"
+    message: "NIST-CSF-ID-BE-5: Failed BCP tests require immediate remediation plans."
+    when:
+      all:
+        - field: args.test_result
+          aliases: [testResult, exerciseOutcome, drillResult, passFail]
+          op: eq
+          value: "fail"
+        - field: context.remediation_plan_created
+          op: is_false
+
+  - action: "criticalServiceNotMapped"
+    message: "ISO27001-A-17-1: Critical services must be mapped in the BIA."
+    when:
+      all:
+        - field: args.service_criticality
+          aliases: [serviceCriticality, tier, bizImpact, importance]
+          op: eq
+          value: "tier_1"
+        - field: context.in_bia
+          op: is_false
+
+  - action: "rtoSlaViolated"
+    message: "NIST-CSF-RC-RP-1: Recovery Time Objective (RTO) exceeded during incident."
+    when:
+      all:
+        - field: args.actual_recovery_hours
+          aliases: [actualRecoveryHours, downtimeHours, timeToRecover, outageHours]
+          op: gt
+          value: 4
+        - field: context.target_rto_hours
+          op: lte
+          value: 4
+
+  - action: "alternateSiteUnavailable"
+    message: "ISO27001-A-17-2: Alternate processing site must be reachable and active."
+    when:
+      all:
+        - field: args.site_status
+          aliases: [siteStatus, drSiteState, failoverStatus, alternateState]
+          op: eq
+          value: "unreachable"
+        - field: context.is_dr_site
+          op: is_true
+
+  - action: "crisisCommunicationFailed"
+    message: "NIST-CSF-RC-CO-1: Stakeholders not notified within SLA during crisis."
+    when:
+      all:
+        - field: args.communication_sent
+          aliases: [communicationSent, alertBroadcasted, msgSent, stakeholdersNotified]
+          op: is_false
+        - field: context.time_since_crisis_start_mins
+          op: gt
+          value: 30
+
+  # ==========================================
+  # Disaster Recovery
+  # ==========================================
+  - action: "backupFailed"
+    message: "ISO27001-A-12-3: Failed backups for critical systems must trigger P1 alerts."
+    when:
+      all:
+        - field: args.backup_status
+          aliases: [backupStatus, jobState, backupResult, runStatus]
+          op: eq
+          value: "failed"
+        - field: context.system_criticality
+          op: eq
+          value: "critical"
+
+  - action: "drDrillMissed"
+    message: "NIST-CSF-PR-IP-9: Annual disaster recovery drills are mandatory."
+    when:
+      all:
+        - field: args.months_since_dr_drill
+          aliases: [monthsSinceDrDrill, drillAgeMonths, timeSinceDrill, lastDrTest]
+          op: gt
+          value: 12
+        - field: context.compliance_framework
+          op: contains
+          value: "NIST"
+
+  - action: "backupNotEncrypted"
+    message: "ISO27001-A-12-3: All backup media must be encrypted."
+    when:
+      all:
+        - field: args.backup_encrypted
+          aliases: [backupEncrypted, isEncrypted, encryptionStatus, encryptBackup]
+          op: is_false
+        - field: context.data_type
+          op: neq
+          value: "public"
+
+  - action: "offsiteBackupMissing"
+    message: "NIST-CSF-PR-IP-4: Backups must be replicated to an offsite or secondary region."
+    when:
+      all:
+        - field: args.replicated_offsite
+          aliases: [replicatedOffsite, offsiteCopy, secondaryRegion, remoteBackup]
+          op: is_false
+        - field: context.retention_tier
+          op: eq
+          value: "long_term"
+
+  - action: "rpoSlaViolated"
+    message: "ISO27001-A-17-2: Recovery Point Objective (RPO) exceeded."
+    when:
+      all:
+        - field: args.data_loss_minutes
+          aliases: [dataLossMinutes, lagTime, rpoActual, missingDataTime]
+          op: gt
+          value: 15
+        - field: context.target_rpo_minutes
+          op: lte
+          value: 15
+
+  - action: "backupRestoreFailed"
+    message: "NIST-CSF-PR-IP-4: Periodic backup restoration tests failed."
+    when:
+      all:
+        - field: args.restore_test_result
+          aliases: [restoreTestResult, testOutcome, restoreStatus, validationResult]
+          op: eq
+          value: "failed"
+        - field: context.test_type
+          op: eq
+          value: "validation"
+
+  # ==========================================
+  # Supply Chain Security
+  # ==========================================
+  - action: "unapprovedVendorOnboarded"
+    message: "ISO27001-A-15-1: Vendors must be approved by the security team."
+    when:
+      all:
+        - field: args.vendor_status
+          aliases: [vendorStatus, onboardingStatus, approvalState, partnerState]
+          op: eq
+          value: "onboarded"
+        - field: context.security_approved
+          op: is_false
+
+  - action: "thirdPartyRiskAssessmentSkipped"
+    message: "NIST-CSF-ID-SC-2: High-risk vendors require a security risk assessment."
+    when:
+      all:
+        - field: args.risk_assessment_done
+          aliases: [riskAssessmentDone, tpraCompleted, assessmentFinished, evaluated]
+          op: is_false
+        - field: context.vendor_risk_tier
+          op: eq
+          value: "high"
+
+  - action: "vendorAccessNotRevoked"
+    message: "ISO27001-A-15-2: Vendor access must be revoked upon contract termination."
+    when:
+      all:
+        - field: args.contract_status
+          aliases: [contractStatus, agreementState, vendorLifecycle, dealStatus]
+          op: eq
+          value: "terminated"
+        - field: context.access_revoked
+          op: is_false
+
+  - action: "insecureDependencyDownloaded"
+    message: "NIST-CSF-ID-SC-3: Downloading unverified third-party code is blocked."
+    when:
+      all:
+        - field: args.dependency_source
+          aliases: [dependencySource, packageRegistry, repoOrigin, moduleSource]
+          op: eq
+          value: "untrusted_public_repo"
+        - field: context.signed
+          op: is_false
+
+  - action: "compromisedVendorUsed"
+    message: "ISO27001-A-15-2: Usage of currently compromised vendors is suspended."
+    when:
+      all:
+        - field: args.vendor_breach_status
+          aliases: [vendorBreachStatus, isCompromised, breachFlag, vendorRiskEvent]
+          op: is_true
+        - field: context.service_suspended
+          op: is_false
+
+  - action: "vendorSlaViolated"
+    message: "NIST-CSF-ID-SC-4: Vendor failed to meet security SLA commitments."
+    when:
+      all:
+        - field: args.sla_breach_count
+          aliases: [slaBreachCount, violations, missedSlaCount, breachOccurrences]
+          op: gt
+          value: 3
+        - field: context.penalty_applied
+          op: is_false
+
+  # ==========================================
+  # Security Awareness
+  # ==========================================
+  - action: "securityTrainingMissed"
+    message: "ISO27001-A-7-2: Annual security training is mandatory for all employees."
+    when:
+      all:
+        - field: args.training_status
+          aliases: [trainingStatus, courseStatus, learningState, complianceTraining]
+          op: eq
+          value: "overdue"
+        - field: context.employee_status
+          op: eq
+          value: "active"
+
+  - action: "phishingSimulationFailed"
+    message: "NIST-CSF-PR-AT-1: Repeated phishing simulation failures require remedial training."
+    when:
+      all:
+        - field: args.fail_count
+          aliases: [failCount, clickCount, phishFails, mistakes]
+          op: gt
+          value: 2
+        - field: context.remedial_assigned
+          op: is_false
+
+  - action: "policyAcknowledgementSkipped"
+    message: "ISO27001-A-7-2: New hires must acknowledge security policies within 7 days."
+    when:
+      all:
+        - field: args.days_since_hire
+          aliases: [daysSinceHire, tenureDays, employmentDays, hireAge]
+          op: gt
+          value: 7
+        - field: context.policies_acknowledged
+          op: is_false
+
+  - action: "unauthorizedDataSharing"
+    message: "NIST-CSF-PR-AT-2: Employees must not share internal data on public platforms."
+    when:
+      all:
+        - field: args.destination_platform
+          aliases: [destinationPlatform, shareTarget, uploadSite, externalPlatform]
+          op: in
+          value: ["pastebin", "public_github", "chatgpt_public"]
+        - field: context.data_classification
+          op: eq
+          value: "internal"
+
+  - action: "passwordShared"
+    message: "ISO27001-A-9-3: Sharing credentials violates acceptable use policy."
+    when:
+      all:
+        - field: args.event_type
+          aliases: [eventType, authEvent, behaviorType, anomaly]
+          op: eq
+          value: "concurrent_login_different_geo"
+        - field: context.is_service_account
+          op: is_false
+
+  - action: "clearScreenNotEnforced"
+    message: "ISO27001-A-11-2: Screen lock must activate after 15 minutes of inactivity."
+    when:
+      all:
+        - field: args.idle_timeout_minutes
+          aliases: [idleTimeoutMinutes, screenLockTime, sleepTimer, inactivityLimit]
+          op: gt
+          value: 15
+        - field: context.os_policy_applied
+          op: is_false
+
+  # ==========================================
+  # Penetration Testing
+  # ==========================================
+  - action: "penTestNotPerformed"
+    message: "ISO27001-A-12-6: Annual penetration testing is required for external apps."
+    when:
+      all:
+        - field: args.months_since_pentest
+          aliases: [monthsSincePentest, lastPentestMonths, ptAge, testInterval]
+          op: gt
+          value: 12
+        - field: context.app_exposure
+          op: eq
+          value: "external"
+
+  - action: "criticalFindingUnresolved"
+    message: "NIST-CSF-PR-IP-10: Critical pentest findings must be resolved in 14 days."
+    when:
+      all:
+        - field: args.days_since_report
+          aliases: [daysSinceReport, findingAge, reportDays, timeSinceDisclosure]
+          op: gt
+          value: 14
+        - field: context.finding_severity
+          op: eq
+          value: "critical"
+
+  - action: "redTeamExerciseFailed"
+    message: "ISO27001-A-16-1: Blue team failed to detect red team activities."
+    when:
+      all:
+        - field: args.detection_rate_percent
+          aliases: [detectionRatePercent, caughtPercent, visibilityScore, detectionMetric]
+          op: lt
+          value: 50
+        - field: context.exercise_type
+          op: eq
+          value: "red_team"
+
+  - action: "scopeLimitationViolated"
+    message: "NIST-CSF-PR-IP-10: Pentesting out-of-scope assets is prohibited."
+    when:
+      all:
+        - field: args.target_ip
+          aliases: [targetIp, scannedIp, testTarget, destinationIp]
+          op: eq
+          value: "out_of_scope"
+        - field: context.auth_provided
+          op: is_false
+
+  - action: "productionExploitedWithoutAuth"
+    message: "ISO27001-A-12-6: Exploitation of production systems requires explicit consent."
+    when:
+      all:
+        - field: args.exploit_success
+          aliases: [exploitSuccess, shellGained, breachConfirmed, pwned]
+          op: is_true
+        - field: context.rules_of_engagement_signed
+          op: is_false
+
+  - action: "remediationSlaViolated"
+    message: "NIST-CSF-PR-IP-10: High findings from pentests exceeded 30-day SLA."
+    when:
+      all:
+        - field: args.remediation_days
+          aliases: [remediationDays, daysToFix, patchTime, timeToRemediate]
+          op: gt
+          value: 30
+        - field: context.finding_severity
+          op: eq
+          value: "high"
+
+  # ==========================================
+  # Log Management
+  # ==========================================
+  - action: "auditLoggingDisabled"
+    message: "ISO27001-A-12-4: Audit logging must not be disabled on critical systems."
+    when:
+      all:
+        - field: args.log_status
+          aliases: [logStatus, auditState, loggingEnabled, logConfig]
+          op: eq
+          value: "disabled"
+        - field: context.system_tier
+          op: eq
+          value: "tier_1"
+
+  - action: "logsModified"
+    message: "NIST-CSF-PR-PT-1: Log files must be immutable and tamper-proof."
+    when:
+      all:
+        - field: args.file_action
+          aliases: [fileAction, logOperation, ioAction, diskEvent]
+          op: in
+          value: ["modify", "delete", "truncate"]
+        - field: context.file_path
+          op: contains
+          value: "/var/log"
+
+  - action: "logRetentionPolicyViolated"
+    message: "ISO27001-A-12-4: Security logs must be retained for at least 365 days."
+    when:
+      all:
+        - field: args.retention_days
+          aliases: [retentionDays, keepDays, logLifespan, storageDays]
+          op: lt
+          value: 365
+        - field: context.log_type
+          op: eq
+          value: "security_audit"
+
+  - action: "logForwardingFailed"
+    message: "NIST-CSF-DE-DP-4: Log forwarding to central SIEM cannot be interrupted."
+    when:
+      all:
+        - field: args.forwarder_status
+          aliases: [forwarderStatus, agentState, shipperStatus, beatStatus]
+          op: eq
+          value: "failed"
+        - field: context.duration_down_mins
+          op: gt
+          value: 15
+
+  - action: "sensitiveDataLogged"
+    message: "ISO27001-A-14-1: PII/PHI must be masked before writing to logs."
+    when:
+      all:
+        - field: args.contains_pii
+          aliases: [containsPii, hasPhi, sensitiveData, unmaskedData]
+          op: is_true
+        - field: context.is_masked
+          op: is_false
+
+  - action: "logStorageFull"
+    message: "NIST-CSF-PR-PT-1: Log storage exhaustion must alert administrators."
+    when:
+      all:
+        - field: args.storage_usage_percent
+          aliases: [storageUsagePercent, diskFullPct, capacityUsed, partitionUsage]
+          op: gte
+          value: 95
+        - field: context.auto_scaling_enabled
+          op: is_false
+
+  # ==========================================
+  # SIEM Controls
+  # ==========================================
+  - action: "siemAgentDisconnected"
+    message: "ISO27001-A-12-4: SIEM agents must remain connected to central collector."
+    when:
+      all:
+        - field: args.agent_connection
+          aliases: [agentConnection, commStatus, heartbeat, pingStatus]
+          op: eq
+          value: "timeout"
+        - field: context.asset_criticality
+          op: eq
+          value: "high"
+
+  - action: "detectionRuleDeleted"
+    message: "NIST-CSF-DE-DP-4: Deletion of core SIEM detection rules requires peer review."
+    when:
+      all:
+        - field: args.rule_category
+          aliases: [ruleCategory, detectionType, useCase, alertCategory]
+          op: eq
+          value: "core_security"
+        - field: context.peer_reviewed
+          op: is_false
+
+  - action: "alertThresholdModified"
+    message: "ISO27001-A-12-4: Increasing alert thresholds to hide activity is prohibited."
+    when:
+      all:
+        - field: args.threshold_change
+          aliases: [thresholdChange, limitModifier, alertTuning, triggerValue]
+          op: eq
+          value: "increase"
+        - field: context.change_ticket_linked
+          op: is_false
+
+  - action: "siemDataDropped"
+    message: "NIST-CSF-DE-DP-4: SIEM ingestion queues full, dropping events."
+    when:
+      all:
+        - field: args.queue_status
+          aliases: [queueStatus, bufferState, ingestHealth, pipelineStatus]
+          op: eq
+          value: "overflow"
+        - field: context.data_loss_occurred
+          op: is_true
+
+  - action: "correlationSearchFailed"
+    message: "ISO27001-A-12-4: Scheduled correlation searches must execute successfully."
+    when:
+      all:
+        - field: args.search_status
+          aliases: [searchStatus, queryResult, jobOutcome, executionState]
+          op: eq
+          value: "failed"
+        - field: context.search_priority
+          op: eq
+          value: "high"
+
+  - action: "logSourceUnregistered"
+    message: "NIST-CSF-DE-CM-7: Unregistered log sources detected sending data."
+    when:
+      all:
+        - field: args.source_registered
+          aliases: [sourceRegistered, knownSource, isRegistered, validLogSource]
+          op: is_false
+        - field: context.action
+          op: eq
+          value: "ingest"
+
+  # ==========================================
+  # Zero Trust Architecture
+  # ==========================================
+  - action: "implicitTrustGranted"
+    message: "NIST-CSF-PR-AC-5: Network placement must not grant implicit trust."
+    when:
+      all:
+        - field: args.auth_bypassed
+          aliases: [authBypassed, skippedLogin, networkTrust, implicitAccess]
+          op: is_true
+        - field: context.source_network
+          op: eq
+          value: "internal_lan"
+
+  - action: "continuousAuthBypassed"
+    message: "ISO27001-A-9-4: Continuous authentication checks cannot be disabled."
+    when:
+      all:
+        - field: args.session_check_enabled
+          aliases: [sessionCheckEnabled, continuousAuth, reauthEnabled, heartbeatAuth]
+          op: is_false
+        - field: context.app_sensitivity
+          op: eq
+          value: "high"
+
+  - action: "devicePostureCheckFailed"
+    message: "NIST-CSF-PR-AC-5: Device posture must meet minimum requirements to access corporate resources."
+    when:
+      all:
+        - field: args.posture_score
+          aliases: [postureScore, healthScore, complianceScore, deviceHealth]
+          op: lt
+          value: 80
+        - field: context.access_granted
+          op: is_true
+
+  - action: "microSegmentationViolated"
+    message: "ISO27001-A-13-1: Workload-to-workload communication blocked by micro-segmentation."
+    when:
+      all:
+        - field: args.traffic_allowed
+          aliases: [trafficAllowed, flowPermitted, routeOpen, connAllowed]
+          op: is_false
+        - field: context.enforcement_mode
+          op: eq
+          value: "blocking"
+
+  - action: "identityProviderBypassed"
+    message: "NIST-CSF-PR-AC-5: All authentication must route through the central IdP."
+    when:
+      all:
+        - field: args.auth_source
+          aliases: [authSource, loginMethod, credentialStore, identitySource]
+          op: eq
+          value: "local_database"
+        - field: context.sso_integrated
+          op: is_true
+
+  - action: "contextAwareAccessDisabled"
+    message: "ISO27001-A-9-4: Context-aware access policies must evaluate location and device."
+    when:
+      all:
+        - field: args.policy_mode
+          aliases: [policyMode, caaMode, contextState, evaluationMode]
+          op: eq
+          value: "disabled"
+        - field: context.resource_type
+          op: eq
+          value: "cloud_app"

@@ -1,0 +1,1271 @@
+policies:
+  # =========================================================
+  # Segregation of Duties (SoD)
+  # =========================================================
+  - action: "employeeMasterDataCreated"
+    message: "SAP-SOD-01: Creator of employee master data cannot also approve their own payroll."
+    when:
+      all:
+        - field: context.creator_is_approver
+          op: is_true
+
+  - action: "payrollRunExecuted"
+    message: "SAP-SOD-02: Payroll run executor must not have HR master data write access."
+    when:
+      all:
+        - field: context.has_hr_write_access
+          op: is_true
+
+  - action: "bankDetailsUpdated"
+    message: "SAP-SOD-03: Bank detail updates require dual approval."
+    when:
+      all:
+        - field: args.approval_count
+          aliases: [approvalCount, approvals, numApprovals]
+          op: lt
+          value: 2
+
+  - action: "bonusApproved"
+    message: "SAP-SOD-04: Bonus cannot be approved by the person receiving it."
+    when:
+      all:
+        - field: context.approver_is_recipient
+          op: is_true
+
+  - action: "timesheetApproved"
+    message: "SAP-SOD-05: Timesheet cannot be approved by the employee themselves."
+    when:
+      all:
+        - field: context.self_approval
+          op: is_true
+
+  - action: "sapRoleAssigned"
+    message: "SAP-SOD-06: SAP roles with conflicting SoD profiles cannot be assigned."
+    when:
+      all:
+        - field: context.sod_conflict_detected
+          op: is_true
+
+  - action: "benefitsUpdated"
+    message: "SAP-SOD-07: Benefits update requires HR clearance."
+    when:
+      all:
+        - field: args.clearance_status
+          aliases: [clearanceStatus, hrClearance]
+          op: neq
+          value: "APPROVED"
+
+  - action: "leaveApproved"
+    message: "SAP-SOD-08: Leave exceeding 30 days requires secondary manager approval."
+    when:
+      all:
+        - field: args.leave_days
+          aliases: [leaveDays, daysRequested]
+          op: gt
+          value: 30
+        - field: context.secondary_approval_obtained
+          op: is_false
+
+  - action: "employeeTerminated"
+    message: "SAP-SOD-09: Termination requires legal and HR dual sign-off."
+    when:
+      any:
+        - field: context.legal_signoff
+          op: is_false
+        - field: context.hr_signoff
+          op: is_false
+
+  - action: "promotionApproved"
+    message: "SAP-SOD-10: Promotion approvals must bypass immediate supervisors."
+    when:
+      all:
+        - field: context.approver_is_immediate_supervisor
+          op: is_true
+
+  # =========================================================
+  # Payroll Controls
+  # =========================================================
+  - action: "payrollRunExecuted"
+    message: "SAP-PAY-01: Payroll run requires control totals to match."
+    when:
+      all:
+        - field: context.control_totals_match
+          op: is_false
+
+  - action: "payrollReconciled"
+    message: "SAP-PAY-02: Payroll reconciliation must be signed off by Finance."
+    when:
+      all:
+        - field: args.finance_signoff
+          aliases: [financeSignoff, finApproval, signedOffBy]
+          op: neq
+          value: "APPROVED"
+
+  - action: "offCyclePayrollExecuted"
+    message: "SAP-PAY-03: Off-cycle payrolls require justification code."
+    when:
+      all:
+        - field: args.justification_code
+          aliases: [justificationCode, reasonCode]
+          op: eq
+          value: "MISSING"
+
+  - action: "retroactivePayProcessed"
+    message: "SAP-PAY-04: Retroactive pay processed for more than 90 days needs VP approval."
+    when:
+      all:
+        - field: args.retro_days
+          aliases: [retroDays, daysRetroactive]
+          op: gt
+          value: 90
+        - field: context.vp_approval
+          op: is_false
+
+  - action: "payrollBankTransferGenerated"
+    message: "SAP-PAY-05: Bank transfer generation requires secure connection."
+    when:
+      all:
+        - field: context.secure_connection_active
+          op: is_false
+
+  - action: "taxDeductionCalculated"
+    message: "SAP-PAY-06: Tax deductions cannot be zero unless exempt."
+    when:
+      all:
+        - field: args.tax_amount
+          aliases: [taxAmount, deductionAmount]
+          op: eq
+          value: 0
+        - field: context.is_tax_exempt
+          op: is_false
+
+  - action: "garnishmentsApplied"
+    message: "SAP-PAY-07: Garnishments must not exceed legal limits (50% of net pay)."
+    when:
+      all:
+        - field: args.garnishment_percentage
+          aliases: [garnishmentPercentage, garnishmentRatio]
+          op: gt
+          value: 50
+
+  - action: "overtimePaid"
+    message: "SAP-PAY-08: Overtime paid must not exceed 20% of base salary without HR VP approval."
+    when:
+      all:
+        - field: args.overtime_percentage
+          aliases: [overtimePercentage, otRatio]
+          op: gt
+          value: 20
+        - field: context.hr_vp_approval
+          op: is_false
+
+  - action: "severancePaid"
+    message: "SAP-PAY-09: Severance pay requires legal review."
+    when:
+      all:
+        - field: context.legal_review_completed
+          op: is_false
+
+  - action: "payrollExceptionsCleared"
+    message: "SAP-PAY-10: Payroll exceptions must be cleared before final run."
+    when:
+      all:
+        - field: args.uncleared_exceptions
+          aliases: [unclearedExceptions, exceptionsCount]
+          op: gt
+          value: 0
+
+  # =========================================================
+  # Hiring & Onboarding
+  # =========================================================
+  - action: "candidateOfferAccepted"
+    message: "SAP-HIR-01: Candidate offer acceptance requires valid background check status."
+    when:
+      all:
+        - field: context.background_check_passed
+          op: is_false
+
+  - action: "backgroundCheckCompleted"
+    message: "SAP-HIR-02: Background checks must be completed within 14 days of offer."
+    when:
+      all:
+        - field: args.days_since_offer
+          aliases: [daysSinceOffer, durationSinceOffer]
+          op: gt
+          value: 14
+
+  - action: "employeeOnboarded"
+    message: "SAP-HIR-03: Onboarding cannot proceed without I-9 verification."
+    when:
+      all:
+        - field: context.i9_verified
+          op: is_false
+
+  - action: "contractSigned"
+    message: "SAP-HIR-04: Signed contract must match approved template."
+    when:
+      all:
+        - field: context.matches_template
+          op: is_false
+
+  - action: "probationPeriodStarted"
+    message: "SAP-HIR-05: Probation period must be set to 90 days for new hires."
+    when:
+      all:
+        - field: args.probation_days
+          aliases: [probationDays, trialPeriod]
+          op: neq
+          value: 90
+
+  - action: "itEquipmentAssigned"
+    message: "SAP-HIR-06: IT equipment assignment requires an active cost center."
+    when:
+      all:
+        - field: args.cost_center_status
+          aliases: [costCenterStatus, ccStatus]
+          op: neq
+          value: "ACTIVE"
+
+  - action: "orientationCompleted"
+    message: "SAP-HIR-07: Orientation completion must be logged in SAP LMS."
+    when:
+      all:
+        - field: context.logged_in_lms
+          op: is_false
+
+  - action: "welcomePackageSent"
+    message: "SAP-HIR-08: Welcome package requires valid mailing address."
+    when:
+      all:
+        - field: context.address_validated
+          op: is_false
+
+  - action: "i9FormVerified"
+    message: "SAP-HIR-09: I-9 form verification must be done by authorized HR personnel."
+    when:
+      all:
+        - field: args.verifier_role
+          aliases: [verifierRole, verifiedByRole]
+          op: not_in
+          value: ["HR_ADMIN", "COMPLIANCE_OFFICER"]
+
+  - action: "relocationPackageApproved"
+    message: "SAP-HIR-10: Relocation package over $5000 requires Director approval."
+    when:
+      all:
+        - field: args.relocation_amount
+          aliases: [relocationAmount, packageValue]
+          op: gt
+          value: 5000
+        - field: context.director_approved
+          op: is_false
+
+  # =========================================================
+  # Termination & Offboarding
+  # =========================================================
+  - action: "employeeTerminated"
+    message: "SAP-TRM-01: Termination requires an effective date not in the past."
+    when:
+      all:
+        - field: context.is_retroactive_termination
+          op: is_true
+
+  - action: "exitInterviewCompleted"
+    message: "SAP-TRM-02: Exit interview must be marked as optional or completed."
+    when:
+      all:
+        - field: args.interview_status
+          aliases: [interviewStatus, exitStatus]
+          op: not_in
+          value: ["COMPLETED", "OPTIONAL_SKIPPED"]
+
+  - action: "finalPaycheckCalculated"
+    message: "SAP-TRM-03: Final paycheck must include prorated bonus if applicable."
+    when:
+      all:
+        - field: context.eligible_for_bonus
+          op: is_true
+        - field: context.bonus_included
+          op: is_false
+
+  - action: "systemAccessRevoked"
+    message: "SAP-TRM-04: System access must be revoked within 24 hours of termination."
+    when:
+      all:
+        - field: args.hours_since_termination
+          aliases: [hoursSinceTermination, delayInHours]
+          op: gt
+          value: 24
+
+  - action: "companyAssetsReturned"
+    message: "SAP-TRM-05: Asset return checklist must be fully cleared."
+    when:
+      all:
+        - field: context.unreturned_assets
+          op: is_true
+
+  - action: "nonCompeteAgreementSigned"
+    message: "SAP-TRM-06: Non-compete agreement must be valid for executives."
+    when:
+      all:
+        - field: context.is_executive
+          op: is_true
+        - field: context.non_compete_signed
+          op: is_false
+
+  - action: "severancePackageApproved"
+    message: "SAP-TRM-07: Severance package must align with policy grid."
+    when:
+      all:
+        - field: context.within_policy_grid
+          op: is_false
+
+  - action: "cobraNotificationSent"
+    message: "SAP-TRM-08: COBRA notification must be sent within 14 days of termination."
+    when:
+      all:
+        - field: args.days_since_termination
+          aliases: [daysSinceTermination, elapsedDays]
+          op: gt
+          value: 14
+
+  - action: "pensionPlanSettled"
+    message: "SAP-TRM-09: Pension plan settlement requires employee signature."
+    when:
+      all:
+        - field: context.employee_signature_captured
+          op: is_false
+
+  - action: "alumniNetworkJoined"
+    message: "SAP-TRM-10: Alumni network join requires opt-in consent."
+    when:
+      all:
+        - field: context.opt_in_consent
+          op: is_false
+
+  # =========================================================
+  # Leave & Absence
+  # =========================================================
+  - action: "leaveRequested"
+    message: "SAP-LV-01: Leave request cannot overlap with already approved leave."
+    when:
+      all:
+        - field: context.overlaps_existing_leave
+          op: is_true
+
+  - action: "leaveApproved"
+    message: "SAP-LV-02: Leave approval requires sufficient balance."
+    when:
+      all:
+        - field: context.has_sufficient_balance
+          op: is_false
+
+  - action: "sickLeaveReported"
+    message: "SAP-LV-03: Sick leave > 3 days requires a medical certificate."
+    when:
+      all:
+        - field: args.leave_duration
+          aliases: [leaveDuration, sickDays]
+          op: gt
+          value: 3
+        - field: context.medical_certificate_provided
+          op: is_false
+
+  - action: "maternityLeaveStarted"
+    message: "SAP-LV-04: Maternity leave requires HR benefits consultation."
+    when:
+      all:
+        - field: context.hr_consultation_completed
+          op: is_false
+
+  - action: "unpaidLeaveApproved"
+    message: "SAP-LV-05: Unpaid leave requires department head approval."
+    when:
+      all:
+        - field: context.dept_head_approval
+          op: is_false
+
+  - action: "sabbaticalLeaveRequested"
+    message: "SAP-LV-06: Sabbatical requires at least 5 years of tenure."
+    when:
+      all:
+        - field: args.years_of_tenure
+          aliases: [yearsOfTenure, tenure, seniority]
+          op: lt
+          value: 5
+
+  - action: "leaveBalanceCarriedOver"
+    message: "SAP-LV-07: Max 5 days can be carried over to the next year."
+    when:
+      all:
+        - field: args.carry_over_days
+          aliases: [carryOverDays, daysCarriedOver]
+          op: gt
+          value: 5
+
+  - action: "bereavementLeaveTaken"
+    message: "SAP-LV-08: Bereavement leave must not exceed 5 days without VP approval."
+    when:
+      all:
+        - field: args.bereavement_days
+          aliases: [bereavementDays, leaveLength]
+          op: gt
+          value: 5
+        - field: context.vp_approval
+          op: is_false
+
+  - action: "fmlaLeaveApproved"
+    message: "SAP-LV-09: FMLA leave requires legal eligibility check."
+    when:
+      all:
+        - field: context.fmla_eligible
+          op: is_false
+
+  - action: "juryDutyReported"
+    message: "SAP-LV-10: Jury duty requires a court summons document upload."
+    when:
+      all:
+        - field: context.summons_uploaded
+          op: is_false
+
+  # =========================================================
+  # Performance Management
+  # =========================================================
+  - action: "performanceReviewCompleted"
+    message: "SAP-PERF-01: Performance review requires completion of all sections."
+    when:
+      all:
+        - field: context.all_sections_completed
+          op: is_false
+
+  - action: "goalSet"
+    message: "SAP-PERF-02: Goals must be aligned with corporate objectives."
+    when:
+      all:
+        - field: context.aligned_with_corporate
+          op: is_false
+
+  - action: "midYearReviewConducted"
+    message: "SAP-PERF-03: Mid-year review must be conducted before July 31st."
+    when:
+      all:
+        - field: args.review_month
+          aliases: [reviewMonth, monthCompleted]
+          op: gt
+          value: 7
+
+  - action: "pipInitiated"
+    message: "SAP-PERF-04: PIP initiation requires HR partner consultation."
+    when:
+      all:
+        - field: context.hr_consultation_done
+          op: is_false
+
+  - action: "ratingCalibrated"
+    message: "SAP-PERF-05: Rating calibration cannot result in > 15% top tier."
+    when:
+      all:
+        - field: args.top_tier_percentage
+          aliases: [topTierPercentage, topRatingsRatio]
+          op: gt
+          value: 15
+
+  - action: "peerFeedbackSubmitted"
+    message: "SAP-PERF-06: Peer feedback cannot contain inappropriate language."
+    when:
+      all:
+        - field: context.contains_profanity
+          op: is_true
+
+  - action: "selfAssessmentCompleted"
+    message: "SAP-PERF-07: Self-assessment must be submitted before manager review."
+    when:
+      all:
+        - field: context.manager_review_started
+          op: is_true
+        - field: context.self_assessment_submitted
+          op: is_false
+
+  - action: "managerAssessmentSubmitted"
+    message: "SAP-PERF-08: Manager assessment requires at least 3 goals rated."
+    when:
+      all:
+        - field: args.goals_rated_count
+          aliases: [goalsRatedCount, ratedGoals]
+          op: lt
+          value: 3
+
+  - action: "promotionNominationCreated"
+    message: "SAP-PERF-09: Promotion requires an 'Exceeds Expectations' rating."
+    when:
+      all:
+        - field: args.current_rating
+          aliases: [currentRating, perfRating]
+          op: not_in
+          value: ["EXCEEDS_EXPECTATIONS", "OUTSTANDING"]
+
+  - action: "successionPlanUpdated"
+    message: "SAP-PERF-10: Succession plan requires at least two identified successors."
+    when:
+      all:
+        - field: args.successor_count
+          aliases: [successorCount, numSuccessors]
+          op: lt
+          value: 2
+
+  # =========================================================
+  # Compensation & Benefits
+  # =========================================================
+  - action: "salaryIncreased"
+    message: "SAP-COMP-01: Salary increases over 10% require VP approval."
+    when:
+      all:
+        - field: args.increase_percentage
+          aliases: [increasePercentage, raisePct]
+          op: gt
+          value: 10
+        - field: context.vp_approved
+          op: is_false
+
+  - action: "bonusAwarded"
+    message: "SAP-COMP-02: Bonus cannot exceed max target without executive sign-off."
+    when:
+      all:
+        - field: context.exceeds_max_target
+          op: is_true
+        - field: context.exec_signoff
+          op: is_false
+
+  - action: "stockOptionsGranted"
+    message: "SAP-COMP-03: Stock option grants require Board approval."
+    when:
+      all:
+        - field: context.board_approval
+          op: is_false
+
+  - action: "healthInsuranceEnrolled"
+    message: "SAP-COMP-04: Health insurance enrollment requires valid dependent details if applicable."
+    when:
+      all:
+        - field: context.has_dependents
+          op: is_true
+        - field: context.dependents_validated
+          op: is_false
+
+  - action: "retirementContributionChanged"
+    message: "SAP-COMP-05: 401k contribution cannot exceed annual IRS limits."
+    when:
+      all:
+        - field: context.exceeds_irs_limit
+          op: is_true
+
+  - action: "tuitionReimbursementApproved"
+    message: "SAP-COMP-06: Tuition reimbursement capped at $5,250 annually."
+    when:
+      all:
+        - field: args.reimbursement_amount
+          aliases: [reimbursementAmount, requestedAmount]
+          op: gt
+          value: 5250
+
+  - action: "gymMembershipSubsidized"
+    message: "SAP-COMP-07: Gym subsidy requires proof of active membership."
+    when:
+      all:
+        - field: context.proof_provided
+          op: is_false
+
+  - action: "carAllowanceGranted"
+    message: "SAP-COMP-08: Car allowance restricted to specific job grades."
+    when:
+      all:
+        - field: args.job_grade
+          aliases: [jobGrade, level]
+          op: not_in
+          value: ["DIRECTOR", "VP", "C_LEVEL"]
+
+  - action: "childcareVoucherIssued"
+    message: "SAP-COMP-09: Childcare vouchers require proof of eligible dependents."
+    when:
+      all:
+        - field: context.dependents_eligible
+          op: is_false
+
+  - action: "relocationBonusPaid"
+    message: "SAP-COMP-10: Relocation bonus requires payback agreement signature."
+    when:
+      all:
+        - field: context.payback_agreement_signed
+          op: is_false
+
+  # =========================================================
+  # Training & Certification
+  # =========================================================
+  - action: "trainingCourseAssigned"
+    message: "SAP-TRN-01: Training course assignment must fall within training budget."
+    when:
+      all:
+        - field: context.within_budget
+          op: is_false
+
+  - action: "certificationCompleted"
+    message: "SAP-TRN-02: Certification completion requires upload of the certificate."
+    when:
+      all:
+        - field: context.certificate_uploaded
+          op: is_false
+
+  - action: "complianceTrainingFinished"
+    message: "SAP-TRN-03: Compliance training test score must be 80% or higher."
+    when:
+      all:
+        - field: args.test_score
+          aliases: [testScore, score, finalScore]
+          op: lt
+          value: 80
+
+  - action: "skillAssessmentPassed"
+    message: "SAP-TRN-04: Skill assessment requires a proctored environment for level 3."
+    when:
+      all:
+        - field: args.assessment_level
+          aliases: [assessmentLevel, level]
+          op: eq
+          value: 3
+        - field: context.is_proctored
+          op: is_false
+
+  - action: "externalCourseApproved"
+    message: "SAP-TRN-05: External course approval requires manager endorsement."
+    when:
+      all:
+        - field: context.manager_endorsement
+          op: is_false
+
+  - action: "languageClassEnrolled"
+    message: "SAP-TRN-06: Language classes must be relevant to the current role."
+    when:
+      all:
+        - field: context.role_relevant
+          op: is_false
+
+  - action: "leadershipProgramStarted"
+    message: "SAP-TRN-07: Leadership program requires at least 'Exceeds Expectations' rating."
+    when:
+      all:
+        - field: args.current_perf_rating
+          aliases: [currentPerfRating, perfRating]
+          op: not_in
+          value: ["EXCEEDS_EXPECTATIONS", "OUTSTANDING"]
+
+  - action: "cprTrainingRenewed"
+    message: "SAP-TRN-08: CPR training must be renewed every 2 years."
+    when:
+      all:
+        - field: args.years_since_last_renewal
+          aliases: [yearsSinceLastRenewal, yearsSinceTraining]
+          op: gt
+          value: 2
+
+  - action: "cyberSecurityTrainingCompleted"
+    message: "SAP-TRN-09: Cybersecurity training is mandatory within first 7 days."
+    when:
+      all:
+        - field: args.days_since_hire
+          aliases: [daysSinceHire, tenureDays]
+          op: gt
+          value: 7
+        - field: context.training_completed
+          op: is_false
+
+  - action: "diversityTrainingAttended"
+    message: "SAP-TRN-10: Diversity training must have recorded attendance."
+    when:
+      all:
+        - field: context.attendance_recorded
+          op: is_false
+
+  # =========================================================
+  # Time & Attendance
+  # =========================================================
+  - action: "timesheetSubmitted"
+    message: "SAP-TIME-01: Timesheet cannot exceed 24 hours per day."
+    when:
+      all:
+        - field: args.daily_hours
+          aliases: [dailyHours, hoursLogged]
+          op: gt
+          value: 24
+
+  - action: "timesheetApproved"
+    message: "SAP-TIME-02: Timesheet requires project manager approval if billed to projects."
+    when:
+      all:
+        - field: context.is_project_billed
+          op: is_true
+        - field: context.pm_approved
+          op: is_false
+
+  - action: "clockInRecorded"
+    message: "SAP-TIME-03: Clock-in location must be within geofence if on-site."
+    when:
+      all:
+        - field: context.is_onsite
+          op: is_true
+        - field: context.within_geofence
+          op: is_false
+
+  - action: "clockOutRecorded"
+    message: "SAP-TIME-04: Clock-out must occur within 16 hours of clock-in."
+    when:
+      all:
+        - field: args.shift_duration_hours
+          aliases: [shiftDurationHours, hoursWorked]
+          op: gt
+          value: 16
+
+  - action: "shiftSchedulePublished"
+    message: "SAP-TIME-05: Shifts must be published at least 7 days in advance."
+    when:
+      all:
+        - field: args.days_in_advance
+          aliases: [daysInAdvance, noticeDays]
+          op: lt
+          value: 7
+
+  - action: "overtimeRequested"
+    message: "SAP-TIME-06: Overtime requests require pre-approval."
+    when:
+      all:
+        - field: context.pre_approved
+          op: is_false
+
+  - action: "breakTimeLogged"
+    message: "SAP-TIME-07: Mandatory 30-min break required for shifts over 6 hours."
+    when:
+      all:
+        - field: args.shift_duration_hours
+          aliases: [shiftDurationHours, duration]
+          op: gt
+          value: 6
+        - field: args.break_duration_mins
+          aliases: [breakDurationMins, breakTime]
+          op: lt
+          value: 30
+
+  - action: "lateArrivalFlagged"
+    message: "SAP-TIME-08: More than 3 late arrivals in a month triggers HR notification."
+    when:
+      all:
+        - field: args.late_count
+          aliases: [lateCount, tardyCount]
+          op: gt
+          value: 3
+        - field: context.hr_notified
+          op: is_false
+
+  - action: "earlyDepartureNoted"
+    message: "SAP-TIME-09: Early departure requires manager note."
+    when:
+      all:
+        - field: context.manager_note_provided
+          op: is_false
+
+  - action: "onCallTimeLogged"
+    message: "SAP-TIME-10: On-call time cannot overlap with regular shift hours."
+    when:
+      all:
+        - field: context.overlaps_regular_shift
+          op: is_true
+
+  # =========================================================
+  # SAP Role Assignment
+  # =========================================================
+  - action: "sapRoleAssigned"
+    message: "SAP-ROLE-01: Critical SAP roles require security team approval."
+    when:
+      all:
+        - field: context.is_critical_role
+          op: is_true
+        - field: context.security_approved
+          op: is_false
+
+  - action: "sapRoleRevoked"
+    message: "SAP-ROLE-02: Role revocation must log a reason code."
+    when:
+      all:
+        - field: args.reason_code
+          aliases: [reasonCode, revocationReason]
+          op: eq
+          value: "MISSING"
+
+  - action: "emergencyAccessGranted"
+    message: "SAP-ROLE-03: Emergency access (Firefighter) limited to 24 hours."
+    when:
+      all:
+        - field: args.access_duration_hours
+          aliases: [accessDurationHours, duration]
+          op: gt
+          value: 24
+
+  - action: "temporaryAccessApproved"
+    message: "SAP-ROLE-04: Temporary access requires an end date."
+    when:
+      all:
+        - field: context.has_end_date
+          op: is_false
+
+  - action: "profileModified"
+    message: "SAP-ROLE-05: SAP Profile modification requires change ticket."
+    when:
+      all:
+        - field: context.has_change_ticket
+          op: is_false
+
+  - action: "authorizationObjectChanged"
+    message: "SAP-ROLE-06: Authorization object changes must be tested in QA."
+    when:
+      all:
+        - field: context.tested_in_qa
+          op: is_false
+
+  - action: "customTransactionCreated"
+    message: "SAP-ROLE-07: Custom transactions require documentation."
+    when:
+      all:
+        - field: context.is_documented
+          op: is_false
+
+  - action: "roleConflictDetected"
+    message: "SAP-ROLE-08: Role conflicts must be mitigated before assignment."
+    when:
+      all:
+        - field: context.mitigation_control_applied
+          op: is_false
+
+  - action: "firefighterIdUsed"
+    message: "SAP-ROLE-09: Firefighter ID usage requires log review by controller."
+    when:
+      all:
+        - field: context.log_reviewed
+          op: is_false
+
+  - action: "userGroupChanged"
+    message: "SAP-ROLE-10: User group changes require identity management sync."
+    when:
+      all:
+        - field: context.idm_synced
+          op: is_false
+
+  # =========================================================
+  # EU AI Act HR Decisions
+  # =========================================================
+  - action: "candidateAutoRejected"
+    message: "EU-AI-ACT-01: Candidates cannot be auto-rejected by AI without human oversight."
+    when:
+      all:
+        - field: context.human_oversight
+          op: is_false
+
+  - action: "resumeScreenedByAi"
+    message: "EU-AI-ACT-02: AI resume screening must undergo quarterly bias audits."
+    when:
+      all:
+        - field: args.days_since_audit
+          aliases: [daysSinceAudit, auditAge]
+          op: gt
+          value: 90
+
+  - action: "promotionPredicted"
+    message: "EU-AI-ACT-03: AI promotion predictions must be transparent to the employee."
+    when:
+      all:
+        - field: context.employee_notified
+          op: is_false
+
+  - action: "flightRiskAnalyzed"
+    message: "EU-AI-ACT-04: Flight risk models must not use sensitive demographic data."
+    when:
+      all:
+        - field: context.uses_demographic_data
+          op: is_true
+
+  - action: "salaryRecommendationGenerated"
+    message: "EU-AI-ACT-05: Salary recommendations by AI must log an explainability report."
+    when:
+      all:
+        - field: context.explainability_report_generated
+          op: is_false
+
+  - action: "performanceScoredByAi"
+    message: "EU-AI-ACT-06: AI performance scoring must allow for human appeal."
+    when:
+      all:
+        - field: context.appeal_mechanism_active
+          op: is_false
+
+  - action: "biasCheckCompleted"
+    message: "EU-AI-ACT-07: Bias check must report < 5% variance across protected groups."
+    when:
+      all:
+        - field: args.bias_variance_pct
+          aliases: [biasVariancePct, variance, disparity]
+          op: gt
+          value: 5
+
+  - action: "aiModelRetrained"
+    message: "EU-AI-ACT-08: HR AI models must be retrained annually."
+    when:
+      all:
+        - field: args.months_since_training
+          aliases: [monthsSinceTraining, modelAge]
+          op: gt
+          value: 12
+
+  - action: "employeeProfileClustered"
+    message: "EU-AI-ACT-09: Profile clustering must preserve anonymity."
+    when:
+      all:
+        - field: context.is_anonymized
+          op: is_false
+
+  - action: "interviewSentimentAnalyzed"
+    message: "EU-AI-ACT-10: Emotion recognition in interviews is prohibited."
+    when:
+      all:
+        - field: context.emotion_recognition_enabled
+          op: is_true
+
+  # =========================================================
+  # GDPR HR Data
+  # =========================================================
+  - action: "employeeMedicalDataAccessed"
+    message: "GDPR-HR-01: Medical data access requires explicit occupational health role."
+    when:
+      all:
+        - field: args.user_role
+          aliases: [userRole, accessorRole]
+          op: not_in
+          value: ["OCCUPATIONAL_HEALTH", "MEDICAL_OFFICER"]
+
+  - action: "ssnViewed"
+    message: "GDPR-HR-02: SSN/National ID viewing requires audit logging."
+    when:
+      all:
+        - field: context.audit_logging_enabled
+          op: is_false
+
+  - action: "diversityDataProcessed"
+    message: "GDPR-HR-03: Diversity data processing requires explicit consent."
+    when:
+      all:
+        - field: context.explicit_consent_given
+          op: is_false
+
+  - action: "dataSubjectAccessRequestFulfilled"
+    message: "GDPR-HR-04: DSAR must be fulfilled within 30 days."
+    when:
+      all:
+        - field: args.days_to_fulfill
+          aliases: [daysToFulfill, fulfillmentTime]
+          op: gt
+          value: 30
+
+  - action: "rightToBeForgottenExercised"
+    message: "GDPR-HR-05: Right to be forgotten requires preserving essential tax records."
+    when:
+      all:
+        - field: context.tax_records_preserved
+          op: is_false
+
+  - action: "dataBreachReported"
+    message: "GDPR-HR-06: Data breach involving HR data must be reported within 72 hours."
+    when:
+      all:
+        - field: args.hours_since_breach
+          aliases: [hoursSinceBreach, reportingTime]
+          op: gt
+          value: 72
+
+  - action: "consentFormSigned"
+    message: "GDPR-HR-07: Consent forms must clearly state the purpose of data collection."
+    when:
+      all:
+        - field: context.purpose_stated
+          op: is_false
+
+  - action: "dataRetentionPeriodExpired"
+    message: "GDPR-HR-08: Expired HR records must be securely deleted."
+    when:
+      all:
+        - field: context.securely_deleted
+          op: is_false
+
+  - action: "crossBorderDataTransferred"
+    message: "GDPR-HR-09: Cross-border HR data transfer requires standard contractual clauses."
+    when:
+      all:
+        - field: context.scc_in_place
+          op: is_false
+
+  - action: "privacyImpactAssessmentCompleted"
+    message: "GDPR-HR-10: PIA required for new HR tools processing personal data."
+    when:
+      all:
+        - field: context.pia_completed
+          op: is_false
+
+  # =========================================================
+  # Workforce Planning
+  # =========================================================
+  - action: "headcountForecastGenerated"
+    message: "SAP-WFP-01: Headcount forecast must align with the financial budget."
+    when:
+      all:
+        - field: context.aligned_with_budget
+          op: is_false
+
+  - action: "budgetApproved"
+    message: "SAP-WFP-02: Workforce budget requires CFO approval."
+    when:
+      all:
+        - field: context.cfo_approved
+          op: is_false
+
+  - action: "positionCreated"
+    message: "SAP-WFP-03: New position creation requires approved business case."
+    when:
+      all:
+        - field: context.business_case_approved
+          op: is_false
+
+  - action: "reorganizationPlanned"
+    message: "SAP-WFP-04: Reorganization impacting >50 employees requires works council notice."
+    when:
+      all:
+        - field: args.impacted_employees
+          aliases: [impactedEmployees, headcount]
+          op: gt
+          value: 50
+        - field: context.works_council_notified
+          op: is_false
+
+  - action: "attritionRateAnalyzed"
+    message: "SAP-WFP-05: Attrition > 15% in a quarter requires a retention action plan."
+    when:
+      all:
+        - field: args.attrition_rate
+          aliases: [attritionRate, turnoverPct]
+          op: gt
+          value: 15
+        - field: context.retention_plan_created
+          op: is_false
+
+  - action: "skillGapIdentified"
+    message: "SAP-WFP-06: Identified skill gaps must be mapped to training modules."
+    when:
+      all:
+        - field: context.mapped_to_training
+          op: is_false
+
+  - action: "contractorConverted"
+    message: "SAP-WFP-07: Contractor conversion to FTE requires 6 months minimum tenure."
+    when:
+      all:
+        - field: args.contractor_months
+          aliases: [contractorMonths, tenureMonths]
+          op: lt
+          value: 6
+
+  - action: "shiftPatternOptimized"
+    message: "SAP-WFP-08: Shift optimizations must respect local labor laws for rest periods."
+    when:
+      all:
+        - field: context.complies_with_labor_law
+          op: is_false
+
+  - action: "spanOfControlCalculated"
+    message: "SAP-WFP-09: Span of control should not exceed 12 direct reports."
+    when:
+      all:
+        - field: args.direct_reports
+          aliases: [directReports, teamSize]
+          op: gt
+          value: 12
+
+  - action: "diversityTargetSet"
+    message: "SAP-WFP-10: Diversity targets must be reviewed by the DE&I committee."
+    when:
+      all:
+        - field: context.dei_committee_reviewed
+          op: is_false
+
+  # =========================================================
+  # Disciplinary Actions
+  # =========================================================
+  - action: "verbalWarningIssued"
+    message: "SAP-DISC-01: Verbal warnings must be documented in the HR file."
+    when:
+      all:
+        - field: context.documented_in_hr_file
+          op: is_false
+
+  - action: "writtenWarningGiven"
+    message: "SAP-DISC-02: Written warning requires acknowledgment signature."
+    when:
+      all:
+        - field: context.acknowledgment_signed
+          op: is_false
+
+  - action: "suspensionWithoutPayEnforced"
+    message: "SAP-DISC-03: Unpaid suspension requires HR Legal approval."
+    when:
+      all:
+        - field: context.hr_legal_approval
+          op: is_false
+
+  - action: "investigationOpened"
+    message: "SAP-DISC-04: Investigations must be assigned to an impartial case manager."
+    when:
+      all:
+        - field: context.impartial_manager_assigned
+          op: is_false
+
+  - action: "grievanceFiled"
+    message: "SAP-DISC-05: Grievances must be acknowledged within 48 hours."
+    when:
+      all:
+        - field: args.hours_to_acknowledge
+          aliases: [hoursToAcknowledge, ackTime]
+          op: gt
+          value: 48
+
+  - action: "mediationSessionConducted"
+    message: "SAP-DISC-06: Mediation requires consent from both parties."
+    when:
+      all:
+        - field: context.mutual_consent
+          op: is_false
+
+  - action: "harassmentComplaintLogged"
+    message: "SAP-DISC-07: Harassment complaints must trigger immediate interim measures."
+    when:
+      all:
+        - field: context.interim_measures_applied
+          op: is_false
+
+  - action: "codeOfConductViolationReported"
+    message: "SAP-DISC-08: Code of conduct violations must be escalated to the Ethics board."
+    when:
+      all:
+        - field: context.escalated_to_ethics
+          op: is_false
+
+  - action: "appealFiled"
+    message: "SAP-DISC-09: Appeals must be filed within 14 days of disciplinary action."
+    when:
+      all:
+        - field: args.days_since_action
+          aliases: [daysSinceAction, elapsedDays]
+          op: gt
+          value: 14
+
+  - action: "disciplinaryHearingHeld"
+    message: "SAP-DISC-10: Disciplinary hearings require right to representation."
+    when:
+      all:
+        - field: context.representation_offered
+          op: is_false
+
+  # =========================================================
+  # Travel & Expense
+  # =========================================================
+  - action: "expenseReportSubmitted"
+    message: "SAP-TNE-01: Expenses over $50 require a receipt."
+    when:
+      all:
+        - field: args.expense_amount
+          aliases: [expenseAmount, amount]
+          op: gt
+          value: 50
+        - field: context.has_receipt
+          op: is_false
+
+  - action: "travelRequestApproved"
+    message: "SAP-TNE-02: International travel requires VP approval."
+    when:
+      all:
+        - field: context.is_international
+          op: is_true
+        - field: context.vp_approved
+          op: is_false
+
+  - action: "flightBooked"
+    message: "SAP-TNE-03: Flights > 6 hours are eligible for Business Class."
+    when:
+      all:
+        - field: args.flight_duration
+          aliases: [flightDuration, hours]
+          op: lt
+          value: 6
+        - field: args.ticket_class
+          aliases: [ticketClass, cabinClass]
+          op: eq
+          value: "BUSINESS"
+
+  - action: "hotelReserved"
+    message: "SAP-TNE-04: Hotel rate must not exceed city per-diem limits."
+    when:
+      all:
+        - field: context.exceeds_city_limit
+          op: is_true
+
+  - action: "perDiemClaimed"
+    message: "SAP-TNE-05: Per-diem cannot be claimed if meals are provided by the conference."
+    when:
+      all:
+        - field: context.meals_provided
+          op: is_true
+
+  - action: "corporateCardIssued"
+    message: "SAP-TNE-06: Corporate card issuance requires completion of T&E policy training."
+    when:
+      all:
+        - field: context.policy_training_completed
+          op: is_false
+
+  - action: "receiptUploaded"
+    message: "SAP-TNE-07: Uploaded receipts must be legible."
+    when:
+      all:
+        - field: context.is_legible
+          op: is_false
+
+  - action: "mileageReimbursed"
+    message: "SAP-TNE-08: Mileage reimbursement must match standard IRS rates."
+    when:
+      all:
+        - field: context.matches_irs_rate
+          op: is_false
+
+  - action: "outOfPocketExpensePaid"
+    message: "SAP-TNE-09: Out-of-pocket expenses > $500 require justification."
+    when:
+      all:
+        - field: args.expense_amount
+          aliases: [expenseAmount, amount]
+          op: gt
+          value: 500
+        - field: context.has_justification
+          op: is_false
+
+  - action: "policyViolationFlagged"
+    message: "SAP-TNE-10: 3 T&E policy violations result in card suspension."
+    when:
+      all:
+        - field: args.violation_count
+          aliases: [violationCount, infractions]
+          op: gt
+          value: 2
+        - field: context.card_suspended
+          op: is_false

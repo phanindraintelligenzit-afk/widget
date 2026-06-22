@@ -1,0 +1,1157 @@
+# ==========================================
+# AI/ML Model Governance Policies
+# ==========================================
+policies:
+  # ==========================================
+  # Model Training Controls
+  # ==========================================
+  - action: "modelTrained"
+    message: "AI-TRAIN-01: Model training compute cost exceeds $5000 without manager approval."
+    when:
+      all:
+        - field: args.compute_cost_usd
+          aliases: [computeCost, costUSD, trainingCost, totalTrainingCost]
+          op: gt
+          value: 5000
+        - field: context.manager_approval
+          op: is_false
+
+  - action: "modelTrained"
+    message: "AI-TRAIN-02: GPU training hours exceed 1000 without infrastructure team approval."
+    when:
+      all:
+        - field: args.gpu_hours
+          aliases: [gpuTime, totalGpuHours, computeHours]
+          op: gt
+          value: 1000
+        - field: context.infra_approval
+          op: is_false
+
+  - action: "modelTrained"
+    message: "AI-TRAIN-03: Training in a production environment without prior sandbox testing is prohibited."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, executionEnv, computeEnv]
+          op: eq
+          value: "prod"
+        - field: context.sandbox_tested
+          op: is_false
+
+  - action: "modelHyperparametersTuned"
+    message: "AI-TRAIN-04: Hyperparameter optimization trials exceed 100 while cloud budget is exceeded."
+    when:
+      all:
+        - field: args.trial_count
+          aliases: [trials, numTrials, optimizationRuns, totalTrials]
+          op: gt
+          value: 100
+        - field: context.cloud_budget_exceeded
+          op: is_true
+
+  - action: "distributedTrainingJobRun"
+    message: "AI-TRAIN-05: Distributed training across more than 50 nodes requires explicit scale approval."
+    when:
+      all:
+        - field: args.node_count
+          aliases: [nodes, clusterSize, workerCount]
+          op: gt
+          value: 50
+        - field: context.cluster_scale_approved
+          op: is_false
+
+  - action: "distributedTrainingJobRun"
+    message: "AI-TRAIN-06: Spot instance utilization is below 50% without exception approval."
+    when:
+      all:
+        - field: args.spot_instance_ratio
+          aliases: [spotRatio, preemptibleRatio, cheapComputeRatio]
+          op: lt
+          value: 0.5
+        - field: context.non_spot_approved
+          op: is_false
+
+  - action: "modelTrained"
+    message: "AI-TRAIN-07: Custom ML frameworks require security review before training execution."
+    when:
+      all:
+        - field: args.ml_framework
+          aliases: [framework, trainingLib, coreLibrary]
+          op: eq
+          value: "custom"
+        - field: context.security_reviewed
+          op: is_false
+
+  # ==========================================
+  # Training Data Quality
+  # ==========================================
+  - action: "trainingDataIngested"
+    message: "AI-DATA-01: Ingested training data contains > 5% null values."
+    when:
+      all:
+        - field: args.null_ratio
+          aliases: [missingDataRatio, nullPercentage, emptyValuesRatio]
+          op: gt
+          value: 0.05
+
+  - action: "trainingDataModified"
+    message: "AI-DATA-02: Target class imbalance exceeds 20% threshold."
+    when:
+      all:
+        - field: args.class_imbalance_ratio
+          aliases: [imbalanceRatio, targetSkew, minorityClassRatio]
+          op: gt
+          value: 0.2
+
+  - action: "trainingDataLabeled"
+    message: "AI-DATA-03: Human labeler disagreement rate exceeds 10% tolerance."
+    when:
+      all:
+        - field: args.human_disagreement_rate
+          aliases: [disagreementRate, labelConflictRatio, annotatorVariance]
+          op: gt
+          value: 0.1
+
+  - action: "trainingDatasetCreated"
+    message: "AI-DATA-04: Dataset uses data older than 365 days for a volatile model type."
+    when:
+      all:
+        - field: args.data_age_days
+          aliases: [dataAge, oldestRecordDays, maximumDataAge]
+          op: gt
+          value: 365
+        - field: args.model_type
+          aliases: [modelCategory, systemType, volatilityProfile]
+          op: eq
+          value: "volatile"
+
+  - action: "trainingDataAugmented"
+    message: "AI-DATA-05: Synthetic data ratio exceeds 50% without explicit data science approval."
+    when:
+      all:
+        - field: args.synthetic_data_ratio
+          aliases: [syntheticRatio, generatedDataPercentage, fakeDataRatio]
+          op: gt
+          value: 0.5
+        - field: context.synthetic_approved
+          op: is_false
+
+  - action: "trainingDatasetValidated"
+    message: "AI-DATA-06: Feature correlation exceeds 0.95 without PCA applied."
+    when:
+      all:
+        - field: args.max_feature_correlation
+          aliases: [collinearity, maxCorrelation, pearsonMax]
+          op: gt
+          value: 0.95
+        - field: context.pca_applied
+          op: is_false
+
+  - action: "trainingDataIngested"
+    message: "AI-DATA-07: Ingested dataset contains missing target variables."
+    when:
+      all:
+        - field: args.missing_target_values
+          aliases: [nullTargets, missingLabels, unlabeledCount]
+          op: gt
+          value: 0
+
+  # ==========================================
+  # Model Deployment Gates
+  # ==========================================
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-01: Model accuracy is below the 85% deployment threshold."
+    when:
+      all:
+        - field: args.accuracy_score
+          aliases: [accuracy, f1Score, overallAccuracy, testAccuracy]
+          op: lt
+          value: 0.85
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-02: Security scan for model vulnerabilities failed."
+    when:
+      all:
+        - field: context.security_scan_passed
+          op: is_false
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-03: Mandatory model card documentation is missing."
+    when:
+      all:
+        - field: context.model_card_generated
+          op: is_false
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-04: Projected inference latency exceeds 100ms SLA."
+    when:
+      all:
+        - field: args.latency_ms
+          aliases: [responseMs, p99Latency, inferenceTime]
+          op: gt
+          value: 100
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-05: Automated rollback plan is not configured for deployment."
+    when:
+      all:
+        - field: context.rollback_plan_exists
+          op: is_false
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-06: Code review by Senior Data Scientist is not approved."
+    when:
+      all:
+        - field: context.code_review_approved
+          op: is_false
+
+  - action: "modelDeployedToProduction"
+    message: "AI-DEP-07: External penetration test required but not passed for public endpoints."
+    when:
+      all:
+        - field: args.endpoint_type
+          aliases: [endpointVisibility, apiType, networkExposure]
+          op: eq
+          value: "public"
+        - field: context.penetration_test_passed
+          op: is_false
+
+  # ==========================================
+  # Model Monitoring
+  # ==========================================
+  - action: "inferenceRun"
+    message: "AI-MON-01: Throughput dropped below 100 RPS and load test was bypassed."
+    when:
+      all:
+        - field: args.throughput_rps
+          aliases: [rps, requestsPerSecond, inferenceRate]
+          op: lt
+          value: 100
+        - field: context.load_test_passed
+          op: is_false
+
+  - action: "modelMonitored"
+    message: "AI-MON-02: CPU utilization exceeded 90% during inference window."
+    when:
+      all:
+        - field: args.cpu_utilization
+          aliases: [cpuUsage, computeLoad, instanceCpu]
+          op: gt
+          value: 0.90
+
+  - action: "modelMonitored"
+    message: "AI-MON-03: P99 latency breached 200ms threshold."
+    when:
+      all:
+        - field: args.p99_latency_ms
+          aliases: [p99Ms, tailLatency, latencyPercentile99]
+          op: gt
+          value: 200
+
+  - action: "modelAlertTriggered"
+    message: "AI-MON-04: Inference error rate exceeded 1%."
+    when:
+      all:
+        - field: args.error_rate
+          aliases: [failureRate, http500Rate, errorRatio]
+          op: gt
+          value: 0.01
+
+  - action: "modelMetricsCollected"
+    message: "AI-MON-05: Memory leak detected (RAM > 16GB)."
+    when:
+      all:
+        - field: args.memory_usage_gb
+          aliases: [ramUsageGb, totalMemoryGb, allocatedRam]
+          op: gt
+          value: 16
+        - field: context.leak_detected
+          op: is_true
+
+  - action: "predictionLogged"
+    message: "AI-MON-06: Payload logging is disabled in a regulated environment."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, complianceZone, networkTier]
+          op: eq
+          value: "regulated"
+        - field: context.payload_logging_enabled
+          op: is_false
+
+  - action: "modelMonitored"
+    message: "AI-MON-07: GPU utilization is severely underperforming (< 20%) on a multi-GPU node."
+    when:
+      all:
+        - field: args.gpu_utilization
+          aliases: [gpuLoad, cudaUtilization, graphicsUsage]
+          op: lt
+          value: 0.2
+        - field: args.gpu_count
+          aliases: [numGpus, deviceCount, acceleratorCount]
+          op: gt
+          value: 1
+
+  # ==========================================
+  # Model Bias & Fairness
+  # ==========================================
+  - action: "modelBiasEvaluated"
+    message: "AI-FAIR-01: Disparate impact ratio is below the 0.8 acceptable threshold."
+    when:
+      all:
+        - field: args.disparate_impact_ratio
+          aliases: [dir, disparateImpact, impactRatio]
+          op: lt
+          value: 0.8
+
+  - action: "modelFairnessTested"
+    message: "AI-FAIR-02: Demographic parity difference exceeds 5%."
+    when:
+      all:
+        - field: args.demographic_parity_diff
+          aliases: [dpDiff, demographicParity, parityDifference]
+          op: gt
+          value: 0.05
+
+  - action: "modelBiasEvaluated"
+    message: "AI-FAIR-03: Equal opportunity difference exceeds 3%."
+    when:
+      all:
+        - field: args.equal_opportunity_diff
+          aliases: [eod, equalOppDiff, opportunityDelta]
+          op: gt
+          value: 0.03
+
+  - action: "modelTrained"
+    message: "AI-FAIR-04: Protected attributes used in training without explicit legal exception."
+    when:
+      all:
+        - field: args.protected_attributes
+          aliases: [sensitiveFeatures, protectedClasses, demographicFields]
+          op: in
+          value: ["race", "gender", "religion", "age", "ethnicity"]
+        - field: context.legal_exception_exists
+          op: is_false
+
+  - action: "modelBiasEvaluated"
+    message: "AI-FAIR-05: Counterfactual fairness test failed."
+    when:
+      all:
+        - field: context.counterfactual_fairness_passed
+          op: is_false
+
+  - action: "modelCardPublished"
+    message: "AI-FAIR-06: Fairness metrics section is missing from the model card."
+    when:
+      all:
+        - field: context.fairness_metrics_included
+          op: is_false
+
+  - action: "modelBiasEvaluated"
+    message: "AI-FAIR-07: Predictive equality difference exceeds 5%."
+    when:
+      all:
+        - field: args.predictive_equality_diff
+          aliases: [ped, predictiveEqDiff, falsePositiveRateDiff]
+          op: gt
+          value: 0.05
+
+  # ==========================================
+  # Explainability Requirements
+  # ==========================================
+  - action: "modelExplained"
+    message: "AI-EXPL-01: SHAP values must be generated for financial domain models."
+    when:
+      all:
+        - field: args.domain
+          aliases: [businessDomain, sector, modelVertical]
+          op: eq
+          value: "finance"
+        - field: context.shap_values_generated
+          op: is_false
+
+  - action: "modelExplained"
+    message: "AI-EXPL-02: LIME explanation fidelity score is below 80%."
+    when:
+      all:
+        - field: args.lime_fidelity_score
+          aliases: [limeScore, fidelityScore, explanationFidelity]
+          op: lt
+          value: 0.8
+
+  - action: "modelDeployedToProduction"
+    message: "AI-EXPL-03: Black-box models (DNN/XGBoost) deployed without an attached explainer."
+    when:
+      all:
+        - field: args.model_architecture
+          aliases: [architecture, algoType, algorithm]
+          op: in
+          value: ["dnn", "xgboost", "random_forest", "transformer"]
+        - field: context.explainer_attached
+          op: is_false
+
+  - action: "featureImportanceCalculated"
+    message: "AI-EXPL-04: Extreme over-reliance detected: top feature weight exceeds 60%."
+    when:
+      all:
+        - field: args.max_feature_weight
+          aliases: [topFeatureImportance, maxWeight, highestImportance]
+          op: gt
+          value: 0.6
+
+  - action: "decisionJustified"
+    message: "AI-EXPL-05: Natural language explanations are mandatory for healthcare models."
+    when:
+      all:
+        - field: args.domain
+          aliases: [businessDomain, sector, modelVertical]
+          op: eq
+          value: "healthcare"
+        - field: context.natural_language_explanation
+          op: is_false
+
+  - action: "modelExplained"
+    message: "AI-EXPL-06: Global interpretability report is missing."
+    when:
+      all:
+        - field: context.global_interpretability_report_exists
+          op: is_false
+
+  - action: "featureImportanceCalculated"
+    message: "AI-EXPL-07: Sensitive feature ranked in top 3 important features for HR domain."
+    when:
+      all:
+        - field: args.domain
+          aliases: [businessDomain, sector, modelVertical]
+          op: eq
+          value: "hr"
+        - field: args.sensitive_feature_rank
+          aliases: [protectedFeatureRank, sensitiveVariableRank, demographicRank]
+          op: lt
+          value: 4
+
+  # ==========================================
+  # Data Drift Detection
+  # ==========================================
+  - action: "dataDriftDetected"
+    message: "AI-DRIFT-01: Population Stability Index (PSI) exceeds 0.25 (significant drift)."
+    when:
+      all:
+        - field: args.population_stability_index
+          aliases: [psi, stabilityIndex, psiScore]
+          op: gt
+          value: 0.25
+
+  - action: "conceptDriftDetected"
+    message: "AI-DRIFT-02: Target distribution changed by more than 10%."
+    when:
+      all:
+        - field: args.target_distribution_shift
+          aliases: [labelDrift, targetShift, yDrift]
+          op: gt
+          value: 0.1
+
+  - action: "dataDriftDetected"
+    message: "AI-DRIFT-03: KL Divergence threshold of 0.1 exceeded."
+    when:
+      all:
+        - field: args.kl_divergence
+          aliases: [kullbackLeibler, klDiv, featureDivergence]
+          op: gt
+          value: 0.1
+
+  - action: "dataDriftDetected"
+    message: "AI-DRIFT-04: Missing value rate drifted by more than 5%."
+    when:
+      all:
+        - field: args.missing_value_drift_rate
+          aliases: [nullDrift, missingDataShift, nanRateChange]
+          op: gt
+          value: 0.05
+
+  - action: "dataDriftEvaluated"
+    message: "AI-DRIFT-05: Drift evaluation window is too short (< 7 days)."
+    when:
+      all:
+        - field: args.evaluation_window_days
+          aliases: [windowDays, driftWindow, timeSliceDays]
+          op: lt
+          value: 7
+
+  - action: "dataDriftAlerted"
+    message: "AI-DRIFT-06: Auto-retraining triggered without human-in-the-loop oversight."
+    when:
+      all:
+        - field: context.auto_retrain_triggered
+          op: is_true
+        - field: context.human_in_loop
+          op: is_false
+
+  - action: "conceptDriftDetected"
+    message: "AI-DRIFT-07: Feature attribution shifted by more than 20% over baseline."
+    when:
+      all:
+        - field: args.feature_attribution_shift
+          aliases: [shapDrift, importanceShift, weightDrift]
+          op: gt
+          value: 0.2
+
+  # ==========================================
+  # Model Versioning
+  # ==========================================
+  - action: "modelWeightsExported"
+    message: "AI-VER-01: Exported model weights lack a version tag."
+    when:
+      all:
+        - field: context.version_tag_exists
+          op: is_false
+
+  - action: "modelArtifactSaved"
+    message: "AI-VER-02: Artifact saved without a corresponding git commit hash."
+    when:
+      all:
+        - field: context.git_commit_hash_exists
+          op: is_false
+
+  - action: "modelVersionRegistered"
+    message: "AI-VER-03: Model version does not comply with semantic versioning."
+    when:
+      all:
+        - field: context.semver_compliant
+          op: is_false
+
+  - action: "modelArtifactSaved"
+    message: "AI-VER-04: Artifact saved without MLflow/W&B tracking run ID."
+    when:
+      all:
+        - field: context.tracking_run_id_exists
+          op: is_false
+
+  - action: "modelRegistryUpdated"
+    message: "AI-VER-05: Production alias modified without deployment approval."
+    when:
+      all:
+        - field: args.production_alias_changed
+          aliases: [aliasChanged, prodTagMoved, envTagUpdated]
+          op: is_true
+        - field: context.change_approved
+          op: is_false
+
+  - action: "modelArtifactSaved"
+    message: "AI-VER-06: Artifact size > 50GB requires special cold storage approval."
+    when:
+      all:
+        - field: args.artifact_size_gb
+          aliases: [modelSizeGb, fileSizeBytes, weightsSizeGb]
+          op: gt
+          value: 50
+        - field: context.cold_storage_approved
+          op: is_false
+
+  - action: "modelVersionRegistered"
+    message: "AI-VER-07: Previous version deprecated without a documented transition plan."
+    when:
+      all:
+        - field: args.previous_version_deprecated
+          aliases: [legacyDeprecated, oldVersionSunset, prevDeprecation]
+          op: is_true
+        - field: context.transition_plan_exists
+          op: is_false
+
+  # ==========================================
+  # Shadow Deployment
+  # ==========================================
+  - action: "shadowDeploymentRun"
+    message: "AI-SHAD-01: Shadow traffic routed exceeds 100% duplication."
+    when:
+      all:
+        - field: args.shadow_traffic_percentage
+          aliases: [shadowRatio, trafficDuplication, shadowPercent]
+          op: gt
+          value: 100
+
+  - action: "shadowDeploymentRun"
+    message: "AI-SHAD-02: Shadow deployment attempted to write to production database."
+    when:
+      all:
+        - field: context.shadow_db_write_attempted
+          op: is_true
+
+  - action: "shadowDeploymentEvaluated"
+    message: "AI-SHAD-03: Predictions in shadow mode diverge from production by > 5%."
+    when:
+      all:
+        - field: args.shadow_prod_divergence
+          aliases: [divergenceRate, predictionMismatch, outputDiff]
+          op: gt
+          value: 0.05
+
+  - action: "shadowDeploymentRun"
+    message: "AI-SHAD-04: Compute resources for shadow deployment exceed 2x production."
+    when:
+      all:
+        - field: args.compute_resource_ratio
+          aliases: [resourceRatio, cpuMultiplier, costFactor]
+          op: gt
+          value: 2.0
+
+  - action: "shadowDeploymentRun"
+    message: "AI-SHAD-05: Shadow deployment execution has run for more than 30 days."
+    when:
+      all:
+        - field: args.execution_time_days
+          aliases: [shadowUptimeDays, durationDays, deploymentAge]
+          op: gt
+          value: 30
+
+  - action: "shadowDeploymentRun"
+    message: "AI-SHAD-06: PII data is not masked in shadow logs."
+    when:
+      all:
+        - field: args.pii_masked
+          aliases: [dataMasked, piiRedacted, sensitiveDataHidden]
+          op: is_false
+
+  - action: "shadowDeploymentEvaluated"
+    message: "AI-SHAD-07: Shadow error rate exceeds production error rate by 2%."
+    when:
+      all:
+        - field: args.error_rate_mismatch
+          aliases: [shadowErrorDelta, errorDiff, failureDelta]
+          op: gt
+          value: 0.02
+
+  # ==========================================
+  # A/B Testing Controls
+  # ==========================================
+  - action: "abTestStarted"
+    message: "AI-AB-01: A/B test sample size is below the minimum 1000 requests."
+    when:
+      all:
+        - field: args.sample_size
+          aliases: [nSize, totalParticipants, requestCount]
+          op: lt
+          value: 1000
+
+  - action: "abTestStarted"
+    message: "AI-AB-02: Statistical power is below 0.8, risking false negatives."
+    when:
+      all:
+        - field: args.statistical_power
+          aliases: [powerScore, minimumPower, betaScore]
+          op: lt
+          value: 0.8
+
+  - action: "abTestConcluded"
+    message: "AI-AB-03: Winner declared but p-value exceeds 0.05 (not statistically significant)."
+    when:
+      all:
+        - field: args.p_value
+          aliases: [pValue, statisticalSignificance, alphaScore]
+          op: gt
+          value: 0.05
+        - field: context.winner_declared
+          op: is_true
+
+  - action: "abTestStarted"
+    message: "AI-AB-04: Experimental variant split exceeds 50%."
+    when:
+      all:
+        - field: args.experimental_variant_split
+          aliases: [variantRatio, treatmentTraffic, bSplit]
+          op: gt
+          value: 0.5
+
+  - action: "abTestStarted"
+    message: "AI-AB-05: Control group is missing from the A/B test configuration."
+    when:
+      all:
+        - field: context.control_group_included
+          op: is_false
+
+  - action: "abTestStarted"
+    message: "AI-AB-06: A/B test duration is under 7 days, risking seasonality bias."
+    when:
+      all:
+        - field: args.test_duration_days
+          aliases: [durationDays, testLength, runTimeDays]
+          op: lt
+          value: 7
+
+  - action: "abTestConcluded"
+    message: "AI-AB-07: Novelty effect analysis was not performed before concluding test."
+    when:
+      all:
+        - field: context.novelty_effect_checked
+          op: is_false
+
+  # ==========================================
+  # Model Retirement
+  # ==========================================
+  - action: "productionModelRetired"
+    message: "AI-RET-01: Model cannot be retired with active dependent downstream services."
+    when:
+      all:
+        - field: args.active_dependents_count
+          aliases: [downstreamServices, consumerCount, dependentApis]
+          op: gt
+          value: 0
+
+  - action: "productionModelRetired"
+    message: "AI-RET-02: Data retention policy not configured for the retired model's artifacts."
+    when:
+      all:
+        - field: context.data_retention_policy_set
+          op: is_false
+
+  - action: "productionModelRetired"
+    message: "AI-RET-03: Fallback strategy is missing for the retired routing endpoint."
+    when:
+      all:
+        - field: context.fallback_strategy_configured
+          op: is_false
+
+  - action: "legacyModelAccessed"
+    message: "AI-RET-04: Accessing a retired legacy model for a critical path operation is blocked."
+    when:
+      all:
+        - field: context.is_critical_path
+          op: is_true
+
+  - action: "productionModelRetired"
+    message: "AI-RET-05: Compliance team was not notified of regulatory model retirement."
+    when:
+      all:
+        - field: context.compliance_team_notified
+          op: is_false
+
+  - action: "productionModelRetired"
+    message: "AI-RET-06: API deprecation grace period is less than 30 days."
+    when:
+      all:
+        - field: args.api_grace_period_days
+          aliases: [graceDays, deprecationWindow, sunsetDays]
+          op: lt
+          value: 30
+
+  - action: "legacyModelAccessed"
+    message: "AI-RET-07: Legacy model hit > 1000 times/day during its sunset phase."
+    when:
+      all:
+        - field: args.access_frequency_per_day
+          aliases: [dailyRequests, usageRate, legacyHits]
+          op: gt
+          value: 1000
+        - field: context.sunset_phase
+          op: is_true
+
+  # ==========================================
+  # LLM-Specific Controls
+  # ==========================================
+  - action: "llmFineTuned"
+    message: "AI-LLM-01: Context window > 128k tokens requires special cost approval."
+    when:
+      all:
+        - field: args.context_window_size
+          aliases: [maxContext, tokenLimit, contextSize]
+          op: gt
+          value: 128000
+        - field: context.cost_approval_exists
+          op: is_false
+
+  - action: "llmInferenceRun"
+    message: "AI-LLM-02: Temperature exceeds safety bounds (1.5 max)."
+    when:
+      all:
+        - field: args.temperature
+          aliases: [samplingTemp, generationTemp, temp]
+          op: gt
+          value: 1.5
+
+  - action: "llmInferenceRun"
+    message: "AI-LLM-03: Synchronous max tokens exceed 4096. Use async API."
+    when:
+      all:
+        - field: args.max_tokens
+          aliases: [generationLimit, maxOutputTokens, tokenMax]
+          op: gt
+          value: 4096
+        - field: context.is_async
+          op: is_false
+
+  - action: "llmFineTuned"
+    message: "AI-LLM-04: LoRA rank exceeds 64 in a low-resource environment."
+    when:
+      all:
+        - field: args.lora_rank
+          aliases: [rank, rValue, loraDim]
+          op: gt
+          value: 64
+        - field: args.resource_limit
+          aliases: [envProfile, resourceTier, computeTier]
+          op: eq
+          value: "low"
+
+  - action: "llmInferenceRun"
+    message: "AI-LLM-05: System prompt exceeds 8192 tokens."
+    when:
+      all:
+        - field: args.system_prompt_tokens
+          aliases: [sysPromptLength, instructionTokens, basePromptTokens]
+          op: gt
+          value: 8192
+
+  - action: "llmInferenceRun"
+    message: "AI-LLM-06: Presence penalty is set too low (< -2.0), risking excessive repetition."
+    when:
+      all:
+        - field: args.presence_penalty
+          aliases: [repetitionPenalty, presenceScore]
+          op: lt
+          value: -2.0
+
+  - action: "llmFineTuned"
+    message: "AI-LLM-07: Fine-tuning epochs > 10 without overfitting checks."
+    when:
+      all:
+        - field: args.epochs
+          aliases: [numEpochs, trainingCycles, maxEpochs]
+          op: gt
+          value: 10
+        - field: context.overfitting_check_passed
+          op: is_false
+
+  # ==========================================
+  # Prompt Safety
+  # ==========================================
+  - action: "promptInjected"
+    message: "AI-PRMPT-01: Jailbreak or prompt injection attempt detected."
+    when:
+      all:
+        - field: context.jailbreak_attempt_detected
+          op: is_true
+
+  - action: "userPromptEvaluated"
+    message: "AI-PRMPT-02: Input prompt toxicity score exceeds 0.8."
+    when:
+      all:
+        - field: args.toxicity_score
+          aliases: [hateScore, offensiveScore, promptToxicity]
+          op: gt
+          value: 0.8
+
+  - action: "userPromptEvaluated"
+    message: "AI-PRMPT-03: User prompt exceeds 10,000 characters."
+    when:
+      all:
+        - field: args.prompt_length_chars
+          aliases: [charCount, textLength, stringLength]
+          op: gt
+          value: 10000
+
+  - action: "userPromptEvaluated"
+    message: "AI-PRMPT-04: PII detected in user prompt and redaction is disabled."
+    when:
+      all:
+        - field: context.pii_detected
+          op: is_true
+        - field: context.pii_redaction_enabled
+          op: is_false
+
+  - action: "userPromptEvaluated"
+    message: "AI-PRMPT-05: Malicious intent score exceeds 0.9 threshold."
+    when:
+      all:
+        - field: args.malicious_intent_score
+          aliases: [threatScore, intentRisk, attackProbability]
+          op: gt
+          value: 0.9
+
+  - action: "systemPromptModified"
+    message: "AI-PRMPT-06: System prompt changes must be reviewed by the Security team."
+    when:
+      all:
+        - field: context.reviewed_by_security
+          op: is_false
+
+  - action: "userPromptEvaluated"
+    message: "AI-PRMPT-07: Unsupported language detected without real-time translation enabled."
+    when:
+      all:
+        - field: args.prompt_language
+          aliases: [inputLang, languageCode, sourceLang]
+          op: in
+          value: ["unsupported_lang_1", "unknown"]
+        - field: context.translation_enabled
+          op: is_false
+
+  # ==========================================
+  # Output Validation
+  # ==========================================
+  - action: "llmOutputValidated"
+    message: "AI-OUT-01: Output hallucination score exceeds 0.7."
+    when:
+      all:
+        - field: args.hallucination_score
+          aliases: [factualityRisk, hallucinationIndex, groundingFailure]
+          op: gt
+          value: 0.7
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-02: Generated output toxicity score exceeds 0.5."
+    when:
+      all:
+        - field: args.output_toxicity_score
+          aliases: [toxicity, hateSpeechScore, offensiveOutput]
+          op: gt
+          value: 0.5
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-03: Expected JSON output format was violated."
+    when:
+      all:
+        - field: args.expected_format
+          aliases: [schemaType, formatGoal, targetFormat]
+          op: eq
+          value: "json"
+        - field: context.is_json
+          op: is_false
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-04: Output contains unauthorized financial advice."
+    when:
+      all:
+        - field: context.contains_financial_advice
+          op: is_true
+        - field: context.unauthorized_advice
+          op: is_true
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-05: Output memorization detected (> 95% similarity to training data)."
+    when:
+      all:
+        - field: args.training_data_similarity
+          aliases: [memorizationScore, plagiarismScore, verbatimMatch]
+          op: gt
+          value: 0.95
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-06: Output exceeds allowed length limits."
+    when:
+      all:
+        - field: context.length_exceeded
+          op: is_true
+
+  - action: "llmOutputValidated"
+    message: "AI-OUT-07: Output confidence < 0.4 without triggering fallback mechanism."
+    when:
+      all:
+        - field: args.confidence_score
+          aliases: [probability, certainty, logprobScore]
+          op: lt
+          value: 0.4
+        - field: context.fallback_used
+          op: is_false
+
+  # ==========================================
+  # Model Access Control
+  # ==========================================
+  - action: "proprietaryModelAccessed"
+    message: "AI-ACC-01: Multi-Factor Authentication (MFA) is required to access proprietary models."
+    when:
+      all:
+        - field: context.mfa_enabled
+          op: is_false
+
+  - action: "modelWeightsExported"
+    message: "AI-ACC-02: Exporting model weights outside of an active VPN session is prohibited."
+    when:
+      all:
+        - field: context.vpn_active
+          op: is_false
+
+  - action: "modelSharedExternally"
+    message: "AI-ACC-03: An active Non-Disclosure Agreement (NDA) is missing for external sharing."
+    when:
+      all:
+        - field: context.nda_signed
+          op: is_false
+
+  - action: "modelAPIKeyGenerated"
+    message: "AI-ACC-04: API Key TTL cannot exceed 90 days."
+    when:
+      all:
+        - field: args.time_to_live_days
+          aliases: [ttlDays, expiryDays, maxLifespan]
+          op: gt
+          value: 90
+
+  - action: "proprietaryModelAccessed"
+    message: "AI-ACC-05: Only ML Engineers, Data Scientists, or Admins may access model weights."
+    when:
+      all:
+        - field: args.user_role
+          aliases: [role, iamRole, userTitle]
+          op: not_in
+          value: ["ml_engineer", "data_scientist", "admin"]
+
+  - action: "modelWeightsExported"
+    message: "AI-ACC-06: Cannot export model to an unverified third-party recipient."
+    when:
+      all:
+        - field: args.recipient_verification_status
+          aliases: [verificationStatus, partnerStatus, thirdPartyState]
+          op: eq
+          value: "unverified"
+
+  - action: "proprietaryModelAccessed"
+    message: "AI-ACC-07: Access location must be within approved regions."
+    when:
+      all:
+        - field: args.access_location
+          aliases: [region, geoIP, locationId]
+          op: not_in
+          value: ["us_east", "us_west", "eu_central"]
+
+  # ==========================================
+  # Vendor Model Controls
+  # ==========================================
+  - action: "vendorModelAccessed"
+    message: "AI-VEND-01: Third-party vendor SOC2 compliance report is missing."
+    when:
+      all:
+        - field: context.soc2_report_exists
+          op: is_false
+
+  - action: "vendorModelAccessed"
+    message: "AI-VEND-02: Vendor data retention policy exceeds maximum 30-day limit."
+    when:
+      all:
+        - field: args.data_retention_days
+          aliases: [vendorRetentionDays, cacheTTL, storedDataDays]
+          op: gt
+          value: 30
+
+  - action: "vendorModelAPIConfigured"
+    message: "AI-VEND-03: Zero-data-retention must be enabled. Vendor cannot train on our data."
+    when:
+      all:
+        - field: context.training_on_customer_data_allowed
+          op: is_true
+
+  - action: "vendorModelAccessed"
+    message: "AI-VEND-04: Vendor SLA is below 99.9% requirement for production."
+    when:
+      all:
+        - field: args.vendor_sla
+          aliases: [sla, uptimeGuarantee, reliabilityScore]
+          op: lt
+          value: 0.999
+
+  - action: "vendorModelAccessed"
+    message: "AI-VEND-05: Rate limit tier exceeded without auto-scale budget approval."
+    when:
+      all:
+        - field: context.rate_limit_tier_exceeded
+          op: is_true
+        - field: context.auto_scale_approved
+          op: is_false
+
+  - action: "vendorModelAPIConfigured"
+    message: "AI-VEND-06: End-to-End (E2E) encryption is disabled for vendor API calls."
+    when:
+      all:
+        - field: context.e2e_encryption_enabled
+          op: is_false
+
+  - action: "vendorModelAccessed"
+    message: "AI-VEND-07: Vendor origin country is restricted."
+    when:
+      all:
+        - field: args.vendor_origin_country
+          aliases: [incorporationCountry, hqCountry, dataResidency]
+          op: in
+          value: ["embargoed_country"]
+
+  # ==========================================
+  # Regulatory AI Compliance (EU AI Act, NIST AI RMF)
+  # ==========================================
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-9: High-risk AI system is missing mandatory conformity assessment."
+    when:
+      all:
+        - field: args.risk_category
+          aliases: [aiRiskLevel, systemRisk, euRiskTier]
+          op: eq
+          value: "high"
+        - field: context.conformity_assessment_passed
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-5: Remote biometric categorization is prohibited without explicit consent."
+    when:
+      all:
+        - field: context.uses_biometric_categorization
+          op: is_true
+        - field: context.explicit_consent_provided
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-5: Use of subliminal techniques in AI is strictly prohibited."
+    when:
+      all:
+        - field: context.uses_subliminal_techniques
+          op: is_true
+
+  - action: "modelRegisteredForCompliance"
+    message: "NIST-AI-RMF-01: The NIST AI RMF 'Govern' function requirements are unfulfilled."
+    when:
+      all:
+        - field: context.nist_govern_function_met
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-14: Human oversight mechanism missing for high-risk system."
+    when:
+      all:
+        - field: args.risk_category
+          aliases: [aiRiskLevel, systemRisk, euRiskTier]
+          op: eq
+          value: "high"
+        - field: context.human_oversight_mechanism_active
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-17: Quality Management System (QMS) is not active."
+    when:
+      all:
+        - field: context.quality_management_system_active
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-11: Technical documentation is incomplete or missing."
+    when:
+      all:
+        - field: context.eu_art_11_doc_complete
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-61: Post-market monitoring plan is missing."
+    when:
+      all:
+        - field: context.post_market_monitoring_plan_exists
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-15: Cybersecurity resilience does not meet EU standards."
+    when:
+      all:
+        - field: context.cybersecurity_resilience_certified
+          op: is_false
+
+  - action: "modelRegisteredForCompliance"
+    message: "EU-AI-ACT-ART-27: Fundamental rights impact assessment is required but not performed."
+    when:
+      all:
+        - field: context.fundamental_rights_impact_assessed
+          op: is_false

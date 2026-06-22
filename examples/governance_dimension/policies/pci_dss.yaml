@@ -1,0 +1,1166 @@
+# PCI-DSS Governance Policies
+policies:
+  # ==========================================
+  # Cardholder Data Handling
+  # ==========================================
+  - action: "cardDataTransmitted"
+    message: "PCI-REQ-4-1: Cardholder data must be encrypted during transmission."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, transmissionEncrypted]
+          op: is_false
+        - field: context.data_type
+          op: in
+          value: ["PAN", "SAD", "CardholderData"]
+
+  - action: "cardholderDataExported"
+    message: "PCI-REQ-3-1: Cardholder data must not be exported to unauthorized environments."
+    when:
+      any:
+        - field: args.destination
+          aliases: [exportTarget, targetEnvironment]
+          op: in
+          value: ["public_cloud", "untrusted_network", "vendor_api"]
+
+  - action: "cardDataShared"
+    message: "PCI-REQ-3-3: PAN must be masked when shared or displayed."
+    when:
+      all:
+        - field: args.masked
+          aliases: [isMasked, panMasked]
+          op: is_false
+        - field: context.recipient_role
+          op: not_in
+          value: ["payment_processor", "qsa"]
+
+  - action: "cardDataPrinted"
+    message: "PCI-REQ-3-3: Full PAN must not be printed unless explicitly authorized."
+    when:
+      all:
+        - field: args.full_pan_visible
+          aliases: [fullPan, unmaskedPrint]
+          op: is_true
+
+  - action: "panDataAccessed"
+    message: "PCI-REQ-7-1: Access to PAN requires a legitimate business need."
+    when:
+      all:
+        - field: args.business_need_justification
+          aliases: [justification, reasonForAccess]
+          op: eq
+          value: ""
+        - field: context.user_role
+          op: neq
+          value: "system_admin"
+
+  - action: "cardholderDataProcessed"
+    message: "PCI-REQ-6-4: Production cardholder data must not be used in development or test environments."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, processingEnv, deployEnv]
+          op: in
+          value: ["development", "testing", "staging", "uat"]
+
+  - action: "cardDataSent"
+    message: "PCI-REQ-4-2: PAN must not be sent via end-user messaging technologies (e.g., email, IM)."
+    when:
+      all:
+        - field: args.protocol
+          aliases: [medium, communicationChannel]
+          op: in
+          value: ["email", "instant_messaging", "sms", "whatsapp"]
+
+  - action: "panCopied"
+    message: "PCI-REQ-3-1: Copying PAN to the clipboard is restricted."
+    when:
+      all:
+        - field: args.destination_type
+          aliases: [copyTarget, clipboardType]
+          op: eq
+          value: "clipboard"
+
+  - action: "panTransmitted"
+    message: "PCI-REQ-4-1: PAN must be protected during voice transmission or call recording."
+    when:
+      all:
+        - field: args.transmission_medium
+          aliases: [medium, channel]
+          op: eq
+          value: "voice_recording"
+        - field: args.muted_during_pan
+          aliases: [isMuted, audioMasked]
+          op: is_false
+
+  # ==========================================
+  # Card Storage Restrictions
+  # ==========================================
+  - action: "cardDataStored"
+    message: "PCI-REQ-3-2: Sensitive authentication data must not be stored after authorization."
+    when:
+      all:
+        - field: args.post_authorization
+          aliases: [isPostAuth, afterAuth]
+          op: is_true
+        - field: context.data_type
+          op: in
+          value: ["SAD", "CVV", "TrackData", "PINBlock"]
+
+  - action: "trackDataStored"
+    message: "PCI-REQ-3-2-1: The full contents of any track from the magnetic stripe or chip must not be stored."
+    when:
+      all:
+        - field: args.data_type
+          aliases: [dataType, storedType]
+          op: eq
+          value: "track_data"
+
+  - action: "cvvStored"
+    message: "PCI-REQ-3-2-2: The card verification code or value must not be stored."
+    when:
+      all:
+        - field: args.data_type
+          aliases: [dataType, validationCode]
+          op: in
+          value: ["cvv", "cvc", "cvv2", "cid"]
+
+  - action: "pinBlockStored"
+    message: "PCI-REQ-3-2-3: The personal identification number (PIN) or the encrypted PIN block must not be stored."
+    when:
+      all:
+        - field: args.data_type
+          aliases: [dataType, pinData]
+          op: in
+          value: ["pin", "pin_block"]
+
+  - action: "panStored"
+    message: "PCI-REQ-3-4: PAN must be rendered unreadable anywhere it is stored."
+    when:
+      all:
+        - field: args.is_encrypted
+          aliases: [encrypted, hashed, tokenized]
+          op: is_false
+
+  - action: "panStorageRetained"
+    message: "PCI-REQ-3-1: Cardholder data storage must be kept to a minimum and purged after retention period."
+    when:
+      all:
+        - field: args.retention_days
+          aliases: [daysStored, ageInDays]
+          op: gt
+          value: 365
+
+  - action: "cardVaultAccessed"
+    message: "PCI-REQ-7-1: Access to the card vault is restricted to authorized roles."
+    when:
+      all:
+        - field: context.user_role
+          aliases: [role, userGroup]
+          op: not_in
+          value: ["vault_admin", "pci_officer"]
+
+  - action: "cardDatabaseBackedUp"
+    message: "PCI-REQ-3-4: Backups of cardholder data must be encrypted."
+    when:
+      all:
+        - field: args.backup_encrypted
+          aliases: [isEncrypted, encryptionStatus]
+          op: is_false
+
+  - action: "cardDatabaseIndexed"
+    message: "PCI-REQ-3-4: PAN must not be used as a primary key or unencrypted index in databases."
+    when:
+      all:
+        - field: args.index_contains_pan
+          aliases: [indexedByPan, searchablePan]
+          op: is_true
+
+  # ==========================================
+  # Encryption Requirements
+  # ==========================================
+  - action: "encryptionDisabled"
+    message: "PCI-REQ-4-1: Strong cryptography and security protocols are required to safeguard sensitive cardholder data during transmission."
+    when:
+      all:
+        - field: args.encryption_enabled
+          aliases: [isEnabled, cryptoActive]
+          op: is_false
+
+  - action: "encryptionKeyRotated"
+    message: "PCI-REQ-3-6-4: Cryptographic keys must be changed at least annually."
+    when:
+      all:
+        - field: args.days_since_last_rotation
+          aliases: [keyAge, daysActive]
+          op: gt
+          value: 365
+
+  - action: "encryptionAlgorithmUsed"
+    message: "PCI-REQ-3-6: Use only strong cryptography."
+    when:
+      all:
+        - field: args.algorithm
+          aliases: [cipher, cryptoAlgo]
+          op: in
+          value: ["DES", "3DES", "MD5", "RC4", "SHA1"]
+
+  - action: "tlsVersionUsed"
+    message: "PCI-REQ-4-1: TLS versions older than 1.2 are prohibited for transmitting cardholder data."
+    when:
+      all:
+        - field: args.tls_version
+          aliases: [protocolVersion, sslVersion]
+          op: in
+          value: ["SSLv3", "TLSv1.0", "TLSv1.1"]
+
+  - action: "encryptionKeyStored"
+    message: "PCI-REQ-3-5: Secret and private keys used to encrypt/decrypt cardholder data must be stored separately from the data."
+    when:
+      all:
+        - field: args.stored_with_data
+          aliases: [colocated, sameDatabase]
+          op: is_true
+
+  - action: "encryptionKeyExported"
+    message: "PCI-REQ-3-5-2: Keys must be exported only in encrypted form."
+    when:
+      all:
+        - field: args.format
+          aliases: [exportFormat, keyFormat]
+          op: eq
+          value: "plaintext"
+
+  - action: "certificateExpired"
+    message: "PCI-REQ-4-1: Expired digital certificates must not be used."
+    when:
+      all:
+        - field: args.days_to_expiry
+          aliases: [validityRemaining, expiresIn]
+          op: lt
+          value: 0
+
+  - action: "dataAtRestEncrypted"
+    message: "PCI-REQ-3-4: Weak ciphers used for data at rest encryption."
+    when:
+      all:
+        - field: args.key_length
+          aliases: [keySize, bitLength]
+          op: lt
+          value: 128
+
+  - action: "hashSaltOmitted"
+    message: "PCI-REQ-3-4: One-way hashes used for rendering PAN unreadable must be strongly keyed or salted."
+    when:
+      all:
+        - field: args.is_salted
+          aliases: [hasSalt, saltedHash]
+          op: is_false
+        - field: args.encryption_type
+          aliases: [cryptoType, method]
+          op: eq
+          value: "hash"
+
+  # ==========================================
+  # Network Security
+  # ==========================================
+  - action: "firewallRuleAdded"
+    message: "PCI-REQ-1-2-1: Inbound and outbound traffic must be restricted to that which is necessary."
+    when:
+      any:
+        - field: args.source_ip
+          aliases: [srcIp, from]
+          op: eq
+          value: "0.0.0.0/0"
+        - field: args.destination_ip
+          aliases: [dstIp, to]
+          op: eq
+          value: "0.0.0.0/0"
+
+  - action: "portOpened"
+    message: "PCI-REQ-1-1-6: Insecure and unnecessary ports must not be opened."
+    when:
+      all:
+        - field: args.port_number
+          aliases: [port, destPort]
+          op: in
+          value: [21, 23, 69, 80]
+
+  - action: "firewallDisabled"
+    message: "PCI-REQ-1-4: Personal firewall functionality must be enabled on all portable computing devices connecting to the CDE."
+    when:
+      all:
+        - field: args.firewall_status
+          aliases: [status, fwState]
+          op: eq
+          value: "disabled"
+
+  - action: "routerConfigModified"
+    message: "PCI-REQ-1-1-1: Formal process required for approving and testing all network connections and changes."
+    when:
+      all:
+        - field: args.approved
+          aliases: [isApproved, changeTicketApproved]
+          op: is_false
+
+  - action: "dmzBypassed"
+    message: "PCI-REQ-1-3-1: Implement a DMZ to limit inbound traffic to only system components that provide authorized publicly accessible services."
+    when:
+      all:
+        - field: args.direct_to_internal
+          aliases: [bypassedDmz, directInternal]
+          op: is_true
+
+  - action: "vpnDisconnected"
+    message: "PCI-REQ-2-3: Non-console administrative access must be strongly encrypted (e.g., VPN)."
+    when:
+      all:
+        - field: args.access_type
+          aliases: [type, connectionType]
+          op: eq
+          value: "admin"
+        - field: context.vpn_active
+          op: is_false
+
+  - action: "networkSegmentBridged"
+    message: "PCI-REQ-1-3: Prohibit direct routing between external networks and the CDE."
+    when:
+      all:
+        - field: args.source_network
+          aliases: [srcNet, fromZone]
+          op: eq
+          value: "untrusted"
+        - field: args.dest_network
+          aliases: [dstNet, toZone]
+          op: eq
+          value: "cde"
+
+  - action: "defaultPasswordUsed"
+    message: "PCI-REQ-2-1: Always change vendor-supplied defaults and remove or disable unnecessary default accounts before installing a system on the network."
+    when:
+      all:
+        - field: args.is_default
+          aliases: [vendorDefault, unchanged]
+          op: is_true
+
+  - action: "wirelessNetworkConfigured"
+    message: "PCI-REQ-2-1-1: For wireless environments connected to the CDE, default wireless keys must be changed."
+    when:
+      all:
+        - field: args.default_keys_used
+          aliases: [vendorKeys, unmodifiedKeys]
+          op: is_true
+
+  # ==========================================
+  # Access Control
+  # ==========================================
+  - action: "userAccountCreated"
+    message: "PCI-REQ-8-3: Secure all individual non-console administrative access and all remote access to the CDE using multi-factor authentication."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, targetEnv]
+          op: eq
+          value: "cde"
+        - field: args.mfa_enabled
+          aliases: [mfaActive, 2fa]
+          op: is_false
+
+  - action: "mfaDisabled"
+    message: "PCI-REQ-8-3-2: MFA is required for all access into the CDE."
+    when:
+      all:
+        - field: args.environment
+          aliases: [env, targetEnv]
+          op: eq
+          value: "cde"
+
+  - action: "sharedAccountUsed"
+    message: "PCI-REQ-8-5: Do not use group, shared, or generic IDs, passwords, or other authentication methods."
+    when:
+      all:
+        - field: args.account_type
+          aliases: [type, loginType]
+          op: eq
+          value: "shared"
+
+  - action: "passwordReset"
+    message: "PCI-REQ-8-2-3: Passwords must meet minimum complexity requirements."
+    when:
+      all:
+        - field: args.password_length
+          aliases: [length, charCount]
+          op: lt
+          value: 7
+
+  - action: "accessGranted"
+    message: "PCI-REQ-7-1-2: Restrict access to privileged user IDs to least privileges necessary."
+    when:
+      all:
+        - field: args.approved_by_manager
+          aliases: [managerApproved, authorized]
+          op: is_false
+
+  - action: "sessionTimeoutConfigured"
+    message: "PCI-REQ-8-1-8: Idle session timeout must be configured to 15 minutes or less."
+    when:
+      all:
+        - field: args.timeout_minutes
+          aliases: [idleTimeout, maxIdleTime]
+          op: gt
+          value: 15
+
+  - action: "accountLockedOut"
+    message: "PCI-REQ-8-1-6: Account lockout must occur after not more than 6 invalid attempts."
+    when:
+      all:
+        - field: args.lockout_threshold
+          aliases: [maxAttempts, invalidLogins]
+          op: gt
+          value: 6
+
+  - action: "thirdPartyAccessEnabled"
+    message: "PCI-REQ-8-1-5: Manage IDs used by third parties to access, support, or maintain system components via remote access only when needed."
+    when:
+      all:
+        - field: args.always_on
+          aliases: [continuous, permanentAccess]
+          op: is_true
+
+  - action: "terminatedUserAccessed"
+    message: "PCI-REQ-8-1-4: Revoke access for terminated users immediately."
+    when:
+      all:
+        - field: args.user_status
+          aliases: [status, accountState]
+          op: eq
+          value: "terminated"
+
+  # ==========================================
+  # Vulnerability Management
+  # ==========================================
+  - action: "patchApplied"
+    message: "PCI-REQ-6-2: Critical security patches must be installed within one month of release."
+    when:
+      all:
+        - field: args.days_since_release
+          aliases: [patchAge, timeToPatch]
+          op: gt
+          value: 30
+        - field: args.severity
+          aliases: [patchSeverity, cvssLevel]
+          op: in
+          value: ["high", "critical"]
+
+  - action: "vulnerabilityScanRun"
+    message: "PCI-REQ-11-2: Run internal and external network vulnerability scans at least quarterly."
+    when:
+      all:
+        - field: args.days_since_last_scan
+          aliases: [timeSinceScan, scanAge]
+          op: gt
+          value: 90
+
+  - action: "antiVirusDisabled"
+    message: "PCI-REQ-5-1: Deploy anti-virus software on all systems commonly affected by malicious software."
+    when:
+      all:
+        - field: context.environment
+          aliases: [env, targetEnv]
+          op: eq
+          value: "cde"
+
+  - action: "softwareInstalled"
+    message: "PCI-REQ-6-4-1: Separation of duties between development and production environments."
+    when:
+      all:
+        - field: args.installed_by_developer
+          aliases: [devInstalled, selfDeployed]
+          op: is_true
+        - field: context.environment
+          op: eq
+          value: "production"
+
+  - action: "legacySystemUsed"
+    message: "PCI-REQ-6-2: Ensure that all system components and software are protected from known vulnerabilities."
+    when:
+      all:
+        - field: args.vendor_supported
+          aliases: [isSupported, eolStatus]
+          op: is_false
+
+  - action: "webAppScanRun"
+    message: "PCI-REQ-6-6: Public-facing web applications must be reviewed for vulnerabilities at least annually."
+    when:
+      all:
+        - field: args.days_since_last_scan
+          aliases: [timeSinceScan, appScanAge]
+          op: gt
+          value: 365
+
+  - action: "signatureUpdated"
+    message: "PCI-REQ-5-2: Anti-virus mechanisms must be maintained and kept current."
+    when:
+      all:
+        - field: args.days_since_update
+          aliases: [sigAge, timeSinceUpdate]
+          op: gt
+          value: 7
+
+  - action: "maliciousCodeDetected"
+    message: "PCI-REQ-5-3: Anti-virus mechanisms must actively block and log malicious code."
+    when:
+      all:
+        - field: args.action_taken
+          aliases: [response, avAction]
+          op: eq
+          value: "ignored"
+
+  # ==========================================
+  # Monitoring & Logging
+  # ==========================================
+  - action: "auditLogDisabled"
+    message: "PCI-REQ-10-1: Implement audit trails to link all access to system components to each individual user."
+    when:
+      all:
+        - field: args.log_status
+          aliases: [status, state]
+          op: eq
+          value: "disabled"
+
+  - action: "logAltered"
+    message: "PCI-REQ-10-5: Secure audit trails so they cannot be altered."
+    when:
+      all:
+        - field: context.user_role
+          aliases: [role, userGroup]
+          op: neq
+          value: "system"
+
+  - action: "logDeleted"
+    message: "PCI-REQ-10-7: Retain audit trail history for at least one year."
+    when:
+      all:
+        - field: args.log_age_days
+          aliases: [age, daysOld]
+          op: lt
+          value: 365
+
+  - action: "cardholderEventLogged"
+    message: "PCI-REQ-10-2: Automated audit trails must record specific events, including user ID."
+    when:
+      all:
+        - field: args.contains_user_id
+          aliases: [hasUser, userIdLogged]
+          op: is_false
+
+  - action: "timeSyncDisabled"
+    message: "PCI-REQ-10-4: Using time-synchronization technology, synchronize all critical system clocks and times."
+    when:
+      all:
+        - field: args.ntp_active
+          aliases: [timeSync, ntpEnabled]
+          op: is_false
+
+  - action: "logExportFailed"
+    message: "PCI-REQ-10-5-3: Promptly back up audit trail files to a centralized log server."
+    when:
+      all:
+        - field: args.centralized
+          aliases: [exported, sentToSiem]
+          op: is_false
+
+  - action: "fileIntegrityMonitoringDisabled"
+    message: "PCI-REQ-11-5: Deploy file-integrity monitoring software to alert personnel to unauthorized modification of critical system files."
+    when:
+      all:
+        - field: args.fim_active
+          aliases: [fimEnabled, monitoringStatus]
+          op: is_false
+
+  - action: "logStorageAccessed"
+    message: "PCI-REQ-10-5-1: Limit viewing of audit trails to those with a job-related need."
+    when:
+      all:
+        - field: context.user_role
+          aliases: [role, accessorRole]
+          op: not_in
+          value: ["security_admin", "auditor"]
+
+  # ==========================================
+  # Penetration Testing
+  # ==========================================
+  - action: "penTestRun"
+    message: "PCI-REQ-11-3: Penetration testing must be performed by a qualified internal resource or external third party."
+    when:
+      all:
+        - field: args.tester_independent
+          aliases: [independent, thirdParty]
+          op: is_false
+
+  - action: "penTestScheduled"
+    message: "PCI-REQ-11-3-1: Perform external penetration testing at least annually."
+    when:
+      all:
+        - field: args.months_since_last
+          aliases: [timeSinceLast, intervalMonths]
+          op: gt
+          value: 12
+
+  - action: "segmentationTestRun"
+    message: "PCI-REQ-11-3-4: Service providers must perform segmentation controls testing at least every six months."
+    when:
+      all:
+        - field: args.months_since_last
+          aliases: [timeSinceLast, intervalMonths]
+          op: gt
+          value: 6
+
+  - action: "penTestFindingIgnored"
+    message: "PCI-REQ-11-3-3: Exploitable vulnerabilities found during penetration testing must be corrected."
+    when:
+      all:
+        - field: args.severity
+          aliases: [findingSeverity, riskLevel]
+          op: in
+          value: ["high", "critical"]
+        - field: args.status
+          aliases: [remediationStatus, state]
+          op: eq
+          value: "ignored"
+
+  - action: "penTestScopeModified"
+    message: "PCI-REQ-11-3: Penetration testing must cover the entire CDE perimeter and critical systems."
+    when:
+      all:
+        - field: args.includes_cde
+          aliases: [cdeInScope, coversCardData]
+          op: is_false
+
+  - action: "socialEngineeringTestRun"
+    message: "PCI-REQ-12-6: Security awareness program should include periodic testing (e.g., social engineering)."
+    when:
+      all:
+        - field: args.months_since_last
+          aliases: [timeSinceLast, intervalMonths]
+          op: gt
+          value: 12
+
+  - action: "redTeamExerciseConducted"
+    message: "PCI-REQ-11-3: Testing exercises must have management authorization to prevent outages."
+    when:
+      all:
+        - field: args.authorized
+          aliases: [approved, managementConsent]
+          op: is_false
+
+  - action: "penTestReportAltered"
+    message: "PCI-REQ-11-3: Penetration test reports must remain intact and unaltered for audit."
+    when:
+      all:
+        - field: args.altered_by
+          aliases: [editor, modifiedBy]
+          op: neq
+          value: "author"
+
+  # ==========================================
+  # Service Provider Management
+  # ==========================================
+  - action: "serviceProviderEngaged"
+    message: "PCI-REQ-12-8-4: Maintain a program to monitor service providers' PCI DSS compliance status at least annually."
+    when:
+      all:
+        - field: args.has_aoc
+          aliases: [pciCompliant, providesAoc]
+          op: is_false
+
+  - action: "contractSigned"
+    message: "PCI-REQ-12-8-2: Maintain a written agreement that includes an acknowledgement that the service providers are responsible for the security of cardholder data."
+    when:
+      all:
+        - field: args.includes_pci_clause
+          aliases: [pciResponsibility, securityClause]
+          op: is_false
+
+  - action: "providerStatusChecked"
+    message: "PCI-REQ-12-8-4: Monitor service providers' PCI DSS compliance status at least annually."
+    when:
+      all:
+        - field: args.months_since_check
+          aliases: [timeSinceCheck, checkInterval]
+          op: gt
+          value: 12
+
+  - action: "dataSharedWithProvider"
+    message: "PCI-REQ-4-1: Cardholder data must be encrypted during transmission over open, public networks."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, secured]
+          op: is_false
+
+  - action: "providerAccessGranted"
+    message: "PCI-REQ-8-1-5: Manage third-party access and monitor appropriately."
+    when:
+      all:
+        - field: args.monitored
+          aliases: [isMonitored, audited]
+          op: is_false
+
+  - action: "providerAccountActive"
+    message: "PCI-REQ-8-1-5: Enable third-party accounts only during the time period needed and disable when not in use."
+    when:
+      all:
+        - field: args.in_use
+          aliases: [activeWork, currentlyNeeded]
+          op: is_false
+
+  - action: "providerIncidentReported"
+    message: "PCI-REQ-12-10-1: Incident response plan must include procedures for alerts from security monitoring systems and service providers."
+    when:
+      all:
+        - field: args.action_taken
+          aliases: [response, handling]
+          op: eq
+          value: "ignored"
+
+  - action: "providerRiskAssessmentCompleted"
+    message: "PCI-REQ-12-2: Implement a risk-assessment process that is performed at least annually."
+    when:
+      all:
+        - field: args.months_since_last
+          aliases: [timeSinceLast, intervalMonths]
+          op: gt
+          value: 12
+
+  # ==========================================
+  # Payment Processing
+  # ==========================================
+  - action: "paymentProcessed"
+    message: "PCI-REQ-2-2: Only approved payment gateways and processors may be used in the CDE."
+    when:
+      all:
+        - field: args.gateway_approved
+          aliases: [isApproved, validGateway]
+          op: is_false
+
+  - action: "paymentGatewayModified"
+    message: "PCI-REQ-6-4: Follow change control processes and procedures for all changes to system components."
+    when:
+      all:
+        - field: args.change_ticket
+          aliases: [ticketId, changeApproval]
+          op: eq
+          value: ""
+
+  - action: "offlinePaymentProcessed"
+    message: "PCI-REQ-9-1: Use appropriate facility entry controls to limit and monitor physical access to systems in the CDE."
+    when:
+      all:
+        - field: args.physical_security_verified
+          aliases: [securityChecked, safeLocation]
+          op: is_false
+
+  - action: "transactionVoided"
+    message: "PCI-REQ-8-1-2: Control addition, deletion, and modification of user IDs, credentials, and other identifier objects."
+    when:
+      all:
+        - field: args.dual_control
+          aliases: [secondApprover, makerChecker]
+          op: is_false
+
+  - action: "refundProcessed"
+    message: "PCI-REQ-7-1: Limit access to system components and cardholder data to only those individuals whose job requires such access."
+    when:
+      all:
+        - field: args.amount
+          aliases: [refundAmount, value]
+          op: gt
+          value: 5000
+        - field: args.manager_approved
+          aliases: [approved, authorized]
+          op: is_false
+
+  - action: "paymentRetryAttempted"
+    message: "PCI-REQ-10-2-4: Invalid logical access attempts must be logged and monitored for brute force."
+    when:
+      all:
+        - field: args.retry_count
+          aliases: [attempts, retries]
+          op: gt
+          value: 5
+
+  - action: "batchProcessingStarted"
+    message: "PCI-REQ-4-1: Batch files containing PAN must be encrypted."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, secured]
+          op: is_false
+
+  - action: "terminalConfigurationChanged"
+    message: "PCI-REQ-4-1: Administrative access must be strongly encrypted."
+    when:
+      all:
+        - field: args.remote_access
+          aliases: [isRemote, overNetwork]
+          op: is_true
+        - field: args.encrypted
+          aliases: [isEncrypted, secureChannel]
+          op: is_false
+
+  # ==========================================
+  # Tokenization
+  # ==========================================
+  - action: "tokenGenerated"
+    message: "PCI-REQ-3-4: Tokenization solutions must use strong cryptography and robust random number generators."
+    when:
+      all:
+        - field: args.generator_strength
+          aliases: [prng, randomness]
+          op: eq
+          value: "weak"
+
+  - action: "detokenizationRequested"
+    message: "PCI-REQ-7-1: Restrict access to cardholder data by business need to know."
+    when:
+      all:
+        - field: context.user_role
+          aliases: [role, group]
+          op: not_in
+          value: ["payment_service", "authorized_detokenizer"]
+
+  - action: "tokenVaultModified"
+    message: "PCI-REQ-6-4: Changes to token vaults require strict change control and approval."
+    when:
+      all:
+        - field: args.approved
+          aliases: [isApproved, changeAuthorized]
+          op: is_false
+
+  - action: "tokenAlgorithmChanged"
+    message: "PCI-REQ-3-4: Ensure tokenization algorithm preserves format only when strictly necessary and approved."
+    when:
+      all:
+        - field: args.is_format_preserving
+          aliases: [fpe, preservesFormat]
+          op: is_false
+        - field: args.business_requirement
+          aliases: [requirement, justification]
+          op: eq
+          value: "required"
+
+  - action: "panToTokenMappingStored"
+    message: "PCI-REQ-3-4: The mapping of PAN to token must be securely stored and encrypted."
+    when:
+      all:
+        - field: args.encrypted
+          aliases: [isEncrypted, secureStorage]
+          op: is_false
+
+  - action: "tokenShared"
+    message: "PCI-REQ-4-1: Tokens mapped back to PANs should be handled securely when shared externally."
+    when:
+      all:
+        - field: args.external_party
+          aliases: [sharedWith, recipient]
+          op: neq
+          value: "internal"
+        - field: args.secure_channel
+          aliases: [encryptedChannel, tls]
+          op: is_false
+
+  - action: "tokenReused"
+    message: "PCI-REQ-3-4: Tokens should ideally be unique per PAN to prevent mapping analysis."
+    when:
+      all:
+        - field: args.mapped_pans_count
+          aliases: [pansPerToken, collisions]
+          op: gt
+          value: 1
+
+  - action: "bulkDetokenizationRun"
+    message: "PCI-REQ-7-1: Bulk detokenization is a high-risk operation requiring dual approval."
+    when:
+      all:
+        - field: args.dual_approval
+          aliases: [makerChecker, secondApprover]
+          op: is_false
+
+  # ==========================================
+  # Point-of-Sale Controls
+  # ==========================================
+  - action: "posTerminalInstalled"
+    message: "PCI-REQ-9-9-1: Maintain an up-to-date list of devices and inspect them."
+    when:
+      all:
+        - field: args.inspected
+          aliases: [checked, validated]
+          op: is_false
+
+  - action: "posSoftwareUpdated"
+    message: "PCI-REQ-6-4: All POS software updates must be tested before deployment."
+    when:
+      all:
+        - field: args.tested
+          aliases: [isTested, qaPassed]
+          op: is_false
+
+  - action: "posPhysicalAccessAttempted"
+    message: "PCI-REQ-9-9-2: Periodically inspect device surfaces to detect tampering or substitution."
+    when:
+      all:
+        - field: args.user_authorized
+          aliases: [isAuthorized, badgeValid]
+          op: is_false
+
+  - action: "posCameraInstalled"
+    message: "PCI-REQ-9-1-1: Video cameras or other access control mechanisms must not monitor or record PIN pads."
+    when:
+      all:
+        - field: args.records_pin_pad
+          aliases: [viewsPin, capturesSAD]
+          op: is_true
+
+  - action: "posTerminalTampered"
+    message: "PCI-REQ-9-9: Devices that capture payment card data via direct physical interaction must be protected from tampering."
+    when:
+      all:
+        - field: args.seal_intact
+          aliases: [tamperEvident, unbroken]
+          op: is_false
+
+  - action: "posOfflineModeEnabled"
+    message: "PCI-REQ-3-2: Limit storage of cardholder data during offline POS operations."
+    when:
+      all:
+        - field: args.hours_offline
+          aliases: [offlineDuration, timeDisconnected]
+          op: gt
+          value: 24
+
+  - action: "posAdminPasswordChanged"
+    message: "PCI-REQ-2-1: Vendor-supplied defaults must be changed on all POS devices."
+    when:
+      all:
+        - field: args.is_default
+          aliases: [vendorDefault, standardPwd]
+          op: is_true
+
+  - action: "posNetworkConnected"
+    message: "PCI-REQ-1-2-3: POS devices must not be connected to open or untrusted networks."
+    when:
+      all:
+        - field: args.network_type
+          aliases: [netType, connection]
+          op: in
+          value: ["public_wifi", "untrusted"]
+
+  # ==========================================
+  # E-commerce Security
+  # ==========================================
+  - action: "webPageModified"
+    message: "PCI-REQ-11-5-1: Implement a mechanism to detect and alert on unauthorized modifications to payment pages."
+    when:
+      all:
+        - field: args.integrity_check_passed
+          aliases: [hashMatch, fimPassed]
+          op: is_false
+
+  - action: "iframeInjected"
+    message: "PCI-REQ-6-4-3: Manage all payment page scripts that are loaded and executed in the consumer's browser."
+    when:
+      all:
+        - field: args.domain_approved
+          aliases: [whitelisted, safeDomain]
+          op: is_false
+
+  - action: "scriptLoaded"
+    message: "PCI-REQ-6-4-3: Only authorized scripts may be loaded on payment pages to prevent digital skimming."
+    when:
+      all:
+        - field: args.source_cdn
+          aliases: [scriptSource, cdnDomain]
+          op: not_in
+          value: ["internal", "approved_vendor"]
+
+  - action: "cspHeaderModified"
+    message: "PCI-REQ-6-4-3: Content Security Policy must restrict unsafe-inline scripts."
+    when:
+      all:
+        - field: args.allows_unsafe_inline
+          aliases: [unsafeInline, weakCsp]
+          op: is_true
+
+  - action: "formActionChanged"
+    message: "PCI-REQ-6-4-3: Payment forms must only POST data to authorized processing endpoints."
+    when:
+      all:
+        - field: args.target_url_approved
+          aliases: [isApprovedUrl, safeEndpoint]
+          op: is_false
+
+  - action: "inputValidationDisabled"
+    message: "PCI-REQ-6-5-1: Protect against injection flaws, including SQL injection."
+    when:
+      all:
+        - field: args.validation_enabled
+          aliases: [sanitization, inputChecked]
+          op: is_false
+
+  - action: "httpOnlyCookieDisabled"
+    message: "PCI-REQ-6-5-10: Protect against Cross-Site Request Forgery and session hijacking."
+    when:
+      all:
+        - field: args.http_only
+          aliases: [isHttpOnly, secureCookie]
+          op: is_false
+
+  - action: "paymentPageServed"
+    message: "PCI-REQ-4-1: Payment pages must be served over secure HTTPS."
+    when:
+      all:
+        - field: args.protocol
+          aliases: [scheme, urlProtocol]
+          op: eq
+          value: "http"
+
+  # ==========================================
+  # Incident Response
+  # ==========================================
+  - action: "incidentDeclared"
+    message: "PCI-REQ-12-10-1: The incident response plan must include notification of payment brands and acquirers."
+    when:
+      all:
+        - field: args.acquirer_notified
+          aliases: [bankNotified, brandInformed]
+          op: is_false
+
+  - action: "irPlanTested"
+    message: "PCI-REQ-12-10-2: Test the incident response plan at least annually."
+    when:
+      all:
+        - field: args.months_since_test
+          aliases: [timeSinceLastTest, testInterval]
+          op: gt
+          value: 12
+
+  - action: "evidenceCollected"
+    message: "PCI-REQ-12-10: Incident response procedures must ensure evidence is preserved with a valid chain of custody."
+    when:
+      all:
+        - field: args.chain_of_custody_logged
+          aliases: [cocMaintained, evidenceLogged]
+          op: is_false
+
+  - action: "systemIsolated"
+    message: "PCI-REQ-12-10: Proper authorization is required before isolating critical systems during an incident."
+    when:
+      all:
+        - field: args.approved_by_ir_lead
+          aliases: [leadApproved, authorized]
+          op: is_false
+
+  - action: "alertAcknowledged"
+    message: "PCI-REQ-10-6: Review logs and security events for all system components to identify anomalies."
+    when:
+      all:
+        - field: args.investigation_started
+          aliases: [actionTaken, ticketCreated]
+          op: is_false
+
+  - action: "breachNotificationSent"
+    message: "PCI-REQ-12-10-1: Be prepared to respond immediately to a system breach."
+    when:
+      all:
+        - field: args.hours_since_discovery
+          aliases: [delay, notificationTime]
+          op: gt
+          value: 72
+
+  - action: "irTeamModified"
+    message: "PCI-REQ-12-10-4: Provide appropriate training to staff with security breach response responsibilities."
+    when:
+      all:
+        - field: args.training_completed
+          aliases: [isTrained, certified]
+          op: is_false
+
+  - action: "rootCauseAnalysisSkipped"
+    message: "PCI-REQ-12-10-6: Develop a process to modify and evolve the IR plan according to lessons learned."
+    when:
+      all:
+        - field: args.rca_completed
+          aliases: [lessonsLearned, analysisDone]
+          op: is_false
+
+  # ==========================================
+  # Audit Requirements
+  # ==========================================
+  - action: "rocCompleted"
+    message: "PCI-REQ-12-8: Report on Compliance must be completed by a qualified entity."
+    when:
+      all:
+        - field: args.assessor_is_qsa
+          aliases: [isQsa, qualifiedAssessor]
+          op: is_false
+
+  - action: "aocSigned"
+    message: "PCI-REQ-12: The Attestation of Compliance must be signed by an authorized executive officer."
+    when:
+      all:
+        - field: args.signer_role
+          aliases: [role, officerTitle]
+          op: not_in
+          value: ["ciso", "cio", "ceo", "cfo"]
+
+  - action: "evidenceProvided"
+    message: "PCI-REQ-12: Evidence provided to auditors must be genuine and unaltered."
+    when:
+      all:
+        - field: args.altered
+          aliases: [modified, tampered]
+          op: is_true
+
+  - action: "auditorAccessGranted"
+    message: "PCI-REQ-8-1-5: Manage third-party access (like auditors) and ensure it has a time limit."
+    when:
+      all:
+        - field: args.time_limited
+          aliases: [expires, temporaryAccess]
+          op: is_false
+
+  - action: "complianceScopeDefined"
+    message: "PCI-REQ-1: The CDE scope must be accurately defined and validated."
+    when:
+      all:
+        - field: args.validated_annually
+          aliases: [scopeChecked, reviewedRecently]
+          op: is_false
+
+  - action: "policyReviewed"
+    message: "PCI-REQ-12-1-1: Review security policy at least annually and update as needed."
+    when:
+      all:
+        - field: args.months_since_review
+          aliases: [reviewAge, timeSinceReview]
+          op: gt
+          value: 12
+
+  - action: "assetInventoryUpdated"
+    message: "PCI-REQ-2-4: Maintain an inventory of system components that are in scope for PCI DSS."
+    when:
+      all:
+        - field: args.months_since_update
+          aliases: [inventoryAge, timeSinceUpdate]
+          op: gt
+          value: 12
+
+  - action: "compensatingControlReviewed"
+    message: "PCI-REQ-12: Compensating controls must be documented and reviewed annually."
+    when:
+      all:
+        - field: args.months_since_review
+          aliases: [reviewAge, timeSinceReview]
+          op: gt
+          value: 12
