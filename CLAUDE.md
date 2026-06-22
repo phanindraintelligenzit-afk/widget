@@ -341,11 +341,12 @@ uv pip install presidio-analyzer detect-secrets chromadb sentence-transformers
 uv run pytest -k "policy" -v
 ```
 
-**Risk testing notes**: Lakera Guard tests require `LAKERA_API_KEY` env var set. Tests that call the Lakera API will skip if the key is missing. To test risk scanning:
+**Risk testing notes**: Lakera Guard is optional and paid. Tests for passive risk detection (exceptions, tool errors) run always. Tests that call the Lakera API will skip if `LAKERA_API_KEY` is missing (no charge incurred). To test with Lakera enabled:
 ```bash
-export LAKERA_API_KEY=your_key_here  # or .env file
-uv run pytest -k "risk" -v
+export LAKERA_API_KEY=your_key_here  # or add to .env file
+uv run pytest -k "risk" -v            # tests will call Lakera API if key is set
 ```
+Without the key, passive risk tests still run and validate R-scoring on framework errors alone.
 
 ---
 
@@ -422,15 +423,20 @@ The heuristics are rough but prevent silent Q drops during demo/testing. Real Q 
 
 ## Risk detection (R dimension) — Lakera Guard + incident tracking
 
-The R-dimension risk scanner in `dpi_ls/risk.py` uses **Lakera Guard API** to detect adversarial threats in agent inputs and outputs:
+The R-dimension risk scanner in `dpi_ls/risk.py` can use **Lakera Guard API** to detect adversarial threats in agent inputs and outputs. **Note: Lakera Guard is a paid commercial service** (usage-based pricing; see https://lakera.ai for current rates). For cost-conscious deployments, risk detection can also rely on passive signals (framework exceptions, tool errors) without any external API cost.
 
-**Lakera Guard coverage**:
+**Lakera Guard coverage** (when enabled):
 - **Prompt Injection** — Detects attempts to override system instructions or manipulate agent behavior.
 - **Jailbreaks** — Identifies techniques to bypass safety constraints.
 - **Toxicity** — Flags offensive, harmful, or abusive language.
 - **PII Detection** — Catches sensitive data like credit cards, SSNs, credentials in outputs.
 
-The API returns confidence levels (l1 = most confident, l5 = least confident), mapped to severity weights (1.0 to 0.2) that feed into the R metric formula. Requires `LAKERA_API_KEY` env var; gracefully returns empty list if not set or API calls fail.
+The API returns confidence levels (l1 = most confident, l5 = least confident), mapped to severity weights (1.0 to 0.2) that feed into the R metric formula.
+
+**Configuration**:
+- **Enable**: Set `LAKERA_API_KEY` env var; collector will call the API on every agent input/output
+- **Disable**: Omit `LAKERA_API_KEY`; system falls back to passive risk detection (exceptions, tool errors only)
+- Gracefully handles API unavailability (timeouts, rate limits, service errors) — returns empty incidents without crashing
 
 **How it integrates**: The collector in `dpi_ls/monitor()` runs Lakera scans **asynchronously** on:
 - **Inputs** (user prompts) — catches adversarial prompts before the agent sees them.
@@ -443,8 +449,18 @@ R = 1 − min(1, Σ(frequency × severity_weight) / R_max)
 
 Where `R_max = 3.0` (calibrated default; tunable via `/settings` API).
 
+**Cost considerations**:
+- **Production**: Budget per-call Lakera pricing (typically $0.005–$0.05 per scan depending on tier and volume).
+- **Demo/CI**: Omit `LAKERA_API_KEY` to avoid charges; agents will be scored on passive signals only (R will be 1.0 unless there are framework errors).
+- **Hybrid**: Use Lakera only for production deployments; skip for test environments.
+
+**Passive risk detection** (no cost, always enabled):
+- Framework exceptions recorded as `source=framework:error` incidents
+- Tool call failures recorded as `source=tool:error` incidents
+- These alone can floor the R-score if severe enough per `R_max` tuning
+
 **Useful risk examples**:
-- `examples/test_risk_agent.py` — End-to-end agent with intentionally risky tool use (deletion, wire transfers, admin grants). Demonstrates Lakera Guard detecting both prompt-injection inputs and tool-action risks.
+- `examples/test_risk_agent.py` — End-to-end agent with intentionally risky tool use (deletion, wire transfers, admin grants). Demonstrates Lakera Guard detecting both prompt-injection inputs and tool-action risks (set `LAKERA_API_KEY` to see Lakera detections; omit to see passive incidents).
 - `examples/risk_dimension/lakera_risk_guard.py` — Direct Lakera Guard API integration demo.
 
 ---
