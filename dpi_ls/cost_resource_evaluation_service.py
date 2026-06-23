@@ -100,6 +100,11 @@ class CostResourceEvaluationService:
         port = port_map.get(name)
         if not port:
             return True
+            
+        # Cloud services are always assumed to be listening
+        if name in ["Langfuse", "Arize Phoenix"]:
+            return True
+            
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.1):
                 return True
@@ -188,22 +193,8 @@ class CostResourceEvaluationService:
                             )
                             break
 
-                # Check for matching telemetry in Canonical Observations
-                if not telemetry_detected:
-                    for row in obs_rows:
-                        agent_run_executed = True
-                        payload = row.payload or {}
-                        cost_block = payload.get("cost", {})
-                        tasks_block = payload.get("tasks", {})
-                        
-                        if self._is_metric_in_payload(metric, cost_block, tasks_block, payload):
-                            telemetry_detected = True
-                            val = self._extract_value_from_payload(metric, cost_block, tasks_block, payload)
-                            evidence_text = (
-                                f"Canonical Telemetry Ingested. "
-                                f"Value extracted: {val}. Observation ID: {row.id}. Ingested at: {row.received_at}."
-                            )
-                            break
+                # We no longer fall back to Canonical Observations for telemetry_detected
+                # to ensure true resource independence.
 
                 # Adjust status and evidence text if service is down but telemetry exists (Partially Verified case)
                 if telemetry_detected and not service_running:
@@ -221,7 +212,7 @@ class CostResourceEvaluationService:
                     # Successfully parsed from DB
                     current_val = str(self._extract_value_from_payload(metric, {}, {}, {})) # fallback default placeholder
                     # Try to get the actual value from the evidence
-                    for row in partial_rows + obs_rows:
+                    for row in partial_rows:
                         payload = row.payload or {}
                         cost_block = payload.get("cost", {})
                         tasks_block = payload.get("tasks", {})
@@ -321,15 +312,15 @@ class CostResourceEvaluationService:
         elif metric == "validation_score":
             return "validation_score" in (payload.get("validation") or {}) or "validation" in payload or "validation_score" in payload
         elif metric == "hallucination_score":
-            return "hallucination_rate" in payload.get("quality", {})
+            return "hallucination_rate" in (payload.get("quality") or {})
         elif metric == "relevance_score":
-            return "accuracy" in payload.get("quality", {})
+            return "accuracy" in (payload.get("quality") or {})
         elif metric == "groundedness_score":
-            return "consistency" in payload.get("quality", {})
+            return "consistency" in (payload.get("quality") or {})
         elif metric == "user_feedback_score":
             return "user_feedback" in payload or "user_feedback_score" in payload
         elif metric == "model_correctness":
-            return "accuracy" in payload.get("quality", {})
+            return "accuracy" in (payload.get("quality") or {})
         return False
 
     def _extract_value_from_payload(self, metric: str, cost: dict, tasks: dict, payload: dict) -> Any:
@@ -372,15 +363,15 @@ class CostResourceEvaluationService:
             val = val_dict.get("validated_components") or payload.get("validated_components") or 0
             return val / max(req, 1) if req > 0 else 1.0
         elif metric == "hallucination_score":
-            return payload.get("quality", {}).get("hallucination_rate")
+            return (payload.get("quality") or {}).get("hallucination_rate")
         elif metric == "relevance_score":
-            return payload.get("quality", {}).get("accuracy")
+            return (payload.get("quality") or {}).get("accuracy")
         elif metric == "groundedness_score":
-            return payload.get("quality", {}).get("consistency")
+            return (payload.get("quality") or {}).get("consistency")
         elif metric == "user_feedback_score":
             return payload.get("user_feedback_score") or payload.get("user_feedback")
         elif metric == "model_correctness":
-            return payload.get("quality", {}).get("accuracy")
+            return (payload.get("quality") or {}).get("accuracy")
         return 0.0
 
     def _resource_supports_metric(self, resource_name: str, metric: str) -> bool:

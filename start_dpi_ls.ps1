@@ -14,13 +14,13 @@ Start-Process -FilePath "uv" -ArgumentList "run mlflow server --host 127.0.0.1 -
 
 # 3. Prometheus (Port 9090)
 Write-Host "Starting Prometheus..."
-Set-Location "C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64"
-Start-Process -FilePath ".\prometheus.exe" -ArgumentList "--config.file=prometheus.yml --web.listen-address=127.0.0.1:9090"
+$PromDir = "C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64"
+Start-Process -FilePath "$PromDir\prometheus.exe" -ArgumentList "--config.file=prometheus.yml --web.listen-address=127.0.0.1:9090" -WorkingDirectory $PromDir
 
 # 4. Grafana (Port 3000)
 Write-Host "Starting Grafana..."
-Set-Location "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin"
-Start-Process -FilePath ".\grafana.exe" -ArgumentList "server --homepath `"..\`""
+$GrafDir = "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin"
+Start-Process -FilePath "$GrafDir\grafana.exe" -ArgumentList "server --homepath `"..\`"" -WorkingDirectory $GrafDir
 
 # Return to project root
 Set-Location "D:\Projects\widget\widget"
