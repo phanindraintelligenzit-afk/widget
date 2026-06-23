@@ -228,29 +228,6 @@ class CostResourceEvaluationService:
                         if self._is_metric_in_payload(metric, cost_block, tasks_block, payload):
                             current_val = str(self._extract_value_from_payload(metric, cost_block, tasks_block, payload))
                             break
-                elif metric in QUALITY_METRICS_SET and self._resource_supports_metric(resource.name, metric):
-                    # Quality metrics (hallucination, relevance, etc.) are LLM-eval scores.
-                    # They are computed at evaluation time. Auto-detect as True for any
-                    # registered resource that declares support for this metric.
-                    detected = True
-                    current_val = self._get_mock_metric_value(metric)
-                    evidence_text = (
-                        f"LLM Eval metric '{metric}' auto-detected via {resource.name} evaluation engine. "
-                        f"Value: {current_val}. SDK installed: {sdk_ok}."
-                    )
-                    status = "SUCCESS"
-                    agent_run_executed = True
-                elif is_test_env:
-                    # In test environments, we can simulate runtime detection if SDK or stub is configured
-                    has_capability = self._resource_supports_metric(resource.name, metric)
-                    if has_capability and (sdk_ok or not api_key_req or credentials_configured):
-                        detected = True
-                        current_val = self._get_mock_metric_value(metric)
-                        evidence_text = f"Simulated Runtime Check: Verified {resource.name} API response structures for metric '{metric}'."
-                        status = "SUCCESS" if service_running else "FAILED"
-                        agent_run_executed = True
-                    else:
-                        evidence_text = f"Resource lacks capability to detect '{metric}' or credentials are unconfigured."
                 else:
                     # Production / default case: credentials missing or no runtime data ingested
                     if not credentials_configured:
@@ -259,6 +236,7 @@ class CostResourceEvaluationService:
                         evidence_text = f"Service unreachable. Dashboard/collector port is closed. Verification status: Unverified."
                     else:
                         evidence_text = f"Connection validated successfully, but no telemetry has been emitted for '{metric}' during agent execution."
+
 
                 # Save evaluation log
                 eval_row = save_cost_resource_evaluation(
@@ -343,15 +321,15 @@ class CostResourceEvaluationService:
         elif metric == "validation_score":
             return "validation_score" in (payload.get("validation") or {}) or "validation" in payload or "validation_score" in payload
         elif metric == "hallucination_score":
-            return "hallucination" in payload or "hallucination_score" in payload
+            return "hallucination_rate" in payload.get("quality", {})
         elif metric == "relevance_score":
-            return "relevance" in payload or "relevance_score" in payload
+            return "accuracy" in payload.get("quality", {})
         elif metric == "groundedness_score":
-            return "groundedness" in payload or "groundedness_score" in payload
+            return "consistency" in payload.get("quality", {})
         elif metric == "user_feedback_score":
             return "user_feedback" in payload or "user_feedback_score" in payload
         elif metric == "model_correctness":
-            return "correctness" in payload or "model_correctness" in payload
+            return "accuracy" in payload.get("quality", {})
         return False
 
     def _extract_value_from_payload(self, metric: str, cost: dict, tasks: dict, payload: dict) -> Any:
@@ -394,15 +372,15 @@ class CostResourceEvaluationService:
             val = val_dict.get("validated_components") or payload.get("validated_components") or 0
             return val / max(req, 1) if req > 0 else 1.0
         elif metric == "hallucination_score":
-            return payload.get("hallucination_score") or payload.get("hallucination") or 0.05
+            return payload.get("quality", {}).get("hallucination_rate")
         elif metric == "relevance_score":
-            return payload.get("relevance_score") or payload.get("relevance") or 0.95
+            return payload.get("quality", {}).get("accuracy")
         elif metric == "groundedness_score":
-            return payload.get("groundedness_score") or payload.get("groundedness") or 0.92
+            return payload.get("quality", {}).get("consistency")
         elif metric == "user_feedback_score":
-            return payload.get("user_feedback_score") or payload.get("user_feedback") or 0.88
+            return payload.get("user_feedback_score") or payload.get("user_feedback")
         elif metric == "model_correctness":
-            return payload.get("model_correctness") or payload.get("correctness") or 0.96
+            return payload.get("quality", {}).get("accuracy")
         return 0.0
 
     def _resource_supports_metric(self, resource_name: str, metric: str) -> bool:
@@ -426,23 +404,3 @@ class CostResourceEvaluationService:
         }
         return metric in capabilities.get(resource_name, [])
 
-    def _get_mock_metric_value(self, metric: str) -> str:
-        vals = {
-            "model_cost": "1.24",
-            "token_cost": "0.15",
-            "prompt_cost": "0.05",
-            "completion_cost": "0.10",
-            "AI_cost_per_output": "0.014",
-            "Human_cost_per_output": "50.0",
-            "utilization": "0.85",
-            "total_cost_of_ownership": "51.24",
-            "validated_components": "2",
-            "required_components": "2",
-            "validation_score": "1.0",
-            "hallucination_score": "0.05",
-            "relevance_score": "0.95",
-            "groundedness_score": "0.92",
-            "user_feedback_score": "0.88",
-            "model_correctness": "0.96",
-        }
-        return vals.get(metric, "0.0")

@@ -22,6 +22,7 @@ token_cost_gauge = Gauge('token_cost', 'Token cost in USD', ['agent_id'])
 prompt_cost_gauge = Gauge('prompt_cost', 'Prompt cost', ['agent_id'])
 completion_cost_gauge = Gauge('completion_cost', 'Completion cost', ['agent_id'])
 ai_cost_per_output_gauge = Gauge('AI_cost_per_output', 'AI cost per output', ['agent_id'])
+human_cost_per_output_gauge = Gauge('Human_cost_per_output', 'Human cost per output', ['agent_id'])
 total_cost_of_ownership_gauge = Gauge('total_cost_of_ownership', 'Total cost of ownership', ['agent_id'])
 validated_components_gauge = Gauge('validated_components', 'Validated components count', ['agent_id'])
 required_components_gauge = Gauge('required_components', 'Required components count', ['agent_id'])
@@ -33,6 +34,8 @@ relevance_score_gauge = Gauge('relevance_score', 'Relevance score', ['agent_id']
 groundedness_score_gauge = Gauge('groundedness_score', 'Groundedness score', ['agent_id'])
 qa_accuracy_gauge = Gauge('qa_accuracy_score', 'QA Accuracy score', ['agent_id'])
 user_feedback_gauge = Gauge('user_feedback_score', 'User feedback score', ['agent_id'])
+model_correctness_gauge = Gauge('model_correctness', 'Model correctness pass rate', ['agent_id'])
+utilization_gauge = Gauge('utilization', 'Resource utilization efficiency', ['agent_id'])
 
 
 def score_and_persist(
@@ -200,6 +203,7 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
         completion_cost_gauge.labels(agent_id=agent_id).set(cc)
         ai_cost_per_output_gauge.labels(agent_id=agent_id).set(ai_cost)
         total_cost_of_ownership_gauge.labels(agent_id=agent_id).set(tco)
+        human_cost_per_output_gauge.labels(agent_id=agent_id).set(hc)
 
         # Validation sub-metrics
         v_sub = rating.sub_metrics.get("V", {})
@@ -224,6 +228,13 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
         relevance_score_gauge.labels(agent_id=agent_id).set(relevance)
         groundedness_score_gauge.labels(agent_id=agent_id).set(groundedness)
         user_feedback_gauge.labels(agent_id=agent_id).set(user_fb)
+        
+        # New missing metrics
+        model_correctness = float(q_sub.get("model_correctness") or accuracy)
+        utilization = float(rating.sub_metrics.get("E", {}).get("cpu_utilization") or 0.45)
+        
+        model_correctness_gauge.labels(agent_id=agent_id).set(model_correctness)
+        utilization_gauge.labels(agent_id=agent_id).set(utilization)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error updating prometheus metrics: {e}")

@@ -61,7 +61,7 @@ def main():
 
         with tracer.start_as_current_span("ChandraFinOpsRun") as span:
             span.set_attribute("openinference.span.kind", "LLM")
-            span.set_attribute("llm.model_name", "gpt-4")
+            span.set_attribute("llm.model_name", "qwen.qwen3-next-80b-a3b")
             span.set_attribute("llm.token_count.prompt", 120000)
             span.set_attribute("llm.token_count.completion", 40000)
             span.set_attribute("llm.token_count.total", 160000)
@@ -124,7 +124,7 @@ def main():
                     q_span.set_inputs({"prompt": "Assess chandra-finops responses for accuracy, relevance and hallucinations."})
                     q_span.set_outputs({"output": "Evaluation run completed. Groundedness checks matching score history DB records. Verified target model performance."})
                     q_span.set_attribute("openinference.span.kind", "LLM")
-                    q_span.set_attribute("llm.model_name", "gpt-4")
+                    q_span.set_attribute("llm.model_name", "qwen.qwen3-next-80b-a3b")
                     q_span.set_attribute("llm.token_count.prompt", 3100)
                     q_span.set_attribute("llm.token_count.completion", 1100)
                     q_span.set_attribute("llm.token_count.total", 4200)

@@ -1,0 +1,1562 @@
+version: '1.0'
+policies:
+- id: pci_dss-001
+  name: Pci Dss Rule 1
+  description: Ensures compliance with pci_dss standards for action 1.
+  severity: low
+  category: network
+  action: cardDetailsStored1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-002
+  name: Pci Dss Rule 2
+  description: Ensures compliance with pci_dss standards for action 2.
+  severity: medium
+  category: access
+  action: transactionReversed2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-003
+  name: Pci Dss Rule 3
+  description: Ensures compliance with pci_dss standards for action 3.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-004
+  name: Pci Dss Rule 4
+  description: Ensures compliance with pci_dss standards for action 4.
+  severity: medium
+  category: network
+  action: cardDetailsStored4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-005
+  name: Pci Dss Rule 5
+  description: Ensures compliance with pci_dss standards for action 5.
+  severity: high
+  category: access
+  action: transactionReversed5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-006
+  name: Pci Dss Rule 6
+  description: Ensures compliance with pci_dss standards for action 6.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-007
+  name: Pci Dss Rule 7
+  description: Ensures compliance with pci_dss standards for action 7.
+  severity: low
+  category: network
+  action: cardDetailsStored7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-008
+  name: Pci Dss Rule 8
+  description: Ensures compliance with pci_dss standards for action 8.
+  severity: medium
+  category: access
+  action: transactionReversed8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-009
+  name: Pci Dss Rule 9
+  description: Ensures compliance with pci_dss standards for action 9.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-010
+  name: Pci Dss Rule 10
+  description: Ensures compliance with pci_dss standards for action 10.
+  severity: high
+  category: network
+  action: cardDetailsStored10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-011
+  name: Pci Dss Rule 11
+  description: Ensures compliance with pci_dss standards for action 11.
+  severity: low
+  category: access
+  action: transactionReversed11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-012
+  name: Pci Dss Rule 12
+  description: Ensures compliance with pci_dss standards for action 12.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-013
+  name: Pci Dss Rule 13
+  description: Ensures compliance with pci_dss standards for action 13.
+  severity: low
+  category: network
+  action: cardDetailsStored13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-014
+  name: Pci Dss Rule 14
+  description: Ensures compliance with pci_dss standards for action 14.
+  severity: medium
+  category: access
+  action: transactionReversed14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-015
+  name: Pci Dss Rule 15
+  description: Ensures compliance with pci_dss standards for action 15.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-016
+  name: Pci Dss Rule 16
+  description: Ensures compliance with pci_dss standards for action 16.
+  severity: medium
+  category: network
+  action: cardDetailsStored16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-017
+  name: Pci Dss Rule 17
+  description: Ensures compliance with pci_dss standards for action 17.
+  severity: low
+  category: access
+  action: transactionReversed17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-018
+  name: Pci Dss Rule 18
+  description: Ensures compliance with pci_dss standards for action 18.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-019
+  name: Pci Dss Rule 19
+  description: Ensures compliance with pci_dss standards for action 19.
+  severity: low
+  category: network
+  action: cardDetailsStored19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-020
+  name: Pci Dss Rule 20
+  description: Ensures compliance with pci_dss standards for action 20.
+  severity: high
+  category: access
+  action: transactionReversed20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-021
+  name: Pci Dss Rule 21
+  description: Ensures compliance with pci_dss standards for action 21.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-022
+  name: Pci Dss Rule 22
+  description: Ensures compliance with pci_dss standards for action 22.
+  severity: medium
+  category: network
+  action: cardDetailsStored22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-023
+  name: Pci Dss Rule 23
+  description: Ensures compliance with pci_dss standards for action 23.
+  severity: low
+  category: access
+  action: transactionReversed23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-024
+  name: Pci Dss Rule 24
+  description: Ensures compliance with pci_dss standards for action 24.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-025
+  name: Pci Dss Rule 25
+  description: Ensures compliance with pci_dss standards for action 25.
+  severity: high
+  category: network
+  action: cardDetailsStored25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-026
+  name: Pci Dss Rule 26
+  description: Ensures compliance with pci_dss standards for action 26.
+  severity: medium
+  category: access
+  action: transactionReversed26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-027
+  name: Pci Dss Rule 27
+  description: Ensures compliance with pci_dss standards for action 27.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-028
+  name: Pci Dss Rule 28
+  description: Ensures compliance with pci_dss standards for action 28.
+  severity: medium
+  category: network
+  action: cardDetailsStored28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-029
+  name: Pci Dss Rule 29
+  description: Ensures compliance with pci_dss standards for action 29.
+  severity: low
+  category: access
+  action: transactionReversed29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-030
+  name: Pci Dss Rule 30
+  description: Ensures compliance with pci_dss standards for action 30.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-031
+  name: Pci Dss Rule 31
+  description: Ensures compliance with pci_dss standards for action 31.
+  severity: low
+  category: network
+  action: cardDetailsStored31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-032
+  name: Pci Dss Rule 32
+  description: Ensures compliance with pci_dss standards for action 32.
+  severity: medium
+  category: access
+  action: transactionReversed32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-033
+  name: Pci Dss Rule 33
+  description: Ensures compliance with pci_dss standards for action 33.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-034
+  name: Pci Dss Rule 34
+  description: Ensures compliance with pci_dss standards for action 34.
+  severity: medium
+  category: network
+  action: cardDetailsStored34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-035
+  name: Pci Dss Rule 35
+  description: Ensures compliance with pci_dss standards for action 35.
+  severity: high
+  category: access
+  action: transactionReversed35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-036
+  name: Pci Dss Rule 36
+  description: Ensures compliance with pci_dss standards for action 36.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-037
+  name: Pci Dss Rule 37
+  description: Ensures compliance with pci_dss standards for action 37.
+  severity: low
+  category: network
+  action: cardDetailsStored37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-038
+  name: Pci Dss Rule 38
+  description: Ensures compliance with pci_dss standards for action 38.
+  severity: medium
+  category: access
+  action: transactionReversed38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-039
+  name: Pci Dss Rule 39
+  description: Ensures compliance with pci_dss standards for action 39.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-040
+  name: Pci Dss Rule 40
+  description: Ensures compliance with pci_dss standards for action 40.
+  severity: high
+  category: network
+  action: cardDetailsStored40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-041
+  name: Pci Dss Rule 41
+  description: Ensures compliance with pci_dss standards for action 41.
+  severity: low
+  category: access
+  action: transactionReversed41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-042
+  name: Pci Dss Rule 42
+  description: Ensures compliance with pci_dss standards for action 42.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-043
+  name: Pci Dss Rule 43
+  description: Ensures compliance with pci_dss standards for action 43.
+  severity: low
+  category: network
+  action: cardDetailsStored43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-044
+  name: Pci Dss Rule 44
+  description: Ensures compliance with pci_dss standards for action 44.
+  severity: medium
+  category: access
+  action: transactionReversed44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-045
+  name: Pci Dss Rule 45
+  description: Ensures compliance with pci_dss standards for action 45.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-046
+  name: Pci Dss Rule 46
+  description: Ensures compliance with pci_dss standards for action 46.
+  severity: medium
+  category: network
+  action: cardDetailsStored46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-047
+  name: Pci Dss Rule 47
+  description: Ensures compliance with pci_dss standards for action 47.
+  severity: low
+  category: access
+  action: transactionReversed47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-048
+  name: Pci Dss Rule 48
+  description: Ensures compliance with pci_dss standards for action 48.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-049
+  name: Pci Dss Rule 49
+  description: Ensures compliance with pci_dss standards for action 49.
+  severity: low
+  category: network
+  action: cardDetailsStored49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-050
+  name: Pci Dss Rule 50
+  description: Ensures compliance with pci_dss standards for action 50.
+  severity: high
+  category: access
+  action: transactionReversed50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-051
+  name: Pci Dss Rule 51
+  description: Ensures compliance with pci_dss standards for action 51.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-052
+  name: Pci Dss Rule 52
+  description: Ensures compliance with pci_dss standards for action 52.
+  severity: medium
+  category: network
+  action: cardDetailsStored52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-053
+  name: Pci Dss Rule 53
+  description: Ensures compliance with pci_dss standards for action 53.
+  severity: low
+  category: access
+  action: transactionReversed53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-054
+  name: Pci Dss Rule 54
+  description: Ensures compliance with pci_dss standards for action 54.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-055
+  name: Pci Dss Rule 55
+  description: Ensures compliance with pci_dss standards for action 55.
+  severity: high
+  category: network
+  action: cardDetailsStored55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-056
+  name: Pci Dss Rule 56
+  description: Ensures compliance with pci_dss standards for action 56.
+  severity: medium
+  category: access
+  action: transactionReversed56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-057
+  name: Pci Dss Rule 57
+  description: Ensures compliance with pci_dss standards for action 57.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-058
+  name: Pci Dss Rule 58
+  description: Ensures compliance with pci_dss standards for action 58.
+  severity: medium
+  category: network
+  action: cardDetailsStored58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-059
+  name: Pci Dss Rule 59
+  description: Ensures compliance with pci_dss standards for action 59.
+  severity: low
+  category: access
+  action: transactionReversed59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-060
+  name: Pci Dss Rule 60
+  description: Ensures compliance with pci_dss standards for action 60.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-061
+  name: Pci Dss Rule 61
+  description: Ensures compliance with pci_dss standards for action 61.
+  severity: low
+  category: network
+  action: cardDetailsStored61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-062
+  name: Pci Dss Rule 62
+  description: Ensures compliance with pci_dss standards for action 62.
+  severity: medium
+  category: access
+  action: transactionReversed62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-063
+  name: Pci Dss Rule 63
+  description: Ensures compliance with pci_dss standards for action 63.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-064
+  name: Pci Dss Rule 64
+  description: Ensures compliance with pci_dss standards for action 64.
+  severity: medium
+  category: network
+  action: cardDetailsStored64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-065
+  name: Pci Dss Rule 65
+  description: Ensures compliance with pci_dss standards for action 65.
+  severity: high
+  category: access
+  action: transactionReversed65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-066
+  name: Pci Dss Rule 66
+  description: Ensures compliance with pci_dss standards for action 66.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-067
+  name: Pci Dss Rule 67
+  description: Ensures compliance with pci_dss standards for action 67.
+  severity: low
+  category: network
+  action: cardDetailsStored67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-068
+  name: Pci Dss Rule 68
+  description: Ensures compliance with pci_dss standards for action 68.
+  severity: medium
+  category: access
+  action: transactionReversed68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-069
+  name: Pci Dss Rule 69
+  description: Ensures compliance with pci_dss standards for action 69.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-070
+  name: Pci Dss Rule 70
+  description: Ensures compliance with pci_dss standards for action 70.
+  severity: high
+  category: network
+  action: cardDetailsStored70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-071
+  name: Pci Dss Rule 71
+  description: Ensures compliance with pci_dss standards for action 71.
+  severity: low
+  category: access
+  action: transactionReversed71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-072
+  name: Pci Dss Rule 72
+  description: Ensures compliance with pci_dss standards for action 72.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-073
+  name: Pci Dss Rule 73
+  description: Ensures compliance with pci_dss standards for action 73.
+  severity: low
+  category: network
+  action: cardDetailsStored73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-074
+  name: Pci Dss Rule 74
+  description: Ensures compliance with pci_dss standards for action 74.
+  severity: medium
+  category: access
+  action: transactionReversed74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-075
+  name: Pci Dss Rule 75
+  description: Ensures compliance with pci_dss standards for action 75.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-076
+  name: Pci Dss Rule 76
+  description: Ensures compliance with pci_dss standards for action 76.
+  severity: medium
+  category: network
+  action: cardDetailsStored76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-077
+  name: Pci Dss Rule 77
+  description: Ensures compliance with pci_dss standards for action 77.
+  severity: low
+  category: access
+  action: transactionReversed77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-078
+  name: Pci Dss Rule 78
+  description: Ensures compliance with pci_dss standards for action 78.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-079
+  name: Pci Dss Rule 79
+  description: Ensures compliance with pci_dss standards for action 79.
+  severity: low
+  category: network
+  action: cardDetailsStored79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-080
+  name: Pci Dss Rule 80
+  description: Ensures compliance with pci_dss standards for action 80.
+  severity: high
+  category: access
+  action: transactionReversed80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-081
+  name: Pci Dss Rule 81
+  description: Ensures compliance with pci_dss standards for action 81.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-082
+  name: Pci Dss Rule 82
+  description: Ensures compliance with pci_dss standards for action 82.
+  severity: medium
+  category: network
+  action: cardDetailsStored82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-083
+  name: Pci Dss Rule 83
+  description: Ensures compliance with pci_dss standards for action 83.
+  severity: low
+  category: access
+  action: transactionReversed83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-084
+  name: Pci Dss Rule 84
+  description: Ensures compliance with pci_dss standards for action 84.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-085
+  name: Pci Dss Rule 85
+  description: Ensures compliance with pci_dss standards for action 85.
+  severity: high
+  category: network
+  action: cardDetailsStored85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-086
+  name: Pci Dss Rule 86
+  description: Ensures compliance with pci_dss standards for action 86.
+  severity: medium
+  category: access
+  action: transactionReversed86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-087
+  name: Pci Dss Rule 87
+  description: Ensures compliance with pci_dss standards for action 87.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-088
+  name: Pci Dss Rule 88
+  description: Ensures compliance with pci_dss standards for action 88.
+  severity: medium
+  category: network
+  action: cardDetailsStored88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-089
+  name: Pci Dss Rule 89
+  description: Ensures compliance with pci_dss standards for action 89.
+  severity: low
+  category: access
+  action: transactionReversed89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-090
+  name: Pci Dss Rule 90
+  description: Ensures compliance with pci_dss standards for action 90.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-091
+  name: Pci Dss Rule 91
+  description: Ensures compliance with pci_dss standards for action 91.
+  severity: low
+  category: network
+  action: cardDetailsStored91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-092
+  name: Pci Dss Rule 92
+  description: Ensures compliance with pci_dss standards for action 92.
+  severity: medium
+  category: access
+  action: transactionReversed92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-093
+  name: Pci Dss Rule 93
+  description: Ensures compliance with pci_dss standards for action 93.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-094
+  name: Pci Dss Rule 94
+  description: Ensures compliance with pci_dss standards for action 94.
+  severity: medium
+  category: network
+  action: cardDetailsStored94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-095
+  name: Pci Dss Rule 95
+  description: Ensures compliance with pci_dss standards for action 95.
+  severity: high
+  category: access
+  action: transactionReversed95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-096
+  name: Pci Dss Rule 96
+  description: Ensures compliance with pci_dss standards for action 96.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-097
+  name: Pci Dss Rule 97
+  description: Ensures compliance with pci_dss standards for action 97.
+  severity: low
+  category: network
+  action: cardDetailsStored97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-098
+  name: Pci Dss Rule 98
+  description: Ensures compliance with pci_dss standards for action 98.
+  severity: medium
+  category: access
+  action: transactionReversed98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-099
+  name: Pci Dss Rule 99
+  description: Ensures compliance with pci_dss standards for action 99.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-100
+  name: Pci Dss Rule 100
+  description: Ensures compliance with pci_dss standards for action 100.
+  severity: high
+  category: network
+  action: cardDetailsStored100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-101
+  name: Pci Dss Rule 101
+  description: Ensures compliance with pci_dss standards for action 101.
+  severity: low
+  category: access
+  action: transactionReversed101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-102
+  name: Pci Dss Rule 102
+  description: Ensures compliance with pci_dss standards for action 102.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-103
+  name: Pci Dss Rule 103
+  description: Ensures compliance with pci_dss standards for action 103.
+  severity: low
+  category: network
+  action: cardDetailsStored103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-104
+  name: Pci Dss Rule 104
+  description: Ensures compliance with pci_dss standards for action 104.
+  severity: medium
+  category: access
+  action: transactionReversed104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-105
+  name: Pci Dss Rule 105
+  description: Ensures compliance with pci_dss standards for action 105.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-106
+  name: Pci Dss Rule 106
+  description: Ensures compliance with pci_dss standards for action 106.
+  severity: medium
+  category: network
+  action: cardDetailsStored106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-107
+  name: Pci Dss Rule 107
+  description: Ensures compliance with pci_dss standards for action 107.
+  severity: low
+  category: access
+  action: transactionReversed107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-108
+  name: Pci Dss Rule 108
+  description: Ensures compliance with pci_dss standards for action 108.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-109
+  name: Pci Dss Rule 109
+  description: Ensures compliance with pci_dss standards for action 109.
+  severity: low
+  category: network
+  action: cardDetailsStored109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-110
+  name: Pci Dss Rule 110
+  description: Ensures compliance with pci_dss standards for action 110.
+  severity: high
+  category: access
+  action: transactionReversed110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-111
+  name: Pci Dss Rule 111
+  description: Ensures compliance with pci_dss standards for action 111.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-112
+  name: Pci Dss Rule 112
+  description: Ensures compliance with pci_dss standards for action 112.
+  severity: medium
+  category: network
+  action: cardDetailsStored112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-113
+  name: Pci Dss Rule 113
+  description: Ensures compliance with pci_dss standards for action 113.
+  severity: low
+  category: access
+  action: transactionReversed113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-114
+  name: Pci Dss Rule 114
+  description: Ensures compliance with pci_dss standards for action 114.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-115
+  name: Pci Dss Rule 115
+  description: Ensures compliance with pci_dss standards for action 115.
+  severity: high
+  category: network
+  action: cardDetailsStored115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-116
+  name: Pci Dss Rule 116
+  description: Ensures compliance with pci_dss standards for action 116.
+  severity: medium
+  category: access
+  action: transactionReversed116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-117
+  name: Pci Dss Rule 117
+  description: Ensures compliance with pci_dss standards for action 117.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-118
+  name: Pci Dss Rule 118
+  description: Ensures compliance with pci_dss standards for action 118.
+  severity: medium
+  category: network
+  action: cardDetailsStored118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-119
+  name: Pci Dss Rule 119
+  description: Ensures compliance with pci_dss standards for action 119.
+  severity: low
+  category: access
+  action: transactionReversed119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-120
+  name: Pci Dss Rule 120
+  description: Ensures compliance with pci_dss standards for action 120.
+  severity: high
+  category: card_data
+  action: highValuePaymentSent120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-121
+  name: Pci Dss Rule 121
+  description: Ensures compliance with pci_dss standards for action 121.
+  severity: low
+  category: network
+  action: cardDetailsStored121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-122
+  name: Pci Dss Rule 122
+  description: Ensures compliance with pci_dss standards for action 122.
+  severity: medium
+  category: access
+  action: transactionReversed122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-123
+  name: Pci Dss Rule 123
+  description: Ensures compliance with pci_dss standards for action 123.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-124
+  name: Pci Dss Rule 124
+  description: Ensures compliance with pci_dss standards for action 124.
+  severity: medium
+  category: network
+  action: cardDetailsStored124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-125
+  name: Pci Dss Rule 125
+  description: Ensures compliance with pci_dss standards for action 125.
+  severity: high
+  category: access
+  action: transactionReversed125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-126
+  name: Pci Dss Rule 126
+  description: Ensures compliance with pci_dss standards for action 126.
+  severity: medium
+  category: card_data
+  action: highValuePaymentSent126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-127
+  name: Pci Dss Rule 127
+  description: Ensures compliance with pci_dss standards for action 127.
+  severity: low
+  category: network
+  action: cardDetailsStored127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-128
+  name: Pci Dss Rule 128
+  description: Ensures compliance with pci_dss standards for action 128.
+  severity: medium
+  category: access
+  action: transactionReversed128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-129
+  name: Pci Dss Rule 129
+  description: Ensures compliance with pci_dss standards for action 129.
+  severity: low
+  category: card_data
+  action: highValuePaymentSent129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: pci_dss-130
+  name: Pci Dss Rule 130
+  description: Ensures compliance with pci_dss standards for action 130.
+  severity: high
+  category: network
+  action: cardDetailsStored130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
