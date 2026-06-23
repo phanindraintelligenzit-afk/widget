@@ -186,7 +186,8 @@ def main():
         "output_tokens": 40000,
         "model_cost": 1.24,
         "number_of_llm_calls": 5,
-        "Human_cost": 50.0
+        "Human_cost": 50.0,
+        "utilization": 0.85
     }
     shared_validation = {
         "required_components": 2,
@@ -205,6 +206,7 @@ def main():
             "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
+                "utilization": 0.85,
                 "cost": shared_cost,
                 "validation": shared_validation,
                 "executions": shared_executions
@@ -215,6 +217,7 @@ def main():
             "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
+                "utilization": 0.85,
                 "cost": shared_cost,
                 "validation": shared_validation,
                 "executions": shared_executions
@@ -225,6 +228,7 @@ def main():
             "period_end": current_end,
             "runs": [{
                 "agent_id": agent_id,
+                "utilization": 0.85,
                 "attempts": 10,
                 "successful": 9,
                 "cost": shared_cost,
@@ -236,6 +240,7 @@ def main():
             "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
+                "utilization": 0.85,
                 "cost": shared_cost,
                 "validation": shared_validation,
                 "executions": shared_executions
@@ -246,6 +251,7 @@ def main():
             "period_end": current_end,
             "agents": [{
                 "agent_id": agent_id,
+                "utilization": 0.85,
                 "cost": shared_cost,
                 "validation": shared_validation,
                 "executions": shared_executions

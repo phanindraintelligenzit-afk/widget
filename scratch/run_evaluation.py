@@ -9,6 +9,13 @@ import time
 
 BASE = "http://127.0.0.1:8000"
 
+if sys.platform == "win32":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 
 def call(method: str, path: str, body: dict | None = None) -> dict:
     url = BASE + path
