@@ -25,7 +25,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 from .policy import scan_policy_violations
-from .risk import scan_lakera_risks
+from .risk import scan_llmguard_input_risks, scan_llmguard_output_risks
 
 # Global thread pool for async Lakera Guard risk scanning
 _risk_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dpi_risk_scan")
@@ -199,7 +199,7 @@ class SignalCollector:
                 
         # R: Asynchronous Lakera Guard scan on source inputs (catches prompt injections/jailbreaks)
         def _scan_and_record():
-            incidents = scan_lakera_risks(text)
+            incidents = scan_llmguard_input_risks(text)
             if incidents:
                 with self._lock:
                     self.incidents.extend(incidents)
@@ -396,7 +396,14 @@ class SignalCollector:
 
             # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
             def _scan_and_record():
-                incidents = scan_lakera_risks(output)
+                # Find the most recent prompt
+                prompt = ""
+                with self._source_data_lock:
+                    for item in reversed(self._source_data):
+                        if item.startswith("[INPUT]"):
+                            prompt = item.replace("[INPUT]\n", "", 1).strip()
+                            break
+                incidents = scan_llmguard_output_risks(prompt, output)
                 if incidents:
                     with self._lock:
                         self.incidents.extend(incidents)

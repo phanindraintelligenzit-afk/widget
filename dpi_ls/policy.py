@@ -10,13 +10,20 @@ If not installed, it safely returns an empty set so the engine doesn't crash.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import time
 import json
 import httpx
+import threading
 from typing import Any
 
 log = logging.getLogger(__name__)
+
+# Ensure HuggingFace loads locally for semantic models
+os.environ["HF_HOME"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "hf_cache"))
+os.environ["HF_HUB_OFFLINE"] = "1"
+os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 HAS_PRESIDIO = False
 analyzer = None
@@ -98,6 +105,7 @@ semantic_collection = None
 semantic_encoder = None
 SEMANTIC_THRESHOLD = 0.45
 _SEMANTIC_CACHE: dict[tuple[str, str], float] = {}
+_semantic_lock = threading.Lock()
 
 HAS_OPA_SCANNER = False
 OPA_ENDPOINT = None
@@ -113,28 +121,34 @@ def init_semantic_scanner(db_path: str):
     if HAS_SEMANTIC_SCANNER:
         return
 
-    try:
-        import chromadb
-        from sentence_transformers import SentenceTransformer
-        
-        log.info(f"DPI-LS Policy Scanner: Initializing Semantic RAG from {db_path}...")
-        semantic_db_client = chromadb.PersistentClient(path=db_path)
-        semantic_collection = semantic_db_client.get_collection(name="governance_rules")
-        
-        semantic_encoder = SentenceTransformer("all-MiniLM-L6-v2")
-        HAS_SEMANTIC_SCANNER = True
-        log.info("DPI-LS Policy Scanner: Semantic RAG Engine successfully loaded.")
-    except Exception as e:
-        log.warning(f"DPI-LS Policy Scanner: Failed to initialize semantic scanner: {e}")
+    with _semantic_lock:
+        if HAS_SEMANTIC_SCANNER:
+            return
+
+        try:
+            import chromadb
+            from sentence_transformers import SentenceTransformer
+            
+            log.info(f"DPI-LS Policy Scanner: Initializing Semantic RAG from {db_path}...")
+            semantic_db_client = chromadb.PersistentClient(path=db_path)
+            semantic_collection = semantic_db_client.get_collection(name="governance_rules")
+            
+            semantic_encoder = SentenceTransformer("all-MiniLM-L6-v2")
+            HAS_SEMANTIC_SCANNER = True
+            log.info("DPI-LS Policy Scanner: Semantic RAG Engine successfully loaded.")
+        except Exception as e:
+            log.warning(f"DPI-LS Policy Scanner: Failed to initialize semantic scanner: {e}")
 
 def _get_semantic_model():
     global semantic_encoder
     if semantic_encoder is None:
-        try:
-            from sentence_transformers import SentenceTransformer
-            semantic_encoder = SentenceTransformer("all-MiniLM-L6-v2")
-        except ImportError:
-            pass
+        with _semantic_lock:
+            if semantic_encoder is None:
+                try:
+                    from sentence_transformers import SentenceTransformer
+                    semantic_encoder = SentenceTransformer("all-MiniLM-L6-v2")
+                except ImportError:
+                    pass
     return semantic_encoder
 
 def _normalize(name: str) -> str:
