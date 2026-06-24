@@ -32,9 +32,14 @@ import asyncio
 import json
 import os
 import sys
+import psutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+# Fix Windows terminal emoji printing crash
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 from dotenv import load_dotenv
 
@@ -46,9 +51,32 @@ import litellm
 
 
 if os.getenv("LANGFUSE_PUBLIC_KEY"):
-    litellm.success_callback = ["langfuse"]
-    litellm.failure_callback = ["langfuse"]
+    litellm.success_callback = ["langfuse", "otel", "mlflow"]
+    litellm.failure_callback = ["langfuse", "otel", "mlflow"]
 
+# 1. OpenTelemetry
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+tracer_provider = TracerProvider()
+otel_exporter = OTLPSpanExporter(endpoint="http://localhost:6006/v1/traces")
+tracer_provider.add_span_processor(BatchSpanProcessor(otel_exporter))
+trace.set_tracer_provider(tracer_provider)
+
+# 2. Phoenix
+os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=None"
+os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:6006/v1/traces"
+from openinference.instrumentation.openai import OpenAIInstrumentor
+from openinference.instrumentation.litellm import LiteLLMInstrumentor
+OpenAIInstrumentor().instrument()
+LiteLLMInstrumentor().instrument()
+
+# 3. MLflow
+import mlflow
+mlflow.set_tracking_uri("http://localhost:5000")
+mlflow.set_experiment("Chandra-FinOps")
 
 import dpi_ls  # line 1 — the installable package
 
@@ -297,7 +325,9 @@ async def run_agent_observation() -> None:
 
     # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
+    psutil.cpu_percent() # Seed the psutil cpu percent measurement
     result = await Runner.run(agent, AGENT_QUESTION)
+    cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
 
     print("\n" + "-" * 55)
     print("  AGENT ANSWER")
@@ -316,8 +346,9 @@ async def run_agent_observation() -> None:
             from dpi_ls.evaluator import evaluate_quality
             q = evaluate_quality(outputs, source_data=source_data)
             collector.set_quality(
-                q.accuracy, q.consistency, q.hallucination_rate,
+                q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
             )
+            collector.cpu_utilization = cpu_usage
             print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
         except Exception as e:
             print(f"Failed to evaluate quality: {e}")
@@ -333,36 +364,19 @@ async def run_agent_observation() -> None:
     rating = post_observation(collector, base_url)
     if rating:
         print_score_card(rating)
-    else:
-        print("Failed to post observation to the server.")
-
-    # Fan-out REAL telemetry data to third-party tools so they appear independent
-    # and contain the actual evaluated Quality/Validation/Cost metrics from this run.
-    import sqlite3, json
-    from datetime import datetime, timezone
-    try:
-        conn = sqlite3.connect("dpi_ls.db")
-        c = conn.cursor()
         
-        payload_data = collector.to_observation()
-        # Create partial observations for the tools
-        for tool_name in ["prometheus", "langfuse", "otel", "mlflow", "arize phoenix"]:
-            c.execute(
-                "INSERT INTO partial_observations (agent_id, source, payload, received_at, period_start, period_end) VALUES (?, ?, ?, ?, ?, ?)",
-                (
-                    collector.agent_id,
-                    tool_name,
-                    json.dumps(payload_data),
-                    datetime.now(timezone.utc).isoformat(),
-                    payload_data.get("period_start") or datetime.now(timezone.utc).isoformat(),
-                    payload_data.get("period_end") or datetime.now(timezone.utc).isoformat()
-                )
-            )
-        conn.commit()
-        conn.close()
-        print("Fanned out REAL telemetry to third-party dashboards successfully.")
-    except Exception as e:
-        print(f"Failed to fan-out telemetry to dashboards: {e}")# ===================================================================
+        # Log final metrics to MLflow
+        with mlflow.start_run(run_name=f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"):
+            mlflow.log_metric("final_score", rating.get("score", 0.0))
+            sub_metrics = rating.get("sub_metrics", {})
+            if "C" in sub_metrics:
+                mlflow.log_metric("model_cost", sub_metrics["C"].get("Model Cost (USD)", 0.0))
+                mlflow.log_metric("total_cost_of_ownership", sub_metrics["C"].get("Total Cost (USD)", 0.0))
+            if "Q" in sub_metrics:
+                mlflow.log_metric("accuracy", sub_metrics["Q"].get("accuracy", 0.0))
+            mlflow.log_metric("utilization", getattr(collector, "cpu_utilization", 0.0))
+    else:
+        print("Failed to post observation to the server.")# ===================================================================
 #  Entry point
 # ===================================================================
 

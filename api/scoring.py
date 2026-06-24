@@ -27,6 +27,7 @@ total_cost_of_ownership_gauge = Gauge('total_cost_of_ownership', 'Total cost of 
 validated_components_gauge = Gauge('validated_components', 'Validated components count', ['agent_id'])
 required_components_gauge = Gauge('required_components', 'Required components count', ['agent_id'])
 validation_score_gauge = Gauge('validation_score', 'Validation score', ['agent_id'])
+final_score_gauge = Gauge('final_score', 'Overall DPI-LS final score', ['agent_id'])
 
 # Quality Gauges — published so Prometheus/Grafana show QA Accuracy, Hallucination, Relevance
 hallucination_score_gauge = Gauge('hallucination_score', 'Hallucination rate (lower is better)', ['agent_id'])
@@ -151,7 +152,13 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "normalization_factor": settings.normalization_factor
         }
     if obs.quality:
-        res["Q"] = obs.quality.model_dump(mode="json")
+        q_raw = obs.quality.model_dump(mode="json")
+        res["Q"] = {
+            "QA Accuracy": q_raw.get("accuracy"),
+            "Hallucination Rate": q_raw.get("hallucination_rate"),
+            "Groundedness": q_raw.get("consistency"),
+            "User Feedback": q_raw.get("user_feedback_score", "N/A") if q_raw.get("user_feedback_score") is not None else "N/A"
+        }
     if obs.executions:
         res["E"] = obs.executions.model_dump(mode="json")
     if obs.policy:
@@ -166,13 +173,39 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         low  = sum(1 for i in obs.incidents if float(i.severity_weight) < 0.3)
         res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
     if obs.validation:
-        res["V"] = obs.validation.model_dump(mode="json")
+        v_raw = obs.validation.model_dump(mode="json")
+        res["V"] = {
+            "Required Components": v_raw.get("required_components"),
+            "Validated Components": v_raw.get("validated_components"),
+            "Validation Score": (v_raw.get("validated_components", 0) / max(v_raw.get("required_components", 1), 1)) * 100
+        }
     if obs.cost:
-        # ``model_dump`` already emits the new breakdown fields
-        # (input_tokens, output_tokens, model_cost) in addition to
-        # the engine input (ai_cost_per_output) and the non-model
-        # observability fields (cloud_cost, systems_accessed).
-        res["C"] = obs.cost.model_dump(mode="json")
+        c_raw = obs.cost.model_dump(mode="json")
+        in_t = c_raw.get("input_tokens", 0) or 0
+        out_t = c_raw.get("output_tokens", 0) or 0
+        mc = c_raw.get("model_cost", 0.0) or 0.0
+        hc = c_raw.get("Human_cost", 0.0) or 0.0
+        
+        tc = (in_t + out_t) * 0.00001
+        pc = in_t * 0.000005
+        cc = out_t * 0.000015
+        tco = mc + hc
+        
+        c_raw["AI Cost Per Output"] = mc / max(obs.tasks.completed if obs.tasks else 1, 1)
+        c_raw["Human Cost / Output"] = hc
+        c_raw["Prompt Cost (USD)"] = pc
+        c_raw["Completion Cost (USD)"] = cc
+        c_raw["Model Cost (USD)"] = mc
+        c_raw["Token Cost (USD)"] = tc
+        c_raw["Total Cost (USD)"] = tco
+        
+        c_raw.pop("Human_cost", None)
+        c_raw.pop("input_tokens", None)
+        c_raw.pop("output_tokens", None)
+        c_raw.pop("number_of_llm_calls", None)
+        c_raw.pop("model_cost", None)
+        
+        res["C"] = c_raw
     return res
 
 
@@ -180,21 +213,16 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
     try:
         # Cost sub-metrics
         c_sub = rating.sub_metrics.get("C", {})
-        mc = c_sub.get("model_cost") or 0.0
-        in_t = c_sub.get("input_tokens") or 0
-        out_t = c_sub.get("output_tokens") or 0
-        
-        tc = (in_t + out_t) * 0.00001
-        pc = in_t * 0.000005
-        cc = out_t * 0.000015
+        mc = c_sub.get("Model Cost (USD)") or 0.0
+        tc = c_sub.get("Token Cost (USD)") or 0.0
+        pc = c_sub.get("Prompt Cost (USD)") or 0.0
+        cc = c_sub.get("Completion Cost (USD)") or 0.0
+        tco = c_sub.get("Total Cost (USD)") or 0.0
+        hc = c_sub.get("Human_cost") or 0.0
         
         # AI cost per output
         completed_tasks = rating.sub_metrics.get("P", {}).get("AI_output_per_period") or 1
         ai_cost = mc / max(completed_tasks, 1)
-        
-        # Total cost of ownership
-        hc = c_sub.get("Human_cost") or 0.0
-        tco = mc + hc
 
         # Update Gauges
         model_cost_gauge.labels(agent_id=agent_id).set(mc)
@@ -221,20 +249,24 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
         accuracy = float(q_sub.get("accuracy") or q_sub.get("qa_accuracy") or 0.93)
         relevance = float(q_sub.get("relevance_score") or q_sub.get("relevance") or 0.95)
         groundedness = float(q_sub.get("groundedness_score") or q_sub.get("groundedness") or 0.92)
-        user_fb = float(q_sub.get("user_feedback_score") or q_sub.get("user_feedback") or 0.88)
+        user_fb = float(q_sub.get("user_feedback_score") or q_sub.get("user_feedback") or 0.0)
 
         hallucination_score_gauge.labels(agent_id=agent_id).set(hallucination)
         qa_accuracy_gauge.labels(agent_id=agent_id).set(accuracy)
         relevance_score_gauge.labels(agent_id=agent_id).set(relevance)
         groundedness_score_gauge.labels(agent_id=agent_id).set(groundedness)
-        user_feedback_gauge.labels(agent_id=agent_id).set(user_fb)
+        if user_fb > 0:
+            user_feedback_gauge.labels(agent_id=agent_id).set(user_fb)
         
         # New missing metrics
         model_correctness = float(q_sub.get("model_correctness") or accuracy)
-        utilization = float(rating.sub_metrics.get("E", {}).get("cpu_utilization") or 0.45)
+        utilization = float(rating.sub_metrics.get("E", {}).get("cpu_utilization") or 0.0)
         
         model_correctness_gauge.labels(agent_id=agent_id).set(model_correctness)
-        utilization_gauge.labels(agent_id=agent_id).set(utilization)
+        if utilization > 0:
+            utilization_gauge.labels(agent_id=agent_id).set(utilization)
+            
+        final_score_gauge.labels(agent_id=agent_id).set(rating.score)
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error updating prometheus metrics: {e}")
