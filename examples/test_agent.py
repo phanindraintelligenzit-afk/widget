@@ -326,7 +326,9 @@ async def run_agent_observation() -> None:
     # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
     psutil.cpu_percent() # Seed the psutil cpu percent measurement
-    result = await Runner.run(agent, AGENT_QUESTION)
+    tracer = trace.get_tracer("chandra-agent-tracer")
+    with tracer.start_as_current_span(AGENT_ID):
+        result = await Runner.run(agent, AGENT_QUESTION)
     cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
 
     print("\n" + "-" * 55)
