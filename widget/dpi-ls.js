@@ -916,7 +916,7 @@
         'Prometheus':     'http://localhost:9090',
         'Grafana':        'http://localhost:3000',
         'OpenTelemetry':  'http://localhost:4317',
-        'Arize Phoenix':  'http://localhost:6006',
+        'Arize Phoenix':  'http://127.0.0.1:6006',
         'MLflow':         'http://localhost:5000',
       };
 

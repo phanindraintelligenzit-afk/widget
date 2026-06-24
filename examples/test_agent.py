@@ -75,8 +75,12 @@ LiteLLMInstrumentor().instrument()
 
 # 3. MLflow
 import mlflow
+import mlflow.litellm
+import mlflow.openai
 mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("Chandra-FinOps")
+mlflow.set_experiment("Chandra FinOps")
+mlflow.litellm.autolog()
+mlflow.openai.autolog()
 
 import dpi_ls  # line 1 — the installable package
 
@@ -326,59 +330,70 @@ async def run_agent_observation() -> None:
     # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
     psutil.cpu_percent() # Seed the psutil cpu percent measurement
-    tracer = trace.get_tracer("chandra-agent-tracer")
-    with tracer.start_as_current_span(AGENT_ID):
-        result = await Runner.run(agent, AGENT_QUESTION)
-    cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
-
-    print("\n" + "-" * 55)
-    print("  AGENT ANSWER")
-    print("-" * 55)
-    # Strip non-ASCII so Windows cp1252 terminals don't crash
-    safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
-    print(safe)
-    print("-" * 55)
-
-    # ── Evaluate Quality and Post Observation explicitly ───────────
-    collector.mark_end()
-    outputs = collector.outputs_for_q()
-    if outputs:
-        source_data = collector.source_data_for_q()
-        try:
-            from dpi_ls.evaluator import evaluate_quality
-            q = evaluate_quality(outputs, source_data=source_data)
-            collector.set_quality(
-                q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
-            )
-            collector.cpu_utilization = cpu_usage
-            print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
-        except Exception as e:
-            print(f"Failed to evaluate quality: {e}")
-
-    # Now post the observation
-    from dpi_ls.poster import post_observation
-    from contract.settings import Settings
     
-    # Dynamically apply the human_cost setting so the payload correctly records it
-    collector.human_cost = Settings().human_cost_per_output
-    
-    base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
-    rating = post_observation(collector, base_url)
-    if rating:
-        print_score_card(rating)
+    run_name = f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    with mlflow.start_run(run_name=run_name):
+        tracer = trace.get_tracer("chandra-agent-tracer")
+        with tracer.start_as_current_span(AGENT_ID):
+            with mlflow.start_span(name="ChandraFinOpsRun") as mlflow_span:
+                mlflow_span.set_inputs({"prompt": AGENT_QUESTION})
+                result = await Runner.run(agent, AGENT_QUESTION)
+                mlflow_span.set_outputs({"output": result.final_output})
+                
+        cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
+
+        print("\n" + "-" * 55)
+        print("  AGENT ANSWER")
+        print("-" * 55)
+        # Strip non-ASCII so Windows cp1252 terminals don't crash
+        safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
+        print(safe)
+        print("-" * 55)
+
+        # ── Evaluate Quality and Post Observation explicitly ───────────
+        collector.mark_end()
+        outputs = collector.outputs_for_q()
+        if outputs:
+            source_data = collector.source_data_for_q()
+            try:
+                from dpi_ls.evaluator import evaluate_quality
+                q = evaluate_quality(outputs, source_data=source_data)
+                collector.set_quality(
+                    q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
+                )
+                collector.cpu_utilization = cpu_usage
+                print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
+                
+                # Set quality attributes on the mlflow parent span
+                mlflow_span.set_attribute("accuracy", q.accuracy)
+                mlflow_span.set_attribute("groundedness_score", q.consistency)
+                mlflow_span.set_attribute("hallucination_score", q.hallucination_rate)
+            except Exception as e:
+                print(f"Failed to evaluate quality: {e}")
+
+        # Now post the observation
+        from dpi_ls.poster import post_observation
+        from contract.settings import Settings
         
-        # Log final metrics to MLflow
-        with mlflow.start_run(run_name=f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"):
+        # Dynamically apply the human_cost setting so the payload correctly records it
+        collector.human_cost = Settings().human_cost_per_output
+        
+        base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
+        rating = post_observation(collector, base_url)
+        if rating:
+            print_score_card(rating)
+            
+            # Log final metrics to MLflow
             mlflow.log_metric("final_score", rating.get("score", 0.0))
             sub_metrics = rating.get("sub_metrics", {})
             if "C" in sub_metrics:
                 mlflow.log_metric("model_cost", sub_metrics["C"].get("Model Cost (USD)", 0.0))
                 mlflow.log_metric("total_cost_of_ownership", sub_metrics["C"].get("Total Cost (USD)", 0.0))
             if "Q" in sub_metrics:
-                mlflow.log_metric("accuracy", sub_metrics["Q"].get("accuracy", 0.0))
+                mlflow.log_metric("accuracy", sub_metrics["Q"].get("QA Accuracy", 0.0))
             mlflow.log_metric("utilization", getattr(collector, "cpu_utilization", 0.0))
-    else:
-        print("Failed to post observation to the server.")# ===================================================================
+        else:
+            print("Failed to post observation to the server.")# ===================================================================
 #  Entry point
 # ===================================================================
 
