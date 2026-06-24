@@ -469,7 +469,9 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const API = '';
+const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
+  ? window.location.origin
+  : '';
 let allData = [];
 let currentFilter = 'all';
 
