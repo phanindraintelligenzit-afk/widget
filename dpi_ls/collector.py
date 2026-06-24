@@ -483,7 +483,10 @@ class SignalCollector:
             required = self.attempts
         validated = self.validated_outputs
 
-        # Aggregate incidents by source and severity bucket
+        # Aggregate incidents by risk_name across all scan calls.
+        # Deduplication within a single scan (same prompt, multiple detectors)
+        # is already handled in risk.py — so each entry here = 1 unique event.
+        # We SUM frequencies across calls, and take the worst (max) severity.
         aggregated_incidents = {}
         for inc in self.incidents:
             sev = float(inc.get("severity_weight", 0.2))
@@ -493,23 +496,25 @@ class SignalCollector:
                 bucket = "Medium"
             else:
                 bucket = "Low"
-                
-            key = (inc.get("source"), bucket)
+
+            key = (inc.get("risk_name"), bucket)
             if key not in aggregated_incidents:
-                aggregated_incidents[key] = inc.copy()
+                entry = inc.copy()
+                entry.setdefault("_sources", [inc.get("source", "")])
+                aggregated_incidents[key] = entry
             else:
                 existing = aggregated_incidents[key]
-                old_freq = existing.get("frequency", 1)
-                old_sev = float(existing.get("severity_weight", 0))
-                
-                new_freq = inc.get("frequency", 1)
-                new_sev = sev
-                
-                total_freq = old_freq + new_freq
-                avg_sev = ((old_freq * old_sev) + (new_freq * new_sev)) / total_freq
-                
-                existing["frequency"] = total_freq
-                existing["severity_weight"] = avg_sev
+                # Sum frequencies — each entry already represents 1 unique event
+                existing["frequency"] = existing.get("frequency", 1) + inc.get("frequency", 1)
+                # Take worst severity
+                existing["severity_weight"] = max(float(existing.get("severity_weight", 0)), sev)
+                # Merge sources
+                src = inc.get("source", "")
+                sources = existing.setdefault("_sources", [])
+                for s in src.split(", "):
+                    if s and s not in sources:
+                        sources.append(s)
+                existing["source"] = ", ".join(sources)
                 
         obs: dict[str, Any] = {
             "agent_id": self.agent_id,

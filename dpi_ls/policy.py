@@ -23,9 +23,6 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-# Ensure HuggingFace loads locally for semantic models
-os.environ["HF_HOME"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "hf_cache"))
-
 # Policy scanning cache (same as risk.py)
 _policy_cache = {}
 _policy_cache_lock = threading.Lock()

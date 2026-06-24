@@ -16,12 +16,23 @@ import threading
 import warnings
 import concurrent.futures
 import copy
+import urllib.request
+import urllib.parse
+import json
+import io
+import yaml
+from pathlib import Path
+
+# Try to import pandas, chromadb, and sentence_transformers
+try:
+    import pandas as pd
+    import chromadb
+    from sentence_transformers import SentenceTransformer
+    HAS_HEURISTICS = True
+except ImportError:
+    HAS_HEURISTICS = False
 
 logger = logging.getLogger(__name__)
-
-# Set local HuggingFace cache directory
-os.environ["HF_HOME"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "hf_cache"))
-
 
 # Suppress noisy warnings
 warnings.filterwarnings("ignore", message="Entity CUSTOM doesn't have the corresponding recognizer")
@@ -33,6 +44,17 @@ input_scanners = []
 output_scanners = []
 vault = None
 _init_lock = threading.Lock()
+
+# --- HEURISTIC SCANNER GLOBALS ---
+chroma_client = None
+chroma_collection = None
+sentence_encoder = None
+
+# Point to the existing examples/risk_dimension directory to reuse the downloaded yaml and ChromaDB
+CACHE_DIR = Path(__file__).parent.parent / "examples" / "risk_dimension"
+POLICIES_DIR = CACHE_DIR / "policies"
+DB_DIR = CACHE_DIR / "chroma_db"
+DISTANCE_THRESHOLD = 0.50
 
 _scan_cache = {}
 _cache_lock = threading.Lock()
@@ -143,6 +165,111 @@ def eager_init():
 
 def _init_scanners_unsafe():
     global HAS_LLM_GUARD, input_scanners, output_scanners, vault
+    global chroma_client, chroma_collection, sentence_encoder
+    
+    if HAS_HEURISTICS and chroma_collection is None:
+        try:
+            logger.info("DPI-LS Risk Scanner: Initializing ChromaDB & SentenceTransformer for heuristic rules...")
+            POLICIES_DIR.mkdir(parents=True, exist_ok=True)
+            DB_DIR.mkdir(parents=True, exist_ok=True)
+            
+            chroma_client = chromadb.PersistentClient(path=str(DB_DIR))
+            chroma_collection = chroma_client.get_or_create_collection(name="dpi_risk_signatures")
+            sentence_encoder = SentenceTransformer("all-MiniLM-L6-v2")
+            
+            def fetch_huggingface_dataset(dataset_id, yaml_filename, risk_name, text_column, label_column=None, label_value=None):
+                yaml_path = POLICIES_DIR / yaml_filename
+                if yaml_path.exists():
+                    return
+                
+                logger.info(f"DPI-LS Risk Scanner: Fetching {dataset_id} from Hugging Face API...")
+                try:
+                    hf_token = os.environ.get("HF_TOKEN")
+                    headers = {'User-Agent': 'Mozilla/5.0'}
+                    if hf_token:
+                        headers['Authorization'] = f"Bearer {hf_token}"
+                    
+                    api_url = f"https://datasets-server.huggingface.co/parquet?dataset={urllib.parse.quote(dataset_id, safe='')}"
+                    req = urllib.request.Request(api_url, headers=headers)
+                    with urllib.request.urlopen(req) as response:
+                        metadata = json.loads(response.read().decode())
+                        
+                    urls = [file_info["url"] for file_info in metadata.get("parquet_files", [])]
+                    risky_actions = []
+                    
+                    for url in urls:
+                        req = urllib.request.Request(url, headers=headers)
+                        with urllib.request.urlopen(req) as response:
+                            df = pd.read_parquet(io.BytesIO(response.read()))
+                            
+                        for _, row in df.iterrows():
+                            if label_column and label_value is not None:
+                                if row.get(label_column) != label_value:
+                                    continue
+                            text = str(row.get(text_column, "")).strip()
+                            if text:
+                                risky_actions.append({"riskName": risk_name, "riskAction": text})
+                    
+                    with open(yaml_path, "w", encoding="utf-8") as f:
+                        yaml.dump({"riskyActions": risky_actions}, f, allow_unicode=True, default_flow_style=False)
+                except Exception as e:
+                    logger.error(f"DPI-LS Risk Scanner: Failed to download {dataset_id}: {e}")
+
+            # Fetch datasets
+            fetch_huggingface_dataset("deepset/prompt-injections", "hf_deepset_injections.yaml", "PromptInjectionAttack", "text", "label", 1)
+            fetch_huggingface_dataset("rubend18/ChatGPT-Jailbreak-Prompts", "hf_rubend18_jailbreaks.yaml", "JaiLBreakBypassDetected", "Prompt")
+            fetch_huggingface_dataset("S-Labs/prompt-injection-dataset", "hf_slabs_injections.yaml", "PromptInjectionAttack", "text", "label", 1)
+            
+            # Load and Embed
+            risky_actions = []
+            for yaml_file in POLICIES_DIR.glob("*.yaml"):
+                try:
+                    with open(yaml_file, "r", encoding="utf-8") as f:
+                        # Use CSafeLoader if available for massive speedup
+                        if hasattr(yaml, 'CSafeLoader'):
+                            data = yaml.load(f, Loader=yaml.CSafeLoader)
+                        else:
+                            data = yaml.safe_load(f)
+                        if data and "riskyActions" in data:
+                            risky_actions.extend(data["riskyActions"])
+                except Exception as e:
+                    logger.error(f"DPI-LS Risk Scanner: Failed to read {yaml_file.name}: {e}")
+                    
+            documents, metadatas, ids = [], [], []
+            seen_ids = set()
+            for item in risky_actions:
+                risk_action = item.get("riskAction")
+                risk_name = item.get("riskName")
+                if risk_action and risk_name:
+                    doc_id = hashlib.sha256(risk_action.encode()).hexdigest()
+                    if doc_id not in seen_ids:
+                        seen_ids.add(doc_id)
+                        documents.append(risk_action)
+                        metadatas.append({"riskName": risk_name})
+                        ids.append(doc_id)
+            
+            if documents:
+                # Optimized get(): Only get IDs, not embeddings/documents, to save memory/time
+                existing_data = chroma_collection.get(ids=ids, include=["metadatas"])
+                existing_ids = set(existing_data["ids"])
+                missing_indices = [i for i, doc_id in enumerate(ids) if doc_id not in existing_ids]
+                
+                if missing_indices:
+                    missing_docs = [documents[i] for i in missing_indices]
+                    missing_ids = [ids[i] for i in missing_indices]
+                    missing_metas = [metadatas[i] for i in missing_indices]
+                    logger.info(f"DPI-LS Risk Scanner: Embedding {len(missing_docs)} new signatures into ChromaDB...")
+                    
+                    BATCH_SIZE = 5000
+                    for i in range(0, len(missing_docs), BATCH_SIZE):
+                        batch_docs = missing_docs[i:i + BATCH_SIZE]
+                        batch_ids = missing_ids[i:i + BATCH_SIZE]
+                        batch_metas = missing_metas[i:i + BATCH_SIZE]
+                        attack_embeddings = sentence_encoder.encode(batch_docs).tolist()
+                        chroma_collection.upsert(ids=batch_ids, documents=batch_docs, metadatas=batch_metas, embeddings=attack_embeddings)
+        except Exception as e:
+            logger.error(f"DPI-LS Risk Scanner: Heuristic setup failed: {e}")
+
     try:
         import llm_guard.input_scanners.prompt_injection as pi
         pi._model_path = "protectai/deberta-v3-base-prompt-injection"
@@ -316,8 +443,49 @@ def scan_llmguard_input_risks(prompt: str) -> list[dict]:
         res = future.result()
         if res:
             incidents.append(res)
+            
+    # --- Heuristic ChromaDB Check ---
+    if HAS_HEURISTICS and chroma_collection is not None and sentence_encoder is not None:
+        try:
+            prompt_embedding = sentence_encoder.encode([prompt]).tolist()
+            results = chroma_collection.query(query_embeddings=prompt_embedding, n_results=1)
+            if results["distances"] and results["distances"][0]:
+                distance = results["distances"][0][0]
+                if distance < DISTANCE_THRESHOLD:
+                    risk_name = results["metadatas"][0][0].get("riskName", "PromptInjectionAttack")
+                    incidents.append({
+                        "severity_weight": 1.0,
+                        "frequency": 1,
+                        "source": "heuristic:chromadb",
+                        "risk_name": risk_name,
+                    })
+        except Exception as e:
+            logger.debug(f"DPI-LS Risk Scanner: ChromaDB heuristic check failed: {e}")
 
     _set_cached_scan(cache_key, incidents)
+
+    # --- Deduplicate by risk_name within this single scan call ---
+    # If both LLM-Guard AND Rebuff fire on the same prompt for the same
+    # attack type, collapse them into ONE incident (1 event, not 2).
+    # Take the highest severity and concatenate sources for transparency.
+    deduped: dict[str, dict] = {}
+    for inc in incidents:
+        rn = inc.get("risk_name", "Unknown")
+        if rn not in deduped:
+            entry = inc.copy()
+            entry["_sources"] = [inc.get("source", "")]
+            deduped[rn] = entry
+        else:
+            existing = deduped[rn]
+            existing["severity_weight"] = max(
+                float(existing.get("severity_weight", 0)),
+                float(inc.get("severity_weight", 0))
+            )
+            src = inc.get("source", "")
+            if src and src not in existing["_sources"]:
+                existing["_sources"].append(src)
+            existing["source"] = ", ".join(existing["_sources"])
+    incidents = list(deduped.values())
 
     if incidents:
         found = [i["risk_name"] for i in incidents]

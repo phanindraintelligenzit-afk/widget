@@ -244,6 +244,11 @@ def _extract_input_text(args, kwargs):
     if isinstance(arg, str):
         return arg[:_MAX_INPUT_TEXT]
     if isinstance(arg, dict):
+        # LangGraph typically passes {"messages": [...]}
+        if "messages" in arg and isinstance(arg["messages"], list):
+            # Recursively call _extract_input_text on the list of messages
+            return _extract_input_text((arg["messages"],), kwargs)
+            
         parts = []
         for k, v in arg.items():
             if isinstance(v, str) and v.strip():
