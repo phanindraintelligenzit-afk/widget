@@ -9,8 +9,11 @@ If not installed, it safely returns an empty set so the engine doesn't crash.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
+from dotenv import load_dotenv
+load_dotenv(override=True)
 import re
 import time
 import json
@@ -22,8 +25,34 @@ log = logging.getLogger(__name__)
 
 # Ensure HuggingFace loads locally for semantic models
 os.environ["HF_HOME"] = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "hf_cache"))
-os.environ["HF_HUB_OFFLINE"] = "1"
-os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+# Policy scanning cache (same as risk.py)
+_policy_cache = {}
+_policy_cache_lock = threading.Lock()
+_POLICY_CACHE_SIZE = 1000
+_POLICY_CACHE_ENABLED = os.getenv("DPI_CACHE_POLICY_SCANS", "1") == "1"
+
+def _hash_text_policy(text: str) -> str:
+    """Hash text for cache key."""
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
+
+def _get_cached_policy(cache_key: str) -> set[str] | None:
+    """Get cached policy scan result."""
+    if not _POLICY_CACHE_ENABLED:
+        return None
+    with _policy_cache_lock:
+        return _policy_cache.get(cache_key)
+
+def _set_cached_policy(cache_key: str, violations: set[str]) -> None:
+    """Set cached policy scan result with LRU eviction."""
+    if not _POLICY_CACHE_ENABLED:
+        return
+    with _policy_cache_lock:
+        _policy_cache[cache_key] = violations
+        if len(_policy_cache) > _POLICY_CACHE_SIZE:
+            first_key = next(iter(_policy_cache))
+            del _policy_cache[first_key]
+            log.debug(f"Policy cache evicted oldest entry, size now {len(_policy_cache)}")
 
 HAS_PRESIDIO = False
 analyzer = None
@@ -62,12 +91,20 @@ def scan_policy_violations(text: str) -> set[str]:
 
     Always returns a real set so callers can iterate, ``len()``, or
     compare with ``==`` against the empty set.
+    Cached to prevent repeated scanning of identical text.
     """
     if not text:
         return set()
-        
+
+    # Check cache first
+    cache_key = f"policy:{_hash_text_policy(text)}"
+    cached = _get_cached_policy(cache_key)
+    if cached is not None:
+        log.debug(f"Policy cache hit: {cache_key[:8]}...")
+        return cached
+
     seen: set[str] = set()
-    
+
     if HAS_PRESIDIO and analyzer is not None:
         try:
             # We omit the 'entities' parameter to scan for all supported types natively
@@ -78,7 +115,7 @@ def scan_policy_violations(text: str) -> set[str]:
                     seen.add(result.entity_type)
         except Exception as e:
             log.warning("Presidio analysis failed: %s", e)
-            
+
     if HAS_DETECT_SECRETS:
         for plugin in secrets_plugins:
             try:
@@ -87,7 +124,9 @@ def scan_policy_violations(text: str) -> set[str]:
                     seen.add(type(plugin).__name__)
             except Exception as e:
                 log.warning("detect-secrets plugin %s failed: %s", type(plugin).__name__, e)
-            
+
+    # Cache result
+    _set_cached_policy(cache_key, seen)
     return seen
 
 # Backwards-compatible alias — some external callers (and the

@@ -40,6 +40,7 @@ class Incident(BaseModel):
     severity_weight: float
     frequency: float
     source: str
+    risk_name: Optional[str] = None
 
 
 class Quality(BaseModel):

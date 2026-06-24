@@ -41,6 +41,7 @@ from .collector import SignalCollector
 from .evaluator import evaluate_quality
 from .frameworks import detect_and_install
 from .poster import post_observation, write_local_copy
+from .risk import eager_init as _risk_eager_init
 from .server import start_server
 
 _log = logging.getLogger("dpi_ls.monitor")
@@ -100,6 +101,13 @@ def monitor(
         open_browser=open_browser,
     )
     _state.set_server_info(info)
+
+    # 1b. Pre-load all LLM Guard scanner models in a background thread so
+    #     they are fully in memory before the first scenario fires a scan
+    #     job.  Every scan job then finds HAS_LLM_GUARD=True and calls
+    #     .scan() directly on the already-instantiated scanner objects —
+    #     no model loading at runtime, no cold-start delay per scenario.
+    _risk_eager_init()
 
     # 2. Build the collector and bind it to the agent.
     resolved_name = agent_name or _try_agent_name(agents[0] if agents else None) or agent_id

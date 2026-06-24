@@ -16,6 +16,8 @@ from typing import Annotated, Sequence, TypedDict
 sys.stdout.reconfigure(encoding='utf-8')
 
 from dotenv import load_dotenv
+load_dotenv(override=True)
+
 from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.tools import tool
@@ -24,8 +26,6 @@ from langgraph.prebuilt import ToolNode
 
 # Initialize Telemetry
 import dpi_ls
-
-load_dotenv(override=True)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 log = logging.getLogger(__name__)

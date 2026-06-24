@@ -318,26 +318,26 @@
       let risksHtml = "";
       if (key === "R" && Array.isArray(sub.incidents) && sub.incidents.length) {
         const risksList = sub.incidents.map((inc, i) => {
-          let source = inc.source || "unknown_incident";
-          if (source.startsWith("lakera:")) {
-              source = source.substring(7);
-          }
+          const riskName = inc.risk_name || inc.source || "unknown_incident";
+          const source = inc.source || "unknown";
           const freq = inc.frequency || 1;
           const sevNum = Number(inc.severity_weight || 0);
           const sev = sevNum.toFixed(1);
-          
+
           let label = "";
           if (sevNum >= 0.7) label = " (High)";
           else if (sevNum >= 0.3) label = " (Medium)";
           else label = " (Low)";
-          source = source + label;
-          
+
           let sevColor = "#3b82f6"; // Low
           if (sevNum >= 0.7) sevColor = "#ef4444"; // High
           else if (sevNum >= 0.3) sevColor = "#f59e0b"; // Medium
-          
+
           return `<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;">
-            <code style="background:#f1f5f9;color:#334155;padding:2px 6px;border-radius:4px;font-size:10px">${escapeHtml(source)}</code>
+            <div style="display:flex;flex-direction:column;gap:2px;">
+              <code style="background:#f1f5f9;color:#334155;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600">${escapeHtml(riskName)}</code>
+              <code style="background:#f9fafb;color:#64748b;padding:1px 4px;border-radius:3px;font-size:9px">${escapeHtml(source)}</code>
+            </div>
             <div style="display:flex;gap:12px;font-size:10px;">
               <span><span style="color:#64748b">Freq:</span> <strong>${freq}</strong></span>
               <span><span style="color:#64748b">Sev:</span> <strong style="color:${sevColor}">${sev}</strong></span>

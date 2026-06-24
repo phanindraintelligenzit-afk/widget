@@ -27,8 +27,11 @@ from typing import Any, Optional
 from .policy import scan_policy_violations
 from .risk import scan_llmguard_input_risks, scan_llmguard_output_risks
 
-# Global thread pool for async Lakera Guard risk scanning
-_risk_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="dpi_risk_scan")
+# Global thread pool for risk scanning — 30 workers so all 30 scan jobs
+# (15 input + 15 output across 15 scenarios) can run simultaneously.
+# Once eager_init() has pre-loaded the models, every job goes straight to
+# .scan() on the already-instantiated scanner objects with zero model reload.
+_risk_executor = ThreadPoolExecutor(max_workers=30, thread_name_prefix="dpi_risk_scan")
 
 # Cap how many full outputs we keep for the LLM evaluator. The last N are
 # the most representative of how the run actually ended, and feeding the
@@ -136,6 +139,8 @@ class SignalCollector:
     # user via ``collector.record_source(text)`` for explicit control.
     _source_data: list[str] = field(default_factory=list)
     _source_data_lock: threading.Lock = field(default_factory=threading.Lock)
+    _last_prompt: str = ""
+    _risk_futures: list = field(default_factory=list)
 
     # Lock for the small handful of counters that are incremented from
     # background threads (uvicorn server thread + main thread both touch
@@ -196,6 +201,8 @@ class SignalCollector:
             self._source_data.append(labelled)
             if len(self._source_data) > _MAX_SOURCE_DATA:
                 del self._source_data[: len(self._source_data) - _MAX_SOURCE_DATA]
+            if kind.lower() == "input":
+                self._last_prompt = text.strip()
                 
         # R: Asynchronous Lakera Guard scan on source inputs (catches prompt injections/jailbreaks)
         def _scan_and_record():
@@ -204,7 +211,10 @@ class SignalCollector:
                 with self._lock:
                     self.incidents.extend(incidents)
         
-        _risk_executor.submit(_scan_and_record)
+        future = _risk_executor.submit(_scan_and_record)
+        with self._lock:
+            self._risk_futures = [f for f in self._risk_futures if not f.done()]
+            self._risk_futures.append(future)
 
     def record_tool_call(self, *, ok: bool = True, action_name: str | None = None, tool_args: dict | None = None) -> None:
         with self._lock:
@@ -314,7 +324,11 @@ class SignalCollector:
             self.period_end = _utcnow()
             
         # Ensure all pending Lakera Guard async scans complete before finalizing
-        _risk_executor.shutdown(wait=True)
+        import concurrent.futures
+        with self._lock:
+            futures = list(self._risk_futures)
+        if futures:
+            concurrent.futures.wait(futures)
 
     # ---- accessors used by finalize() ---------------------------------
 
@@ -396,19 +410,15 @@ class SignalCollector:
 
             # R: Asynchronous Lakera Guard scan on outputs (catches PII/Toxicity)
             def _scan_and_record():
-                # Find the most recent prompt
-                prompt = ""
-                with self._source_data_lock:
-                    for item in reversed(self._source_data):
-                        if item.startswith("[INPUT]"):
-                            prompt = item.replace("[INPUT]\n", "", 1).strip()
-                            break
-                incidents = scan_llmguard_output_risks(prompt, output)
+                incidents = scan_llmguard_output_risks(self._last_prompt, output)
                 if incidents:
                     with self._lock:
                         self.incidents.extend(incidents)
             
-            _risk_executor.submit(_scan_and_record)
+            future = _risk_executor.submit(_scan_and_record)
+            with self._lock:
+                self._risk_futures = [f for f in self._risk_futures if not f.done()]
+                self._risk_futures.append(future)
         # V: best-effort structural check.
         if _looks_structured(output):
             with self._lock:
@@ -422,7 +432,7 @@ class SignalCollector:
         Returns a plain dict (not the Pydantic model) so the poster can
         hand it to httpx as JSON; the API will validate it on the way in.
         """
-        self.mark_end()
+        # Removed mark_end() call here to decouple observation building from shutdown
         end = self.period_end or _utcnow()
         start = self.period_start
 
