@@ -51,38 +51,8 @@ import litellm
 
 
 if os.getenv("LANGFUSE_PUBLIC_KEY"):
-    litellm.success_callback = ["langfuse", "otel", "mlflow"]
-    litellm.failure_callback = ["langfuse", "otel", "mlflow"]
-
-# 1. OpenTelemetry
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-
-tracer_provider = TracerProvider()
-otel_exporter = OTLPSpanExporter(endpoint="http://localhost:6006/v1/traces")
-tracer_provider.add_span_processor(BatchSpanProcessor(otel_exporter))
-trace.set_tracer_provider(tracer_provider)
-
-# 2. Phoenix
-os.environ["PHOENIX_CLIENT_HEADERS"] = "api_key=None"
-os.environ["PHOENIX_COLLECTOR_ENDPOINT"] = "http://127.0.0.1:6006/v1/traces"
-from openinference.instrumentation.openai import OpenAIInstrumentor
-from openinference.instrumentation.litellm import LiteLLMInstrumentor
-OpenAIInstrumentor().instrument()
-LiteLLMInstrumentor().instrument()
-
-# 3. MLflow
-import mlflow
-import mlflow.litellm
-import mlflow.openai
-os.environ["MLFLOW_TRACE_ENABLE_OTLP_DUAL_EXPORT"] = "true"
-mlflow.set_tracking_uri("http://localhost:5000")
-mlflow.set_experiment("Chandra FinOps")
-mlflow.tracing.enable()
-mlflow.litellm.autolog()
-mlflow.openai.autolog()
+    litellm.success_callback = ["langfuse"]
+    litellm.failure_callback = ["langfuse"]
 
 import dpi_ls  # line 1 — the installable package
 
@@ -334,68 +304,48 @@ async def run_agent_observation() -> None:
     psutil.cpu_percent() # Seed the psutil cpu percent measurement
     
     run_name = f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    with mlflow.start_run(run_name=run_name):
-        tracer = trace.get_tracer("chandra-agent-tracer")
-        with tracer.start_as_current_span(AGENT_ID):
-            with mlflow.start_span(name="ChandraFinOpsRun") as mlflow_span:
-                mlflow_span.set_inputs({"prompt": AGENT_QUESTION})
-                result = await Runner.run(agent, AGENT_QUESTION)
-                mlflow_span.set_outputs({"output": result.final_output})
-                
-        cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
+    result = await Runner.run(agent, AGENT_QUESTION)
+    cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
 
-        print("\n" + "-" * 55)
-        print("  AGENT ANSWER")
-        print("-" * 55)
-        # Strip non-ASCII so Windows cp1252 terminals don't crash
-        safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
-        print(safe)
-        print("-" * 55)
+    print("\n" + "-" * 55)
+    print("  AGENT ANSWER")
+    print("-" * 55)
+    # Strip non-ASCII so Windows cp1252 terminals don't crash
+    safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
+    print(safe)
+    print("-" * 55)
 
-        # ── Evaluate Quality and Post Observation explicitly ───────────
-        collector.mark_end()
-        outputs = collector.outputs_for_q()
-        if outputs:
-            source_data = collector.source_data_for_q()
-            try:
-                from dpi_ls.evaluator import evaluate_quality
-                q = evaluate_quality(outputs, source_data=source_data)
-                collector.set_quality(
-                    q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
-                )
-                collector.cpu_utilization = cpu_usage
-                print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
-                
-                # Set quality attributes on the mlflow parent span
-                mlflow_span.set_attribute("accuracy", q.accuracy)
-                mlflow_span.set_attribute("groundedness_score", q.consistency)
-                mlflow_span.set_attribute("hallucination_score", q.hallucination_rate)
-            except Exception as e:
-                print(f"Failed to evaluate quality: {e}")
+    # ── Evaluate Quality and Post Observation explicitly ───────────
+    collector.mark_end()
+    outputs = collector.outputs_for_q()
+    if outputs:
+        source_data = collector.source_data_for_q()
+        try:
+            from dpi_ls.evaluator import evaluate_quality
+            q = evaluate_quality(outputs, source_data=source_data)
+            collector.set_quality(
+                q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
+            )
+            collector.cpu_utilization = cpu_usage
+            print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
+        except Exception as e:
+            print(f"Failed to evaluate quality: {e}")
 
-        # Now post the observation
-        from dpi_ls.poster import post_observation
-        from contract.settings import Settings
-        
-        # Dynamically apply the human_cost setting so the payload correctly records it
-        collector.human_cost = Settings().human_cost_per_output
-        
-        base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
-        rating = post_observation(collector, base_url)
-        if rating:
-            print_score_card(rating)
-            
-            # Log final metrics to MLflow
-            mlflow.log_metric("final_score", rating.get("score", 0.0))
-            sub_metrics = rating.get("sub_metrics", {})
-            if "C" in sub_metrics:
-                mlflow.log_metric("model_cost", sub_metrics["C"].get("Model Cost (USD)", 0.0))
-                mlflow.log_metric("total_cost_of_ownership", sub_metrics["C"].get("Total Cost (USD)", 0.0))
-            if "Q" in sub_metrics:
-                mlflow.log_metric("accuracy", sub_metrics["Q"].get("QA Accuracy", 0.0))
-            mlflow.log_metric("utilization", getattr(collector, "cpu_utilization", 0.0))
-        else:
-            print("Failed to post observation to the server.")# ===================================================================
+    # Now post the observation
+    from dpi_ls.poster import post_observation
+    from contract.settings import Settings
+    
+    # Dynamically apply the human_cost setting so the payload correctly records it
+    collector.human_cost = Settings().human_cost_per_output
+    
+    base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
+    rating = post_observation(collector, base_url)
+    if rating:
+        print_score_card(rating)
+    else:
+        print("Failed to post observation to the server.")
+
+# ===================================================================
 #  Entry point
 # ===================================================================
 

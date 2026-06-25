@@ -331,10 +331,16 @@ def agent_history(
 
 @app.get("/ratings", response_model=list[BoardRow])
 def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
+    settings = repo.get_settings(s)
+    weights = settings.weights
     out: list[BoardRow] = []
     for agent, score in repo.latest_scores_for_all(s):
         if score is None:
             continue
+        
+        m_dict = dict(score.metrics or {})
+        w_dict = {k: v * weights.get(k, 0) * 100 for k, v in m_dict.items()}
+        
         out.append(
             BoardRow(
                 agent_id=agent.id,
@@ -344,6 +350,9 @@ def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
                 band=score.band,
                 unsafe=score.unsafe,
                 gate_failures=list(score.gate_failures or []),
+                metrics=m_dict,
+                weighted_metrics=w_dict,
+                sub_metrics=dict(score.sub_metrics or {}),
                 computed_at=score.computed_at,
             )
         )

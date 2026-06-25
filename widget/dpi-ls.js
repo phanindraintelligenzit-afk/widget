@@ -185,25 +185,93 @@
   }
 
   function boardRowHtml(row) {
+    if (!row) return "";
+    const rawScore = typeof row.raw_score === 'number' ? row.raw_score : row.score;
+    // Use weighted_metrics for display (e.g. 15, 18, 15, 20 …) which already
+    // incorporates the dimension weight and matches the user's expected format.
+    const wm = row.weighted_metrics || {};
+    const m  = row.metrics || {};  // raw 0-1 values for drilldown context
+    const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
+    const metricCells = KEYS.map(k => {
+      const val = wm[k] !== undefined ? wm[k] : m[k];
+      const display = (val !== null && val !== undefined)
+        ? (Number.isInteger(val) ? val : parseFloat(val.toFixed(1)))
+        : "\u2014";
+      return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details">${display}</td>`;
+    }).join("");
     return `
-      <div class="card" part="card" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || '')}" role="button" tabindex="0" title="Click to see the 7 dimensions for ${escapeHtml(row.agent_name || row.agent_id)}">
-        <div class="head">
-          <div>
-            <div class="name">${escapeHtml(row.agent_name)}</div>
-            <div class="id">${escapeHtml(row.agent_id)}</div>
-          </div>
-          ${bandPill(bandForScore(row.raw_score !== undefined ? row.raw_score : row.score, row.band))}
-        </div>
-        <div class="score">${fmtScore(row.raw_score !== undefined ? row.raw_score : row.score)}</div>
-        ${row.unsafe ? `<div class="unsafe">⚠ Unsafe — ${(row.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(row.gate_failures || []).length > 1 ? "s" : ""} failed</div>` : ""}
-        <div class="timestamp">${escapeHtml(fmtTime(row.computed_at))}</div>
-      </div>
+      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">✈ ${escapeHtml(row.agent_name || row.agent_id)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(rawScore)}</td>
+        ${metricCells}
+      </tr>
     `;
   }
 
   const METRIC_WEIGHTS = {
     P: 15, Q: 20, E: 15, G: 20, R: 15, V: 10, C: 5
   };
+
+  /**
+   * Renders the inline drilldown panel for the Airport Board.
+   * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
+   */
+  function metricDetailHtml(key, value, sub) {
+    const label  = METRIC_LABELS[key]  || key;
+    const weight = METRIC_WEIGHTS[key] || 0;
+    const formula = METRIC_FORMULAS[key] || "—";
+
+    // Weighted contribution
+    const contrib = (typeof value === 'number' && weight)
+      ? (value * weight).toFixed(2)
+      : "—";
+    const valueStr = (typeof value === 'number') ? parseFloat(value.toFixed(4)) : "—";
+
+    // Sub-metric rows
+    let subRows = "";
+    if (sub && typeof sub === 'object') {
+      subRows = Object.entries(sub)
+        .filter(([k]) => k !== 'violations' && k !== 'details')
+        .map(([k, v]) => {
+          let disp = v;
+          if (typeof v === 'number') disp = parseFloat(v.toFixed(6));
+          if (Array.isArray(v))      disp = v.length + " items";
+          if (typeof v === 'boolean') disp = v ? "true" : "false";
+          return `<tr>
+            <td style="padding:5px 10px;color:#94a3b8;border-bottom:1px solid #1e293b;font-size:12px;">${escapeHtml(String(k))}</td>
+            <td style="padding:5px 10px;color:#e2e8f0;border-bottom:1px solid #1e293b;font-size:12px;font-weight:600;">${escapeHtml(String(disp))}</td>
+          </tr>`;
+        }).join("");
+    }
+    const subTable = subRows
+      ? `<table style="width:100%;border-collapse:collapse;margin-top:10px;">${subRows}</table>`
+      : `<div style="color:#475569;font-size:12px;margin-top:8px;">No sub-metric data available.</div>`;
+
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">${escapeHtml(key)}</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">${escapeHtml(label)}</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${weight}%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${valueStr}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×${weight}%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${contrib}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">${escapeHtml(formula)}</div>
+          </div>
+        </div>
+        <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Sub-metrics</div>
+        ${subTable}
+      </div>`;
+  }
 
   function metricLineHtml(key, value, sub, isExpanded) {
     const labelStr = METRIC_LABELS[key] || key;
@@ -441,16 +509,39 @@
       this.shadowRoot.removeEventListener("click", this._onCardClick);
     }
     _handleCardClick(ev) {
-      // Find the nearest .card with data-agent-id — works even if the
-      // user clicked a child element (band pill, score, etc.).
-      let el = ev.target;
-      while (el && el !== this.shadowRoot) {
-        if (el.classList && el.classList.contains("card") && el.dataset.agentId) {
-          this._select(el.dataset.agentId, el.dataset.agentName || el.dataset.agentId);
-          ev.preventDefault();
-          return;
+      const td = ev.target.closest("td.metric-cell");
+      const tr = ev.target.closest("tr.agent-row");
+
+      if (td && tr) {
+        // — Metric column click: open/close inline detail row —
+        const agentId = tr.dataset.agentId;
+        const key = td.dataset.key;
+        const existing = tr.nextElementSibling;
+        if (existing && existing.classList.contains("detail-row")) {
+          if (existing.dataset.expandedKey === key) {
+            existing.remove(); // toggle off same column
+            return;
+          }
+          existing.remove(); // replace with different column
         }
-        el = el.parentNode;
+        const row = (this._data || []).find(r => r.agent_id === agentId);
+        if (!row) return;
+        const m = row.metrics || {};
+        const sub = row.sub_metrics || {};
+        const detailHtml = metricDetailHtml(key, m[key], sub[key]);
+        const detailTr = document.createElement("tr");
+        detailTr.className = "detail-row";
+        detailTr.dataset.expandedKey = key;
+        detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+        tr.parentNode.insertBefore(detailTr, tr.nextSibling);
+        ev.preventDefault();
+        return;
+      }
+
+      if (tr) {
+        // — Row click (not on metric cell): select the agent —
+        this._select(tr.dataset.agentId, tr.dataset.agentName || tr.dataset.agentId);
+        ev.preventDefault();
       }
     }
     _select(agentId, agentName) {
@@ -477,18 +568,41 @@
       }
     }
     _render({ loading, data, error }) {
+      this._data = data || [];
       let body;
-      if (loading) body = `<div class="empty">Loading…</div>`;
-      else if (error) body = `<div class="err">Cannot load board: ${escapeHtml(error)}</div>`;
-      else if (!data || data.length === 0) body = `<div class="empty">No agents scored yet.</div>`;
-      else body = `<div class="board">${data.map(boardRowHtml).join("")}</div>`;
-      this._renderShell(body);
-      // Re-apply the selected-card highlight after re-render.
-      const selectedId = this.getAttribute("selected-agent");
-      if (selectedId) {
-        const sel = this.shadowRoot.querySelector(`.card[data-agent-id="${cssEscape(selectedId)}"]`);
-        if (sel) sel.classList.add("is-selected");
+      if (loading) {
+        body = `<div class="empty">Loading…</div>`;
+      } else if (error) {
+        body = `<div class="err">Cannot load board: ${escapeHtml(error)}</div>`;
+      } else if (!data || data.length === 0) {
+        body = `<div class="empty">No agents scored yet.</div>`;
+      } else {
+        body = `
+        <div style="background:#020617;border-radius:10px;border:2px solid #334155;overflow:hidden;font-family:'Courier New',Courier,monospace;">
+          <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:14px 24px;text-align:center;border-bottom:2px solid #334155;">
+            <span style="color:#facc15;font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">✈ AGENT DEPARTURES</span>
+          </div>
+          <table style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
+                <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (20%)">G</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (15%)">R</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (10%)">V</th>
+                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (5%)">C</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.map(boardRowHtml).join("")}
+            </tbody>
+          </table>
+        </div>`;
       }
+      this._renderShell(body);
     }
   }
 

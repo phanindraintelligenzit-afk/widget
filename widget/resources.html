@@ -682,11 +682,13 @@ function renderStepsTrack(steps) {
   return html;
 }
 
-const COST_METRICS     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
+const COST_METRICS     = ['input_tokens', 'output_tokens', 'model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
 const VALIDATION_METRICS = ['validated_components','required_components','validation_score'];
 const QUALITY_METRICS  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
 
 const METRIC_NICE_NAMES = {
+  input_tokens: 'Input Tokens',
+  output_tokens: 'Output Tokens',
   model_cost: 'Model Cost',
   token_cost: 'Token Cost',
   prompt_cost: 'Prompt Cost',
@@ -728,10 +730,8 @@ function renderMetricGroup(metrics, keys, groupLabel, groupColor) {
 
 function renderMetricChips(metrics) {
   return [
-    renderMetricGroup(metrics, COST_METRICS,       '💰 Cost Parameters (C)',       '#f97316'),
-    renderMetricGroup(metrics, VALIDATION_METRICS, '✅ Validation Parameters (V)',  '#22c55e'),
-    renderMetricGroup(metrics, QUALITY_METRICS,    '🧬 Quality Parameters (Q)',     '#a78bfa'),
-  ].join('');
+    renderMetricGroup(metrics, COST_METRICS, '💰 Cost Parameters (C)', '#f97316')
+  ].filter(html => html !== '').join("");
 }
 
 function renderResourceCard(name, metrics) {
@@ -783,7 +783,7 @@ function renderResourceCard(name, metrics) {
 
       <!-- Metrics Grid -->
       <div class="rc-metrics">
-        <div class="rc-metrics-title">${detectedCount}/${metrics.length} Metrics Detected &nbsp;|&nbsp; <span style="color:#f97316">C: Cost</span> &nbsp;·&nbsp; <span style="color:#22c55e">V: Validation</span> &nbsp;·&nbsp; <span style="color:#a78bfa">Q: Quality</span></div>
+        <div class="rc-metrics-title">${detectedCount}/${metrics.length} Metrics Detected &nbsp;|&nbsp; <span style="color:#f97316">C: Cost</span></div>
         <div>
           ${renderMetricChips(metrics)}
         </div>
@@ -852,7 +852,7 @@ async function runEvaluation() {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -869,7 +869,7 @@ async function loadData() {
     const r = await fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
   } catch (e) {

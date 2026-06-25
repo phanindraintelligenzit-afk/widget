@@ -3,7 +3,7 @@ already the canonical contract."""
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field
 
@@ -33,6 +33,9 @@ class BoardRow(BaseModel):
     band: str
     unsafe: bool
     gate_failures: list[str] = Field(default_factory=list)
+    metrics: dict[str, float] = Field(default_factory=dict)
+    weighted_metrics: dict[str, float] = Field(default_factory=dict)
+    sub_metrics: dict[str, Any] = Field(default_factory=dict)
     computed_at: datetime
 
 

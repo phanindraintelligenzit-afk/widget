@@ -198,10 +198,9 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         c_raw["Model Cost (USD)"] = mc
         c_raw["Token Cost (USD)"] = tc
         c_raw["Total Cost (USD)"] = tco
+        c_raw["Efficiency Ratio"] = hc / max(c_raw["AI Cost Per Output"], 0.000001)
         
         c_raw.pop("Human_cost", None)
-        c_raw.pop("input_tokens", None)
-        c_raw.pop("output_tokens", None)
         c_raw.pop("number_of_llm_calls", None)
         c_raw.pop("model_cost", None)
         
