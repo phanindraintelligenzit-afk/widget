@@ -22,6 +22,10 @@ Write-Host "Starting Grafana..."
 $GrafDir = "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin"
 Start-Process -FilePath "$GrafDir\grafana.exe" -ArgumentList "server --homepath .." -WorkingDirectory $GrafDir
 
+# 5. Arize Phoenix (Port 6006)
+Write-Host "Starting Arize Phoenix..."
+Start-Process -FilePath "D:\Projects\widget\widget\.phoenix-venv\Scripts\phoenix.exe" -ArgumentList "serve --port 6006" -WorkingDirectory "D:\Projects\widget\widget"
+
 # Return to project root
 Set-Location "D:\Projects\widget\widget"
 

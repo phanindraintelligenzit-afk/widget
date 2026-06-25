@@ -6,7 +6,7 @@ Stop-Process -Name "grafana" -Force -ErrorAction SilentlyContinue
 Stop-Process -Name "uvicorn" -Force -ErrorAction SilentlyContinue
 
 # For MLflow and FastAPI, they run via python/uv. Safest is to stop by port.
-$PortsToClose = @(8000, 5000)
+$PortsToClose = @(8000, 5000, 6006)
 
 foreach ($Port in $PortsToClose) {
     $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue

@@ -77,8 +77,10 @@ LiteLLMInstrumentor().instrument()
 import mlflow
 import mlflow.litellm
 import mlflow.openai
+os.environ["MLFLOW_TRACE_ENABLE_OTLP_DUAL_EXPORT"] = "true"
 mlflow.set_tracking_uri("http://localhost:5000")
 mlflow.set_experiment("Chandra FinOps")
+mlflow.tracing.enable()
 mlflow.litellm.autolog()
 mlflow.openai.autolog()
 
