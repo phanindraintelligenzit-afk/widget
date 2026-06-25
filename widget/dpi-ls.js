@@ -253,36 +253,89 @@
       // tell you whether to look at PII, secrets, authz, or audit.
       let violationsHtml = "";
       if (key === "G" && Array.isArray(sub.violations) && sub.violations.length) {
+        // Map raw entity types to user-friendly names (for old observations in DB)
+        const ENTITY_NAME_MAP = {
+          "CREDIT_CARD": "CreditCardLeaked",
+          "US_SSN": "SocialSecurityNumberLeaked",
+          "US_BANK_NUMBER": "BankAccountNumberLeaked",
+          "EMAIL_ADDRESS": "EmailAddressLeaked",
+          "PHONE_NUMBER": "PhoneNumberLeaked",
+          "IP_ADDRESS": "IpAddressLeaked",
+          "IBAN_CODE": "IbanCodeLeaked",
+          "CRYPTO": "CryptographicKeyLeaked",
+          "PERSON": "PersonNameLeaked",
+          "LOCATION": "LocationDataLeaked",
+          "ORGANIZATION": "OrganizationNameLeaked",
+          "URL": "UrlLeaked",
+          "PASSPORT": "PassportNumberLeaked",
+          "DRIVER_LICENSE": "DriverLicenseLeaked",
+          "UK_NHS": "NhsNumberLeaked",
+          "MEDICAL_LICENSE": "MedicalLicenseLeaked",
+          // NOTE: DATE_TIME and NRP removed — too many false positives
+        };
+
         const byAction = new Map();
         for (const v of sub.violations) {
-          const entry = byAction.get(v.when) || { actionName: v.action_name, rules: [] };
-          if (v.rule && v.rule !== "none") {
-            entry.rules.push(v.rule);
+          const entry = byAction.get(v.when) || { actionName: v.action_name, violations: [] };
+          // Support both old (rule/original_entity) and new (policy_name + source) formats
+          if (v.policy_name && v.policy_name !== "none") {
+            // New format: policy_name with source engine + entity
+            const fullSource = v.source || "policy";
+            const displayName = v.policy_name;
+            entry.violations.push({
+              name: displayName,
+              fullSource: fullSource,
+              engineName: fullSource.split(":")[0],
+              entityType: fullSource.split(":")[1] || ""
+            });
+          } else if (v.original_entity) {
+            // Intermediate format: has original_entity (old DB observations)
+            const displayName = ENTITY_NAME_MAP[v.original_entity] || `${v.original_entity}Leaked`;
+            const engineName = "presidio";
+            entry.violations.push({
+              name: displayName,
+              fullSource: `${engineName}:${v.original_entity.toLowerCase()}`,
+              engineName: engineName,
+              entityType: v.original_entity.toLowerCase()
+            });
+          } else if (v.rule && v.rule !== "none") {
+            // Old format: legacy rule strings
+            entry.violations.push({ name: v.rule, fullSource: "rule", engineName: "rule" });
           }
           byAction.set(v.when, entry);
         }
-        
+
         let actionNum = 1;
         let violatingActions = 0;
         const rows = Array.from(byAction.entries())
           .sort((a, b) => (a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0)))
           .map(([when, data]) => {
-            const rules = data.rules;
-            if (rules.length > 0) violatingActions++;
+            const violations = data.violations;
+            if (violations.length > 0) violatingActions++;
             const ts = when ? escapeHtml(String(when).replace("T", " ").replace("Z", "")) : "Unknown";
-            const rulesHtml = rules.length > 0 
-                ? rules.map(r => `<code style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(r)}</code>`).join("")
+            const violationsHtml = violations.length > 0
+                ? violations.map(v => {
+                    // Render like Risk dimension: badge on one line, source info below (gray, smaller)
+                    let sourceDisplay = v.engineName || "policy";
+                    if (v.entityType) {
+                      sourceDisplay += `:${v.entityType}`;
+                    }
+                    return `<div style="display:flex;flex-direction:column;gap:1px;margin-right:4px;margin-bottom:2px;">
+                      <code style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:3px;font-size:10px;border:1px solid #fca5a5;">${escapeHtml(v.name)}</code>
+                      <code style="background:#fef2f2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:8px;opacity:0.7">${escapeHtml(sourceDisplay)}</code>
+                    </div>`;
+                  }).join("")
                 : `<span style="color:#10b981;font-size:10px;font-weight:600;">Safe</span>`;
-            
+
             let actionNameStr = data.actionName || "";
             if (actionNameStr.length > 60) {
                 actionNameStr = actionNameStr.substring(0, 57) + "...";
             }
             const actionLabel = actionNameStr ? ` - <span title="${escapeHtml(data.actionName)}">${escapeHtml(actionNameStr)}</span>` : "";
-            const vLabel = rules.length === 1 ? 'violation' : 'violations';
+            const vLabel = violations.length === 1 ? 'violation' : 'violations';
             return `<div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
-              <span style="color:#64748b;font-weight:600;">Action ${actionNum++}${actionLabel} <span style="font-weight:normal;color:#94a3b8">(${ts})</span> <span style="float:right">${rules.length} ${vLabel}</span></span>
-              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${rulesHtml}</div>
+              <span style="color:#64748b;font-weight:600;">Action ${actionNum++}${actionLabel} <span style="font-weight:normal;color:#94a3b8">(${ts})</span> <span style="float:right">${violations.length} ${vLabel}</span></span>
+              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${violationsHtml}</div>
             </div>`;
           })
           .join("");

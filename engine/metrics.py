@@ -220,7 +220,11 @@ def metrics_from_observation(
     # Governance (G)
     # The policy violation count is the number of distinct actions
     # that triggered at least one rule (excluding the 'none' placeholder).
-    violating_actions = len(set(v.when for v in obs.policy.violations if v.rule and v.rule != "none"))
+    # Support both old format (v.rule) and new format (v.policy_name)
+    violating_actions = len(set(
+        v.when for v in obs.policy.violations
+        if (v.rule and v.rule != "none") or (v.policy_name and v.policy_name != "none")
+    ))
     G = compute_G(violating_actions, obs.policy.total_actions)
     R = compute_R(obs.incidents, settings.r_max)
     V = compute_V(obs.validation.validated_components, obs.validation.required_components)

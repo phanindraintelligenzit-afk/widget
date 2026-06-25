@@ -230,12 +230,14 @@ class SignalCollector:
         if action_name and tool_args is not None:
             from .policy import scan_tool_policy_violations
             violations = scan_tool_policy_violations(action_name, tool_args, {})
-            
+
             with self._lock:
                 if violations:
-                    for rule in violations:
+                    for violation in violations:
                         self._pending_tool_violations.append({
-                            "rule": rule,
+                            "policy_name": violation.get("policy_name"),
+                            "source": violation.get("source"),
+                            "original_entity": violation.get("original_entity"),
                             "action_name": action_name,
                             "context": "tool_semantic_check"
                         })
@@ -389,17 +391,23 @@ class SignalCollector:
 
         if kind == _KIND_AGENT:
             # G: deterministic policy scan over the output text.
-            rules = scan_policy_violations(output)
+            incidents = scan_policy_violations(output)
             action_label = system if system else "LLM Generation"
-            
+
             with self._lock:
                 self.policy_evaluations += 1
                 now = _utcnow().isoformat()
-                if rules:
-                    for rule in rules:
-                        self.violations.append({"rule": rule, "when": now, "action_name": action_label})
+                if incidents:
+                    for incident in incidents:
+                        self.violations.append({
+                            "policy_name": incident["policy_name"],
+                            "source": incident["source"],
+                            "original_entity": incident["original_entity"],
+                            "when": now,
+                            "action_name": action_label
+                        })
                 else:
-                    self.violations.append({"rule": "none", "when": now, "action_name": action_label})
+                    self.violations.append({"policy_name": "none", "when": now, "action_name": action_label})
                     
                 # Flush pending semantic tool violations and give them the SAME timestamp
                 # so they group into this exact action in the UI.

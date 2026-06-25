@@ -33,19 +33,22 @@ def _hash_text_policy(text: str) -> str:
     """Hash text for cache key."""
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
-def _get_cached_policy(cache_key: str) -> set[str] | None:
+def _get_cached_policy(cache_key: str) -> list[dict] | None:
     """Get cached policy scan result."""
     if not _POLICY_CACHE_ENABLED:
         return None
     with _policy_cache_lock:
-        return _policy_cache.get(cache_key)
+        cached = _policy_cache.get(cache_key)
+        # Return a deep copy to avoid external mutation
+        return [inc.copy() for inc in cached] if cached else None
 
-def _set_cached_policy(cache_key: str, violations: set[str]) -> None:
+def _set_cached_policy(cache_key: str, violations: list[dict]) -> None:
     """Set cached policy scan result with LRU eviction."""
     if not _POLICY_CACHE_ENABLED:
         return
     with _policy_cache_lock:
-        _policy_cache[cache_key] = violations
+        # Store a copy to avoid external mutation
+        _policy_cache[cache_key] = [inc.copy() for inc in violations]
         if len(_policy_cache) > _POLICY_CACHE_SIZE:
             first_key = next(iter(_policy_cache))
             del _policy_cache[first_key]
@@ -53,6 +56,9 @@ def _set_cached_policy(cache_key: str, violations: set[str]) -> None:
 
 HAS_PRESIDIO = False
 analyzer = None
+
+# Entity types to ignore (too many false positives)
+_IGNORED_PRESIDIO_ENTITIES = {"DATE_TIME", "NRP"}
 
 try:
     from presidio_analyzer import AnalyzerEngine
@@ -62,8 +68,39 @@ try:
 except ImportError:
     log.debug("DPI-LS Policy Scanner: presidio-analyzer not installed. PII detection disabled.")
 
+# Map Presidio entity types to user-friendly names (same pattern as risk.py)
+# Also includes legacy rule names for backward compatibility
+# NOTE: DATE_TIME and NRP removed — too many false positives on numeric patterns
+_PRESIDIO_ENTITY_NAMES = {
+    "CREDIT_CARD": "CreditCardLeaked",
+    "US_SSN": "SocialSecurityNumberLeaked",
+    "US_BANK_NUMBER": "BankAccountNumberLeaked",
+    "EMAIL_ADDRESS": "EmailAddressLeaked",
+    "PHONE_NUMBER": "PhoneNumberLeaked",
+    "IP_ADDRESS": "IpAddressLeaked",
+    "IBAN_CODE": "IbanCodeLeaked",
+    "CRYPTO": "CryptographicKeyLeaked",
+    "PERSON": "PersonNameLeaked",
+    "LOCATION": "LocationDataLeaked",
+    "ORGANIZATION": "OrganizationNameLeaked",
+    "URL": "UrlLeaked",
+    "PASSPORT": "PassportNumberLeaked",
+    "DRIVER_LICENSE": "DriverLicenseLeaked",
+    "UK_NHS": "NhsNumberLeaked",
+    "MEDICAL_LICENSE": "MedicalLicenseLeaked",
+}
+
 HAS_DETECT_SECRETS = False
 secrets_plugins = []
+
+# Map detect-secrets plugin class names to user-friendly names
+_DETECT_SECRETS_NAMES = {
+    "AWSKeyDetector": "AwsSecretKeyLeaked",
+    "SlackDetector": "SlackTokenLeaked",
+    "PrivateKeyDetector": "PrivateKeyLeaked",
+    "BasicAuthDetector": "BasicAuthCredentialsLeaked",
+    "JwtTokenDetector": "JwtTokenLeaked",
+}
 
 try:
     from detect_secrets.plugins.aws import AWSKeyDetector
@@ -83,15 +120,18 @@ try:
 except ImportError:
     log.debug("DPI-LS Policy Scanner: detect-secrets not installed. Secrets detection disabled.")
 
-def scan_policy_violations(text: str) -> set[str]:
-    """Return the set of raw Presidio entity types found in ``text``.
+def scan_policy_violations(text: str) -> list[dict]:
+    """Scan text for policy violations (PII, secrets) and return mapped incident dicts.
 
-    Always returns a real set so callers can iterate, ``len()``, or
-    compare with ``==`` against the empty set.
+    Returns a list of dicts, each with:
+      - "policy_name": user-friendly policy violation name (e.g., "EmailAddressLeaked")
+      - "source": source engine (e.g., "presidio:email_address" or "detect_secrets:awskeydetector")
+      - "original_entity": raw entity type or plugin name (for dashboard)
+
     Cached to prevent repeated scanning of identical text.
     """
     if not text:
-        return set()
+        return []
 
     # Check cache first
     cache_key = f"policy:{_hash_text_policy(text)}"
@@ -100,7 +140,8 @@ def scan_policy_violations(text: str) -> set[str]:
         log.debug(f"Policy cache hit: {cache_key[:8]}...")
         return cached
 
-    seen: set[str] = set()
+    incidents = []
+    seen_keys: set[str] = set()  # Dedup within a single scan
 
     if HAS_PRESIDIO and analyzer is not None:
         try:
@@ -109,7 +150,22 @@ def scan_policy_violations(text: str) -> set[str]:
             for result in results:
                 # Only flag high-confidence matches as violations to keep false-positives low
                 if result.score > 0.6:
-                    seen.add(result.entity_type)
+                    entity_type = result.entity_type
+                    # Skip ignored entity types (too many false positives)
+                    if entity_type in _IGNORED_PRESIDIO_ENTITIES:
+                        continue
+                    # Map entity type to user-friendly name
+                    policy_name = _PRESIDIO_ENTITY_NAMES.get(entity_type, f"{entity_type}Leaked")
+
+                    # Deduplicate within this scan
+                    key = f"presidio:{entity_type}"
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        incidents.append({
+                            "policy_name": policy_name,
+                            "source": f"presidio:{entity_type.lower()}",
+                            "original_entity": entity_type,
+                        })
         except Exception as e:
             log.warning("Presidio analysis failed: %s", e)
 
@@ -118,13 +174,25 @@ def scan_policy_violations(text: str) -> set[str]:
             try:
                 # analyze_string yields the matched string value itself, not an object
                 for secret_match in plugin.analyze_string(text):
-                    seen.add(type(plugin).__name__)
+                    plugin_name = type(plugin).__name__
+                    # Map plugin class name to user-friendly name
+                    policy_name = _DETECT_SECRETS_NAMES.get(plugin_name, f"{plugin_name}Leaked")
+
+                    # Deduplicate within this scan
+                    key = f"detect_secrets:{plugin_name}"
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        incidents.append({
+                            "policy_name": policy_name,
+                            "source": f"detect-secrets:{plugin_name.lower()}",
+                            "original_entity": plugin_name,
+                        })
             except Exception as e:
                 log.warning("detect-secrets plugin %s failed: %s", type(plugin).__name__, e)
 
     # Cache result
-    _set_cached_policy(cache_key, seen)
-    return seen
+    _set_cached_policy(cache_key, incidents)
+    return incidents
 
 # Backwards-compatible alias — some external callers (and the
 # collector's tests) use the longer name.
@@ -294,12 +362,25 @@ def evaluate_condition(node: dict, args: dict, context: dict) -> bool:
 
     return apply_operator(val, op, expected)
 
-def scan_tool_policy_violations(tool_name: str, args: dict, context: dict) -> set[str]:
-    """Evaluates the semantic RAG policy guardrails.
-    Returns the set of triggered policy action names.
+def _to_policy_name(rule_str: str) -> str:
+    """Convert rule name to user-friendly policy name.
+    E.g., 'employee_creation_rule' → 'EmployeeCreationRuleViolated'
     """
-    violations = set()
-    
+    # Replace underscores with spaces, title-case, remove spaces, add 'Violated'
+    parts = rule_str.split("_")
+    friendly = "".join(p.capitalize() for p in parts)
+    return f"{friendly}Violated" if not friendly.endswith("Violated") else friendly
+
+def scan_tool_policy_violations(tool_name: str, args: dict, context: dict) -> list[dict]:
+    """Evaluates the semantic RAG policy guardrails.
+    Returns a list of dicts with policy violations in the standard format:
+      - "policy_name": user-friendly name (e.g., "EmployeeCreationRuleViolated")
+      - "source": engine + rule (e.g., "opa:employee_creation_rule")
+      - "original_entity": raw rule name (for dashboard info)
+    """
+    violations_list = []
+    seen_keys: set[str] = set()
+
     if HAS_SEMANTIC_SCANNER and semantic_collection is not None:
         try:
             results = semantic_collection.query(query_texts=[tool_name], n_results=50)
@@ -310,13 +391,20 @@ def scan_tool_policy_violations(tool_name: str, args: dict, context: dict) -> se
                         matched_action = results["documents"][0][i]
                         raw_policy_str = results["metadatas"][0][i]["raw_policy"]
                         policy = json.loads(raw_policy_str)
-                        
+
                         when = policy.get("when", {})
                         if when and evaluate_condition(when, args, context):
-                            violations.add(matched_action)
+                            key = f"semantic:{matched_action}"
+                            if key not in seen_keys:
+                                seen_keys.add(key)
+                                violations_list.append({
+                                    "policy_name": _to_policy_name(matched_action),
+                                    "source": f"openPolicyAgent:{matched_action.lower()}",
+                                    "original_entity": matched_action,
+                                })
         except Exception as e:
             log.warning(f"Semantic RAG query failed: {e}")
-            
+
     if HAS_OPA_SCANNER and OPA_ENDPOINT:
         try:
             payload = {
@@ -331,12 +419,19 @@ def scan_tool_policy_violations(tool_name: str, args: dict, context: dict) -> se
                 data = resp.json()
                 if "result" in data and isinstance(data["result"], list):
                     for v in data["result"]:
-                        violations.add(v)
+                        key = f"opa:{v}"
+                        if key not in seen_keys:
+                            seen_keys.add(key)
+                            violations_list.append({
+                                "policy_name": _to_policy_name(v),
+                                "source": f"openPolicyAgent:{v.lower()}",
+                                "original_entity": v,
+                            })
             else:
                 log.warning(f"OPA scanner query failed with status {resp.status_code}: {resp.text}")
         except httpx.ConnectError:
             log.debug(f"OPA scanner offline: {OPA_ENDPOINT} not reachable.")
         except Exception as e:
             log.warning(f"OPA scanner query failed: {e}")
-            
-    return violations
+
+    return violations_list

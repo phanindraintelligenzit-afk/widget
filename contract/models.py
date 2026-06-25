@@ -26,7 +26,14 @@ class Executions(BaseModel):
 
 
 class PolicyViolation(BaseModel):
-    rule: str
+    # New fields (Presidio/detect-secrets era)
+    policy_name: Optional[str] = None  # User-friendly name: "EmailAddressLeaked", "AwsSecretKeyLeaked"
+    source: Optional[str] = None  # Engine + entity: "nlpPiiDetection:email_address", "secretsScanning:awskeydetector"
+    original_entity: Optional[str] = None  # Raw entity type: "EMAIL_ADDRESS", "AWSKeyDetector"
+
+    # Legacy field (for backward compat with old regex rules)
+    rule: Optional[str] = None  # Old-style rule name: "pii.email", "governance.missing_approval"
+
     when: datetime
     action_name: Optional[str] = None
 

@@ -84,6 +84,14 @@ _RISK_NAMES = {
     "OutputBanSubstrings": "BannedSubstringInOutput",
 }
 
+# Heuristic/semantic engine names (more descriptive than raw tech names)
+_HEURISTIC_SOURCE_NAMES = {
+    "chromadb": "vectorSearch",
+    "semantic": "semanticSimilarity",
+    "opa": "policyEngine",
+    "rebuff": "adversarialDetection",
+}
+
 _SEVERITY_MAPPING = {
     "PromptInjection": 1.0,
     "Jailbreak": 1.0,
@@ -444,7 +452,7 @@ def scan_llmguard_input_risks(prompt: str) -> list[dict]:
         if res:
             incidents.append(res)
             
-    # --- Heuristic ChromaDB Check ---
+    # --- Heuristic ChromaDB Check (rebuff: vector search) ---
     if HAS_HEURISTICS and chroma_collection is not None and sentence_encoder is not None:
         try:
             prompt_embedding = sentence_encoder.encode([prompt]).tolist()
@@ -453,10 +461,11 @@ def scan_llmguard_input_risks(prompt: str) -> list[dict]:
                 distance = results["distances"][0][0]
                 if distance < DISTANCE_THRESHOLD:
                     risk_name = results["metadatas"][0][0].get("riskName", "PromptInjectionAttack")
+                    source_name = _HEURISTIC_SOURCE_NAMES.get("chromadb", "vectorSearch")
                     incidents.append({
                         "severity_weight": 1.0,
                         "frequency": 1,
-                        "source": "heuristic:chromadb",
+                        "source": f"rebuff:{source_name}",
                         "risk_name": risk_name,
                     })
         except Exception as e:
