@@ -42,7 +42,7 @@
     G: "G = 1 − (policy_violations / total_actions)",
     R: "R = 1 − min(1, SUM(freq × severity) / R_max)",
     V: "V = validated_components / total_required",
-    C: "C = min(1, human_cost_per_output / AI_cost_per_output) × utilization"
+    C: "C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor"
   };
 
   const SHARED_CSS = `
