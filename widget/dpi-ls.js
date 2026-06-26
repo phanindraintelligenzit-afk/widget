@@ -329,9 +329,8 @@
     }).join("");
 
     // Retrieve final values for the formula widget
-    const costScoreVal = metricsMap.cost_score?.val !== null && metricsMap.cost_score?.val !== undefined 
-      ? metricsMap.cost_score.val 
-      : 1.0;
+    // Value represents the raw Cost metric (0.0 to 1.0)
+    const costScoreVal = (value !== undefined && value !== null) ? value : 1.0;
     const finalWeightedVal = (costScoreVal * 5.0).toFixed(2);
     
     return `
