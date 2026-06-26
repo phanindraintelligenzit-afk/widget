@@ -58,7 +58,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "total_cost_of_ownership{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_tco{agent_id=\"chandra-finops\"}",
           "legendFormat": "TCO"
         }
       ]
@@ -80,7 +80,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "model_cost{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_model_cost{agent_id=\"chandra-finops\"}",
           "legendFormat": "Model Cost"
         }
       ]
@@ -102,7 +102,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "prompt_cost{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_prompt_cost{agent_id=\"chandra-finops\"}",
           "legendFormat": "Prompt Cost"
         }
       ]
@@ -124,7 +124,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "completion_cost{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_completion_cost{agent_id=\"chandra-finops\"}",
           "legendFormat": "Completion Cost"
         }
       ]
@@ -146,7 +146,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "AI_cost_per_output{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_ai_cost_per_output{agent_id=\"chandra-finops\"}",
           "legendFormat": "AI Cost/Output"
         }
       ]
@@ -168,7 +168,7 @@
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "expr": "Human_cost_per_output{agent_id=\"chandra-finops\"}",
+          "expr": "dpi_ls_human_cost_per_output{agent_id=\"chandra-finops\"}",
           "legendFormat": "Human Cost/Output"
         }
       ]
@@ -196,9 +196,9 @@
       "title": "Cost Breakdown Over Time",
       "type": "timeseries",
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "prompt_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Prompt Cost" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "completion_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Completion Cost" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "model_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Model Cost" }
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_prompt_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Prompt Cost" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_completion_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Completion Cost" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_model_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Model Cost" }
       ]
     },
     {
@@ -217,7 +217,7 @@
       "title": "TCO Gauge",
       "type": "gauge",
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "total_cost_of_ownership{agent_id=\"chandra-finops\"}", "legendFormat": "TCO" }
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_tco{agent_id=\"chandra-finops\"}", "legendFormat": "TCO" }
       ]
     },
     {
@@ -244,10 +244,10 @@
       "title": "Quality Metrics Over Time",
       "type": "timeseries",
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "hallucination_score{agent_id=\"chandra-finops\"}", "legendFormat": "Hallucination Rate" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "qa_accuracy_score{agent_id=\"chandra-finops\"}", "legendFormat": "QA Accuracy" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "relevance_score{agent_id=\"chandra-finops\"}", "legendFormat": "Relevance" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "groundedness_score{agent_id=\"chandra-finops\"}", "legendFormat": "Groundedness" }
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_hallucination_score{agent_id=\"chandra-finops\"}", "legendFormat": "Hallucination Rate" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_qa_accuracy_score{agent_id=\"chandra-finops\"}", "legendFormat": "QA Accuracy" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_relevance_score{agent_id=\"chandra-finops\"}", "legendFormat": "Relevance" },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_groundedness_score{agent_id=\"chandra-finops\"}", "legendFormat": "Groundedness" }
       ]
     },
     {
@@ -262,7 +262,7 @@
       "type": "timeseries",
       "targets": [
         { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "final_score{agent_id=\"chandra-finops\"}", "legendFormat": "Final Score" },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "validation_score{agent_id=\"chandra-finops\"}", "legendFormat": "Validation Score" }
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_validation_score{agent_id=\"chandra-finops\"}", "legendFormat": "Validation Score" }
       ]
     },
     {
@@ -286,12 +286,12 @@
       "title": "Cost Metrics Summary Table",
       "type": "table",
       "targets": [
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "model_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Model Cost", "instant": true },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "prompt_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Prompt Cost", "instant": true },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "completion_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Completion Cost", "instant": true },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "AI_cost_per_output{agent_id=\"chandra-finops\"}", "legendFormat": "AI Cost/Output", "instant": true },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "Human_cost_per_output{agent_id=\"chandra-finops\"}", "legendFormat": "Human Cost/Output", "instant": true },
-        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "total_cost_of_ownership{agent_id=\"chandra-finops\"}", "legendFormat": "TCO", "instant": true }
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_model_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Model Cost", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_prompt_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Prompt Cost", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_completion_cost{agent_id=\"chandra-finops\"}", "legendFormat": "Completion Cost", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_ai_cost_per_output{agent_id=\"chandra-finops\"}", "legendFormat": "AI Cost/Output", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_human_cost_per_output{agent_id=\"chandra-finops\"}", "legendFormat": "Human Cost/Output", "instant": true },
+        { "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" }, "expr": "dpi_ls_tco{agent_id=\"chandra-finops\"}", "legendFormat": "TCO", "instant": true }
       ]
     }
   ],
