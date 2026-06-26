@@ -328,7 +328,35 @@
       `;
     }).join("");
 
+    // Retrieve final values for the formula widget
+    const costScoreVal = metricsMap.cost_score?.val !== null && metricsMap.cost_score?.val !== undefined 
+      ? metricsMap.cost_score.val 
+      : 1.0;
+    const finalWeightedVal = (costScoreVal * 5.0).toFixed(2);
+    
     return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">C</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (5%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 5%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${costScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×5%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor</div>
+          </div>
+        </div>
+      </div>
+
       <div class="cost-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
           ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}COST TRACEABILITY & EFFICIENCY
