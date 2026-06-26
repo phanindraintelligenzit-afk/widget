@@ -37,6 +37,8 @@ class Settings(BaseModel):
     human_cost_per_output: float = 50.0
     utilization: float = 1.0
     normalization_factor: float = 1.0
+    input_token_price: float = 0.000005
+    output_token_price: float = 0.000015
 
     # Coverage cap. The composite redistributes weight off None metrics, so an
     # agent with only 1–2 dimensions reported could otherwise score 100. This

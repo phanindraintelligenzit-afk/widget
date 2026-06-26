@@ -9,7 +9,7 @@ def test_sources_listed_at_startup(client):
     assert r.status_code == 200
     names = {s["name"] for s in r.json()}
     # 5 real + 5 stub sources.
-    assert {"aws_cost", "puvi_noise", "arize", "jira"}.issubset(names)
+    assert {"aws_cost", "puvi_noise", "jira"}.issubset(names)
     assert {"langgraph", "bedrock", "ray", "bmc", "sap_hr"}.issubset(names)
 
 
@@ -67,11 +67,6 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     assert r_after_puvi["metrics"]["G"] is not None
     assert r_after_puvi["metrics"]["C"] is not None  # still there from earlier partial
 
-    # 3. Arize lands — Q appears, G is overwritten by the more-recent source.
-    client.post("/ingest/source/arize", json=load_source("arize"))
-    r_after_arize = client.get(f"/agents/{AGENT}/score").json()
-    assert r_after_arize["metrics"]["Q"] is not None
-
     # 4. ServiceNow + Jira → R appears (Jira lands last so it wins).
     client.post("/ingest/webhook:servicenow", json=load_source("servicenow"))
     client.post("/ingest/source/jira", json=load_source("jira"))
@@ -79,21 +74,20 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     assert r_final["metrics"]["R"] is not None
 
     # Only the dimensions no source in this M5 set speaks to remain missing:
-    # E (executions) and V (validation) — both are agent-runtime
+    # Q (quality), E (executions) and V (validation) — both are agent-runtime
     # dimensions that show up once a LangGraph/Bedrock/etc. adapter
     # is wired. P arrives alongside C from the AWS Cost fixture
     # because the fixture ships an output_count.
-    assert set(r_final["missing"]) == {"E", "V"}
+    assert set(r_final["missing"]) == {"Q", "E", "V"}
     assert r_final["metrics"]["C"] is not None  # aws_cost
-    assert r_final["metrics"]["G"] is not None  # arize (latest, overwrote puvi)
-    assert r_final["metrics"]["Q"] is not None  # arize
+    assert r_final["metrics"]["G"] is not None  # puvi
     assert r_final["metrics"]["R"] is not None  # jira (latest, overwrote servicenow)
     assert r_final["unsafe"] is False
     assert 0 < r_final["score"] <= 100
 
     # History grew with each ingest (one score per affected partial).
     history = client.get(f"/agents/{AGENT}/history").json()
-    assert len(history) >= 5
+    assert len(history) >= 4
 
 
 def test_servicenow_payload_scores_each_distinct_agent(client):

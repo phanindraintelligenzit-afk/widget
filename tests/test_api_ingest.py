@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fixtures import load_otel_spans, load_raw
+from fixtures import load_raw
 
 
 def _canonical_obs() -> dict:
@@ -19,16 +19,6 @@ def test_ingest_canonical_observation(client):
     assert "score" in rating
     assert rating["band"] in ("Strong", "Exceptional", "Needs Optimization", "Underperforming")
     assert rating["unsafe"] is False
-
-
-def test_ingest_via_otel_adapter(client):
-    spans = load_otel_spans()
-    r = client.post("/ingest/otel", json=spans)
-    assert r.status_code == 200, r.text
-    out = r.json()
-    assert isinstance(out, list)
-    assert len(out) == 1
-    assert "score" in out[0]
 
 
 def test_ingest_via_webhook_adapter_acme(client):

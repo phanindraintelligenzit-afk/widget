@@ -33,8 +33,8 @@ class BoardRow(BaseModel):
     band: str
     unsafe: bool
     gate_failures: list[str] = Field(default_factory=list)
-    metrics: dict[str, float] = Field(default_factory=dict)
-    weighted_metrics: dict[str, float] = Field(default_factory=dict)
+    metrics: dict[str, Optional[float]] = Field(default_factory=dict)
+    weighted_metrics: dict[str, Optional[float]] = Field(default_factory=dict)
     sub_metrics: dict[str, Any] = Field(default_factory=dict)
     computed_at: datetime
 

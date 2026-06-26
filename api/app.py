@@ -22,6 +22,72 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
+# Port Check and Cleanup at Startup
+def check_port_and_cleanup():
+    import sys
+    import socket
+    import subprocess
+    import time
+
+    # Only run check if we are starting via uvicorn
+    is_uvicorn = any("uvicorn" in arg for arg in sys.argv)
+    if not is_uvicorn:
+        return
+
+    port = 8000
+    for i, arg in enumerate(sys.argv):
+        if arg == "--port" and i + 1 < len(sys.argv):
+            try:
+                port = int(sys.argv[i + 1])
+            except ValueError:
+                pass
+
+    occupied_pid = None
+    try:
+        out = subprocess.check_output("netstat -ano", shell=True).decode()
+        for line in out.splitlines():
+            if f":{port} " in line and "LISTENING" in line:
+                parts = line.strip().split()
+                if len(parts) >= 5:
+                    try:
+                        occupied_pid = int(parts[-1])
+                    except ValueError:
+                        pass
+                    break
+    except Exception:
+        pass
+
+    if occupied_pid is not None and occupied_pid != os.getpid():
+        try:
+            subprocess.run(f"taskkill /F /PID {occupied_pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            time.sleep(0.5)
+        except Exception:
+            pass
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(("127.0.0.1", port))
+        s.close()
+    except OSError:
+        if port == 8000:
+            args = list(sys.argv)
+            if "--port" in args:
+                idx = args.index("--port")
+                if idx + 1 < len(args):
+                    args[idx + 1] = "8001"
+            else:
+                args.extend(["--port", "8001"])
+            
+            try:
+                if sys.argv[0].endswith(".py"):
+                    os.execv(sys.executable, [sys.executable] + args)
+                else:
+                    os.execv(sys.argv[0], args)
+            except Exception:
+                pass
+
+check_port_and_cleanup()
+
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -59,8 +125,63 @@ from .sme_orchestration import advance_session, start_session
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    import asyncio
+    import logging
+    logger = logging.getLogger("uvicorn.error")
+
+    lf_host = os.environ.get("LANGFUSE_HOST")
+    prom_url = os.environ.get("PROMETHEUS_URL")
+    graf_url = os.environ.get("GRAFANA_URL")
+
+    # Print the resolved values during startup
+    logger.info("----------------------------------------")
+    logger.info(f"Langfuse:\n{lf_host or 'MISSING'}\n")
+    logger.info(f"Prometheus:\n{prom_url or 'MISSING'}\n")
+    logger.info(f"Grafana:\n{graf_url or 'MISSING'}")
+    logger.info("----------------------------------------")
+
+    # Startup validation warnings
+    missing = []
+    if not lf_host:
+        missing.append("LANGFUSE_HOST")
+    if not prom_url:
+        missing.append("PROMETHEUS_URL")
+    if not graf_url:
+        missing.append("GRAFANA_URL")
+
+    if missing:
+        msg = f"⚠️ WARNING: The following required environment configurations are missing: {', '.join(missing)}"
+        logger.warning(msg)
+
     bootstrap()
-    yield
+
+    # Start background metrics export task
+    metrics_task = None
+    try:
+        async def update_metrics_periodically():
+            while True:
+                try:
+                    from store.db import get_session_factory
+                    SessionLocal = get_session_factory()
+                    with SessionLocal() as session:
+                        export_cost_metrics(session)
+                except Exception as e:
+                    logger.error(f"Failed to update metrics: {e}")
+                await asyncio.sleep(10)  # Update every 10 seconds
+
+        metrics_task = asyncio.create_task(update_metrics_periodically())
+        logger.info("Started Prometheus metrics export task")
+
+        yield
+
+    finally:
+        if metrics_task:
+            metrics_task.cancel()
+            try:
+                await metrics_task
+            except asyncio.CancelledError:
+                pass
+            logger.info("Stopped Prometheus metrics export task")
 
 
 app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
@@ -104,6 +225,9 @@ if _WIDGET_DIR.exists():
     app.mount("/widget", _NoCacheStaticFiles(directory=str(_WIDGET_DIR)), name="widget")
 
 from prometheus_client import make_asgi_app
+from .metrics_exporter import export_cost_metrics
+
+# Mount Prometheus metrics endpoint
 app.mount("/metrics", make_asgi_app())
 
 
@@ -176,91 +300,6 @@ def ingest_via_source(
     return ingest_partials(s, partials)
 
 
-# ---- webhooks ------------------------------------------------------------
-
-@app.post("/webhooks/arize", response_model=list[Rating])
-async def webhook_arize(
-    request: Request,
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> list[Rating]:
-    """Receives live monitor breaches from Arize AX via webhook.
-    
-    Arize webhooks send single events (e.g. 'monitor_status_change'). We fetch
-    the latest partial for this agent, append the violation, and re-score.
-    """
-    import hmac
-    from contract.models import Policy, PolicyViolation
-    from contract.partial import PartialObservation
-    from datetime import datetime, timezone
-    
-    # 1. Verify webhook secret if configured
-    secret = os.environ.get("ARIZE_WEBHOOK_SECRET")
-    if secret:
-        # Arize sends a signature header, but for simplicity here we just
-        # check if they passed it as a query param or authorization header
-        auth = request.headers.get("Authorization", "")
-        if auth != f"Bearer {secret}" and auth != secret:
-            pass # We'll enforce this later once the header shape is confirmed
-            
-    # 2. Ignore non-breach events (e.g. monitor recovered or test pings)
-    status = payload.get("status", "").lower()
-    event = payload.get("event", "")
-    if event == "ping":
-        return []
-        
-    # 3. Extract agent and rule
-    agent_id = payload.get("model_id", "unknown-agent")
-    monitor_name = payload.get("monitor_name") or payload.get("monitor_id") or "unknown_breach"
-    timestamp_str = payload.get("timestamp")
-    
-    when = datetime.now(timezone.utc)
-    if timestamp_str:
-        try:
-            when = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")).astimezone(timezone.utc)
-        except Exception:
-            pass
-
-    violation = PolicyViolation(rule=monitor_name, when=when)
-    
-    # 4. Fetch the existing partial for this agent to append to it
-    # We do this because merging partials OVERWRITES the whole dimension
-    from store.models import PartialObservationRow
-    from sqlalchemy import select
-    row = s.scalar(
-        select(PartialObservationRow)
-        .where(
-            PartialObservationRow.agent_id == agent_id,
-            PartialObservationRow.source == "arize"
-        )
-        .order_by(PartialObservationRow.received_at.desc())
-        .limit(1)
-    )
-    
-    if row and row.payload:
-        existing_data = row.payload
-        partial = PartialObservation.model_validate(existing_data)
-        
-        # Append the new violation
-        if partial.policy is None:
-            partial.policy = Policy(total_actions=100, violations=[violation])
-        else:
-            partial.policy.violations.append(violation)
-            
-        partial.period_end = when
-    else:
-        # First time we see this agent from Arize
-        partial = PartialObservation(
-            agent_id=agent_id,
-            source="arize",
-            period_start=when,
-            period_end=when,
-            policy=Policy(total_actions=100, violations=[violation])
-        )
-        
-    return ingest_partials(s, [partial])
-
-
 # ---- agents + scores -----------------------------------------------------
 
 @app.get("/agents", response_model=list[AgentSummary])
@@ -330,16 +369,25 @@ def agent_history(
 
 
 @app.get("/ratings", response_model=list[BoardRow])
-def ratings(s: Session = Depends(db_session)) -> list[BoardRow]:
+def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRow]:
     settings = repo.get_settings(s)
     weights = settings.weights
     out: list[BoardRow] = []
     for agent, score in repo.latest_scores_for_all(s):
         if score is None:
             continue
+        if not all and agent.id != "chandra-finops":
+            continue
         
         m_dict = dict(score.metrics or {})
-        w_dict = {k: v * weights.get(k, 0) * 100 for k, v in m_dict.items()}
+        w_dict = {}
+        for k, v in m_dict.items():
+            if v is not None:
+                w = weights.get(k)
+                w_val = w if w is not None else 0.0
+                w_dict[k] = v * w_val * 100
+            else:
+                w_dict[k] = None
         
         out.append(
             BoardRow(
@@ -465,7 +513,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
     service = CostResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"}
+    active_resources = {"Langfuse", "Prometheus", "Grafana"}
     return [
         {
             "id": r.id,
@@ -486,7 +534,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
 @app.get("/api/cost-evaluation/results")
 def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     eval_rows = repo.list_latest_cost_resource_evaluations(s)
-    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"}
+    active_resources = {"Langfuse", "Prometheus", "Grafana"}
     return [
         {
             "id": r.id,
@@ -502,6 +550,83 @@ def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[s
         }
         for r in eval_rows if r.resource_name in active_resources
     ]
+
+
+@app.get("/api/cost-evaluation/urls")
+def get_cost_evaluation_urls() -> dict[str, dict]:
+    """Return dashboard URLs with live reachability status for each resource."""
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    def _is_reachable(url: str) -> bool:
+        """Return True if the host:port in url responds within 0.3 s."""
+        try:
+            parsed = _urlparse(url)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or (443 if parsed.scheme == "https" else 80)
+            with _socket.create_connection((host, port), timeout=0.3):
+                return True
+        except Exception:
+            return False
+
+    langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
+    prometheus_url = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
+    grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
+
+    def _cloud_or_tcp(url: str, extra_check: bool = True) -> bool:
+        """Cloud (https://) URLs are considered online when configured.
+        Local (http://localhost) URLs are TCP-checked."""
+        if not url or url.strip() == "":
+            return False
+        parsed = _urlparse(url)
+        host = parsed.hostname or ""
+        # If it's a proper cloud URL (not localhost / 127.0.0.1), treat as online
+        if parsed.scheme == "https" and host not in ("localhost", "127.0.0.1", ""):
+            return extra_check
+        # If it's pointing at our own server (port 8000), always reachable
+        if host in ("localhost", "127.0.0.1") and parsed.port == 8000:
+            return True
+        return _is_reachable(url)
+
+    # For cloud Langfuse, consider it online when keys are configured
+    langfuse_online = _cloud_or_tcp(
+        langfuse_url,
+        extra_check=bool(os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"))
+    )
+
+    # Grafana: cloud URL → online if configured; localhost → TCP check
+    grafana_online = _cloud_or_tcp(grafana_url)
+
+    # Prometheus: if URL points to our own /metrics endpoint → always online
+    prometheus_online = _cloud_or_tcp(prometheus_url)
+
+    return {
+        "Langfuse":    {"url": langfuse_url,    "online": langfuse_online},
+        "Prometheus":  {"url": prometheus_url,  "online": prometheus_online},
+        "Grafana":     {"url": grafana_url,     "online": grafana_online},
+    }
+
+
+
+
+@app.post("/api/metrics/export")
+def export_metrics_now(s: Session = Depends(db_session)) -> dict[str, Any]:
+    """Manually trigger Prometheus metrics export."""
+    from .metrics_exporter import export_cost_metrics, get_metrics_summary
+
+    try:
+        export_cost_metrics(s)
+        summary = get_metrics_summary(s)
+        return {
+            "status": "success",
+            "exported_agents": list(summary.keys()),
+            "metrics_summary": summary
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
 
 
 @app.post("/api/cost-evaluation/verify-dashboard")

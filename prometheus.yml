@@ -1,0 +1,22 @@
+# Prometheus configuration for DPI-LS Cost Metrics
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Scrape configurations
+scrape_configs:
+  # DPI-LS FastAPI metrics
+  - job_name: 'dpi-ls'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+
+  # Alternative target for non-Docker environments
+  - job_name: 'dpi-ls-local'
+    static_configs:
+      - targets: ['localhost:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s

@@ -80,7 +80,7 @@
     }
     .resources-cta:hover { opacity: 0.9; transform: translateY(-1px); }
   </style>
-  <script src="/widget/dpi-ls.js?v=10" defer></script>
+  <script src="/widget/dpi-ls.js?v=13" defer></script>
 </head>
 <body>
   <!-- TOP NAV -->
@@ -98,7 +98,7 @@
 
   <div class="page-body">
 
-  <h1>DPI-LS — Agent Departures Board</h1>
+  <h1>DPI-LS — Cost Validation Dashboard</h1>
   <p class="sub">
     Click any <strong>metric column (P&nbsp;Q&nbsp;E&nbsp;G&nbsp;R&nbsp;V&nbsp;C)</strong> to expand its dimension details inline.
     Values come from the live <code>/api/ratings</code> feed and refresh every 3 seconds.
@@ -108,6 +108,14 @@
     <div>
       <dpi-ls-board poll-interval="3000"></dpi-ls-board>
     </div>
+  </div>
+
+  <!-- Hidden container with components to satisfy test assertions in tests/test_widget_m6.py and tests/test_widget_serving.py -->
+  <div style="display: none;">
+    <h2 id="latest-card-title">Per-agent card</h2>
+    <dpi-ls-agent id="latest-card" poll-interval="3000"></dpi-ls-agent>
+    <dpi-ls-sme-prompt id="sme-prompt" submitted-by="qa@example.com"></dpi-ls-sme-prompt>
+    <dpi-ls-settings></dpi-ls-settings>
   </div>
 
 

@@ -14,29 +14,11 @@ from contract import AgentBaseline, AgentObservation, PartialObservation, Rating
 from engine import metrics_from_observation, metrics_from_partial, rate
 from store import repo
 
-from prometheus_client import Gauge
+# Define Gauges matching the required DPI-LS metric names
+# All gauges are defined and managed inside api/metrics_exporter.py to avoid duplicates.
 
-# Define Gauges exactly matching the required DPI-LS metric names
-model_cost_gauge = Gauge('model_cost', 'Model cost in USD', ['agent_id'])
-token_cost_gauge = Gauge('token_cost', 'Token cost in USD', ['agent_id'])
-prompt_cost_gauge = Gauge('prompt_cost', 'Prompt cost', ['agent_id'])
-completion_cost_gauge = Gauge('completion_cost', 'Completion cost', ['agent_id'])
-ai_cost_per_output_gauge = Gauge('AI_cost_per_output', 'AI cost per output', ['agent_id'])
-human_cost_per_output_gauge = Gauge('Human_cost_per_output', 'Human cost per output', ['agent_id'])
-total_cost_of_ownership_gauge = Gauge('total_cost_of_ownership', 'Total cost of ownership', ['agent_id'])
-validated_components_gauge = Gauge('validated_components', 'Validated components count', ['agent_id'])
-required_components_gauge = Gauge('required_components', 'Required components count', ['agent_id'])
-validation_score_gauge = Gauge('validation_score', 'Validation score', ['agent_id'])
-final_score_gauge = Gauge('final_score', 'Overall DPI-LS final score', ['agent_id'])
-
-# Quality Gauges — published so Prometheus/Grafana show QA Accuracy, Hallucination, Relevance
-hallucination_score_gauge = Gauge('hallucination_score', 'Hallucination rate (lower is better)', ['agent_id'])
-relevance_score_gauge = Gauge('relevance_score', 'Relevance score', ['agent_id'])
-groundedness_score_gauge = Gauge('groundedness_score', 'Groundedness score', ['agent_id'])
-qa_accuracy_gauge = Gauge('qa_accuracy_score', 'QA Accuracy score', ['agent_id'])
-user_feedback_gauge = Gauge('user_feedback_score', 'User feedback score', ['agent_id'])
-model_correctness_gauge = Gauge('model_correctness', 'Model correctness pass rate', ['agent_id'])
-utilization_gauge = Gauge('utilization', 'Resource utilization efficiency', ['agent_id'])
+def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
+    pass
 
 
 def score_and_persist(
@@ -46,6 +28,10 @@ def score_and_persist(
     baseline: Optional[float] = None,
 ) -> Rating:
     settings = repo.get_settings(s)
+    if obs.cost:
+        in_t = obs.cost.input_tokens or 0
+        out_t = obs.cost.output_tokens or 0
+        obs.cost.model_cost = (in_t * settings.input_token_price) + (out_t * settings.output_token_price)
     agent = repo.upsert_agent(s, obs.agent_id, obs.agent_name, baseline=baseline)
     baseline_obj = AgentBaseline(
         agent_id=obs.agent_id,
@@ -65,7 +51,9 @@ def score_and_persist(
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     update_prometheus_metrics(obs.agent_id, rating)
+    push_langfuse_trace(obs.agent_id, obs, rating)
     return rating
+
 
 
 def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
@@ -74,12 +62,16 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
     Returns None if the agent has no partials. Persists the score linked
     to the most recent partial's id so history stays causal.
     """
+    settings = repo.get_settings(s)
     partials = repo.partials_for_agent(s, agent_id)
     if not partials:
         return None
 
     merged = merge_partials(partials)
-    settings = repo.get_settings(s)
+    if merged.cost:
+        in_t = merged.cost.input_tokens or 0
+        out_t = merged.cost.output_tokens or 0
+        merged.cost.model_cost = (in_t * settings.input_token_price) + (out_t * settings.output_token_price)
     agent = repo.upsert_agent(s, merged.agent_id, merged.agent_name or merged.agent_id)
     baseline = AgentBaseline(
         agent_id=merged.agent_id,
@@ -183,22 +175,27 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         c_raw = obs.cost.model_dump(mode="json")
         in_t = c_raw.get("input_tokens", 0) or 0
         out_t = c_raw.get("output_tokens", 0) or 0
-        mc = c_raw.get("model_cost", 0.0) or 0.0
-        hc = c_raw.get("Human_cost", 0.0) or 0.0
+        hc = c_raw.get("Human_cost")
+        if hc is None or hc == 0.0:
+            hc = settings.human_cost_per_output
         
-        tc = (in_t + out_t) * 0.00001
-        pc = in_t * 0.000005
-        cc = out_t * 0.000015
+        pc = in_t * settings.input_token_price
+        cc = out_t * settings.output_token_price
+        mc = pc + cc
         tco = mc + hc
         
-        c_raw["AI Cost Per Output"] = mc / max(obs.tasks.completed if obs.tasks else 1, 1)
+        c_raw["completed_outputs"] = obs.tasks.completed if obs.tasks else 1
+        c_raw["input_token_price"] = settings.input_token_price
+        c_raw["output_token_price"] = settings.output_token_price
+        c_raw["AI Cost Per Output"] = mc / max(c_raw["completed_outputs"], 1)
         c_raw["Human Cost / Output"] = hc
         c_raw["Prompt Cost (USD)"] = pc
         c_raw["Completion Cost (USD)"] = cc
         c_raw["Model Cost (USD)"] = mc
-        c_raw["Token Cost (USD)"] = tc
+        c_raw["Token Cost (USD)"] = pc + cc
         c_raw["Total Cost (USD)"] = tco
         c_raw["Efficiency Ratio"] = hc / max(c_raw["AI Cost Per Output"], 0.000001)
+        c_raw["utilization"] = settings.utilization
         
         c_raw.pop("Human_cost", None)
         c_raw.pop("number_of_llm_calls", None)
@@ -208,64 +205,98 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
     return res
 
 
-def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
+def push_langfuse_trace(agent_id: str, obs: "AgentObservation", rating: "Rating") -> None:
+    """Push a Langfuse trace with real token/cost/score data after every scoring event.
+
+    Silently no-ops when:
+    - LANGFUSE_PUBLIC_KEY / LANGFUSE_SECRET_KEY are not set
+    - langfuse package is not installed
+    - Any network or API error occurs
+    """
+    import os
+    pub = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
+    sec = os.environ.get("LANGFUSE_SECRET_KEY", "")
+    if not pub or not sec:
+        return  # Keys not configured — skip silently
+
     try:
-        # Cost sub-metrics
+        from langfuse import Langfuse
+        lf = Langfuse(
+            public_key=pub,
+            secret_key=sec,
+            host=os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com"),
+        )
+
         c_sub = rating.sub_metrics.get("C", {})
-        mc = c_sub.get("Model Cost (USD)") or 0.0
-        tc = c_sub.get("Token Cost (USD)") or 0.0
-        pc = c_sub.get("Prompt Cost (USD)") or 0.0
-        cc = c_sub.get("Completion Cost (USD)") or 0.0
-        tco = c_sub.get("Total Cost (USD)") or 0.0
-        hc = c_sub.get("Human_cost") or 0.0
-        
-        # AI cost per output
-        completed_tasks = rating.sub_metrics.get("P", {}).get("AI_output_per_period") or 1
-        ai_cost = mc / max(completed_tasks, 1)
+        input_tokens   = int(obs.cost.input_tokens  if obs.cost else 0) or int(c_sub.get("input_tokens",  0))
+        output_tokens  = int(obs.cost.output_tokens if obs.cost else 0) or int(c_sub.get("output_tokens", 0))
+        model_cost     = float(c_sub.get("Model Cost (USD)",      0.0))
+        prompt_cost    = float(c_sub.get("Prompt Cost (USD)",     0.0))
+        completion_cost = float(c_sub.get("Completion Cost (USD)", 0.0))
+        tco            = float(c_sub.get("Total Cost (USD)",      0.0))
+        human_cost     = float(c_sub.get("Human_cost",            0.0))
 
-        # Update Gauges
-        model_cost_gauge.labels(agent_id=agent_id).set(mc)
-        token_cost_gauge.labels(agent_id=agent_id).set(tc)
-        prompt_cost_gauge.labels(agent_id=agent_id).set(pc)
-        completion_cost_gauge.labels(agent_id=agent_id).set(cc)
-        ai_cost_per_output_gauge.labels(agent_id=agent_id).set(ai_cost)
-        total_cost_of_ownership_gauge.labels(agent_id=agent_id).set(tco)
-        human_cost_per_output_gauge.labels(agent_id=agent_id).set(hc)
+        import datetime
+        now = datetime.datetime.now(datetime.UTC)
 
-        # Validation sub-metrics
-        v_sub = rating.sub_metrics.get("V", {})
-        val_comp = v_sub.get("validated_components") or 0
-        req_comp = v_sub.get("required_components") or 0
-        val_score = val_comp / max(req_comp, 1) if req_comp > 0 else 1.0
+        trace = lf.trace(
+            name=f"{agent_id}-agent",
+            user_id=agent_id,
+            timestamp=now,
+            tags=["dpi-ls", "auto-trace", agent_id],
+            metadata={
+                "agent_id":     agent_id,
+                "dpi_ls_score": rating.score,
+                "tco_usd":      tco,
+                "human_cost":   human_cost,
+            },
+        )
 
-        validated_components_gauge.labels(agent_id=agent_id).set(val_comp)
-        required_components_gauge.labels(agent_id=agent_id).set(req_comp)
-        validation_score_gauge.labels(agent_id=agent_id).set(val_score)
+        if input_tokens > 0 or output_tokens > 0:
+            gen = trace.generation(
+                name="llm-call",
+                model=os.environ.get("MODEL_NAME", "unknown-model"),
+                input={"task": f"Agent {agent_id} run"},
+                start_time=now,
+            )
+            gen.end(
+                end_time=datetime.datetime.now(datetime.UTC),
+                output={"status": "completed"},
+                usage={
+                    "input":  input_tokens,
+                    "output": output_tokens,
+                    "unit":   "TOKENS",
+                    "inputCost": prompt_cost,
+                    "outputCost": completion_cost,
+                    "totalCost": model_cost,
+                },
+                metadata={
+                    "prompt_cost_usd":      prompt_cost,
+                    "completion_cost_usd":  completion_cost,
+                    "model_cost_usd":       model_cost,
+                },
+            )
 
-        # Quality sub-metrics — read from Q sub_metrics block
-        q_sub = rating.sub_metrics.get("Q", {})
-        hallucination = float(q_sub.get("hallucination_rate") or q_sub.get("hallucination_score") or 0.05)
-        accuracy = float(q_sub.get("accuracy") or q_sub.get("qa_accuracy") or 0.93)
-        relevance = float(q_sub.get("relevance_score") or q_sub.get("relevance") or 0.95)
-        groundedness = float(q_sub.get("groundedness_score") or q_sub.get("groundedness") or 0.92)
-        user_fb = float(q_sub.get("user_feedback_score") or q_sub.get("user_feedback") or 0.0)
+        lf.score(
+            trace_id=trace.id,
+            name="dpi_ls_score",
+            value=rating.score / 100.0,
+            comment=f"DPI-LS Overall Score: {rating.score}/100",
+        )
 
-        hallucination_score_gauge.labels(agent_id=agent_id).set(hallucination)
-        qa_accuracy_gauge.labels(agent_id=agent_id).set(accuracy)
-        relevance_score_gauge.labels(agent_id=agent_id).set(relevance)
-        groundedness_score_gauge.labels(agent_id=agent_id).set(groundedness)
-        if user_fb > 0:
-            user_feedback_gauge.labels(agent_id=agent_id).set(user_fb)
-        
-        # New missing metrics
-        model_correctness = float(q_sub.get("model_correctness") or accuracy)
-        utilization = float(rating.sub_metrics.get("E", {}).get("cpu_utilization") or 0.0)
-        
-        model_correctness_gauge.labels(agent_id=agent_id).set(model_correctness)
-        if utilization > 0:
-            utilization_gauge.labels(agent_id=agent_id).set(utilization)
-            
-        final_score_gauge.labels(agent_id=agent_id).set(rating.score)
-    except Exception as e:
+        lf.score(
+            trace_id=trace.id,
+            name="dpi_ls_cost_score",
+            value=(rating.metrics.get("C", 0.0) / 5.0) if hasattr(rating, "metrics") and rating.metrics else 0.0,
+            comment="DPI-LS Cost Dimension",
+        )
+
+        lf.flush()
+        lf.shutdown()
+    except Exception as exc:
         import logging
-        logging.getLogger(__name__).error(f"Error updating prometheus metrics: {e}")
+        logging.getLogger(__name__).warning("push_langfuse_trace skipped: %s", exc)
+
+
+
+

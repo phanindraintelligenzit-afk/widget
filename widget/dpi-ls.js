@@ -26,13 +26,13 @@
   };
 
   const METRIC_LABELS = {
-    P: "Productivity",
-    Q: "Quality",
-    E: "Execution",
-    G: "Governance",
-    R: "Risk",
-    V: "Validation",
-    C: "Cost",
+    P: "Productivity (15%)",
+    Q: "Quality (20%)",
+    E: "Execution (15%)",
+    G: "Governance (20%)",
+    R: "Risk (15%)",
+    V: "Validation (10%)",
+    C: "Cost (5%)",
   };
 
   const METRIC_FORMULAS = {
@@ -201,7 +201,7 @@
     }).join("");
     return `
       <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">✈ ${escapeHtml(row.agent_name || row.agent_id)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">${escapeHtml(row.agent_name || row.agent_id)}</td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(rawScore)}</td>
         ${metricCells}
       </tr>
@@ -212,11 +212,155 @@
     P: 15, Q: 20, E: 15, G: 20, R: 15, V: 10, C: 5
   };
 
+  function calculateCostMetrics(sub, settings, value) {
+    sub = sub || {};
+    settings = settings || {};
+    
+    const inputTokens = typeof sub.input_tokens === 'number' ? sub.input_tokens : null;
+    const outputTokens = typeof sub.output_tokens === 'number' ? sub.output_tokens : null;
+    
+    const inputTokenPrice = typeof sub.input_token_price === 'number' ? sub.input_token_price : (typeof settings.input_token_price === 'number' ? settings.input_token_price : null);
+    const outputTokenPrice = typeof sub.output_token_price === 'number' ? sub.output_token_price : (typeof settings.output_token_price === 'number' ? settings.output_token_price : null);
+    const completedOutputs = typeof sub.completed_outputs === 'number' ? sub.completed_outputs : 1;
+    const utilization = typeof sub.utilization === 'number' ? sub.utilization : (typeof settings.utilization === 'number' ? settings.utilization : null);
+    const humanCostPerOutput = typeof sub["Human Cost / Output"] === 'number' ? sub["Human Cost / Output"] : (typeof settings.human_cost_per_output === 'number' ? settings.human_cost_per_output : null);
+    
+    const promptCost = typeof sub["Prompt Cost (USD)"] === 'number' ? sub["Prompt Cost (USD)"] : (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null);
+    const completionCost = typeof sub["Completion Cost (USD)"] === 'number' ? sub["Completion Cost (USD)"] : (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null);
+    const modelCost = typeof sub["Model Cost (USD)"] === 'number' ? sub["Model Cost (USD)"] : (promptCost !== null && completionCost !== null ? promptCost + completionCost : null);
+    const aiCostPerOutput = typeof sub["AI Cost Per Output"] === 'number' ? sub["AI Cost Per Output"] : (modelCost !== null && completedOutputs ? modelCost / completedOutputs : null);
+    const efficiencyRatio = typeof sub["Efficiency Ratio"] === 'number' ? sub["Efficiency Ratio"] : (humanCostPerOutput !== null && aiCostPerOutput ? humanCostPerOutput / aiCostPerOutput : null);
+    const costScore = (value !== undefined && value !== null) ? (value * 5) : null;
+    const tco = typeof sub["Total Cost (USD)"] === 'number' ? sub["Total Cost (USD)"] : (humanCostPerOutput !== null && modelCost !== null ? humanCostPerOutput + modelCost : null);
+
+    // Calculate dynamic values
+    const calcPromptCost = (inputTokens !== null && inputTokenPrice !== null) ? inputTokens * inputTokenPrice : null;
+    const calcCompletionCost = (outputTokens !== null && outputTokenPrice !== null) ? outputTokens * outputTokenPrice : null;
+    const calcModelCost = (calcPromptCost !== null && calcCompletionCost !== null) ? calcPromptCost + calcCompletionCost : null;
+    const calcAiCostPerOutput = (calcModelCost !== null && completedOutputs) ? calcModelCost / completedOutputs : null;
+    const calcEfficiencyRatio = (humanCostPerOutput !== null && calcAiCostPerOutput) ? humanCostPerOutput / calcAiCostPerOutput : null;
+    
+    let calcCostScore = null;
+    if (humanCostPerOutput !== null && calcAiCostPerOutput !== null && utilization !== null) {
+      const ratio = calcAiCostPerOutput > 0 ? Math.min(1.0, humanCostPerOutput / calcAiCostPerOutput) : 1.0;
+      calcCostScore = ratio * utilization * 5;
+    }
+    const calcTco = (humanCostPerOutput !== null && calcModelCost !== null) ? humanCostPerOutput + calcModelCost : null;
+
+    return {
+      input_tokens: { val: inputTokens, calc: inputTokens, disp: inputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
+      output_tokens: { val: outputTokens, calc: outputTokens, disp: outputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
+      prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens × Price", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
+      completion_cost: { val: completionCost, calc: calcCompletionCost, disp: completionCost, formula: "Output Tokens × Price", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
+      model_cost: { val: modelCost, calc: calcModelCost, disp: modelCost, formula: "Prompt Cost + Completion Cost", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
+      ai_cost_per_output: { val: aiCostPerOutput, calc: calcAiCostPerOutput, disp: aiCostPerOutput, formula: "Model Cost ÷ Outputs", src: "Prometheus (runtime telemetry)", resource: "Prometheus", dec: 6 },
+      human_cost_per_output: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: "Config Baseline", src: "Grafana (runtime settings)", resource: "Grafana", dec: 0 },
+      utilization: { val: utilization, calc: utilization, disp: utilization, formula: "Runtime Usage", src: "Prometheus (runtime telemetry)", resource: "Prometheus", dec: 0 },
+      efficiency_ratio: { val: efficiencyRatio, calc: calcEfficiencyRatio, disp: efficiencyRatio, formula: "Human ÷ AI Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 2 },
+      cost_score: { val: costScore, calc: calcCostScore, disp: costScore, formula: "min(1, Human ÷ AI) × Utilization × 5", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 },
+      tco: { val: tco, calc: calcTco, disp: tco, formula: "Human Cost + Model Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 }
+    };
+  }
+
+  function renderCostTableHtml(sub, settings, value, resourceFilter) {
+    const metricsMap = calculateCostMetrics(sub, settings, value);
+    
+    const fmt = (val, dec = 6) => {
+      if (val === null || val === undefined) return "N/A";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const tolerance = 0.00001;
+    const checkMatch = (calc, disp) => {
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) return "MISMATCH";
+      return Math.abs(c - d) < tolerance ? "MATCH" : "MISMATCH";
+    };
+
+    const METRIC_NICE_NAMES = {
+      input_tokens: "Input Tokens",
+      output_tokens: "Output Tokens",
+      prompt_cost: "Prompt Cost",
+      completion_cost: "Completion Cost",
+      model_cost: "Model Cost",
+      ai_cost_per_output: "AI Cost Per Output",
+      human_cost_per_output: "Human Cost Per Output",
+      utilization: "Utilization",
+      efficiency_ratio: "Efficiency Ratio",
+      cost_score: "Cost Score",
+      tco: "TCO"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+
+    const rowHtml = entries.map(([key, r]) => {
+      const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
+      const prefix = isDollarMetric ? "$" : "";
+      
+      const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec) : "N/A";
+      const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec) : "N/A";
+      const valStr = r.val !== null && r.val !== undefined 
+        ? prefix + (r.dec === 0 && typeof r.val === 'number' ? r.val.toFixed(0) : fmt(r.val, r.dec))
+        : "N/A";
+      const rawCalcStr = fmt(r.calc, r.dec);
+      const rawDispStr = fmt(r.disp, r.dec);
+      const matchStatus = checkMatch(rawCalcStr, rawDispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${valStr}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${calcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${dispStr}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src}</td>
+        </tr>
+      `;
+    }).join("");
+
+    return `
+      <div class="cost-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}COST TRACEABILITY & EFFICIENCY
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   /**
    * Renders the inline drilldown panel for the Airport Board.
    * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
    */
-  function metricDetailHtml(key, value, sub) {
+  function metricDetailHtml(key, value, sub, settings) {
+    if (key === "C") {
+      return renderCostTableHtml(sub, settings, value);
+    }
     const label  = METRIC_LABELS[key]  || key;
     const weight = METRIC_WEIGHTS[key] || 0;
     const formula = METRIC_FORMULAS[key] || "—";
@@ -516,26 +660,86 @@
         // — Metric column click: open/close inline detail row —
         const agentId = tr.dataset.agentId;
         const key = td.dataset.key;
-        const existing = tr.nextElementSibling;
-        if (existing && existing.classList.contains("detail-row")) {
-          if (existing.dataset.expandedKey === key) {
-            existing.remove(); // toggle off same column
-            return;
+        
+        // Only one Cost (C) detail row should be open at any time.
+        const existingCost = this.shadowRoot.querySelector("tr.cost-detail-row");
+        const existingDetail = this.shadowRoot.querySelector("tr.detail-row");
+
+        if (key === "C") {
+          // If we click C, collapse any general detail row first
+          if (existingDetail) {
+            existingDetail.remove();
+            this._expandedKey = null;
+            this._expandedAgentId = null;
           }
-          existing.remove(); // replace with different column
+
+          if (existingCost) {
+            const isSelf = (tr.nextElementSibling === existingCost);
+            existingCost.remove();
+            this._expandedKey = null;
+            this._expandedAgentId = null;
+            if (isSelf) {
+              // Clicked same C cell on same row: collapsed now, return
+              ev.preventDefault();
+              return;
+            }
+          }
+
+          const row = (this._data || []).find(r => r.agent_id === agentId);
+          if (!row) return;
+          const m = row.metrics || {};
+          const sub = row.sub_metrics || {};
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], this._settings || {});
+          const detailTr = document.createElement("tr");
+          detailTr.className = "cost-detail-row";
+          detailTr.dataset.expandedKey = key;
+          detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+          tr.parentNode.insertBefore(detailTr, tr.nextSibling);
+          
+          this._expandedAgentId = agentId;
+          this._expandedKey = key;
+          
+          ev.preventDefault();
+          return;
+        } else {
+          // For other keys
+          if (existingCost) {
+            existingCost.remove();
+            this._expandedKey = null;
+            this._expandedAgentId = null;
+          }
+
+          const existing = tr.nextElementSibling;
+          if (existing && existing.classList.contains("detail-row")) {
+            if (existing.dataset.expandedKey === key) {
+              existing.remove(); // toggle off same column
+              this._expandedKey = null;
+              this._expandedAgentId = null;
+              ev.preventDefault();
+              return;
+            }
+            existing.remove(); // replace with different column
+          } else if (existingDetail) {
+            existingDetail.remove(); // remove other agent's detail row
+          }
+
+          const row = (this._data || []).find(r => r.agent_id === agentId);
+          if (!row) return;
+          const m = row.metrics || {};
+          const sub = row.sub_metrics || {};
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], this._settings || {});
+          const detailTr = document.createElement("tr");
+          detailTr.className = "detail-row";
+          detailTr.dataset.expandedKey = key;
+          detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+          tr.parentNode.insertBefore(detailTr, tr.nextSibling);
+          
+          this._expandedAgentId = agentId;
+          this._expandedKey = key;
+          
+          ev.preventDefault();
+          return;
         }
-        const row = (this._data || []).find(r => r.agent_id === agentId);
-        if (!row) return;
-        const m = row.metrics || {};
-        const sub = row.sub_metrics || {};
-        const detailHtml = metricDetailHtml(key, m[key], sub[key]);
-        const detailTr = document.createElement("tr");
-        detailTr.className = "detail-row";
-        detailTr.dataset.expandedKey = key;
-        detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
-        tr.parentNode.insertBefore(detailTr, tr.nextSibling);
-        ev.preventDefault();
-        return;
       }
 
       if (tr) {
@@ -559,50 +763,148 @@
     }
     async _tick() {
       try {
-        const r = await fetch(`${apiBase(this)}/ratings`, { headers: { "Accept": "application/json" } });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const data = await r.json();
+        const [rRatings, rSettings] = await Promise.all([
+          fetch(`${apiBase(this)}/ratings`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/settings`, { headers: { "Accept": "application/json" } }),
+        ]);
+        if (!rRatings.ok) throw new Error(`HTTP ${rRatings.status}`);
+        const data = await rRatings.json();
+        if (rSettings.ok) {
+          this._settings = await rSettings.json();
+        }
         this._render({ data });
       } catch (e) {
         this._render({ error: e && e.message ? e.message : String(e) });
       }
     }
     _render({ loading, data, error }) {
-      this._data = data || [];
-      let body;
-      if (loading) {
-        body = `<div class="empty">Loading…</div>`;
-      } else if (error) {
-        body = `<div class="err">Cannot load board: ${escapeHtml(error)}</div>`;
-      } else if (!data || data.length === 0) {
-        body = `<div class="empty">No agents scored yet.</div>`;
-      } else {
-        body = `
-        <div style="background:#020617;border-radius:10px;border:2px solid #334155;overflow:hidden;font-family:'Courier New',Courier,monospace;">
-          <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:14px 24px;text-align:center;border-bottom:2px solid #334155;">
-            <span style="color:#facc15;font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">✈ AGENT DEPARTURES</span>
-          </div>
-          <table style="width:100%;border-collapse:collapse;">
-            <thead>
-              <tr style="background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
-                <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (20%)">G</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (15%)">R</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (10%)">V</th>
-                <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (5%)">C</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${data.map(boardRowHtml).join("")}
-            </tbody>
-          </table>
-        </div>`;
+      if (data) {
+        data = data.filter(item => item.agent_id === "chandra-finops");
       }
+      this._data = data || [];
+      
+      if (loading) {
+        this._renderShell(`<div class="empty">Loading…</div>`);
+        return;
+      }
+      if (error) {
+        this._renderShell(`<div class="err">Cannot load board: ${escapeHtml(error)}</div>`);
+        return;
+      }
+      if (!data || data.length === 0) {
+        this._renderShell(`<div class="empty">No agents scored yet.</div>`);
+        return;
+      }
+
+      const table = this.shadowRoot.querySelector("table");
+      if (table) {
+        let allUpdated = true;
+        for (const item of data) {
+          const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
+          if (!tr) {
+            allUpdated = false;
+            break;
+          }
+        }
+        
+        if (allUpdated) {
+          for (const item of data) {
+            const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
+            const rawScore = typeof item.raw_score === 'number' ? item.raw_score : item.score;
+            tr.cells[1].textContent = fmtScore(rawScore);
+            
+            const wm = item.weighted_metrics || {};
+            const m  = item.metrics || {};
+            const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
+            KEYS.forEach((k, idx) => {
+              const td = tr.cells[idx + 2];
+              if (td) {
+                const val = wm[k] !== undefined ? wm[k] : m[k];
+                const display = (val !== null && val !== undefined)
+                  ? (Number.isInteger(val) ? val : parseFloat(val.toFixed(1)))
+                  : "—";
+                td.textContent = display;
+              }
+            });
+            
+            if (this._expandedAgentId === item.agent_id && this._expandedKey) {
+              const detailTr = tr.nextElementSibling;
+              const expectedClass = (this._expandedKey === "C") ? "cost-detail-row" : "detail-row";
+              if (detailTr && detailTr.classList.contains(expectedClass) && detailTr.dataset.expandedKey === this._expandedKey) {
+                const detailM = item.metrics || {};
+                const detailSub = item.sub_metrics || {};
+                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], this._settings || {});
+                const td = detailTr.querySelector("td");
+                if (td) {
+                  td.innerHTML = detailHtml;
+                }
+              } else {
+                if (detailTr && (detailTr.classList.contains("detail-row") || detailTr.classList.contains("cost-detail-row"))) {
+                  detailTr.remove();
+                }
+                const detailM = item.metrics || {};
+                const detailSub = item.sub_metrics || {};
+                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], this._settings || {});
+                const newDetailTr = document.createElement("tr");
+                newDetailTr.className = expectedClass;
+                newDetailTr.dataset.expandedKey = this._expandedKey;
+                newDetailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+                tr.parentNode.insertBefore(newDetailTr, tr.nextSibling);
+              }
+            } else {
+              const detailTr = tr.nextElementSibling;
+              if (detailTr && (detailTr.classList.contains("detail-row") || detailTr.classList.contains("cost-detail-row"))) {
+                detailTr.remove();
+              }
+            }
+          }
+          return;
+        }
+      }
+
+      const body = `
+      <div style="background:#020617;border-radius:10px;border:2px solid #334155;overflow:hidden;font-family:'Courier New',Courier,monospace;">
+        <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:14px 24px;text-align:center;border-bottom:2px solid #334155;">
+          <span style="color:#facc15;font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">AGENT DEPARTURES</span>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
+              <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (20%)">G</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (15%)">R</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (10%)">V</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (5%)">C</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(boardRowHtml).join("")}
+          </tbody>
+        </table>
+      </div>`;
       this._renderShell(body);
+      
+      // Restore expanded detail row if one was open
+      if (this._expandedAgentId && this._expandedKey) {
+        const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(this._expandedAgentId)}"]`);
+        if (tr) {
+          const row = (this._data || []).find(r => r.agent_id === this._expandedAgentId);
+          if (row) {
+            const m = row.metrics || {};
+            const sub = row.sub_metrics || {};
+            const detailHtml = metricDetailHtml(this._expandedKey, m[this._expandedKey], sub[this._expandedKey], this._settings || {});
+            const detailTr = document.createElement("tr");
+            detailTr.className = (this._expandedKey === "C") ? "cost-detail-row" : "detail-row";
+            detailTr.dataset.expandedKey = this._expandedKey;
+            detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+            tr.parentNode.insertBefore(detailTr, tr.nextSibling);
+          }
+        }
+      }
     }
   }
 
@@ -968,11 +1270,19 @@
     }
     async _tick() {
       try {
-        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/results`, {
-          headers: { "Accept": "application/json" }
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        this._results = await r.json();
+        const [resultsRes, urlsRes] = await Promise.all([
+          fetch(`${apiBase(this)}/api/cost-evaluation/results`, {
+            headers: { "Accept": "application/json" }
+          }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, {
+            headers: { "Accept": "application/json" }
+          })
+        ]);
+        if (!resultsRes.ok) throw new Error(`HTTP ${resultsRes.status}`);
+        if (!urlsRes.ok) throw new Error(`URLs HTTP ${urlsRes.status}`);
+
+        this._results = await resultsRes.json();
+        this._urls = await urlsRes.json();
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -981,12 +1291,20 @@
     async _runEvaluations() {
       try {
         this._render({ loading: true });
-        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, {
-          method: "POST",
-          headers: { "Accept": "application/json" }
-        });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        this._results = await r.json();
+        const [evalRes, urlsRes] = await Promise.all([
+          fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, {
+            method: "POST",
+            headers: { "Accept": "application/json" }
+          }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, {
+            headers: { "Accept": "application/json" }
+          })
+        ]);
+        if (!evalRes.ok) throw new Error(`HTTP ${evalRes.status}`);
+        if (!urlsRes.ok) throw new Error(`URLs HTTP ${urlsRes.status}`);
+
+        this._results = await evalRes.json();
+        this._urls = await urlsRes.json();
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -1024,15 +1342,8 @@
         return;
       }
 
-      // Resource dashboard URLs — must match the 6 active resources
-      const RESOURCE_URLS = {
-        'Langfuse':       'https://cloud.langfuse.com',
-        'Prometheus':     'http://localhost:9090',
-        'Grafana':        'http://localhost:3000',
-        'OpenTelemetry':  'http://localhost:4317',
-        'Arize Phoenix':  'http://127.0.0.1:6006',
-        'MLflow':         'http://localhost:5000',
-      };
+      // Resource dashboard URLs from API
+      const RESOURCE_URLS = this._urls || {};
 
       // Nice display names for each metric key
       const METRIC_NICE = {
@@ -1079,10 +1390,23 @@
         if (metrics.length === 0) continue;
 
         const detectedCount = metrics.filter(m => m.detected).length;
-        const dashUrl = RESOURCE_URLS[resourceName];
-        const dashBtn = dashUrl
-          ? `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open UI</button>`
-          : `<span style="font-size:11px;color:#6b7280">No local UI</span>`;
+        const dashUrlData = RESOURCE_URLS[resourceName];
+        const baseUrl = dashUrlData?.url;
+        const isOnline = dashUrlData?.online !== false;
+
+        // Build drill-through URL with agent filter
+        let dashUrl = baseUrl;
+        if (baseUrl && isOnline) {
+          if (resourceName === 'Prometheus') {
+            dashUrl = `${baseUrl}/graph?g0.expr=dpi_ls_model_cost{agent_id="chandra-finops"}&g0.tab=0&g0.stacked=0&g0.range_input=1h`;
+          } else if (resourceName === 'Grafana') {
+            dashUrl = `${baseUrl}/d/dpi-ls-cost-001/dpi-ls-cost-dashboard-chandra-finops?orgId=1&var-agent=chandra-finops`;
+          }
+        }
+
+        const dashBtn = dashUrl && isOnline
+          ? `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`
+          : `<span style="font-size:11px;color:#6b7280">Disabled</span>`;
 
         // Resource header row
         rows += `<tr style="background:rgba(15,23,42,0.6)">
@@ -1173,6 +1497,8 @@
       this._renderShell(tableHtml);
     }
   }
+  window.calculateCostMetrics = calculateCostMetrics;
+  window.renderCostTableHtml = renderCostTableHtml;
 
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);
