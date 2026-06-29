@@ -23,6 +23,7 @@ class Executions(BaseModel):
     attempts: int
     successful: int
     details: list[dict] = Field(default_factory=list)
+    cpu_utilization: Optional[float] = None
 
 
 class PolicyViolation(BaseModel):
@@ -51,6 +52,7 @@ class Quality(BaseModel):
     accuracy: float
     consistency: float
     hallucination_rate: float
+    user_feedback_score: Optional[float] = None
 
 
 class Validation(BaseModel):

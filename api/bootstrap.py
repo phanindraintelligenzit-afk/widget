@@ -7,15 +7,12 @@ from pathlib import Path
 from ingestion import (
     FieldMapping,
     GenericWebhookAdapter,
-    OTelAdapter,
     list_adapters,
     register,
 )
 
 
 def register_stock_adapters() -> None:
-    if "otel" not in list_adapters():
-        register(OTelAdapter())
     # All source adapters self-register; idempotent.
     from ingestion.sources import register_all
     register_all()

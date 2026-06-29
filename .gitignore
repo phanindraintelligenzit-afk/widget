@@ -78,4 +78,8 @@ sandbox_*
 data/
 scratch/run_mock_phoenix.py
 *.bak
+
+# Local scratch and MLflow trace artifacts
+mlartifacts/
+scratch/
 

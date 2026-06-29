@@ -468,149 +468,96 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+<script src="/widget/dpi-ls.js?v=15"></script>
 <script>
-const API = '';
+const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
+  ? window.location.origin
+  : '';
+let chandraSub = {};
+let settingsObj = {};
+let chandraCostValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
+// dashboardUrls stores {url, online} objects keyed by resource name
+let dashboardUrls = {
+  Langfuse:   { url: 'https://cloud.langfuse.com', online: false },
+  Prometheus: { url: 'http://localhost:9090',       online: false },
+  Grafana:    { url: 'http://localhost:3000',        online: false },
+};
 
-// ── Resource metadata (from documents) ──
+async function loadChandraData() {
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/ratings?all=true`),
+      fetch(`${API}/settings`)
+    ]);
+    if (r1.ok) {
+      const ratings = await r1.json();
+      const chandra = ratings.find(r => r.agent_id === "chandra-finops");
+      if (chandra) {
+        chandraSub = chandra.sub_metrics?.C || {};
+        chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
+      }
+    }
+    if (r2.ok) {
+      settingsObj = await r2.json();
+    }
+  } catch(e) {
+    console.error("Failed to load Chandra ratings/settings for resources", e);
+  }
+}
+
+async function loadUrls() {
+  try {
+    const r = await fetch(`${API}/api/cost-evaluation/urls`);
+    if (r.ok) {
+      const raw = await r.json();
+      // API now returns {Langfuse: {url, online}, ...}
+      // Support both old string format and new object format
+      for (const [name, val] of Object.entries(raw)) {
+        if (val && typeof val === 'object' && 'url' in val) {
+          dashboardUrls[name] = { url: val.url, online: val.online };
+        } else {
+          // Legacy: plain string URL
+          dashboardUrls[name] = { url: String(val), online: false };
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load urls", e);
+  }
+}
+
 const RESOURCE_META = {
   'Langfuse': {
     icon: '🔭', category: 'LLM Observability',
     dpi_status: 'primary',
-    description: 'Token usage, cost per trace/generation, model spend, and latency per LLM call.',
+    description: 'Token usage, cost per trace/generation, model spend, and latency per LLM call. Traces are pushed automatically on every agent run.',
     dashboard_url: 'https://cloud.langfuse.com',
-    dashboard_label: 'Langfuse Cloud',
+    dashboard_label: 'Open Langfuse Cloud',
     color: '#6366f1',
     sdk: 'langfuse',
   },
   'Prometheus': {
     icon: '📊', category: 'Infrastructure Metrics',
     dpi_status: 'recommended',
-    description: 'Time-series compute, memory, and runtime utilization for the agent host.',
-    dashboard_url: 'http://localhost:9090',
-    dashboard_label: 'Prometheus UI',
+    description: 'Live Prometheus-format metrics for Chandra FinOps agent — token costs, model cost, TCO, quality scores, and utilization. Exposed by DPI-LS at /metrics/.',
+    dashboard_url: 'http://127.0.0.1:8000/metrics/',
+    dashboard_label: 'Open Metrics Endpoint',
     color: '#e6522c',
     sdk: 'prometheus_client',
   },
   'Grafana': {
     icon: '📈', category: 'Metrics Visualization',
     dpi_status: 'recommended',
-    description: 'Visualization of cost and utilization metrics. Queries Prometheus backend.',
-    dashboard_url: 'http://localhost:3000',
-    dashboard_label: 'Grafana Dashboard',
+    description: 'Visualization of cost and utilization metrics. Import grafana_dashboard.json from the widget folder to see DPI-LS dashboards.',
+    dashboard_url: 'https://grafana.com/auth/sign-in/',
+    dashboard_label: 'Open Grafana Cloud',
     color: '#f46800',
     sdk: 'grafana',
   },
-  'OpenTelemetry': {
-    icon: '🔗', category: 'Instrumentation Standard',
-    dpi_status: 'foundational',
-    description: 'Standardized traces, metrics, and logs instrumentation across the agent.',
-    dashboard_url: 'http://localhost:4317',
-    dashboard_label: 'OTel Collector',
-    color: '#425cc7',
-    sdk: 'opentelemetry-sdk',
-  },
-  'OpenMeter': {
-    icon: '💰', category: 'Usage Metering',
-    dpi_status: 'candidate',
-    description: 'Usage-based metering of tokens, requests, and compute for cost allocation.',
-    dashboard_url: null,
-    dashboard_label: 'OpenMeter',
-    color: '#10b981',
-    sdk: 'openmeter',
-  },
-  'SigNoz': {
-    icon: '🔍', category: 'APM (OpenTelemetry)',
-    dpi_status: 'candidate',
-    description: 'OTel-native APM: latency, request volume, and resource-cost signals.',
-    dashboard_url: null,
-    dashboard_label: 'SigNoz UI',
-    color: '#5664d2',
-    sdk: 'opentelemetry-exporter-otlp',
-  },
-  'Arize Phoenix': {
-    icon: '🦅', category: 'LLM Eval / Observability',
-    dpi_status: 'primary',
-    description: 'Token cost attributes alongside LLM eval traces. Hallucination, relevance, groundedness eval scoring.',
-    dashboard_url: 'http://localhost:6006',
-    dashboard_label: 'Phoenix UI',
-    color: '#7c3aed',
-    sdk: 'arize-phoenix',
-  },
-  'Helicone': {
-    icon: '🌀', category: 'LLM Gateway / Proxy',
-    dpi_status: 'optional',
-    description: 'Proxy-level token, cost, and request logging per LLM call.',
-    dashboard_url: null,
-    dashboard_label: 'Helicone',
-    color: '#06b6d4',
-    sdk: 'helicone',
-  },
-  'OpenObserve': {
-    icon: '🌐', category: 'Observability Platform',
-    dpi_status: 'optional',
-    description: 'Unified logs/metrics/traces store with cost and usage queries.',
-    dashboard_url: null,
-    dashboard_label: 'OpenObserve',
-    color: '#8b5cf6',
-    sdk: 'openobserve',
-  },
-  'Uptrace': {
-    icon: '📡', category: 'APM (OpenTelemetry)',
-    dpi_status: 'optional',
-    description: 'OTel APM with span metrics and resource-cost views.',
-    dashboard_url: null,
-    dashboard_label: 'Uptrace',
-    color: '#0ea5e9',
-    sdk: 'uptrace',
-  },
-  'Apache SkyWalking': {
-    icon: '🏔️', category: 'APM',
-    dpi_status: 'optional',
-    description: 'Distributed tracing with service compute and latency metrics.',
-    dashboard_url: null,
-    dashboard_label: 'SkyWalking OAP',
-    color: '#6366f1',
-    sdk: 'skywalking-python',
-  },
-  'Jaeger': {
-    icon: '🔎', category: 'Distributed Tracing',
-    dpi_status: 'optional',
-    description: 'Distributed-trace latency only; no native cost or metrics.',
-    dashboard_url: null,
-    dashboard_label: 'Jaeger UI',
-    color: '#3b82f6',
-    sdk: 'opentelemetry-exporter-jaeger',
-  },
-  'MLflow': {
-    icon: '🧪', category: 'MLOps Registry',
-    dpi_status: 'candidate',
-    description: 'Fine-tuning and run compute cost; experiment resource tracking. Model lineage and audit-evidence.',
-    dashboard_url: 'http://localhost:5000',
-    dashboard_label: 'MLflow UI',
-    color: '#0ea5e9',
-    sdk: 'mlflow',
-  },
-  'Elastic APM': {
-    icon: '🦔', category: 'APM',
-    dpi_status: 'optional',
-    description: 'Service-level transaction cost and resource-usage signals via Kibana.',
-    dashboard_url: null,
-    dashboard_label: 'Kibana',
-    color: '#00bfb3',
-    sdk: 'elastic-apm',
-  },
-  'SigNoz + OpenTelemetry Stack': {
-    icon: '⚡', category: 'Observability Stack',
-    dpi_status: 'recommended',
-    description: 'Combined OTel instrumentation + APM for full-pipeline validation coverage.',
-    dashboard_url: null,
-    dashboard_label: 'SigNoz Stack',
-    color: '#5664d2',
-    sdk: 'opentelemetry-sdk',
-  },
 };
+
 
 const STATUS_ORDER = { primary: 0, foundational: 1, recommended: 2, candidate: 3, optional: 4 };
 
@@ -680,19 +627,22 @@ function renderStepsTrack(steps) {
   return html;
 }
 
-const COST_METRICS     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
+const COST_METRICS     = ['input_tokens', 'output_tokens', 'model_cost', 'prompt_cost', 'completion_cost', 'ai_cost_per_output', 'human_cost_per_output', 'utilization', 'efficiency_ratio', 'cost_score', 'tco'];
 const VALIDATION_METRICS = ['validated_components','required_components','validation_score'];
 const QUALITY_METRICS  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
 
 const METRIC_NICE_NAMES = {
+  input_tokens: 'Input Tokens',
+  output_tokens: 'Output Tokens',
   model_cost: 'Model Cost',
-  token_cost: 'Token Cost',
   prompt_cost: 'Prompt Cost',
   completion_cost: 'Completion Cost',
-  AI_cost_per_output: 'AI Cost / Output',
-  Human_cost_per_output: 'Human Cost / Output',
+  ai_cost_per_output: 'AI Cost / Output',
+  human_cost_per_output: 'Human Cost / Output',
   utilization: 'Utilization',
-  total_cost_of_ownership: 'Total Cost (TCO)',
+  efficiency_ratio: 'Efficiency Ratio',
+  cost_score: 'Cost Score',
+  tco: 'Total Cost (TCO)',
   validated_components: 'Validated Components',
   required_components: 'Required Components',
   validation_score: 'Validation Score',
@@ -703,33 +653,51 @@ const METRIC_NICE_NAMES = {
   model_correctness: 'Model Correctness',
 };
 
-function renderMetricGroup(metrics, keys, groupLabel, groupColor) {
-  const group = metrics.filter(m => keys.includes(m.metric));
-  if (group.length === 0) return '';
-  const chips = group.map(m => {
-    const det = m.detected;
-    const val = parseFloat(m.current_value || 0);
-    const dispVal = val > 0 ? (val < 0.001 ? val.toExponential(2) : val.toFixed(val < 1 ? 4 : 2)) : '—';
-    const trueFalse = det ? '<span style="color:#34d399;font-weight:700">True ✓</span>' : '<span style="color:#f87171;font-weight:700">False ✗</span>';
-    return `<div class="metric-chip ${det ? 'detected' : 'not-detected'}">
-      <div class="mc-name">${escHtml(METRIC_NICE_NAMES[m.metric] || m.metric)}</div>
-      <div class="mc-val">${dispVal}</div>
-      <div class="mc-detected ${det ? 'yes' : 'no'}">${trueFalse}</div>
-    </div>`;
-  }).join('');
-  return `
-    <div style="margin-top:10px">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:${groupColor};margin-bottom:6px;padding-left:2px">📌 ${groupLabel}</div>
-      <div class="metrics-grid">${chips}</div>
-    </div>`;
+function formatMetricValue(metric, current_value) {
+  if (current_value === null || current_value === undefined || current_value === "") return '—';
+  const val = parseFloat(current_value);
+  if (isNaN(val)) return current_value;
+  
+  if (metric === 'input_tokens' || metric === 'output_tokens') {
+    return val.toFixed(0);
+  }
+  if (metric === 'utilization') {
+    return val.toFixed(0);
+  }
+  if (metric === 'efficiency_ratio') {
+    return val.toFixed(2);
+  }
+  if (metric === 'human_cost_per_output') {
+    return "$" + val.toFixed(0);
+  }
+  if (['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'tco'].includes(metric)) {
+    return "$" + val.toFixed(6);
+  }
+  if (metric === 'cost_score') {
+    return val.toFixed(6);
+  }
+  return val.toFixed(4);
 }
 
-function renderMetricChips(metrics) {
-  return [
-    renderMetricGroup(metrics, COST_METRICS,       '💰 Cost Parameters (C)',       '#f97316'),
-    renderMetricGroup(metrics, VALIDATION_METRICS, '✅ Validation Parameters (V)',  '#22c55e'),
-    renderMetricGroup(metrics, QUALITY_METRICS,    '🧬 Quality Parameters (Q)',     '#a78bfa'),
-  ].join('');
+function renderResourceTable(metrics, name) {
+  if (typeof window.renderCostTableHtml === 'function') {
+    return window.renderCostTableHtml(chandraSub, settingsObj, chandraCostValue, name);
+  }
+  return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
+}
+
+function toggleResourceTable(name) {
+  const container = document.querySelector(`.table-container-${name}`);
+  const arrow = document.querySelector(`.arrow-${name}`);
+  if (container) {
+    if (container.style.display === 'none') {
+      container.style.display = 'block';
+      arrow.textContent = '▼';
+    } else {
+      container.style.display = 'none';
+      arrow.textContent = '▶';
+    }
+  }
 }
 
 function renderResourceCard(name, metrics) {
@@ -742,17 +710,32 @@ function renderResourceCard(name, metrics) {
   const dashVerified = metrics.some(m => m.dashboard_verified);
   const statusClass = `status-${overallStatus}`;
 
-  let statusCardBadge, statusBgColor;
+  let statusCardBadge;
   if (overallStatus === 'success')      { statusCardBadge = 'badge-success'; }
   else if (overallStatus === 'failed')  { statusCardBadge = 'badge-failed'; }
   else                                   { statusCardBadge = 'badge-partial'; }
 
-  const dashHtml = meta.dashboard_url
-    ? `<button class="rc-dashboard-link" onclick="window.open('${meta.dashboard_url}', '_blank')">🔗 ${escHtml(meta.dashboard_label)}</button>`
-    : `<span style="font-size:11px;color:var(--muted2)">No local dashboard</span>`;
+  const dashInfo = dashboardUrls[name] || { url: '', online: false };
+  const dashUrl  = dashInfo.url || '';
+  // Link is shown whenever evaluation passed (SUCCESS or PARTIAL).
+  // TCP reachability only adds a small live-status indicator — it never hides the link.
+  const isOnline = overallStatus !== 'failed';
+  const tcpOnline = dashInfo.online;
+  const liveTag = tcpOnline
+    ? `<span title="Port reachable" style="font-size:10px;color:#4ade80;margin-left:6px;">● Live</span>`
+    : `<span title="Port not reachable locally" style="font-size:10px;color:#f59e0b;margin-left:6px;">● Local port down</span>`;
+  
+  const nameHtml = isOnline 
+    ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
+    : `<span style="color:var(--text);">${escHtml(name)}</span>`;
+
+  const linkHtml = isOnline
+    ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
+    : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+
 
   const verifyHtml = dashVerified
-    ? `<span class="verified-tag">✅ Dashboard Verified</span>`
+    ? `<span class="verified-tag" style="color:var(--green); font-weight:bold; font-size:12px;">✅ Dashboard Verified</span>`
     : `<button class="verify-btn-card" onclick="verifyDashboard('${escHtml(name)}')">Mark Verified</button>`;
 
   const statusLabel2 = overallStatus === 'success' ? 'SUCCESS' : overallStatus === 'failed' ? 'FAILED' : 'PARTIAL';
@@ -763,9 +746,9 @@ function renderResourceCard(name, metrics) {
       <div class="rc-header">
         <div class="rc-icon" style="background:${meta.color}22;">${meta.icon}</div>
         <div class="rc-title-group">
-          <div class="rc-name">${escHtml(name)}</div>
+          <div class="rc-name">${nameHtml}</div>
           <div class="rc-category">${escHtml(meta.category)}</div>
-          <div style="font-size:10px;color:var(--muted2);margin-top:3px;line-height:1.4">${escHtml(meta.description)}</div>
+          <div style="font-size:11px;color:var(--muted2);margin-top:3px;line-height:1.4">${escHtml(meta.description)}</div>
         </div>
         <div class="rc-badge">
           <span class="badge ${statusCardBadge}">${statusLabel2}</span>
@@ -779,18 +762,23 @@ function renderResourceCard(name, metrics) {
         ${renderStepsTrack(steps)}
       </div>
 
-      <!-- Metrics Grid -->
-      <div class="rc-metrics">
-        <div class="rc-metrics-title">${detectedCount}/${metrics.length} Metrics Detected &nbsp;|&nbsp; <span style="color:#f97316">C: Cost</span> &nbsp;·&nbsp; <span style="color:#22c55e">V: Validation</span> &nbsp;·&nbsp; <span style="color:#a78bfa">Q: Quality</span></div>
-        <div>
-          ${renderMetricChips(metrics)}
+      <!-- Metrics Table -->
+      <div class="rc-metrics" style="margin-top: 15px;">
+        <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
+          <span>📊 Cost Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span class="arrow-${escHtml(name)}">▼</span>
+        </button>
+        <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
+          ${renderResourceTable(metrics, name)}
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="rc-footer">
-        ${dashHtml}
-        ${verifyHtml}
+      <div class="rc-footer" style="margin-top: 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; gap: 8px;">
+          ${linkHtml}
+          ${verifyHtml}
+        </div>
         <div class="rc-last-run">Last run: ${escHtml(lastRun)}</div>
       </div>
     </div>
@@ -849,8 +837,9 @@ async function runEvaluation() {
       headers: { 'Accept': 'application/json' }
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await loadChandraData();
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -864,10 +853,11 @@ async function runEvaluation() {
 
 async function loadData() {
   try {
+    await loadChandraData();
     const r = await fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
   } catch (e) {
@@ -923,8 +913,10 @@ function renderGrid() {
 }
 
 // Initial load + auto-refresh every 15s
-loadData();
-setInterval(loadData, 15000);
+loadUrls().then(() => {
+  loadData();
+  setInterval(loadData, 15000);
+});
 </script>
 </body>
 </html>

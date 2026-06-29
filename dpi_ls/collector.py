@@ -269,6 +269,7 @@ class SignalCollector:
         accuracy: float,
         consistency: float,
         hallucination_rate: float,
+        user_feedback_score: Optional[float] = None,
     ) -> None:
         """Called by the LangGraph evaluator once it's done."""
         # Clip to [0, 1] so a poorly-prompted LLM can't poison Q.
@@ -277,6 +278,8 @@ class SignalCollector:
             "consistency": max(0.0, min(1.0, float(consistency))),
             "hallucination_rate": max(0.0, min(1.0, float(hallucination_rate))),
         }
+        if user_feedback_score is not None:
+            self.quality["user_feedback_score"] = max(0.0, min(1.0, float(user_feedback_score)))
 
     def mark_end(self) -> None:
         """Called by the atexit finalizer so the observation's period is correct."""
@@ -426,6 +429,7 @@ class SignalCollector:
                 "attempts": self.attempts,
                 "successful": self.successful,
                 "details": self.execution_details,
+                "cpu_utilization": getattr(self, "cpu_utilization", None),
             },
             "policy": {
                 "total_actions": max(self.attempts, 1),

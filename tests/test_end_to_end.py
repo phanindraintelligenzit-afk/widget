@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from contract import AgentBaseline, Settings
 from engine import metrics_from_observation, rate
-from ingestion import FieldMapping, GenericWebhookAdapter, OTelAdapter
-from fixtures import load_otel_spans, load_raw, mapping_path
+from ingestion import FieldMapping, GenericWebhookAdapter
+from fixtures import load_raw, mapping_path
 
 
 def _rate_observation(obs):
@@ -31,23 +31,6 @@ def test_generic_webhook_end_to_end():
     assert 70 <= r.score <= 100
     assert r.metrics["Q"] is not None
     assert r.gate_failures == []
-
-
-def test_otel_end_to_end():
-    spans = load_otel_spans()
-    [obs] = OTelAdapter().to_observations(spans)
-
-    settings = Settings()
-    # The OTel fixture has 3 task spans → use a per-agent baseline that
-    # matches the span volume rather than the 100/period default.
-    baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=3.0)
-    r = rate(metrics_from_observation(obs, settings, baseline))
-
-    # 1 violation / 4 actions = G of 0.75 → above gate threshold → safe.
-    assert r.unsafe is False
-    assert r.metrics["G"] == 0.75
-    assert r.gate_failures == []
-    assert 0 < r.score <= 100
 
 
 def test_productivity_with_default_baseline_1_0():

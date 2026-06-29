@@ -1,0 +1,1562 @@
+version: '1.0'
+policies:
+- id: cloud-001
+  name: Cloud Rule 1
+  description: Ensures compliance with cloud standards for action 1.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-002
+  name: Cloud Rule 2
+  description: Ensures compliance with cloud standards for action 2.
+  severity: medium
+  category: storage
+  action: instanceTerminated2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-003
+  name: Cloud Rule 3
+  description: Ensures compliance with cloud standards for action 3.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-004
+  name: Cloud Rule 4
+  description: Ensures compliance with cloud standards for action 4.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-005
+  name: Cloud Rule 5
+  description: Ensures compliance with cloud standards for action 5.
+  severity: high
+  category: storage
+  action: instanceTerminated5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-006
+  name: Cloud Rule 6
+  description: Ensures compliance with cloud standards for action 6.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-007
+  name: Cloud Rule 7
+  description: Ensures compliance with cloud standards for action 7.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-008
+  name: Cloud Rule 8
+  description: Ensures compliance with cloud standards for action 8.
+  severity: medium
+  category: storage
+  action: instanceTerminated8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-009
+  name: Cloud Rule 9
+  description: Ensures compliance with cloud standards for action 9.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-010
+  name: Cloud Rule 10
+  description: Ensures compliance with cloud standards for action 10.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-011
+  name: Cloud Rule 11
+  description: Ensures compliance with cloud standards for action 11.
+  severity: low
+  category: storage
+  action: instanceTerminated11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-012
+  name: Cloud Rule 12
+  description: Ensures compliance with cloud standards for action 12.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-013
+  name: Cloud Rule 13
+  description: Ensures compliance with cloud standards for action 13.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-014
+  name: Cloud Rule 14
+  description: Ensures compliance with cloud standards for action 14.
+  severity: medium
+  category: storage
+  action: instanceTerminated14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-015
+  name: Cloud Rule 15
+  description: Ensures compliance with cloud standards for action 15.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-016
+  name: Cloud Rule 16
+  description: Ensures compliance with cloud standards for action 16.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-017
+  name: Cloud Rule 17
+  description: Ensures compliance with cloud standards for action 17.
+  severity: low
+  category: storage
+  action: instanceTerminated17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-018
+  name: Cloud Rule 18
+  description: Ensures compliance with cloud standards for action 18.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-019
+  name: Cloud Rule 19
+  description: Ensures compliance with cloud standards for action 19.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-020
+  name: Cloud Rule 20
+  description: Ensures compliance with cloud standards for action 20.
+  severity: high
+  category: storage
+  action: instanceTerminated20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-021
+  name: Cloud Rule 21
+  description: Ensures compliance with cloud standards for action 21.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-022
+  name: Cloud Rule 22
+  description: Ensures compliance with cloud standards for action 22.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-023
+  name: Cloud Rule 23
+  description: Ensures compliance with cloud standards for action 23.
+  severity: low
+  category: storage
+  action: instanceTerminated23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-024
+  name: Cloud Rule 24
+  description: Ensures compliance with cloud standards for action 24.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-025
+  name: Cloud Rule 25
+  description: Ensures compliance with cloud standards for action 25.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-026
+  name: Cloud Rule 26
+  description: Ensures compliance with cloud standards for action 26.
+  severity: medium
+  category: storage
+  action: instanceTerminated26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-027
+  name: Cloud Rule 27
+  description: Ensures compliance with cloud standards for action 27.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-028
+  name: Cloud Rule 28
+  description: Ensures compliance with cloud standards for action 28.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-029
+  name: Cloud Rule 29
+  description: Ensures compliance with cloud standards for action 29.
+  severity: low
+  category: storage
+  action: instanceTerminated29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-030
+  name: Cloud Rule 30
+  description: Ensures compliance with cloud standards for action 30.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-031
+  name: Cloud Rule 31
+  description: Ensures compliance with cloud standards for action 31.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-032
+  name: Cloud Rule 32
+  description: Ensures compliance with cloud standards for action 32.
+  severity: medium
+  category: storage
+  action: instanceTerminated32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-033
+  name: Cloud Rule 33
+  description: Ensures compliance with cloud standards for action 33.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-034
+  name: Cloud Rule 34
+  description: Ensures compliance with cloud standards for action 34.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-035
+  name: Cloud Rule 35
+  description: Ensures compliance with cloud standards for action 35.
+  severity: high
+  category: storage
+  action: instanceTerminated35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-036
+  name: Cloud Rule 36
+  description: Ensures compliance with cloud standards for action 36.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-037
+  name: Cloud Rule 37
+  description: Ensures compliance with cloud standards for action 37.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-038
+  name: Cloud Rule 38
+  description: Ensures compliance with cloud standards for action 38.
+  severity: medium
+  category: storage
+  action: instanceTerminated38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-039
+  name: Cloud Rule 39
+  description: Ensures compliance with cloud standards for action 39.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-040
+  name: Cloud Rule 40
+  description: Ensures compliance with cloud standards for action 40.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-041
+  name: Cloud Rule 41
+  description: Ensures compliance with cloud standards for action 41.
+  severity: low
+  category: storage
+  action: instanceTerminated41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-042
+  name: Cloud Rule 42
+  description: Ensures compliance with cloud standards for action 42.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-043
+  name: Cloud Rule 43
+  description: Ensures compliance with cloud standards for action 43.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-044
+  name: Cloud Rule 44
+  description: Ensures compliance with cloud standards for action 44.
+  severity: medium
+  category: storage
+  action: instanceTerminated44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-045
+  name: Cloud Rule 45
+  description: Ensures compliance with cloud standards for action 45.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-046
+  name: Cloud Rule 46
+  description: Ensures compliance with cloud standards for action 46.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-047
+  name: Cloud Rule 47
+  description: Ensures compliance with cloud standards for action 47.
+  severity: low
+  category: storage
+  action: instanceTerminated47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-048
+  name: Cloud Rule 48
+  description: Ensures compliance with cloud standards for action 48.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-049
+  name: Cloud Rule 49
+  description: Ensures compliance with cloud standards for action 49.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-050
+  name: Cloud Rule 50
+  description: Ensures compliance with cloud standards for action 50.
+  severity: high
+  category: storage
+  action: instanceTerminated50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-051
+  name: Cloud Rule 51
+  description: Ensures compliance with cloud standards for action 51.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-052
+  name: Cloud Rule 52
+  description: Ensures compliance with cloud standards for action 52.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-053
+  name: Cloud Rule 53
+  description: Ensures compliance with cloud standards for action 53.
+  severity: low
+  category: storage
+  action: instanceTerminated53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-054
+  name: Cloud Rule 54
+  description: Ensures compliance with cloud standards for action 54.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-055
+  name: Cloud Rule 55
+  description: Ensures compliance with cloud standards for action 55.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-056
+  name: Cloud Rule 56
+  description: Ensures compliance with cloud standards for action 56.
+  severity: medium
+  category: storage
+  action: instanceTerminated56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-057
+  name: Cloud Rule 57
+  description: Ensures compliance with cloud standards for action 57.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-058
+  name: Cloud Rule 58
+  description: Ensures compliance with cloud standards for action 58.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-059
+  name: Cloud Rule 59
+  description: Ensures compliance with cloud standards for action 59.
+  severity: low
+  category: storage
+  action: instanceTerminated59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-060
+  name: Cloud Rule 60
+  description: Ensures compliance with cloud standards for action 60.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-061
+  name: Cloud Rule 61
+  description: Ensures compliance with cloud standards for action 61.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-062
+  name: Cloud Rule 62
+  description: Ensures compliance with cloud standards for action 62.
+  severity: medium
+  category: storage
+  action: instanceTerminated62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-063
+  name: Cloud Rule 63
+  description: Ensures compliance with cloud standards for action 63.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-064
+  name: Cloud Rule 64
+  description: Ensures compliance with cloud standards for action 64.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-065
+  name: Cloud Rule 65
+  description: Ensures compliance with cloud standards for action 65.
+  severity: high
+  category: storage
+  action: instanceTerminated65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-066
+  name: Cloud Rule 66
+  description: Ensures compliance with cloud standards for action 66.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-067
+  name: Cloud Rule 67
+  description: Ensures compliance with cloud standards for action 67.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-068
+  name: Cloud Rule 68
+  description: Ensures compliance with cloud standards for action 68.
+  severity: medium
+  category: storage
+  action: instanceTerminated68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-069
+  name: Cloud Rule 69
+  description: Ensures compliance with cloud standards for action 69.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-070
+  name: Cloud Rule 70
+  description: Ensures compliance with cloud standards for action 70.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-071
+  name: Cloud Rule 71
+  description: Ensures compliance with cloud standards for action 71.
+  severity: low
+  category: storage
+  action: instanceTerminated71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-072
+  name: Cloud Rule 72
+  description: Ensures compliance with cloud standards for action 72.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-073
+  name: Cloud Rule 73
+  description: Ensures compliance with cloud standards for action 73.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-074
+  name: Cloud Rule 74
+  description: Ensures compliance with cloud standards for action 74.
+  severity: medium
+  category: storage
+  action: instanceTerminated74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-075
+  name: Cloud Rule 75
+  description: Ensures compliance with cloud standards for action 75.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-076
+  name: Cloud Rule 76
+  description: Ensures compliance with cloud standards for action 76.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-077
+  name: Cloud Rule 77
+  description: Ensures compliance with cloud standards for action 77.
+  severity: low
+  category: storage
+  action: instanceTerminated77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-078
+  name: Cloud Rule 78
+  description: Ensures compliance with cloud standards for action 78.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-079
+  name: Cloud Rule 79
+  description: Ensures compliance with cloud standards for action 79.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-080
+  name: Cloud Rule 80
+  description: Ensures compliance with cloud standards for action 80.
+  severity: high
+  category: storage
+  action: instanceTerminated80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-081
+  name: Cloud Rule 81
+  description: Ensures compliance with cloud standards for action 81.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-082
+  name: Cloud Rule 82
+  description: Ensures compliance with cloud standards for action 82.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-083
+  name: Cloud Rule 83
+  description: Ensures compliance with cloud standards for action 83.
+  severity: low
+  category: storage
+  action: instanceTerminated83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-084
+  name: Cloud Rule 84
+  description: Ensures compliance with cloud standards for action 84.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-085
+  name: Cloud Rule 85
+  description: Ensures compliance with cloud standards for action 85.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-086
+  name: Cloud Rule 86
+  description: Ensures compliance with cloud standards for action 86.
+  severity: medium
+  category: storage
+  action: instanceTerminated86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-087
+  name: Cloud Rule 87
+  description: Ensures compliance with cloud standards for action 87.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-088
+  name: Cloud Rule 88
+  description: Ensures compliance with cloud standards for action 88.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-089
+  name: Cloud Rule 89
+  description: Ensures compliance with cloud standards for action 89.
+  severity: low
+  category: storage
+  action: instanceTerminated89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-090
+  name: Cloud Rule 90
+  description: Ensures compliance with cloud standards for action 90.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-091
+  name: Cloud Rule 91
+  description: Ensures compliance with cloud standards for action 91.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-092
+  name: Cloud Rule 92
+  description: Ensures compliance with cloud standards for action 92.
+  severity: medium
+  category: storage
+  action: instanceTerminated92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-093
+  name: Cloud Rule 93
+  description: Ensures compliance with cloud standards for action 93.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-094
+  name: Cloud Rule 94
+  description: Ensures compliance with cloud standards for action 94.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-095
+  name: Cloud Rule 95
+  description: Ensures compliance with cloud standards for action 95.
+  severity: high
+  category: storage
+  action: instanceTerminated95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-096
+  name: Cloud Rule 96
+  description: Ensures compliance with cloud standards for action 96.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-097
+  name: Cloud Rule 97
+  description: Ensures compliance with cloud standards for action 97.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-098
+  name: Cloud Rule 98
+  description: Ensures compliance with cloud standards for action 98.
+  severity: medium
+  category: storage
+  action: instanceTerminated98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-099
+  name: Cloud Rule 99
+  description: Ensures compliance with cloud standards for action 99.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-100
+  name: Cloud Rule 100
+  description: Ensures compliance with cloud standards for action 100.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-101
+  name: Cloud Rule 101
+  description: Ensures compliance with cloud standards for action 101.
+  severity: low
+  category: storage
+  action: instanceTerminated101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-102
+  name: Cloud Rule 102
+  description: Ensures compliance with cloud standards for action 102.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-103
+  name: Cloud Rule 103
+  description: Ensures compliance with cloud standards for action 103.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-104
+  name: Cloud Rule 104
+  description: Ensures compliance with cloud standards for action 104.
+  severity: medium
+  category: storage
+  action: instanceTerminated104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-105
+  name: Cloud Rule 105
+  description: Ensures compliance with cloud standards for action 105.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-106
+  name: Cloud Rule 106
+  description: Ensures compliance with cloud standards for action 106.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-107
+  name: Cloud Rule 107
+  description: Ensures compliance with cloud standards for action 107.
+  severity: low
+  category: storage
+  action: instanceTerminated107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-108
+  name: Cloud Rule 108
+  description: Ensures compliance with cloud standards for action 108.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-109
+  name: Cloud Rule 109
+  description: Ensures compliance with cloud standards for action 109.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-110
+  name: Cloud Rule 110
+  description: Ensures compliance with cloud standards for action 110.
+  severity: high
+  category: storage
+  action: instanceTerminated110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-111
+  name: Cloud Rule 111
+  description: Ensures compliance with cloud standards for action 111.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-112
+  name: Cloud Rule 112
+  description: Ensures compliance with cloud standards for action 112.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-113
+  name: Cloud Rule 113
+  description: Ensures compliance with cloud standards for action 113.
+  severity: low
+  category: storage
+  action: instanceTerminated113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-114
+  name: Cloud Rule 114
+  description: Ensures compliance with cloud standards for action 114.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-115
+  name: Cloud Rule 115
+  description: Ensures compliance with cloud standards for action 115.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-116
+  name: Cloud Rule 116
+  description: Ensures compliance with cloud standards for action 116.
+  severity: medium
+  category: storage
+  action: instanceTerminated116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-117
+  name: Cloud Rule 117
+  description: Ensures compliance with cloud standards for action 117.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-118
+  name: Cloud Rule 118
+  description: Ensures compliance with cloud standards for action 118.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-119
+  name: Cloud Rule 119
+  description: Ensures compliance with cloud standards for action 119.
+  severity: low
+  category: storage
+  action: instanceTerminated119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-120
+  name: Cloud Rule 120
+  description: Ensures compliance with cloud standards for action 120.
+  severity: high
+  category: iam
+  action: productionDeploymentPerformed120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-121
+  name: Cloud Rule 121
+  description: Ensures compliance with cloud standards for action 121.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-122
+  name: Cloud Rule 122
+  description: Ensures compliance with cloud standards for action 122.
+  severity: medium
+  category: storage
+  action: instanceTerminated122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-123
+  name: Cloud Rule 123
+  description: Ensures compliance with cloud standards for action 123.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-124
+  name: Cloud Rule 124
+  description: Ensures compliance with cloud standards for action 124.
+  severity: medium
+  category: compute
+  action: s3BucketMadePublic124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-125
+  name: Cloud Rule 125
+  description: Ensures compliance with cloud standards for action 125.
+  severity: high
+  category: storage
+  action: instanceTerminated125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-126
+  name: Cloud Rule 126
+  description: Ensures compliance with cloud standards for action 126.
+  severity: medium
+  category: iam
+  action: productionDeploymentPerformed126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-127
+  name: Cloud Rule 127
+  description: Ensures compliance with cloud standards for action 127.
+  severity: low
+  category: compute
+  action: s3BucketMadePublic127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-128
+  name: Cloud Rule 128
+  description: Ensures compliance with cloud standards for action 128.
+  severity: medium
+  category: storage
+  action: instanceTerminated128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-129
+  name: Cloud Rule 129
+  description: Ensures compliance with cloud standards for action 129.
+  severity: low
+  category: iam
+  action: productionDeploymentPerformed129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: cloud-130
+  name: Cloud Rule 130
+  description: Ensures compliance with cloud standards for action 130.
+  severity: high
+  category: compute
+  action: s3BucketMadePublic130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

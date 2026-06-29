@@ -1,0 +1,1562 @@
+version: '1.0'
+policies:
+- id: it_sec-001
+  name: It Sec Rule 1
+  description: Ensures compliance with it_sec standards for action 1.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-002
+  name: It Sec Rule 2
+  description: Ensures compliance with it_sec standards for action 2.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-003
+  name: It Sec Rule 3
+  description: Ensures compliance with it_sec standards for action 3.
+  severity: low
+  category: access
+  action: firewallPortOpened3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-004
+  name: It Sec Rule 4
+  description: Ensures compliance with it_sec standards for action 4.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-005
+  name: It Sec Rule 5
+  description: Ensures compliance with it_sec standards for action 5.
+  severity: high
+  category: audit
+  action: adminLoginAttempt5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-006
+  name: It Sec Rule 6
+  description: Ensures compliance with it_sec standards for action 6.
+  severity: medium
+  category: access
+  action: firewallPortOpened6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-007
+  name: It Sec Rule 7
+  description: Ensures compliance with it_sec standards for action 7.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-008
+  name: It Sec Rule 8
+  description: Ensures compliance with it_sec standards for action 8.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-009
+  name: It Sec Rule 9
+  description: Ensures compliance with it_sec standards for action 9.
+  severity: low
+  category: access
+  action: firewallPortOpened9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-010
+  name: It Sec Rule 10
+  description: Ensures compliance with it_sec standards for action 10.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-011
+  name: It Sec Rule 11
+  description: Ensures compliance with it_sec standards for action 11.
+  severity: low
+  category: audit
+  action: adminLoginAttempt11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-012
+  name: It Sec Rule 12
+  description: Ensures compliance with it_sec standards for action 12.
+  severity: medium
+  category: access
+  action: firewallPortOpened12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-013
+  name: It Sec Rule 13
+  description: Ensures compliance with it_sec standards for action 13.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-014
+  name: It Sec Rule 14
+  description: Ensures compliance with it_sec standards for action 14.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-015
+  name: It Sec Rule 15
+  description: Ensures compliance with it_sec standards for action 15.
+  severity: high
+  category: access
+  action: firewallPortOpened15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-016
+  name: It Sec Rule 16
+  description: Ensures compliance with it_sec standards for action 16.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-017
+  name: It Sec Rule 17
+  description: Ensures compliance with it_sec standards for action 17.
+  severity: low
+  category: audit
+  action: adminLoginAttempt17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-018
+  name: It Sec Rule 18
+  description: Ensures compliance with it_sec standards for action 18.
+  severity: medium
+  category: access
+  action: firewallPortOpened18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-019
+  name: It Sec Rule 19
+  description: Ensures compliance with it_sec standards for action 19.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-020
+  name: It Sec Rule 20
+  description: Ensures compliance with it_sec standards for action 20.
+  severity: high
+  category: audit
+  action: adminLoginAttempt20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-021
+  name: It Sec Rule 21
+  description: Ensures compliance with it_sec standards for action 21.
+  severity: low
+  category: access
+  action: firewallPortOpened21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-022
+  name: It Sec Rule 22
+  description: Ensures compliance with it_sec standards for action 22.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-023
+  name: It Sec Rule 23
+  description: Ensures compliance with it_sec standards for action 23.
+  severity: low
+  category: audit
+  action: adminLoginAttempt23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-024
+  name: It Sec Rule 24
+  description: Ensures compliance with it_sec standards for action 24.
+  severity: medium
+  category: access
+  action: firewallPortOpened24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-025
+  name: It Sec Rule 25
+  description: Ensures compliance with it_sec standards for action 25.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-026
+  name: It Sec Rule 26
+  description: Ensures compliance with it_sec standards for action 26.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-027
+  name: It Sec Rule 27
+  description: Ensures compliance with it_sec standards for action 27.
+  severity: low
+  category: access
+  action: firewallPortOpened27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-028
+  name: It Sec Rule 28
+  description: Ensures compliance with it_sec standards for action 28.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-029
+  name: It Sec Rule 29
+  description: Ensures compliance with it_sec standards for action 29.
+  severity: low
+  category: audit
+  action: adminLoginAttempt29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-030
+  name: It Sec Rule 30
+  description: Ensures compliance with it_sec standards for action 30.
+  severity: high
+  category: access
+  action: firewallPortOpened30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-031
+  name: It Sec Rule 31
+  description: Ensures compliance with it_sec standards for action 31.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-032
+  name: It Sec Rule 32
+  description: Ensures compliance with it_sec standards for action 32.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-033
+  name: It Sec Rule 33
+  description: Ensures compliance with it_sec standards for action 33.
+  severity: low
+  category: access
+  action: firewallPortOpened33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-034
+  name: It Sec Rule 34
+  description: Ensures compliance with it_sec standards for action 34.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-035
+  name: It Sec Rule 35
+  description: Ensures compliance with it_sec standards for action 35.
+  severity: high
+  category: audit
+  action: adminLoginAttempt35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-036
+  name: It Sec Rule 36
+  description: Ensures compliance with it_sec standards for action 36.
+  severity: medium
+  category: access
+  action: firewallPortOpened36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-037
+  name: It Sec Rule 37
+  description: Ensures compliance with it_sec standards for action 37.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-038
+  name: It Sec Rule 38
+  description: Ensures compliance with it_sec standards for action 38.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-039
+  name: It Sec Rule 39
+  description: Ensures compliance with it_sec standards for action 39.
+  severity: low
+  category: access
+  action: firewallPortOpened39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-040
+  name: It Sec Rule 40
+  description: Ensures compliance with it_sec standards for action 40.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-041
+  name: It Sec Rule 41
+  description: Ensures compliance with it_sec standards for action 41.
+  severity: low
+  category: audit
+  action: adminLoginAttempt41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-042
+  name: It Sec Rule 42
+  description: Ensures compliance with it_sec standards for action 42.
+  severity: medium
+  category: access
+  action: firewallPortOpened42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-043
+  name: It Sec Rule 43
+  description: Ensures compliance with it_sec standards for action 43.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-044
+  name: It Sec Rule 44
+  description: Ensures compliance with it_sec standards for action 44.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-045
+  name: It Sec Rule 45
+  description: Ensures compliance with it_sec standards for action 45.
+  severity: high
+  category: access
+  action: firewallPortOpened45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-046
+  name: It Sec Rule 46
+  description: Ensures compliance with it_sec standards for action 46.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-047
+  name: It Sec Rule 47
+  description: Ensures compliance with it_sec standards for action 47.
+  severity: low
+  category: audit
+  action: adminLoginAttempt47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-048
+  name: It Sec Rule 48
+  description: Ensures compliance with it_sec standards for action 48.
+  severity: medium
+  category: access
+  action: firewallPortOpened48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-049
+  name: It Sec Rule 49
+  description: Ensures compliance with it_sec standards for action 49.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-050
+  name: It Sec Rule 50
+  description: Ensures compliance with it_sec standards for action 50.
+  severity: high
+  category: audit
+  action: adminLoginAttempt50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-051
+  name: It Sec Rule 51
+  description: Ensures compliance with it_sec standards for action 51.
+  severity: low
+  category: access
+  action: firewallPortOpened51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-052
+  name: It Sec Rule 52
+  description: Ensures compliance with it_sec standards for action 52.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-053
+  name: It Sec Rule 53
+  description: Ensures compliance with it_sec standards for action 53.
+  severity: low
+  category: audit
+  action: adminLoginAttempt53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-054
+  name: It Sec Rule 54
+  description: Ensures compliance with it_sec standards for action 54.
+  severity: medium
+  category: access
+  action: firewallPortOpened54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-055
+  name: It Sec Rule 55
+  description: Ensures compliance with it_sec standards for action 55.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-056
+  name: It Sec Rule 56
+  description: Ensures compliance with it_sec standards for action 56.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-057
+  name: It Sec Rule 57
+  description: Ensures compliance with it_sec standards for action 57.
+  severity: low
+  category: access
+  action: firewallPortOpened57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-058
+  name: It Sec Rule 58
+  description: Ensures compliance with it_sec standards for action 58.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-059
+  name: It Sec Rule 59
+  description: Ensures compliance with it_sec standards for action 59.
+  severity: low
+  category: audit
+  action: adminLoginAttempt59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-060
+  name: It Sec Rule 60
+  description: Ensures compliance with it_sec standards for action 60.
+  severity: high
+  category: access
+  action: firewallPortOpened60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-061
+  name: It Sec Rule 61
+  description: Ensures compliance with it_sec standards for action 61.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-062
+  name: It Sec Rule 62
+  description: Ensures compliance with it_sec standards for action 62.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-063
+  name: It Sec Rule 63
+  description: Ensures compliance with it_sec standards for action 63.
+  severity: low
+  category: access
+  action: firewallPortOpened63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-064
+  name: It Sec Rule 64
+  description: Ensures compliance with it_sec standards for action 64.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-065
+  name: It Sec Rule 65
+  description: Ensures compliance with it_sec standards for action 65.
+  severity: high
+  category: audit
+  action: adminLoginAttempt65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-066
+  name: It Sec Rule 66
+  description: Ensures compliance with it_sec standards for action 66.
+  severity: medium
+  category: access
+  action: firewallPortOpened66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-067
+  name: It Sec Rule 67
+  description: Ensures compliance with it_sec standards for action 67.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-068
+  name: It Sec Rule 68
+  description: Ensures compliance with it_sec standards for action 68.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-069
+  name: It Sec Rule 69
+  description: Ensures compliance with it_sec standards for action 69.
+  severity: low
+  category: access
+  action: firewallPortOpened69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-070
+  name: It Sec Rule 70
+  description: Ensures compliance with it_sec standards for action 70.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-071
+  name: It Sec Rule 71
+  description: Ensures compliance with it_sec standards for action 71.
+  severity: low
+  category: audit
+  action: adminLoginAttempt71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-072
+  name: It Sec Rule 72
+  description: Ensures compliance with it_sec standards for action 72.
+  severity: medium
+  category: access
+  action: firewallPortOpened72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-073
+  name: It Sec Rule 73
+  description: Ensures compliance with it_sec standards for action 73.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-074
+  name: It Sec Rule 74
+  description: Ensures compliance with it_sec standards for action 74.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-075
+  name: It Sec Rule 75
+  description: Ensures compliance with it_sec standards for action 75.
+  severity: high
+  category: access
+  action: firewallPortOpened75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-076
+  name: It Sec Rule 76
+  description: Ensures compliance with it_sec standards for action 76.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-077
+  name: It Sec Rule 77
+  description: Ensures compliance with it_sec standards for action 77.
+  severity: low
+  category: audit
+  action: adminLoginAttempt77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-078
+  name: It Sec Rule 78
+  description: Ensures compliance with it_sec standards for action 78.
+  severity: medium
+  category: access
+  action: firewallPortOpened78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-079
+  name: It Sec Rule 79
+  description: Ensures compliance with it_sec standards for action 79.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-080
+  name: It Sec Rule 80
+  description: Ensures compliance with it_sec standards for action 80.
+  severity: high
+  category: audit
+  action: adminLoginAttempt80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-081
+  name: It Sec Rule 81
+  description: Ensures compliance with it_sec standards for action 81.
+  severity: low
+  category: access
+  action: firewallPortOpened81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-082
+  name: It Sec Rule 82
+  description: Ensures compliance with it_sec standards for action 82.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-083
+  name: It Sec Rule 83
+  description: Ensures compliance with it_sec standards for action 83.
+  severity: low
+  category: audit
+  action: adminLoginAttempt83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-084
+  name: It Sec Rule 84
+  description: Ensures compliance with it_sec standards for action 84.
+  severity: medium
+  category: access
+  action: firewallPortOpened84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-085
+  name: It Sec Rule 85
+  description: Ensures compliance with it_sec standards for action 85.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-086
+  name: It Sec Rule 86
+  description: Ensures compliance with it_sec standards for action 86.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-087
+  name: It Sec Rule 87
+  description: Ensures compliance with it_sec standards for action 87.
+  severity: low
+  category: access
+  action: firewallPortOpened87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-088
+  name: It Sec Rule 88
+  description: Ensures compliance with it_sec standards for action 88.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-089
+  name: It Sec Rule 89
+  description: Ensures compliance with it_sec standards for action 89.
+  severity: low
+  category: audit
+  action: adminLoginAttempt89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-090
+  name: It Sec Rule 90
+  description: Ensures compliance with it_sec standards for action 90.
+  severity: high
+  category: access
+  action: firewallPortOpened90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-091
+  name: It Sec Rule 91
+  description: Ensures compliance with it_sec standards for action 91.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-092
+  name: It Sec Rule 92
+  description: Ensures compliance with it_sec standards for action 92.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-093
+  name: It Sec Rule 93
+  description: Ensures compliance with it_sec standards for action 93.
+  severity: low
+  category: access
+  action: firewallPortOpened93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-094
+  name: It Sec Rule 94
+  description: Ensures compliance with it_sec standards for action 94.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-095
+  name: It Sec Rule 95
+  description: Ensures compliance with it_sec standards for action 95.
+  severity: high
+  category: audit
+  action: adminLoginAttempt95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-096
+  name: It Sec Rule 96
+  description: Ensures compliance with it_sec standards for action 96.
+  severity: medium
+  category: access
+  action: firewallPortOpened96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-097
+  name: It Sec Rule 97
+  description: Ensures compliance with it_sec standards for action 97.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-098
+  name: It Sec Rule 98
+  description: Ensures compliance with it_sec standards for action 98.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-099
+  name: It Sec Rule 99
+  description: Ensures compliance with it_sec standards for action 99.
+  severity: low
+  category: access
+  action: firewallPortOpened99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-100
+  name: It Sec Rule 100
+  description: Ensures compliance with it_sec standards for action 100.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-101
+  name: It Sec Rule 101
+  description: Ensures compliance with it_sec standards for action 101.
+  severity: low
+  category: audit
+  action: adminLoginAttempt101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-102
+  name: It Sec Rule 102
+  description: Ensures compliance with it_sec standards for action 102.
+  severity: medium
+  category: access
+  action: firewallPortOpened102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-103
+  name: It Sec Rule 103
+  description: Ensures compliance with it_sec standards for action 103.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-104
+  name: It Sec Rule 104
+  description: Ensures compliance with it_sec standards for action 104.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-105
+  name: It Sec Rule 105
+  description: Ensures compliance with it_sec standards for action 105.
+  severity: high
+  category: access
+  action: firewallPortOpened105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-106
+  name: It Sec Rule 106
+  description: Ensures compliance with it_sec standards for action 106.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-107
+  name: It Sec Rule 107
+  description: Ensures compliance with it_sec standards for action 107.
+  severity: low
+  category: audit
+  action: adminLoginAttempt107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-108
+  name: It Sec Rule 108
+  description: Ensures compliance with it_sec standards for action 108.
+  severity: medium
+  category: access
+  action: firewallPortOpened108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-109
+  name: It Sec Rule 109
+  description: Ensures compliance with it_sec standards for action 109.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-110
+  name: It Sec Rule 110
+  description: Ensures compliance with it_sec standards for action 110.
+  severity: high
+  category: audit
+  action: adminLoginAttempt110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-111
+  name: It Sec Rule 111
+  description: Ensures compliance with it_sec standards for action 111.
+  severity: low
+  category: access
+  action: firewallPortOpened111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-112
+  name: It Sec Rule 112
+  description: Ensures compliance with it_sec standards for action 112.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-113
+  name: It Sec Rule 113
+  description: Ensures compliance with it_sec standards for action 113.
+  severity: low
+  category: audit
+  action: adminLoginAttempt113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-114
+  name: It Sec Rule 114
+  description: Ensures compliance with it_sec standards for action 114.
+  severity: medium
+  category: access
+  action: firewallPortOpened114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-115
+  name: It Sec Rule 115
+  description: Ensures compliance with it_sec standards for action 115.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-116
+  name: It Sec Rule 116
+  description: Ensures compliance with it_sec standards for action 116.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-117
+  name: It Sec Rule 117
+  description: Ensures compliance with it_sec standards for action 117.
+  severity: low
+  category: access
+  action: firewallPortOpened117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-118
+  name: It Sec Rule 118
+  description: Ensures compliance with it_sec standards for action 118.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-119
+  name: It Sec Rule 119
+  description: Ensures compliance with it_sec standards for action 119.
+  severity: low
+  category: audit
+  action: adminLoginAttempt119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-120
+  name: It Sec Rule 120
+  description: Ensures compliance with it_sec standards for action 120.
+  severity: high
+  category: access
+  action: firewallPortOpened120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-121
+  name: It Sec Rule 121
+  description: Ensures compliance with it_sec standards for action 121.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-122
+  name: It Sec Rule 122
+  description: Ensures compliance with it_sec standards for action 122.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-123
+  name: It Sec Rule 123
+  description: Ensures compliance with it_sec standards for action 123.
+  severity: low
+  category: access
+  action: firewallPortOpened123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-124
+  name: It Sec Rule 124
+  description: Ensures compliance with it_sec standards for action 124.
+  severity: medium
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-125
+  name: It Sec Rule 125
+  description: Ensures compliance with it_sec standards for action 125.
+  severity: high
+  category: audit
+  action: adminLoginAttempt125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-126
+  name: It Sec Rule 126
+  description: Ensures compliance with it_sec standards for action 126.
+  severity: medium
+  category: access
+  action: firewallPortOpened126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-127
+  name: It Sec Rule 127
+  description: Ensures compliance with it_sec standards for action 127.
+  severity: low
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-128
+  name: It Sec Rule 128
+  description: Ensures compliance with it_sec standards for action 128.
+  severity: medium
+  category: audit
+  action: adminLoginAttempt128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-129
+  name: It Sec Rule 129
+  description: Ensures compliance with it_sec standards for action 129.
+  severity: low
+  category: access
+  action: firewallPortOpened129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: it_sec-130
+  name: It Sec Rule 130
+  description: Ensures compliance with it_sec standards for action 130.
+  severity: high
+  category: encryption
+  action: apiKeyCreatedWithNoExpiry130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

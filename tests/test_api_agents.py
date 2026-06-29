@@ -57,7 +57,7 @@ def test_agent_history_newest_first(client):
 def test_ratings_board_after_mixed_ingest(client):
     _post_canonical(client, "strong")
     _post_canonical(client, "unsafe")
-    r = client.get("/ratings")
+    r = client.get("/ratings?all=true")
     assert r.status_code == 200
     board = r.json()
     assert len(board) == 2
@@ -68,6 +68,6 @@ def test_ratings_board_after_mixed_ingest(client):
 
 def test_ratings_board_skips_agents_without_scores(client):
     # No ingest yet — board is empty.
-    r = client.get("/ratings")
+    r = client.get("/ratings?all=true")
     assert r.status_code == 200
     assert r.json() == []

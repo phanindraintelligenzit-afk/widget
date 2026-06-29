@@ -9,7 +9,7 @@ Two adapter families:
 """
 from . import sources
 from .base import Adapter
-from .generic import FieldMapping, GenericWebhookAdapter, OTelAdapter
+from .generic import FieldMapping, GenericWebhookAdapter
 from .registry import clear, get, list_adapters, register
 from .sources import SourceAdapter
 
@@ -17,7 +17,6 @@ __all__ = [
     "Adapter",
     "FieldMapping",
     "GenericWebhookAdapter",
-    "OTelAdapter",
     "SourceAdapter",
     "clear",
     "get",

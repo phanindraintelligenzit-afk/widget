@@ -32,9 +32,14 @@ import asyncio
 import json
 import os
 import sys
+import psutil
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+# Fix Windows terminal emoji printing crash
+if sys.stdout.encoding.lower() != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 from dotenv import load_dotenv
 
@@ -43,10 +48,11 @@ load_dotenv(override=True)
 
 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import litellm
+
+
 if os.getenv("LANGFUSE_PUBLIC_KEY"):
     litellm.success_callback = ["langfuse"]
     litellm.failure_callback = ["langfuse"]
-
 
 import dpi_ls  # line 1 — the installable package
 
@@ -295,7 +301,11 @@ async def run_agent_observation() -> None:
 
     # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
+    psutil.cpu_percent() # Seed the psutil cpu percent measurement
+    
+    run_name = f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     result = await Runner.run(agent, AGENT_QUESTION)
+    cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
 
     print("\n" + "-" * 55)
     print("  AGENT ANSWER")
@@ -314,8 +324,9 @@ async def run_agent_observation() -> None:
             from dpi_ls.evaluator import evaluate_quality
             q = evaluate_quality(outputs, source_data=source_data)
             collector.set_quality(
-                q.accuracy, q.consistency, q.hallucination_rate,
+                q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
             )
+            collector.cpu_utilization = cpu_usage
             print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
         except Exception as e:
             print(f"Failed to evaluate quality: {e}")
@@ -333,12 +344,6 @@ async def run_agent_observation() -> None:
         print_score_card(rating)
     else:
         print("Failed to post observation to the server.")
-
-
-
-
-
-
 
 # ===================================================================
 #  Entry point
@@ -386,7 +391,3 @@ if __name__ == "__main__":
     info = _state.get_server_info()
     if info is not None and os.getenv("DPI_LS_NO_BLOCK") != "1":
         print(f"Dashboard is live -> open  {info.base_url}  in your browser.")
-        try:
-            input("Press Enter to exit ...")
-        except (EOFError, KeyboardInterrupt):
-            pass

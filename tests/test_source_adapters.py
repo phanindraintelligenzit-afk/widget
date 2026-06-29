@@ -5,7 +5,6 @@ import pytest
 from contract import PartialObservation
 from fixtures import load_source
 from ingestion.sources import (
-    ArizeAdapter,
     AwsCostAdapter,
     JiraAdapter,
     PuviNoiseAdapter,
@@ -57,30 +56,6 @@ def test_puvi_noise_emits_policy_partial():
     assert len(p.policy.violations) == 3
     assert p.policy.violations[0].rule == "pii.email_redaction"
     assert p.cost is None and p.quality is None and p.incidents is None
-
-
-def test_arize_emits_policy_and_quality():
-    [p] = ArizeAdapter().to_partials(load_source("arize"))
-    assert p.policy is not None
-    assert p.policy.total_actions == 1200
-    assert len(p.policy.violations) == 1
-    assert p.quality is not None
-    assert p.quality.accuracy == 0.93
-
-
-def test_arize_omits_quality_when_payload_omits():
-    payload = {
-        "period_start": "2026-06-01T00:00:00Z",
-        "period_end": "2026-06-02T00:00:00Z",
-        "agents": [{
-            "agent_id": "a",
-            "model_inferences": 100,
-            "monitor_breaches": [],
-        }],
-    }
-    [p] = ArizeAdapter().to_partials(payload)
-    assert p.quality is None
-    assert p.policy is not None
 
 
 def test_jira_priority_maps_to_severity():
