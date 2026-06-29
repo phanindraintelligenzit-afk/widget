@@ -473,13 +473,18 @@
 const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
   ? window.location.origin
   : '';
-let chandraSub = {};
+let chandraSub = {}; // validation sub-metrics
+let chandraCostSub = {}; // cost sub-metrics
 let settingsObj = {};
+let chandraCostValue = 1.0;
 let chandraValidationValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
 let dashboardUrls = {
+  Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
+  Prometheus:      { url: 'http://localhost:9090', online: false },
+  Grafana:         { url: 'http://localhost:3000', online: false },
   'Arize Phoenix': { url: 'http://localhost:6006', online: false },
   'MLflow':        { url: 'http://localhost:5000', online: false },
   'SigNoz':        { url: 'http://localhost:8080', online: false },
@@ -497,6 +502,8 @@ async function loadChandraData() {
       if (chandra) {
         chandraSub = chandra.sub_metrics?.V || {};
         chandraValidationValue = chandra.metrics?.V !== undefined ? chandra.metrics.V : 1.0;
+        chandraCostSub = chandra.sub_metrics?.C || {};
+        chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
       }
     }
     if (r2.ok) {
@@ -509,26 +516,57 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const r = await fetch(`${API}/api/validation-evaluation/urls`);
-    if (r.ok) {
-      const raw = await r.json();
-      // API now returns {Langfuse: {url, online}, ...}
-      // Support both old string format and new object format
-      for (const [name, val] of Object.entries(raw)) {
-        if (val && typeof val === 'object' && 'url' in val) {
-          dashboardUrls[name] = { url: val.url, online: val.online };
-        } else {
-          // Legacy: plain string URL
-          dashboardUrls[name] = { url: String(val), online: false };
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/urls`),
+      fetch(`${API}/api/validation-evaluation/urls`)
+    ]);
+    const processUrls = async (r) => {
+      if (r.ok) {
+        const raw = await r.json();
+        for (const [name, val] of Object.entries(raw)) {
+          if (val && typeof val === 'object' && 'url' in val) {
+            dashboardUrls[name] = { url: val.url, online: val.online };
+          } else {
+            dashboardUrls[name] = { url: String(val), online: false };
+          }
         }
       }
-    }
+    };
+    await processUrls(r1);
+    await processUrls(r2);
   } catch (e) {
     console.error("Failed to load urls", e);
   }
 }
 
 const RESOURCE_META = {
+  'Langfuse': {
+    icon: '🔭', category: 'LLM Observability',
+    dpi_status: 'primary',
+    description: 'Token usage, cost per trace/generation, model spend, and latency per LLM call. Traces are pushed automatically on every agent run.',
+    dashboard_url: 'https://cloud.langfuse.com',
+    dashboard_label: 'Open Langfuse Cloud',
+    color: '#6366f1',
+    sdk: 'langfuse',
+  },
+  'Prometheus': {
+    icon: '📊', category: 'Infrastructure Metrics',
+    dpi_status: 'recommended',
+    description: 'Live Prometheus-format metrics for Chandra FinOps agent — token costs, model cost, TCO, quality scores, and utilization. Exposed by DPI-LS at /metrics/.',
+    dashboard_url: 'http://127.0.0.1:8000/metrics/',
+    dashboard_label: 'Open Metrics Endpoint',
+    color: '#e6522c',
+    sdk: 'prometheus_client',
+  },
+  'Grafana': {
+    icon: '📈', category: 'Metrics Visualization',
+    dpi_status: 'recommended',
+    description: 'Visualization of cost and utilization metrics. Import grafana_dashboard.json from the widget folder to see DPI-LS dashboards.',
+    dashboard_url: 'https://grafana.com/auth/sign-in/',
+    dashboard_label: 'Open Grafana Cloud',
+    color: '#f46800',
+    sdk: 'grafana',
+  },
   'Arize Phoenix': {
     icon: '🔥', category: 'LLM Eval & Validation',
     dpi_status: 'primary',
@@ -659,8 +697,14 @@ function formatMetricValue(metric, current_value) {
 }
 
 function renderResourceTable(metrics, name) {
-  if (typeof window.renderValidationTableHtml === 'function') {
-    return window.renderValidationTableHtml(chandraSub, settingsObj, chandraValidationValue, name);
+  if (['Langfuse', 'Prometheus', 'Grafana'].includes(name)) {
+    if (typeof window.renderCostTableHtml === 'function') {
+      return window.renderCostTableHtml(chandraCostSub, settingsObj, chandraCostValue, name);
+    }
+  } else {
+    if (typeof window.renderValidationTableHtml === 'function') {
+      return window.renderValidationTableHtml(chandraSub, settingsObj, chandraValidationValue, name);
+    }
   }
   return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
 }
@@ -792,10 +836,13 @@ function showToast(msg, type='info') {
 
 async function verifyDashboard(resourceName) {
   try {
-    const r = await fetch(`${API}/api/validation-evaluation/verify-dashboard`, {
+    const isCost = ['Langfuse', 'Prometheus', 'Grafana'].includes(resourceName);
+    const endpoint = isCost ? '/api/cost-evaluation/verify-dashboard' : '/api/validation-evaluation/verify-dashboard';
+    const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
+    const r = await fetch(`${API}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resource_name: resourceName })
+      body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     showToast(`✅ ${resourceName} marked as dashboard verified!`, 'success');
@@ -811,15 +858,19 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const r = await fetch(`${API}/api/validation-evaluation/evaluate`, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+    ]);
+    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const rawData = await r.json();
-    const activeResources = ["Arize Phoenix", "MLflow", "SigNoz"];
-    allData = rawData.filter(r => activeResources.includes(r.resource_name));
+    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    const valResources = ["Arize Phoenix", "MLflow", "SigNoz"];
+    allData = [
+      ...costData.filter(r => costResources.includes(r.resource_name)),
+      ...valData.filter(r => valResources.includes(r.resource_name))
+    ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
   } catch (e) {
@@ -833,11 +884,18 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const r = await fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const rawData = await r.json();
-    const activeResources = ["Arize Phoenix", "MLflow", "SigNoz"];
-    allData = rawData.filter(r => activeResources.includes(r.resource_name));
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } })
+    ]);
+    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error loading results`);
+    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    const valResources = ["Arize Phoenix", "MLflow", "SigNoz"];
+    allData = [
+      ...costData.filter(r => costResources.includes(r.resource_name)),
+      ...valData.filter(r => valResources.includes(r.resource_name))
+    ];
     renderGrid();
   } catch (e) {
     document.getElementById('resources-grid').innerHTML = `
