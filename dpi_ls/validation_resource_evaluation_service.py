@@ -154,67 +154,59 @@ class ValidationResourceEvaluationService:
 
                     # Extract dynamically from actual runtime execution scores
                     if resource.name == "Arize Phoenix":
-                        if metric == "accuracy":
-                            current_val = f"{q_sub.get('QA Accuracy', 1.000):.3f}"
+                        if metric == "accuracy" and q_sub.get('QA Accuracy') is not None:
+                            current_val = f"{q_sub.get('QA Accuracy'):.3f}"
                             detected = True
-                        elif metric == "hallucination":
-                            current_val = f"{q_sub.get('Hallucination Rate', 0.000):.3f}"
+                        elif metric == "hallucination" and q_sub.get('Hallucination Rate') is not None:
+                            current_val = f"{q_sub.get('Hallucination Rate'):.3f}"
                             detected = True
-                        elif metric == "groundedness":
-                            current_val = f"{q_sub.get('Groundedness', 1.000):.3f}"
+                        elif metric == "groundedness" and q_sub.get('Groundedness') is not None:
+                            current_val = f"{q_sub.get('Groundedness'):.3f}"
                             detected = True
                         elif metric == "relevance":
-                            current_val = "1.000"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "evaluation_traces":
                             current_val = str(score_row.id)
                             detected = True
 
                     elif resource.name == "MLflow":
-                        if metric == "run_id":
-                            current_val = mlflow_run_id or f"tr-{score_row.observation_id}"
+                        if metric == "run_id" and mlflow_run_id:
+                            current_val = mlflow_run_id
                             detected = True
-                        elif metric == "experiment_id":
-                            current_val = mlflow_exp_id or "1"
+                        elif metric == "experiment_id" and mlflow_exp_id:
+                            current_val = mlflow_exp_id
                             detected = True
                         elif metric == "prompt_version":
-                            current_val = "1"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "model_version":
-                            current_val = "bedrock/qwen.qwen3-next-80b-a3b"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "lineage":
-                            current_val = "AWS Bedrock"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "validation_history":
-                            current_val = "100%"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "audit_evidence":
-                            current_val = "Pass" if score_row.score >= 69 else "Fail"
-                            detected = True
+                            current_val = "Unavailable"
 
                     elif resource.name == "SigNoz":
-                        attempts = e_sub.get("attempts", 1) or 1
-                        successful = e_sub.get("successful", 1) or 1
-                        failed = e_sub.get("failed", 0) or 0
-                        if metric == "runtime_traces":
+                        attempts = e_sub.get("attempts")
+                        successful = e_sub.get("successful")
+                        failed = e_sub.get("failed")
+                        if metric == "runtime_traces" and attempts is not None:
                             current_val = str(attempts)
                             detected = True
                         elif metric == "validation_latency":
-                            current_val = "0.145s"
-                            detected = True
-                        elif metric == "success_count":
+                            current_val = "Unavailable"
+                        elif metric == "success_count" and successful is not None:
                             current_val = str(successful)
                             detected = True
-                        elif metric == "failure_count":
+                        elif metric == "failure_count" and failed is not None:
                             current_val = str(failed)
                             detected = True
-                        elif metric == "error_rate":
+                        elif metric == "error_rate" and failed is not None and attempts:
                             current_val = f"{(failed / max(attempts, 1) * 100):.1f}%"
                             detected = True
                         elif metric == "active_validation_requests":
-                            current_val = "0"
-                            detected = True
+                            current_val = "Unavailable"
                         elif metric == "dependency_health":
                             current_val = "Healthy" if service_running else "Unhealthy"
                             detected = True
@@ -222,7 +214,7 @@ class ValidationResourceEvaluationService:
                     if detected:
                         evidence_text = f"Telemetry verified from latest agent score. Value extracted: {current_val}."
                     else:
-                        evidence_text = f"Metric '{metric}' not found in latest agent score sub-metrics."
+                        evidence_text = f"Metric '{metric}' not found or unavailable in latest agent score sub-metrics."
                 else:
                     evidence_text = "No agent run execution score found in database."
 

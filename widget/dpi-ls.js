@@ -270,27 +270,27 @@
     const val = sub["Validated Components"] || 0;
     const vScore = (value !== undefined && value !== null) ? (value * 5) : null;
 
-    const accuracy = sub.accuracy || "1.000";
-    const hallucination = sub.hallucination || "0.000";
-    const groundedness = sub.groundedness || "1.000";
-    const relevance = sub.relevance || "1.000";
-    const evaluationTraces = sub.evaluation_traces || "1";
+    const accuracy = sub.accuracy || "Unavailable";
+    const hallucination = sub.hallucination || "Unavailable";
+    const groundedness = sub.groundedness || "Unavailable";
+    const relevance = sub.relevance || "Unavailable";
+    const evaluationTraces = sub.evaluation_traces || "Unavailable";
 
-    const runId = sub.run_id || "tr-fb75267fa6fe44d12292d39bbc76f13d";
-    const experimentId = sub.experiment_id || "1";
-    const promptVersion = sub.prompt_version || "1";
-    const modelVersion = sub.model_version || "bedrock/qwen.qwen3-next-80b-a3b";
-    const lineage = sub.lineage || "AWS Bedrock";
-    const validationHistory = sub.validation_history || "100%";
-    const auditEvidence = sub.audit_evidence || "Pass";
+    const runId = sub.run_id || "Unavailable";
+    const experimentId = sub.experiment_id || "Unavailable";
+    const promptVersion = sub.prompt_version || "Unavailable";
+    const modelVersion = sub.model_version || "Unavailable";
+    const lineage = sub.lineage || "Unavailable";
+    const validationHistory = sub.validation_history || "Unavailable";
+    const auditEvidence = sub.audit_evidence || "Unavailable";
 
-    const runtimeTraces = sub.runtime_traces || "12";
-    const validationLatency = sub.validation_latency || "0.145s";
-    const successCount = sub.success_count || "6";
-    const failureCount = sub.failure_count || "0";
-    const errorRate = sub.error_rate || "0.0%";
-    const activeValRequests = sub.active_validation_requests || "0";
-    const dependencyHealth = sub.dependency_health || "Healthy";
+    const runtimeTraces = sub.runtime_traces || "Unavailable";
+    const validationLatency = sub.validation_latency || "Unavailable";
+    const successCount = sub.success_count || "Unavailable";
+    const failureCount = sub.failure_count || "Unavailable";
+    const errorRate = sub.error_rate || "Unavailable";
+    const activeValRequests = sub.active_validation_requests || "Unavailable";
+    const dependencyHealth = sub.dependency_health || "Unavailable";
 
     return {
       accuracy: { val: accuracy, calc: accuracy, disp: accuracy, formula: "Accuracy Score", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 3 },

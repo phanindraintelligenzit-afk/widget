@@ -181,29 +181,29 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "Validation Score": v_score,
             
             # Arize Phoenix
-            "accuracy": eval_map.get("Arize Phoenix:accuracy") or (str(obs.quality.accuracy) if obs.quality else "1.000"),
-            "hallucination": eval_map.get("Arize Phoenix:hallucination") or (str(obs.quality.hallucination_rate) if obs.quality else "0.000"),
-            "groundedness": eval_map.get("Arize Phoenix:groundedness") or (str(obs.quality.consistency) if obs.quality else "1.000"),
-            "relevance": eval_map.get("Arize Phoenix:relevance") or "1.000",
-            "evaluation_traces": eval_map.get("Arize Phoenix:evaluation_traces") or "1",
+            "accuracy": eval_map.get("Arize Phoenix:accuracy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
+            "hallucination": eval_map.get("Arize Phoenix:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
+            "groundedness": eval_map.get("Arize Phoenix:groundedness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
+            "relevance": eval_map.get("Arize Phoenix:relevance") or "Unavailable",
+            "evaluation_traces": eval_map.get("Arize Phoenix:evaluation_traces") or "Unavailable",
 
             # MLflow
-            "run_id": eval_map.get("MLflow:run_id") or "tr-fb75267fa6fe44d12292d39bbc76f13d",
-            "experiment_id": eval_map.get("MLflow:experiment_id") or "1",
-            "prompt_version": eval_map.get("MLflow:prompt_version") or "1",
-            "model_version": eval_map.get("MLflow:model_version") or "bedrock/qwen.qwen3-next-80b-a3b",
-            "lineage": eval_map.get("MLflow:lineage") or "AWS Bedrock",
-            "validation_history": eval_map.get("MLflow:validation_history") or "100%",
-            "audit_evidence": eval_map.get("MLflow:audit_evidence") or "Pass",
+            "run_id": eval_map.get("MLflow:run_id") or "Unavailable",
+            "experiment_id": eval_map.get("MLflow:experiment_id") or "Unavailable",
+            "prompt_version": eval_map.get("MLflow:prompt_version") or "Unavailable",
+            "model_version": eval_map.get("MLflow:model_version") or "Unavailable",
+            "lineage": eval_map.get("MLflow:lineage") or "Unavailable",
+            "validation_history": eval_map.get("MLflow:validation_history") or "Unavailable",
+            "audit_evidence": eval_map.get("MLflow:audit_evidence") or "Unavailable",
 
             # SigNoz
-            "runtime_traces": eval_map.get("SigNoz:runtime_traces") or "12",
-            "validation_latency": eval_map.get("SigNoz:validation_latency") or "0.145s",
-            "success_count": eval_map.get("SigNoz:success_count") or "6",
-            "failure_count": eval_map.get("SigNoz:failure_count") or "0",
-            "error_rate": eval_map.get("SigNoz:error_rate") or "0.0%",
-            "active_validation_requests": eval_map.get("SigNoz:active_validation_requests") or "0",
-            "dependency_health": eval_map.get("SigNoz:dependency_health") or "Healthy",
+            "runtime_traces": eval_map.get("SigNoz:runtime_traces") or "Unavailable",
+            "validation_latency": eval_map.get("SigNoz:validation_latency") or "Unavailable",
+            "success_count": eval_map.get("SigNoz:success_count") or "Unavailable",
+            "failure_count": eval_map.get("SigNoz:failure_count") or "Unavailable",
+            "error_rate": eval_map.get("SigNoz:error_rate") or "Unavailable",
+            "active_validation_requests": eval_map.get("SigNoz:active_validation_requests") or "Unavailable",
+            "dependency_health": eval_map.get("SigNoz:dependency_health") or "Unavailable",
         }
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")
