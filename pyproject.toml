@@ -2,7 +2,7 @@
 name = "dpi-ls"
 version = "0.3.0"
 description = "Digital FTE Performance Index — engine + embeddable widget + 2-line installable monitor() entrypoint"
-requires-python = ">=3.11"
+requires-python = ">=3.11, <3.13"
 dependencies = [
     "pydantic>=2.0",
     "PyYAML>=6.0",
