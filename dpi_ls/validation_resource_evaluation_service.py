@@ -89,16 +89,27 @@ class ValidationResourceEvaluationService:
 
     def run_evaluations(self) -> list[ValidationResourceEvaluationRow]:
         """Perform evaluation workflow for all validation resources and metrics."""
+        import time
+        import urllib.request
+        import json
+
+        total_start = time.time()
+        print(f"\n[DPI-LS Validation Service] Beginning technical evaluation workflow...")
         self.register_resources()
 
         # Fetch all registered validation resources
         from store.repo import list_validation_resources
         resources = list_validation_resources(self.session)
 
-        # Cache service liveness status per resource
+        # Cache service liveness status per resource with timings
         liveness_cache = {}
         for resource in resources:
-            liveness_cache[resource.name] = self._is_service_listening(resource.name)
+            chk_start = time.time()
+            is_alive = self._is_service_listening(resource.name)
+            chk_dur = time.time() - chk_start
+            liveness_cache[resource.name] = is_alive
+            status_str = "Connected" if is_alive else "Unavailable"
+            print(f"  - {resource.name}: {status_str} (checked in {chk_dur:.4f}s)")
 
         # Try to find the latest score row to read actual live runtime values
         score_row = self.session.scalars(
@@ -115,22 +126,43 @@ class ValidationResourceEvaluationService:
             "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
         }
 
-        # Try querying MLflow client dynamically if running
+        # Query MLflow API directly via REST with a strict timeout to prevent thread blocking
         mlflow_run_id = None
         mlflow_exp_id = None
         if liveness_cache.get("MLflow"):
+            mlflow_start = time.time()
             try:
-                import mlflow
-                mlflow.set_tracking_uri("http://localhost:5000")
-                client = mlflow.tracking.MlflowClient()
-                exps = client.search_experiments()
-                if exps:
-                    mlflow_exp_id = str(exps[0].experiment_id)
-                    runs = client.search_runs(experiment_ids=[mlflow_exp_id], max_results=1)
-                    if runs:
-                        mlflow_run_id = str(runs[0].info.run_id)
-            except Exception:
-                pass
+                # Query experiments search
+                req = urllib.request.Request(
+                    "http://127.0.0.1:5000/api/2.0/mlflow/experiments/search",
+                    method="POST",
+                    headers={"Content-Type": "application/json"}
+                )
+                with urllib.request.urlopen(req, data=b"{}", timeout=1.0) as resp:
+                    if resp.status == 200:
+                        data = json.loads(resp.read().decode())
+                        exps = data.get("experiments", [])
+                        if exps:
+                            mlflow_exp_id = str(exps[0].get("experiment_id"))
+
+                # Query latest run in the experiment
+                if mlflow_exp_id:
+                    req_run = urllib.request.Request(
+                        "http://127.0.0.1:5000/api/2.0/mlflow/runs/search",
+                        method="POST",
+                        headers={"Content-Type": "application/json"}
+                    )
+                    search_payload = json.dumps({"experiment_ids": [mlflow_exp_id], "max_results": 1}).encode()
+                    with urllib.request.urlopen(req_run, data=search_payload, timeout=1.0) as resp:
+                        if resp.status == 200:
+                            run_data = json.loads(resp.read().decode())
+                            runs = run_data.get("runs", [])
+                            if runs:
+                                mlflow_run_id = str(runs[0].get("info", {}).get("run_id"))
+            except Exception as e:
+                print(f"  [MLflow REST Query] Skipping dynamic fetch due to: {e}")
+            mlflow_dur = time.time() - mlflow_start
+            print(f"  - MLflow REST queries took {mlflow_dur:.4f}s")
 
         results = []
         for resource in resources:
@@ -257,6 +289,8 @@ class ValidationResourceEvaluationService:
                 )
                 results.append(row)
 
+        tot_dur = time.time() - total_start
+        print(f"[DPI-LS Validation Service] Completed technical evaluation workflow in {tot_dur:.4f}s\n")
         return results
 
     def _get_env_keys(self, name: str) -> list[str]:
