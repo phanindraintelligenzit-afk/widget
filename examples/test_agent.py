@@ -382,14 +382,14 @@ if __name__ == "__main__":
         # 1. Cost evaluation
         url_cost = f"http://{host}:{port}/api/cost-evaluation/evaluate"
         req_cost = urllib.request.Request(url_cost, method="POST", headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req_cost, timeout=5) as response:
+        with urllib.request.urlopen(req_cost, timeout=30) as response:
             if response.status == 200:
                 print("Cost resource evaluation triggered successfully.")
                 
         # 2. Validation evaluation
         url_val = f"http://{host}:{port}/api/validation-evaluation/evaluate"
         req_val = urllib.request.Request(url_val, method="POST", headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req_val, timeout=5) as response:
+        with urllib.request.urlopen(req_val, timeout=30) as response:
             if response.status == 200:
                 print("Validation resource evaluation triggered successfully.")
     except Exception as e:
