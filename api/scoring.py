@@ -184,7 +184,7 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "accuracy": eval_map.get("Arize Phoenix:accuracy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
             "hallucination": eval_map.get("Arize Phoenix:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
             "groundedness": eval_map.get("Arize Phoenix:groundedness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
-            "relevance": eval_map.get("Arize Phoenix:relevance") or "Unavailable",
+            "relevance": eval_map.get("Arize Phoenix:relevance") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
             "evaluation_traces": eval_map.get("Arize Phoenix:evaluation_traces") or "Unavailable",
 
             # MLflow

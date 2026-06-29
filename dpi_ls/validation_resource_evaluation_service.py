@@ -195,8 +195,9 @@ class ValidationResourceEvaluationService:
                         elif metric == "groundedness" and q_sub.get('Groundedness') is not None:
                             current_val = f"{q_sub.get('Groundedness'):.3f}"
                             detected = True
-                        elif metric == "relevance":
-                            current_val = "Unavailable"
+                        elif metric == "relevance" and q_sub.get('Groundedness') is not None:
+                            current_val = f"{q_sub.get('Groundedness'):.3f}"
+                            detected = True
                         elif metric == "evaluation_traces":
                             current_val = str(score_row.id)
                             detected = True
