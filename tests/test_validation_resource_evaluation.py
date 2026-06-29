@@ -1,0 +1,75 @@
+import os
+from sqlalchemy import select
+from store.db import get_session_factory
+from store.models import ValidationResourceRegistryRow, ValidationResourceEvaluationRow
+from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+
+
+def test_seeding_and_evaluation(client):
+    """Test that all 3 validation resources are seeded."""
+    session_factory = get_session_factory()
+    with session_factory() as session:
+        # Run evaluation to register resources first
+        service = ValidationResourceEvaluationService(session)
+        service.register_resources()
+        session.commit()
+
+        stmt = select(ValidationResourceRegistryRow)
+        resources = list(session.scalars(stmt))
+        assert len(resources) == 3
+
+        resource_names = {r.name for r in resources}
+        expected_names = {
+            "Arize Phoenix",
+            "MLflow",
+            "SigNoz",
+        }
+        assert expected_names.issubset(resource_names)
+
+
+def test_api_endpoints_validation_evaluation(client):
+    """Test the newly added endpoints for validation resource evaluation."""
+    # 1. GET /api/validation-evaluation/resources
+    r_res = client.get("/api/validation-evaluation/resources")
+    assert r_res.status_code == 200
+    resources = r_res.json()
+    assert len(resources) == 3
+
+    # 2. POST /api/validation-evaluation/evaluate
+    os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
+    r_eval = client.post("/api/validation-evaluation/evaluate")
+    assert r_eval.status_code == 200
+    eval_results = r_eval.json()
+    # 3 resources: Arize Phoenix (5 metrics), MLflow (7 metrics), SigNoz (7 metrics) = 19 total results
+    assert len(eval_results) == 19
+
+    # 3. GET /api/validation-evaluation/results
+    r_results = client.get("/api/validation-evaluation/results")
+    assert r_results.status_code == 200
+    latest_results = r_results.json()
+    assert len(latest_results) == 19
+
+    # Check that Arize Phoenix accuracy is detected
+    phoenix_accuracy = [
+        res for res in latest_results
+        if res["resource_name"] == "Arize Phoenix" and res["metric"] == "accuracy"
+    ]
+    assert len(phoenix_accuracy) == 1
+    assert phoenix_accuracy[0]["detected"] is True
+
+    # 4. POST /api/validation-evaluation/verify-dashboard
+    r_verify = client.post(
+        "/api/validation-evaluation/verify-dashboard",
+        json={"resource_name": "Arize Phoenix", "metric": "accuracy"}
+    )
+    assert r_verify.status_code == 200
+    assert r_verify.json() == {"success": True}
+
+    # Verify that the dashboard_verified flag is updated
+    r_results2 = client.get("/api/validation-evaluation/results")
+    latest_results2 = r_results2.json()
+    phoenix_accuracy2 = [
+        res for res in latest_results2
+        if res["resource_name"] == "Arize Phoenix" and res["metric"] == "accuracy"
+    ]
+    assert phoenix_accuracy2[0]["dashboard_verified"] is True

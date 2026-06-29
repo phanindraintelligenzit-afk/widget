@@ -23,6 +23,8 @@ from .models import (
     SMERatingRow,
     CostResourceRegistryRow,
     CostResourceEvaluationRow,
+    ValidationResourceRegistryRow,
+    ValidationResourceEvaluationRow,
 )
 
 
@@ -381,4 +383,119 @@ def verify_dashboard_cost_resource_evaluation(s: Session, resource_name: str, me
         r.dashboard_verified = True
     s.flush()
     return True
+
+
+# ---- validation resource evaluation registry ------------------------------------
+
+def upsert_validation_resource(
+    s: Session,
+    name: str,
+    sdk_available: bool = False,
+    api_available: bool = False,
+    api_key_required: bool = False,
+    integration_implemented: bool = False,
+) -> ValidationResourceRegistryRow:
+    row = s.scalars(
+        select(ValidationResourceRegistryRow).where(ValidationResourceRegistryRow.name == name)
+    ).first()
+    if row is None:
+        row = ValidationResourceRegistryRow(
+            name=name,
+            sdk_available=sdk_available,
+            api_available=api_available,
+            api_key_required=api_key_required,
+            integration_implemented=integration_implemented,
+        )
+        s.add(row)
+    else:
+        row.sdk_available = sdk_available
+        row.api_available = api_available
+        row.api_key_required = api_key_required
+        row.integration_implemented = integration_implemented
+    s.flush()
+    return row
+
+
+def list_validation_resources(s: Session) -> list[ValidationResourceRegistryRow]:
+    return list(s.scalars(select(ValidationResourceRegistryRow).order_by(ValidationResourceRegistryRow.name)))
+
+
+def save_validation_resource_evaluation(
+    s: Session,
+    resource_name: str,
+    metric: str,
+    detected: bool,
+    evidence: Optional[str],
+    current_value: Optional[str] = None,
+    status: str = "SUCCESS",
+    dashboard_verified: bool = False,
+    agent_executed: bool = False,
+) -> ValidationResourceEvaluationRow:
+    existing = s.scalars(
+        select(ValidationResourceEvaluationRow)
+        .where(
+            ValidationResourceEvaluationRow.resource_name == resource_name,
+            ValidationResourceEvaluationRow.metric == metric,
+        )
+        .order_by(ValidationResourceEvaluationRow.last_run.desc())
+        .limit(1)
+    ).first()
+
+    verified = dashboard_verified
+    if existing and not dashboard_verified:
+        verified = existing.dashboard_verified
+
+    row = ValidationResourceEvaluationRow(
+        resource_name=resource_name,
+        metric=metric,
+        current_value=current_value,
+        detected=detected,
+        evidence=evidence,
+        last_run=_utcnow(),
+        status=status,
+        dashboard_verified=verified,
+        agent_executed=agent_executed,
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def list_latest_validation_resource_evaluations(s: Session) -> list[ValidationResourceEvaluationRow]:
+    """Return the most recent evaluation row for each validation resource-metric pair."""
+    from sqlalchemy import func
+    subq = (
+        select(
+            ValidationResourceEvaluationRow.resource_name.label("rname"),
+            ValidationResourceEvaluationRow.metric.label("met"),
+            func.max(ValidationResourceEvaluationRow.id).label("max_id"),
+        )
+        .group_by(ValidationResourceEvaluationRow.resource_name, ValidationResourceEvaluationRow.metric)
+        .subquery()
+    )
+    stmt = (
+        select(ValidationResourceEvaluationRow)
+        .join(
+            subq,
+            ValidationResourceEvaluationRow.id == subq.c.max_id
+        )
+        .order_by(ValidationResourceEvaluationRow.resource_name, ValidationResourceEvaluationRow.metric)
+    )
+    return list(s.scalars(stmt))
+
+
+def verify_dashboard_validation_resource_evaluation(s: Session, resource_name: str, metric: Optional[str] = None) -> bool:
+    """Flag evaluations for this validation resource (and optionally specific metric) as dashboard_verified."""
+    query = select(ValidationResourceEvaluationRow).where(ValidationResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        query = query.where(ValidationResourceEvaluationRow.metric == metric)
+        
+    rows = list(s.scalars(query))
+    if not rows:
+        return False
+    for r in rows:
+        r.dashboard_verified = True
+    s.flush()
+    return True
+
 

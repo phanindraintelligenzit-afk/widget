@@ -56,6 +56,13 @@ def bootstrap() -> None:
             service = CostResourceEvaluationService(session)
             service.register_resources()
             service.run_evaluations()
+
+            # Seeding validation resources
+            from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+            val_service = ValidationResourceEvaluationService(session)
+            val_service.register_resources()
+            val_service.run_evaluations()
+
             session.commit()
 
             # Pre-populate Prometheus Gauges with the latest scores from DB on startup

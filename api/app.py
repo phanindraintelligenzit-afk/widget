@@ -607,6 +607,115 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
     }
 
 
+# ---- Validation Resource Technical Evaluation API Endpoints ------------
+
+@app.get("/api/validation-evaluation/resources")
+def get_validation_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    rows = repo.list_validation_resources(s)
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "sdk_available": r.sdk_available,
+            "api_available": r.api_available,
+            "api_key_required": r.api_key_required,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/validation-evaluation/evaluate")
+def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+    service = ValidationResourceEvaluationService(s)
+    eval_rows = service.run_evaluations()
+    s.commit()
+    active_resources = {"Arize Phoenix", "MLflow", "SigNoz"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.get("/api/validation-evaluation/results")
+def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    eval_rows = repo.list_latest_validation_resource_evaluations(s)
+    active_resources = {"Arize Phoenix", "MLflow", "SigNoz"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.get("/api/validation-evaluation/urls")
+def get_validation_evaluation_urls() -> dict[str, dict]:
+    """Return validation dashboard URLs with live reachability status."""
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    def _is_reachable(url: str) -> bool:
+        try:
+            parsed = _urlparse(url)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or 80
+            with _socket.create_connection((host, port), timeout=0.3):
+                return True
+        except Exception:
+            return False
+
+    phoenix_url = os.environ.get("PHOENIX_URL", "http://localhost:6006")
+    mlflow_url = os.environ.get("MLFLOW_URL", "http://localhost:5000")
+    signoz_url = os.environ.get("SIGNOZ_URL", "http://localhost:8080")
+
+    def _cloud_or_tcp(url: str) -> bool:
+        if not url or url.strip() == "":
+            return False
+        return _is_reachable(url)
+
+    phoenix_online = _cloud_or_tcp(phoenix_url)
+    mlflow_online = _cloud_or_tcp(mlflow_url)
+    signoz_online = _cloud_or_tcp(signoz_url)
+
+    return {
+        "Arize Phoenix": {"url": phoenix_url, "online": phoenix_online},
+        "MLflow":        {"url": mlflow_url,        "online": mlflow_online},
+        "SigNoz":        {"url": signoz_url,        "online": signoz_online},
+    }
+
+
+@app.post("/api/validation-evaluation/verify-dashboard")
+def verify_validation_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    ok = repo.verify_dashboard_validation_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
 
 
 @app.post("/api/metrics/export")

@@ -475,14 +475,14 @@ const API = (typeof window !== 'undefined' && window.location?.origin && window.
   : '';
 let chandraSub = {};
 let settingsObj = {};
-let chandraCostValue = 1.0;
+let chandraValidationValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
 let dashboardUrls = {
-  Langfuse:   { url: 'https://cloud.langfuse.com', online: false },
-  Prometheus: { url: 'http://localhost:9090',       online: false },
-  Grafana:    { url: 'http://localhost:3000',        online: false },
+  'Arize Phoenix': { url: 'http://localhost:6006', online: false },
+  'MLflow':        { url: 'http://localhost:5000', online: false },
+  'SigNoz':        { url: 'http://localhost:8080', online: false },
 };
 
 async function loadChandraData() {
@@ -495,8 +495,8 @@ async function loadChandraData() {
       const ratings = await r1.json();
       const chandra = ratings.find(r => r.agent_id === "chandra-finops");
       if (chandra) {
-        chandraSub = chandra.sub_metrics?.C || {};
-        chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
+        chandraSub = chandra.sub_metrics?.V || {};
+        chandraValidationValue = chandra.metrics?.V !== undefined ? chandra.metrics.V : 1.0;
       }
     }
     if (r2.ok) {
@@ -509,7 +509,7 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/urls`);
+    const r = await fetch(`${API}/api/validation-evaluation/urls`);
     if (r.ok) {
       const raw = await r.json();
       // API now returns {Langfuse: {url, online}, ...}
@@ -529,32 +529,32 @@ async function loadUrls() {
 }
 
 const RESOURCE_META = {
-  'Langfuse': {
-    icon: '🔭', category: 'LLM Observability',
+  'Arize Phoenix': {
+    icon: '🔥', category: 'LLM Eval & Validation',
     dpi_status: 'primary',
-    description: 'Token usage, cost per trace/generation, model spend, and latency per LLM call. Traces are pushed automatically on every agent run.',
-    dashboard_url: 'https://cloud.langfuse.com',
-    dashboard_label: 'Open Langfuse Cloud',
-    color: '#6366f1',
-    sdk: 'langfuse',
+    description: 'Calculates Hallucination, Accuracy, Groundedness, and Relevance validation metrics directly from agent execution traces.',
+    dashboard_url: 'http://localhost:6006',
+    dashboard_label: 'Open Phoenix UI',
+    color: '#ff4d4d',
+    sdk: 'arize-phoenix',
   },
-  'Prometheus': {
-    icon: '📊', category: 'Infrastructure Metrics',
-    dpi_status: 'recommended',
-    description: 'Live Prometheus-format metrics for Chandra FinOps agent — token costs, model cost, TCO, quality scores, and utilization. Exposed by DPI-LS at /metrics/.',
-    dashboard_url: 'http://127.0.0.1:8000/metrics/',
-    dashboard_label: 'Open Metrics Endpoint',
-    color: '#e6522c',
-    sdk: 'prometheus_client',
+  'MLflow': {
+    icon: '🧪', category: 'MLOps & Prompt Registry',
+    dpi_status: 'foundational',
+    description: 'Tracks validation runs, lineage, and experiment artifacts. Ensures model and prompt version control with full audit logs.',
+    dashboard_url: 'http://localhost:5000',
+    dashboard_label: 'Open MLflow UI',
+    color: '#0194e2',
+    sdk: 'mlflow',
   },
-  'Grafana': {
-    icon: '📈', category: 'Metrics Visualization',
+  'SigNoz': {
+    icon: '📊', category: 'OpenTelemetry Observability',
     dpi_status: 'recommended',
-    description: 'Visualization of cost and utilization metrics. Import grafana_dashboard.json from the widget folder to see DPI-LS dashboards.',
-    dashboard_url: 'https://grafana.com/auth/sign-in/',
-    dashboard_label: 'Open Grafana Cloud',
-    color: '#f46800',
-    sdk: 'grafana',
+    description: 'Monitors runtime latency, requests volume, and error rates of active validations. Uses OpenTelemetry metrics for validation health.',
+    dashboard_url: 'http://localhost:8080',
+    dashboard_label: 'Open SigNoz UI',
+    color: '#ee4337',
+    sdk: 'opentelemetry',
   },
 };
 
@@ -655,33 +655,12 @@ const METRIC_NICE_NAMES = {
 
 function formatMetricValue(metric, current_value) {
   if (current_value === null || current_value === undefined || current_value === "") return '—';
-  const val = parseFloat(current_value);
-  if (isNaN(val)) return current_value;
-  
-  if (metric === 'input_tokens' || metric === 'output_tokens') {
-    return val.toFixed(0);
-  }
-  if (metric === 'utilization') {
-    return val.toFixed(0);
-  }
-  if (metric === 'efficiency_ratio') {
-    return val.toFixed(2);
-  }
-  if (metric === 'human_cost_per_output') {
-    return "$" + val.toFixed(0);
-  }
-  if (['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'tco'].includes(metric)) {
-    return "$" + val.toFixed(6);
-  }
-  if (metric === 'cost_score') {
-    return val.toFixed(6);
-  }
-  return val.toFixed(4);
+  return current_value;
 }
 
 function renderResourceTable(metrics, name) {
-  if (typeof window.renderCostTableHtml === 'function') {
-    return window.renderCostTableHtml(chandraSub, settingsObj, chandraCostValue, name);
+  if (typeof window.renderValidationTableHtml === 'function') {
+    return window.renderValidationTableHtml(chandraSub, settingsObj, chandraValidationValue, name);
   }
   return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
 }
@@ -813,10 +792,10 @@ function showToast(msg, type='info') {
 
 async function verifyDashboard(resourceName) {
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/verify-dashboard`, {
+    const r = await fetch(`${API}/api/validation-evaluation/verify-dashboard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resource_name: resourceName, metric: 'model_cost' })
+      body: JSON.stringify({ resource_name: resourceName })
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     showToast(`✅ ${resourceName} marked as dashboard verified!`, 'success');
@@ -832,14 +811,14 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/evaluate`, {
+    const r = await fetch(`${API}/api/validation-evaluation/evaluate`, {
       method: 'POST',
       headers: { 'Accept': 'application/json' }
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     await loadChandraData();
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
+    const activeResources = ["Arize Phoenix", "MLflow", "SigNoz"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -854,10 +833,10 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const r = await fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } });
+    const r = await fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
+    const activeResources = ["Arize Phoenix", "MLflow", "SigNoz"];
     allData = rawData.filter(r => activeResources.includes(r.resource_name));
     renderGrid();
   } catch (e) {
