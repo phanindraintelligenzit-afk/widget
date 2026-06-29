@@ -132,13 +132,12 @@ class ValidationResourceEvaluationService:
         if liveness_cache.get("MLflow"):
             mlflow_start = time.time()
             try:
-                # Query experiments search
+                # Query experiments search via GET
                 req = urllib.request.Request(
                     "http://127.0.0.1:5000/api/2.0/mlflow/experiments/search",
-                    method="POST",
-                    headers={"Content-Type": "application/json"}
+                    method="GET"
                 )
-                with urllib.request.urlopen(req, data=b"{}", timeout=1.0) as resp:
+                with urllib.request.urlopen(req, timeout=1.0) as resp:
                     if resp.status == 200:
                         data = json.loads(resp.read().decode())
                         exps = data.get("experiments", [])
