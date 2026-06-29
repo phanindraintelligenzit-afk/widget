@@ -1,119 +1,76 @@
 ================================================================
   DPI-LS PROJECT — COMPLETE RUN GUIDE (Start to End)
   Project: D:\Projects\widget\widget
-  Branch:  claude/gallant-dirac-02u1M
+  Branch:  dpi-ls-cost
 ================================================================
 
-STEP 0 — ONE-TIME SETUP (run only first time)
+STEP 0 — ONE-TIME SETUP (run only first time in PowerShell)
 ----------------------------------------------------------------
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 & d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
 
 
 ================================================================
-  OPEN 6 TERMINAL TABS AND RUN EACH COMMAND IN ORDER
+  OPEN 4 TERMINAL TABS AND RUN EACH SERVICE IN ORDER
 ================================================================
 
 ┌──────────────────────────────────────────────────────────────┐
-│  TAB 1 — BACKEND SERVER  (Start this FIRST)                  │
-└──────────────────────────────────────────────────────────────┘
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
-cd d:\Projects\widget\widget
-uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
-
-┌──────────────────────────────────────────────────────────────┐
-│  TAB 2 — MLflow Server                                       │
-└──────────────────────────────────────────────────────────────┘
-& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
-cd d:\Projects\widget\widget
-uv run mlflow server --host 127.0.0.1 --port 5000
-
-┌──────────────────────────────────────────────────────────────┐
-│  TAB 3 — Prometheus                                          │
+│  TAB 1 — PROMETHEUS SERVER (Port 9090)                       │
 └──────────────────────────────────────────────────────────────┘
 cd "C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64"
 .\prometheus.exe --config.file=prometheus.yml --web.listen-address=127.0.0.1:9090
 
 ┌──────────────────────────────────────────────────────────────┐
-│  TAB 4 — Grafana                                             │
+│  TAB 2 — GRAFANA SERVER (Port 3000)                          │
 └──────────────────────────────────────────────────────────────┘
 cd "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin"
 .\grafana.exe server --homepath ".."
 
 ┌──────────────────────────────────────────────────────────────┐
-│  TAB 5 — Mock Phoenix + OTel + Langfuse                      │
+│  TAB 3 — API BACKEND SERVER (Port 8000)                      │
 └──────────────────────────────────────────────────────────────┘
-& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
-cd d:\Projects\widget\widget
-Start-Job -ScriptBlock { & d:\Projects\widget\widget\.venv\Scripts\python.exe d:\Projects\widget\widget\scratch\run_mock_phoenix.py }
-uv run scratch/run_mock_observability.py
+cd "d:\Projects\widget\widget"
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
 
 ┌──────────────────────────────────────────────────────────────┐
-│  TAB 6 — Test Agent Traffic (Run once to generate data)      │
+│  TAB 4 — RUN AGENT TELEMETRY (Updates metrics)               │
 └──────────────────────────────────────────────────────────────┘
-& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
-cd d:\Projects\widget\widget
-$env:PYTHONIOENCODING="utf-8"; $env:DPI_LS_NO_BLOCK="1"; uv run python examples/test_agent.py
+cd "d:\Projects\widget\widget"
+uv run python examples/test_agent.py
 
 
 ================================================================
-  OPEN THESE URLS IN BROWSER (after all 4 tabs are running)
+  OPEN THESE URLS IN BROWSER
 ================================================================
 
-  Main DPI-LS Dashboard:
-    http://localhost:8000/widget/index.html
+  Main DPI-LS Live Dashboard (Chandra):
+    http://localhost:8000/
 
-  Resources Page (Cost / Validation / Quality cards):
-    http://localhost:8000/widget/resources.html
+  Resources Page (expanded cards showing live USD costs):
+    http://localhost:8000/resources.html
 
-  Prometheus UI:
-    http://localhost:9090
+  Prometheus Targets Console:
+    http://localhost:9090/
 
-  Grafana Dashboard:
-    http://localhost:3000
+  Grafana Telemetry Dashboard:
+    http://localhost:3000/
 
-  Langfuse Trace Explorer:
-    http://localhost:4000
-
-  Arize Phoenix UI:
-    http://localhost:6006
-
-  MLflow UI:
-    http://localhost:5000
+  Langfuse Cloud Dashboard (API traces):
+    https://cloud.langfuse.com/
 
 
 ================================================================
-  WHAT YOU WILL SEE IN THE RESOURCES PAGE
+  LANGFUSE STEP-BY-STEP AUDITING (To show clients)
 ================================================================
 
-  6 Resources (cards):
-    1. Langfuse          — LLM Observability     (PRIMARY)
-    2. Arize Phoenix     — LLM Eval              (PRIMARY)
-    3. OpenTelemetry     — Instrumentation       (FOUNDATIONAL)
-    4. Prometheus        — Infrastructure        (RECOMMENDED)
-    5. Grafana           — Metrics Visualization (RECOMMENDED)
-    6. MLflow            — MLOps Registry        (CANDIDATE)
-
-  3 Metric Groups per resource:
-    💰 Cost (C)      — 8 metrics: Model Cost, Token Cost,
-                       Prompt Cost, Completion Cost,
-                       AI Cost/Output, Human Cost/Output,
-                       Utilization, Total Cost (TCO)
-
-    ✅ Validation (V) — 3 metrics: Required Components,
-                        Validated Components, Validation Score
-
-    🧬 Quality (Q)   — 5 metrics: Hallucination Score,
-                        Relevance Score, Groundedness Score,
-                        User Feedback Score, Model Correctness
-
-  5-Step Workflow per resource:
-    Step 1: Setup ✓
-    Step 2: Instrument ✓
-    Step 3: Execute ✓
-    Step 4: Validate ✓
-    Step 5: Document ✓
+  1. Open https://cloud.langfuse.com in your browser.
+  2. Log in and select your project.
+  3. Click on the "Traces" tab in the left-hand menu.
+  4. Select the trace "chandra-finops-agent" from the list.
+  5. Under trace details, highlight:
+     - The Input Tab: The exact billing question we sent to Chandra.
+     - The Output Tab: Chandra's full AWS Cost Audit response.
+     - The Usage Box: Showing exact token count (e.g. 7,052 input, 1,269 output tokens) and computed USD spend.
 
 
 ================================================================
@@ -128,36 +85,14 @@ $env:PYTHONIOENCODING="utf-8"; $env:DPI_LS_NO_BLOCK="1"; uv run python examples/
   V — Validation       (component checks, schema validation)
   C — Cost             (model cost, token cost, TCO)
 
-  C and V — managed in Resources Page (your current work)
-  P, Q, E, G, R — shown in Main DPI-LS Dashboard
-
-
-================================================================
-  BUTTON ACTIONS IN RESOURCES PAGE
-================================================================
-
-  "Run Evaluation" button → Runs full C/V/Q evaluation for all 6 resources
-  "Open UI" buttons       → Opens the resource dashboard in a new browser tab
-  "Mark Verified" button  → Marks Step 5 (Document) as complete for that resource
-  Filter buttons          → SUCCESS (all metrics True), FAILED (some False), ALL
+  * Clicking the "C" column expansions opens the live telemetry matrices.
 
 
 ================================================================
   STOP ALL SERVICES
 ================================================================
 
-  In each terminal tab: press CTRL + C
-
-
-================================================================
-  GIT — Push latest changes
-================================================================
-
-  cd d:\Projects\widget\widget
-  git add .
-  git status
-  git commit -m "your message here"
-  git push origin HEAD:claude/gallant-dirac-02u1M
+  In each of the terminal tabs: press CTRL + C
 
 
 ================================================================
