@@ -1,8 +1,8 @@
 {
   "agent_id": "chandra-finops",
   "agent_name": "Chandra",
-  "period_start": "2026-06-29T06:57:17.314318+00:00",
-  "period_end": "2026-06-29T06:57:43.263524+00:00",
+  "period_start": "2026-06-29T07:16:08.877250+00:00",
+  "period_end": "2026-06-29T07:16:37.799305+00:00",
   "tasks": {
     "assigned": 1,
     "completed": 1,
@@ -17,19 +17,19 @@
         "ok": true
       }
     ],
-    "cpu_utilization": 0.166
+    "cpu_utilization": 0.24100000000000002
   },
   "policy": {
     "total_actions": 3,
     "violations": [
       {
         "rule": "none",
-        "when": "2026-06-29T06:57:27.707568+00:00",
+        "when": "2026-06-29T07:16:20.257387+00:00",
         "action_name": "LLM Generation"
       },
       {
         "rule": "none",
-        "when": "2026-06-29T06:57:43.261603+00:00",
+        "when": "2026-06-29T07:16:37.796939+00:00",
         "action_name": "LLM Generation"
       }
     ]
@@ -41,9 +41,9 @@
     "audit_ready": true
   },
   "cost": {
-    "input_tokens": 7847,
-    "output_tokens": 1084,
-    "model_cost": 0.008931,
+    "input_tokens": 7848,
+    "output_tokens": 1373,
+    "model_cost": 0.009221,
     "number_of_llm_calls": 2,
     "Human_cost": 50.0
   },
@@ -53,6 +53,6 @@
   "quality": {
     "accuracy": 1.0,
     "consistency": 1.0,
-    "hallucination_rate": 1.0
+    "hallucination_rate": 0.85
   }
 }
