@@ -274,11 +274,6 @@
 
     const runId = sub.run_id || "Unavailable";
     const experimentId = sub.experiment_id || "Unavailable";
-    const promptVersion = sub.prompt_version || "Unavailable";
-    const modelVersion = sub.model_version || "Unavailable";
-    const lineage = sub.lineage || "Unavailable";
-    const validationHistory = sub.validation_history || "Unavailable";
-    const auditEvidence = sub.audit_evidence || "Unavailable";
 
     const isSigNozOffline = !sub.dependency_health || sub.dependency_health === "Unavailable" || sub.dependency_health === "Unhealthy" || sub.dependency_health === "Offline";
 
@@ -300,11 +295,6 @@
 
       run_id: { val: runId, calc: runId, disp: runId, formula: "Active Run UUID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
       experiment_id: { val: experimentId, calc: experimentId, disp: experimentId, formula: "Experiment ID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      prompt_version: { val: promptVersion, calc: promptVersion, disp: promptVersion, formula: "System Prompt Version", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      model_version: { val: modelVersion, calc: modelVersion, disp: modelVersion, formula: "Model Registry Tag", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      lineage: { val: lineage, calc: lineage, disp: lineage, formula: "Lineage Graph", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      validation_history: { val: validationHistory, calc: validationHistory, disp: validationHistory, formula: "Success History", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      audit_evidence: { val: auditEvidence, calc: auditEvidence, disp: auditEvidence, formula: "Compliance Audit Status", src: "MLflow Registry", resource: "MLflow", dec: 0 },
 
       runtime_traces: { val: runtimeTraces, calc: runtimeTraces, disp: runtimeTraces, formula: "Total Spans Captured", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
       validation_latency: { val: validationLatency, calc: validationLatency, disp: validationLatency, formula: "Response Latency", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
@@ -348,11 +338,6 @@
       evaluation_count: "Evaluation Count",
       run_id: "Run ID",
       experiment_id: "Experiment ID",
-      prompt_version: "Prompt Version",
-      model_version: "Model Version",
-      lineage: "Lineage",
-      validation_history: "Validation History",
-      audit_evidence: "Audit Evidence",
       runtime_traces: "Runtime Traces",
       validation_latency: "Validation Latency",
       success_count: "Success Count",

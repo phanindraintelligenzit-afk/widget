@@ -40,14 +40,14 @@ def test_api_endpoints_validation_evaluation(client):
     r_eval = client.post("/api/validation-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
-    # 3 resources: DeepEval (6 metrics), MLflow (7 metrics), SigNoz (7 metrics) = 20 total results
-    assert len(eval_results) == 20
+    # 3 resources: DeepEval (6 metrics), MLflow (2 metrics), SigNoz (7 metrics) = 15 total results
+    assert len(eval_results) == 15
 
     # 3. GET /api/validation-evaluation/results
     r_results = client.get("/api/validation-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 20
+    assert len(latest_results) == 15
 
     # Check that DeepEval answer_relevancy is detected
     deepeval_accuracy = [

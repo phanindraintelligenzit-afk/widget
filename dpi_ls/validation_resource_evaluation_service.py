@@ -123,7 +123,7 @@ class ValidationResourceEvaluationService:
         # Define owned metrics per resource
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
-            "MLflow": ["run_id", "experiment_id", "prompt_version", "model_version", "lineage", "validation_history", "audit_evidence"],
+            "MLflow": ["run_id", "experiment_id"],
             "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
         }
 
