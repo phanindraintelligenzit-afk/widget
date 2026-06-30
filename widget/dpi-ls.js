@@ -280,13 +280,15 @@
     const validationHistory = sub.validation_history || "Unavailable";
     const auditEvidence = sub.audit_evidence || "Unavailable";
 
-    const runtimeTraces = sub.runtime_traces || "Unavailable";
-    const validationLatency = sub.validation_latency || "Unavailable";
-    const successCount = sub.success_count || "Unavailable";
-    const failureCount = sub.failure_count || "Unavailable";
-    const errorRate = sub.error_rate || "Unavailable";
-    const activeValRequests = sub.active_validation_requests || "Unavailable";
-    const dependencyHealth = sub.dependency_health || "Unavailable";
+    const isSigNozOffline = !sub.dependency_health || sub.dependency_health === "Unavailable" || sub.dependency_health === "Unhealthy" || sub.dependency_health === "Offline";
+
+    const runtimeTraces = isSigNozOffline ? "Service Offline" : (sub.runtime_traces || "Unavailable");
+    const validationLatency = isSigNozOffline ? "Service Offline" : (sub.validation_latency || "Unavailable");
+    const successCount = isSigNozOffline ? "Service Offline" : (sub.success_count || "Unavailable");
+    const failureCount = isSigNozOffline ? "Service Offline" : (sub.failure_count || "Unavailable");
+    const errorRate = isSigNozOffline ? "Service Offline" : (sub.error_rate || "Unavailable");
+    const activeValRequests = isSigNozOffline ? "Service Offline" : (sub.active_validation_requests || "Unavailable");
+    const dependencyHealth = isSigNozOffline ? "Service Offline" : (sub.dependency_health || "Unavailable");
 
     return {
       answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
@@ -364,6 +366,8 @@
     if (resourceFilter) {
       entries = entries.filter(([_, m]) => m.resource === resourceFilter);
     }
+    // Filter out rows where value is "Unavailable"
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "N/A";
@@ -387,14 +391,14 @@
     const val = sub["Validated Components"] || 0;
     const req = sub["Required Components"] || 6;
     const vScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (vScoreVal * 5.0).toFixed(2);
+    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (5%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 5%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (10%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 10%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -402,7 +406,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${vScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×5%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×10%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">

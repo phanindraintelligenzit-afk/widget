@@ -485,7 +485,7 @@ let dashboardUrls = {
   Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
   Prometheus:      { url: 'http://localhost:9090', online: false },
   Grafana:         { url: 'http://localhost:3000', online: false },
-  'DeepEval':      { url: 'https://github.com/confident-ai/deepeval', online: true },
+  'DeepEval':      { url: 'https://deepeval.com', online: true },
   'MLflow':        { url: 'http://localhost:5000', online: false },
   'SigNoz':        { url: 'http://localhost:8080', online: false },
 };
@@ -571,8 +571,8 @@ const RESOURCE_META = {
     icon: '🔮', category: 'LLM Eval & Validation',
     dpi_status: 'primary',
     description: 'Calculates Answer Relevancy, Faithfulness, Hallucination, Correctness, and Evaluation Status directly from agent outputs.',
-    dashboard_url: 'https://github.com/confident-ai/deepeval',
-    dashboard_label: 'Open DeepEval Docs',
+    dashboard_url: 'https://deepeval.com',
+    dashboard_label: 'DeepEval Documentation',
     color: '#ff4d4d',
     sdk: 'deepeval',
   },
@@ -752,9 +752,14 @@ function renderResourceCard(name, metrics) {
     ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
     : `<span style="color:var(--text);">${escHtml(name)}</span>`;
 
-  const linkHtml = isOnline
-    ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
-    : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+  let linkHtml;
+  if (name === 'DeepEval') {
+    linkHtml = `<a class="rc-dashboard-link-inline" href="https://deepeval.com" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔮 DeepEval Documentation</a><span style="font-size:10px;color:#4ade80;margin-left:6px;">● Running In Process</span>`;
+  } else {
+    linkHtml = isOnline
+      ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
+      : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+  }
 
 
   const verifyHtml = dashVerified
