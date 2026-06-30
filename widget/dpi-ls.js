@@ -270,11 +270,7 @@
     const val = sub["Validated Components"] || 0;
     const vScore = (value !== undefined && value !== null) ? (value * 5) : null;
 
-    const accuracy = sub.accuracy || "Unavailable";
-    const hallucination = sub.hallucination || "Unavailable";
-    const groundedness = sub.groundedness || "Unavailable";
-    const relevance = sub.relevance || "Unavailable";
-    const evaluationTraces = sub.evaluation_traces || "Unavailable";
+
 
     const runId = sub.run_id || "Unavailable";
     const experimentId = sub.experiment_id || "Unavailable";
@@ -293,11 +289,12 @@
     const dependencyHealth = sub.dependency_health || "Unavailable";
 
     return {
-      accuracy: { val: accuracy, calc: accuracy, disp: accuracy, formula: "Accuracy Score", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 3 },
-      hallucination: { val: hallucination, calc: hallucination, disp: hallucination, formula: "1 - Hallucination Rate", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 3 },
-      groundedness: { val: groundedness, calc: groundedness, disp: groundedness, formula: "Groundedness Score", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 3 },
-      relevance: { val: relevance, calc: relevance, disp: relevance, formula: "Relevance Score", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 3 },
-      evaluation_traces: { val: evaluationTraces, calc: evaluationTraces, disp: evaluationTraces, formula: "Evaluations Run", src: "Arize Phoenix UI", resource: "Arize Phoenix", dec: 0 },
+      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      hallucination: { val: sub.hallucination || "Unavailable", calc: sub.hallucination || "Unavailable", disp: sub.hallucination || "Unavailable", formula: "Hallucination Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      evaluation_status: { val: sub.evaluation_status || "Unavailable", calc: sub.evaluation_status || "Unavailable", disp: sub.evaluation_status || "Unavailable", formula: "Evaluation Status", src: "DeepEval", resource: "DeepEval", dec: 0 },
+      evaluation_count: { val: sub.evaluation_count || "Unavailable", calc: sub.evaluation_count || "Unavailable", disp: sub.evaluation_count || "Unavailable", formula: "Evaluation Count", src: "DeepEval", resource: "DeepEval", dec: 0 },
 
       run_id: { val: runId, calc: runId, disp: runId, formula: "Active Run UUID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
       experiment_id: { val: experimentId, calc: experimentId, disp: experimentId, formula: "Experiment ID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
@@ -341,11 +338,12 @@
     };
 
     const METRIC_NICE_NAMES = {
-      accuracy: "Accuracy",
-      hallucination: "Hallucination Rate",
-      groundedness: "Groundedness",
-      relevance: "Relevance",
-      evaluation_traces: "Evaluation Traces",
+      answer_relevancy: "Answer Relevancy",
+      faithfulness: "Faithfulness",
+      hallucination: "Hallucination",
+      correctness: "Correctness",
+      evaluation_status: "Evaluation Status",
+      evaluation_count: "Evaluation Count",
       run_id: "Run ID",
       experiment_id: "Experiment ID",
       prompt_version: "Prompt Version",
@@ -1574,7 +1572,7 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "DeepEval", "MLflow"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q

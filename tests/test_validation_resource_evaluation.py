@@ -20,7 +20,7 @@ def test_seeding_and_evaluation(client):
 
         resource_names = {r.name for r in resources}
         expected_names = {
-            "Arize Phoenix",
+            "DeepEval",
             "MLflow",
             "SigNoz",
         }
@@ -40,27 +40,27 @@ def test_api_endpoints_validation_evaluation(client):
     r_eval = client.post("/api/validation-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
-    # 3 resources: Arize Phoenix (5 metrics), MLflow (7 metrics), SigNoz (7 metrics) = 19 total results
-    assert len(eval_results) == 19
+    # 3 resources: DeepEval (6 metrics), MLflow (7 metrics), SigNoz (7 metrics) = 20 total results
+    assert len(eval_results) == 20
 
     # 3. GET /api/validation-evaluation/results
     r_results = client.get("/api/validation-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 19
+    assert len(latest_results) == 20
 
-    # Check that Arize Phoenix accuracy is detected
-    phoenix_accuracy = [
+    # Check that DeepEval answer_relevancy is detected
+    deepeval_accuracy = [
         res for res in latest_results
-        if res["resource_name"] == "Arize Phoenix" and res["metric"] == "accuracy"
+        if res["resource_name"] == "DeepEval" and res["metric"] == "answer_relevancy"
     ]
-    assert len(phoenix_accuracy) == 1
-    assert phoenix_accuracy[0]["detected"] is True
+    assert len(deepeval_accuracy) == 1
+    assert deepeval_accuracy[0]["detected"] is True
 
     # 4. POST /api/validation-evaluation/verify-dashboard
     r_verify = client.post(
         "/api/validation-evaluation/verify-dashboard",
-        json={"resource_name": "Arize Phoenix", "metric": "accuracy"}
+        json={"resource_name": "DeepEval", "metric": "answer_relevancy"}
     )
     assert r_verify.status_code == 200
     assert r_verify.json() == {"success": True}
@@ -68,8 +68,8 @@ def test_api_endpoints_validation_evaluation(client):
     # Verify that the dashboard_verified flag is updated
     r_results2 = client.get("/api/validation-evaluation/results")
     latest_results2 = r_results2.json()
-    phoenix_accuracy2 = [
+    deepeval_accuracy2 = [
         res for res in latest_results2
-        if res["resource_name"] == "Arize Phoenix" and res["metric"] == "accuracy"
+        if res["resource_name"] == "DeepEval" and res["metric"] == "answer_relevancy"
     ]
-    assert phoenix_accuracy2[0]["dashboard_verified"] is True
+    assert deepeval_accuracy2[0]["dashboard_verified"] is True

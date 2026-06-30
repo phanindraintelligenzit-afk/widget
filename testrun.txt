@@ -1,0 +1,71 @@
+========================================
+SECTION 1
+COST DIMENSION
+========================================
+
+1. Start Backend:
+   Command: uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+   Explanation: Starts the FastAPI server which serves the API endpoints and mounts the static dashboards.
+
+2. Start Prometheus:
+   Command: C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64\prometheus.exe --config.file=prometheus.yml --web.listen-address=127.0.0.1:9090
+   Explanation: Launches the Prometheus metrics collector to poll and store cost telemetry.
+
+3. Start Grafana:
+   Command: C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin\grafana.exe server --homepath C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2
+   Explanation: Runs the Grafana server to display visual analytical panels.
+
+4. Start Langfuse:
+   Command: Langfuse runs on the cloud host (https://cloud.langfuse.com).
+   Explanation: Used to log LLM queries, token consumption, and trace execution details.
+
+5. Run Agent:
+   Command: uv run python examples/test_agent.py
+   Explanation: Triggers agent runs to generate real cost telemetry and output results.
+
+6. Run Tests:
+   Command: uv run pytest tests/test_cost_resource_evaluation.py
+   Explanation: Runs integration tests verifying that cost metrics are exported and loaded correctly.
+
+URLs:
+* Metrics URL: http://127.0.0.1:8000/metrics
+* Grafana URL: http://localhost:3000
+* Langfuse URL: https://cloud.langfuse.com
+* Resources Dashboard URL: http://127.0.0.1:8000/resources.html
+* Agent Dashboard URL: http://127.0.0.1:8000/index.html
+
+
+========================================
+SECTION 2
+VALIDATION DIMENSION
+========================================
+
+1. Start Backend:
+   Command: uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+   Explanation: Runs the primary backend, enabling validation APIs and the self-healing DB registry.
+
+2. Start MLflow:
+   Command: uv run mlflow server --host 127.0.0.1 --port 5000
+   Explanation: Starts the MLflow server to track runs, lineage, and experiment configurations.
+
+3. Start SigNoz:
+   Command: SigNoz runs on http://localhost:8080.
+   Explanation: Observability platform used to trace and monitor validation system latency and errors.
+
+4. Run Evaluation Harness:
+   Command: DeepEval runs in-process automatically when the agent executes.
+   Explanation: DeepEval performs checks (Faithfulness, Relevancy, etc.) on the generated outputs directly inside the agent loop.
+
+5. Run Agent:
+   Command: uv run python examples/test_agent.py
+   Explanation: Runs the Chandra FinOps agent, feeding validation logs into MLflow and evaluating with DeepEval.
+
+6. Run Tests:
+   Command: uv run pytest tests/test_validation_resource_evaluation.py
+   Explanation: Verifies all DeepEval, MLflow, and SigNoz integration endpoints.
+
+URLs:
+* MLflow URL: http://localhost:5000
+* SigNoz URL: http://localhost:8080
+* Resources Dashboard URL: http://127.0.0.1:8000/resources.html
+* Agent Dashboard URL: http://127.0.0.1:8000/index.html

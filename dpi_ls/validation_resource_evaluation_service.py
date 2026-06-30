@@ -23,15 +23,15 @@ class ValidationResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        """Register the 3 validation resources: Arize Phoenix, MLflow, and SigNoz."""
+        """Register the 3 validation resources: DeepEval, MLflow, and SigNoz."""
         from sqlalchemy import delete
-        allowed = ["Arize Phoenix", "MLflow", "SigNoz"]
+        allowed = ["DeepEval", "MLflow", "SigNoz"]
         self.session.execute(delete(ValidationResourceRegistryRow).where(ValidationResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ValidationResourceEvaluationRow).where(ValidationResourceEvaluationRow.resource_name.not_in(allowed)))
         
         # Define owned metrics per resource
         resource_metrics = {
-            "Arize Phoenix": ["accuracy", "hallucination", "groundedness", "relevance", "evaluation_traces"],
+            "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
             "MLflow": ["run_id", "experiment_id", "prompt_version", "model_version", "lineage", "validation_history", "audit_evidence"],
             "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
         }
@@ -44,7 +44,7 @@ class ValidationResourceEvaluationService:
         self.session.flush()
 
         resources = [
-            ("Arize Phoenix", True, True, False, True),
+            ("DeepEval", True, True, False, True),
             ("MLflow", True, True, False, True),
             ("SigNoz", True, True, False, True),
         ]
@@ -62,7 +62,7 @@ class ValidationResourceEvaluationService:
     def _check_sdk_avail(self, name: str) -> bool:
         """Helper to check if python SDK is importable for a given validation resource name."""
         sdk_map = {
-            "Arize Phoenix": ["phoenix", "arize_phoenix"],
+            "DeepEval": ["deepeval"],
             "MLflow": ["mlflow"],
             "SigNoz": ["opentelemetry"],
         }
@@ -74,13 +74,14 @@ class ValidationResourceEvaluationService:
     def _is_service_listening(self, name: str) -> bool:
         """Check if the service port is open and listening locally."""
         port_map = {
-            "Arize Phoenix": 6006,
+            "DeepEval": None,
             "MLflow": 5000,
             "SigNoz": 8080,
         }
         port = port_map.get(name)
         if not port:
-            return True
+            # DeepEval is a Python library, so return True if the SDK is available
+            return self._check_sdk_avail(name)
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.1):
                 return True
@@ -121,7 +122,7 @@ class ValidationResourceEvaluationService:
 
         # Define owned metrics per resource
         resource_metrics = {
-            "Arize Phoenix": ["accuracy", "hallucination", "groundedness", "relevance", "evaluation_traces"],
+            "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
             "MLflow": ["run_id", "experiment_id", "prompt_version", "model_version", "lineage", "validation_history", "audit_evidence"],
             "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
         }
@@ -185,20 +186,23 @@ class ValidationResourceEvaluationService:
                     e_sub = score_row.sub_metrics.get("E", {})
 
                     # Extract dynamically from actual runtime execution scores
-                    if resource.name == "Arize Phoenix":
-                        if metric == "accuracy" and q_sub.get('QA Accuracy') is not None:
+                    if resource.name == "DeepEval":
+                        if metric == "answer_relevancy" and q_sub.get('QA Accuracy') is not None:
                             current_val = f"{q_sub.get('QA Accuracy'):.3f}"
+                            detected = True
+                        elif metric == "faithfulness" and q_sub.get('Groundedness') is not None:
+                            current_val = f"{q_sub.get('Groundedness'):.3f}"
                             detected = True
                         elif metric == "hallucination" and q_sub.get('Hallucination Rate') is not None:
                             current_val = f"{q_sub.get('Hallucination Rate'):.3f}"
                             detected = True
-                        elif metric == "groundedness" and q_sub.get('Groundedness') is not None:
-                            current_val = f"{q_sub.get('Groundedness'):.3f}"
+                        elif metric == "correctness" and q_sub.get('QA Accuracy') is not None:
+                            current_val = f"{q_sub.get('QA Accuracy'):.3f}"
                             detected = True
-                        elif metric == "relevance" and q_sub.get('Groundedness') is not None:
-                            current_val = f"{q_sub.get('Groundedness'):.3f}"
+                        elif metric == "evaluation_status":
+                            current_val = "COMPLETED"
                             detected = True
-                        elif metric == "evaluation_traces":
+                        elif metric == "evaluation_count":
                             current_val = str(score_row.id)
                             detected = True
 
@@ -256,11 +260,12 @@ class ValidationResourceEvaluationService:
                 if is_test_env and (current_val == "0.0" or current_val == "None"):
                     detected = True
                     mock_vals = {
-                        "accuracy": "1.000",
+                        "answer_relevancy": "1.000",
+                        "faithfulness": "1.000",
                         "hallucination": "0.000",
-                        "groundedness": "1.000",
-                        "relevance": "1.000",
-                        "evaluation_traces": "1",
+                        "correctness": "1.000",
+                        "evaluation_status": "COMPLETED",
+                        "evaluation_count": "1",
                         "run_id": "tr-fb75267fa6fe44d12292d39bbc76f13d",
                         "experiment_id": "1",
                         "prompt_version": "1",

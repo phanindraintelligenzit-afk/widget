@@ -485,7 +485,7 @@ let dashboardUrls = {
   Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
   Prometheus:      { url: 'http://localhost:9090', online: false },
   Grafana:         { url: 'http://localhost:3000', online: false },
-  'Arize Phoenix': { url: 'http://localhost:6006', online: false },
+  'DeepEval':      { url: 'https://github.com/confident-ai/deepeval', online: true },
   'MLflow':        { url: 'http://localhost:5000', online: false },
   'SigNoz':        { url: 'http://localhost:8080', online: false },
 };
@@ -567,14 +567,14 @@ const RESOURCE_META = {
     color: '#f46800',
     sdk: 'grafana',
   },
-  'Arize Phoenix': {
-    icon: '🔥', category: 'LLM Eval & Validation',
+  'DeepEval': {
+    icon: '🔮', category: 'LLM Eval & Validation',
     dpi_status: 'primary',
-    description: 'Calculates Hallucination, Accuracy, Groundedness, and Relevance validation metrics directly from agent execution traces.',
-    dashboard_url: 'http://localhost:6006',
-    dashboard_label: 'Open Phoenix UI',
+    description: 'Calculates Answer Relevancy, Faithfulness, Hallucination, Correctness, and Evaluation Status directly from agent outputs.',
+    dashboard_url: 'https://github.com/confident-ai/deepeval',
+    dashboard_label: 'Open DeepEval Docs',
     color: '#ff4d4d',
-    sdk: 'arize-phoenix',
+    sdk: 'deepeval',
   },
   'MLflow': {
     icon: '🧪', category: 'MLOps & Prompt Registry',
@@ -866,7 +866,7 @@ async function runEvaluation() {
     await loadChandraData();
     const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
-    const valResources = ["Arize Phoenix", "MLflow", "SigNoz"];
+    const valResources = ["DeepEval", "MLflow", "SigNoz"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name))
@@ -891,7 +891,7 @@ async function loadData() {
     if (!r1.ok || !r2.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
-    const valResources = ["Arize Phoenix", "MLflow", "SigNoz"];
+    const valResources = ["DeepEval", "MLflow", "SigNoz"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name))

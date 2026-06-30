@@ -180,12 +180,13 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "Validated Components": val,
             "Validation Score": v_score,
             
-            # Arize Phoenix
-            "accuracy": eval_map.get("Arize Phoenix:accuracy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
-            "hallucination": eval_map.get("Arize Phoenix:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
-            "groundedness": eval_map.get("Arize Phoenix:groundedness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
-            "relevance": eval_map.get("Arize Phoenix:relevance") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
-            "evaluation_traces": eval_map.get("Arize Phoenix:evaluation_traces") or "Unavailable",
+            # DeepEval
+            "answer_relevancy": eval_map.get("DeepEval:answer_relevancy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
+            "faithfulness": eval_map.get("DeepEval:faithfulness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
+            "hallucination": eval_map.get("DeepEval:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
+            "correctness": eval_map.get("DeepEval:correctness") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
+            "evaluation_status": eval_map.get("DeepEval:evaluation_status") or ("COMPLETED" if obs.quality else "Unavailable"),
+            "evaluation_count": eval_map.get("DeepEval:evaluation_count") or "Unavailable",
 
             # MLflow
             "run_id": eval_map.get("MLflow:run_id") or "Unavailable",

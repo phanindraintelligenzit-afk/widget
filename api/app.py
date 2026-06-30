@@ -622,6 +622,12 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
 @app.get("/api/validation-evaluation/resources")
 def get_validation_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     rows = repo.list_validation_resources(s)
+    if not rows:
+        from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+        service = ValidationResourceEvaluationService(s)
+        service.register_resources()
+        s.commit()
+        rows = repo.list_validation_resources(s)
     return [
         {
             "id": r.id,
@@ -642,7 +648,7 @@ def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[st
     service = ValidationResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Arize Phoenix", "MLflow", "SigNoz"}
+    active_resources = {"DeepEval", "MLflow", "SigNoz"}
     return [
         {
             "id": r.id,
@@ -663,7 +669,13 @@ def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[st
 @app.get("/api/validation-evaluation/results")
 def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     eval_rows = repo.list_latest_validation_resource_evaluations(s)
-    active_resources = {"Arize Phoenix", "MLflow", "SigNoz"}
+    if not eval_rows:
+        from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+        service = ValidationResourceEvaluationService(s)
+        service.run_evaluations()
+        s.commit()
+        eval_rows = repo.list_latest_validation_resource_evaluations(s)
+    active_resources = {"DeepEval", "MLflow", "SigNoz"}
     return [
         {
             "id": r.id,
@@ -697,7 +709,7 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
         except Exception:
             return False
 
-    phoenix_url = os.environ.get("PHOENIX_URL", "http://localhost:6006")
+    deepeval_url = os.environ.get("DEEPEVAL_URL", "https://github.com/confident-ai/deepeval")
     mlflow_url = os.environ.get("MLFLOW_URL", "http://localhost:5000")
     signoz_url = os.environ.get("SIGNOZ_URL", "http://localhost:8080")
 
@@ -706,14 +718,14 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
             return False
         return _is_reachable(url)
 
-    phoenix_online = _cloud_or_tcp(phoenix_url)
+    deepeval_online = True  # DeepEval is a library and runs in-process
     mlflow_online = _cloud_or_tcp(mlflow_url)
     signoz_online = _cloud_or_tcp(signoz_url)
 
     return {
-        "Arize Phoenix": {"url": phoenix_url, "online": phoenix_online},
-        "MLflow":        {"url": mlflow_url,        "online": mlflow_online},
-        "SigNoz":        {"url": signoz_url,        "online": signoz_online},
+        "DeepEval": {"url": deepeval_url, "online": deepeval_online},
+        "MLflow":   {"url": mlflow_url,    "online": mlflow_online},
+        "SigNoz":   {"url": signoz_url,    "online": signoz_online},
     }
 
 

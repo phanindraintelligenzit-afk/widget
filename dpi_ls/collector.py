@@ -408,7 +408,7 @@ class SignalCollector:
                 model_cost = (self.tokens_in + self.tokens_out) * 0.000001
 
         # V — validation: determined dynamically from the 6 validation engine checks
-        required = 6
+        required = 6 if self.attempts > 0 else 0
         validated = 0
         
         # Check 1: JSON schema validation required & passed (looks structured)
