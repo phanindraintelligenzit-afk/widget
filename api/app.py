@@ -238,7 +238,7 @@ def root() -> RedirectResponse:
 
 @app.get("/index.html", include_in_schema=False)
 def index_redirect() -> RedirectResponse:
-    return RedirectResponse(url="/widget/index.html")
+    return RedirectResponse(url="/widget/demo.html")
 
 
 @app.get("/resources.html", include_in_schema=False)
