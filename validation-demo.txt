@@ -1,0 +1,55 @@
+===========================================================
+DPI-LS VALIDATION DIMENSION DEMO SEQUENCE
+===========================================================
+
+This document outlines the step-by-step instructions for demonstrating the DPI-LS Validation Dimension during the review meeting.
+
+-----------------------------------------------------------
+1. STARTUP COMMANDS (Start before the meeting)
+-----------------------------------------------------------
+
+Step 1: Start MLflow Tracker
+Command:
+  uv run mlflow server --host 127.0.0.1 --port 5000
+Explanation: Launches the prompt and model registry to record agent run lineage.
+
+Step 2: Start FastAPI Backend Server
+Command:
+  uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+Explanation: Serves the scoring engine, REST endpoints, and mounts the live dashboards.
+
+Step 3: Access SigNoz UI
+Address:
+  http://localhost:8080
+Explanation: Traces telemetry request throughput and performance latency.
+
+-----------------------------------------------------------
+2. RUNTIME DEMONSTRATION STEPS
+-----------------------------------------------------------
+
+Step 1: Run the Chandra FinOps Agent
+Command:
+  uv run python examples/test_agent.py
+Action: Run this command 3 times to simulate multiple user executions.
+Expectation: The agent analyzes AWS billing anomalies and evaluates metrics. DeepEval executes in-process and scores the quality of the outputs.
+
+Step 2: Verify MLflow Experiments
+URL: http://localhost:5000
+Expectation: Three new run records will be listed in the experiment dashboard detailing the execution tags.
+
+Step 3: Open the Agent Dashboard
+URL: http://127.0.0.1:8000/index.html
+Expectation: The final validation score is computed dynamically and displayed in the score card. The Quality panel renders live accuracy and consistency scores.
+
+Step 4: Open the Resources Dashboard
+URL: http://127.0.0.1:8000/resources.html
+Action: Click the "Run Evaluation" button.
+Expectation: Evaluates the connectivity of the registered tools. The status updates dynamically, displaying "Connected" for DeepEval and MLflow, and detailed metrics populate the tables.
+
+-----------------------------------------------------------
+3. TROUBLESHOOTING
+-----------------------------------------------------------
+* Port 8000 already in use:
+  Run `Get-Process python, uvicorn -ErrorAction SilentlyContinue | Stop-Process -Force` in PowerShell to clear hanging backend processes.
+* SQLite Database is empty:
+  Querying `/api/validation-evaluation/resources` will automatically seed the registry on-the-fly.
