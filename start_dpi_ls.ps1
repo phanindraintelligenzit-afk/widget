@@ -8,9 +8,7 @@ Set-Location "D:\Projects\widget\widget"
 Write-Host "Starting FastAPI..."
 Start-Process -FilePath "uv" -ArgumentList "run uvicorn api.app:app --host 127.0.0.1 --port 8000"
 
-# 2. MLflow (Port 5000)
-Write-Host "Starting MLflow..."
-Start-Process -FilePath "uv" -ArgumentList "run mlflow server --host 127.0.0.1 --port 5000"
+# 2. (Removed MLflow)
 
 # 3. Prometheus (Port 9090)
 Write-Host "Starting Prometheus..."
@@ -23,35 +21,37 @@ $GrafDir = "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\gra
 Start-Process -FilePath "$GrafDir\grafana.exe" -ArgumentList "server --homepath .." -WorkingDirectory $GrafDir
 
 # ================================================================
-# 5. SigNoz — requires Docker Desktop to be running
+# 5. Jaeger — requires Docker Desktop
 # ================================================================
-# SigNoz does NOT run as a standalone Windows binary.
-# It requires Docker. To start SigNoz:
+# docker run -d --name jaeger \
+#   -e COLLECTOR_ZIPKIN_HOST_PORT=:9411 \
+#   -p 5775:5775/udp \
+#   -p 6831:6831/udp \
+#   -p 6832:6832/udp \
+#   -p 5778:5778 \
+#   -p 16686:16686 \
+#   -p 14268:14268 \
+#   -p 14250:14250 \
+#   -p 9411:9411 \
+#   jaegertracing/all-in-one:latest
 #
-#   docker run -d --name signoz \
-#     -p 8080:3301 \
-#     -p 4317:4317 \
-#     -p 4318:4318 \
-#     signoz/signoz:latest
-#
-# OR use the official Docker Compose:
-#   git clone https://github.com/SigNoz/signoz.git C:\signoz
-#   cd C:\signoz\deploy
-#   docker-compose up -d
-#
-# Once running, SigNoz UI is at: http://localhost:8080
-# OTel traces (from test_agent.py) go to: http://localhost:4317
+# ================================================================
+# 6. Zipkin — requires Docker Desktop
+# ================================================================
+# docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin:latest
 # ================================================================
 Write-Host ""
 Write-Host "=========================================="
-Write-Host " SIGNOZ SETUP"
+Write-Host " JAEGER & ZIPKIN SETUP"
 Write-Host "=========================================="
-Write-Host " SigNoz requires Docker Desktop."
-Write-Host " Run this in a new terminal:"
+Write-Host " Jaeger & Zipkin require Docker Desktop."
+Write-Host " Run these in a new terminal:"
 Write-Host ""
-Write-Host "   docker run -d --name signoz -p 8080:3301 -p 4317:4317 -p 4318:4318 signoz/signoz:latest"
+Write-Host "   docker run -d --name jaeger -p 16686:16686 -p 14268:14268 jaegertracing/all-in-one:latest"
+Write-Host "   docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin:latest"
 Write-Host ""
-Write-Host " Then open: http://localhost:8080"
+Write-Host " Then open: http://localhost:16686 (Jaeger)"
+Write-Host " Then open: http://localhost:9411 (Zipkin)"
 Write-Host "=========================================="
 Write-Host ""
 
@@ -60,9 +60,8 @@ Set-Location "D:\Projects\widget\widget"
 
 Write-Host "Services have been initiated. Use URLs:"
 Write-Host "  FastAPI:  http://127.0.0.1:8000"
-Write-Host "  MLflow:   http://localhost:5000"
-Write-Host "  Grafana:  http://localhost:3000"
-Write-Host "  SigNoz:   http://localhost:8080 (Docker required)"
+Write-Host "  Jaeger:   http://localhost:16686 (Docker required)"
+Write-Host "  Zipkin:   http://localhost:9411 (Docker required)"
 Write-Host ""
 Write-Host "Run agent:"
 Write-Host "  uv run python examples/test_agent.py"

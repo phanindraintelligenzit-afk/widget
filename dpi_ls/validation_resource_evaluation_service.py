@@ -23,17 +23,17 @@ class ValidationResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        """Register the 3 validation resources: DeepEval, MLflow, and SigNoz."""
+        """Register the 3 validation resources: DeepEval, Jaeger, and Zipkin."""
         from sqlalchemy import delete
-        allowed = ["DeepEval", "MLflow", "SigNoz"]
+        allowed = ["DeepEval", "Jaeger", "Zipkin"]
         self.session.execute(delete(ValidationResourceRegistryRow).where(ValidationResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ValidationResourceEvaluationRow).where(ValidationResourceEvaluationRow.resource_name.not_in(allowed)))
-        
+
         # Define owned metrics per resource
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
-            "MLflow": ["run_id", "experiment_id"],
-            "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
+            "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"],
+            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"]
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(
@@ -45,8 +45,8 @@ class ValidationResourceEvaluationService:
 
         resources = [
             ("DeepEval", True, True, False, True),
-            ("MLflow", True, True, False, True),
-            ("SigNoz", True, True, False, True),
+            ("Jaeger", True, True, False, True),
+            ("Zipkin", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             sdk_ok = self._check_sdk_avail(name)
@@ -63,8 +63,8 @@ class ValidationResourceEvaluationService:
         """Helper to check if python SDK is importable for a given validation resource name."""
         sdk_map = {
             "DeepEval": ["deepeval"],
-            "MLflow": ["mlflow"],
-            "SigNoz": ["opentelemetry"],
+            "Jaeger": ["opentelemetry"],
+            "Zipkin": ["opentelemetry"],
         }
         module_names = sdk_map.get(name, [])
         if not module_names:
@@ -78,27 +78,37 @@ class ValidationResourceEvaluationService:
         return False
 
     def _is_service_listening(self, name: str) -> bool:
-        """Check if the service port is open and listening locally."""
+        """Check if the service port is open and listening locally.
+
+        For Docker-deployed services (Jaeger, Zipkin), the only reliable signal
+        is a socket connection check. (Checking if a Python library is installed
+        doesn't guarantee the backend is up. For instance, opentelemetry might be
+        pip-installed but no Jaeger/Zipkin backend is actually running).
+        """
         port_map = {
             "DeepEval": None,
-            "MLflow": 5000,
-            "SigNoz": 8080,
+            "Jaeger": 14268,  # Jaeger HTTP collector port
+            "Zipkin": 9411,   # Zipkin HTTP collector port
         }
         port = port_map.get(name)
         if not port:
-            # DeepEval is a Python library, so return True if the SDK is available
+            # DeepEval is a Python library that runs in-process — SDK importable = available
             return self._check_sdk_avail(name)
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=1.0):
                 return True
         except (socket.timeout, ConnectionRefusedError, OSError):
-            if name == "SigNoz":
-                # Fall back to SDK check so SigNoz/OTel metrics show as online
-                return self._check_sdk_avail(name)
             return False
 
     def run_evaluations(self) -> list[ValidationResourceEvaluationRow]:
-        """Perform evaluation workflow for all validation resources and metrics."""
+        """Perform evaluation workflow for all validation resources and metrics.
+
+        Priority order for each metric value:
+        1. Real value pushed by test_agent.py via /api/validation-evaluation/push-deepeval
+           (stored in validation_resource_evaluations table).
+        2. Live Jaeger API query (for trace metrics and observability data).
+        3. "Unavailable" — never heuristic Q values.
+        """
         import time
         import urllib.request
         import json
@@ -133,49 +143,34 @@ class ValidationResourceEvaluationService:
         # Define owned metrics per resource
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
-            "MLflow": ["run_id", "experiment_id"],
-            "SigNoz": ["runtime_traces", "validation_latency", "success_count", "failure_count", "error_rate", "active_validation_requests", "dependency_health"]
+            "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"],
+            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"]
         }
 
-        # Query MLflow API directly via REST with a strict timeout to prevent thread blocking
-        mlflow_run_id = None
-        mlflow_exp_id = None
-        if liveness_cache.get("MLflow"):
-            mlflow_start = time.time()
-            try:
-                # Read MLflow URL from environment (same as test_agent.py uses)
-                mlflow_base_url = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000").rstrip("/")
-                # Query experiments search via POST with standard client fields
-                req = urllib.request.Request(
-                    f"{mlflow_base_url}/api/2.0/mlflow/experiments/search",
-                    method="POST",
-                    headers={"Content-Type": "application/json"}
-                )
-                with urllib.request.urlopen(req, data=b'{"max_results": 1000, "view_type": "ACTIVE_ONLY"}', timeout=2.0) as resp:
-                    if resp.status == 200:
-                        data = json.loads(resp.read().decode())
-                        exps = data.get("experiments", [])
-                        if exps:
-                            mlflow_exp_id = str(exps[0].get("experiment_id"))
+        # ── Read REAL DeepEval values pushed by test_agent.py ────────────────
+        # These are the values the actual DeepEval SDK produced at runtime.
+        # They live in validation_resource_evaluations (resource_name='DeepEval').
+        deepeval_real_values: dict[str, str] = {}
+        try:
+            deepeval_rows = self.session.scalars(
+                select(ValidationResourceEvaluationRow)
+                .where(ValidationResourceEvaluationRow.resource_name == "DeepEval")
+                .order_by(ValidationResourceEvaluationRow.last_run.desc(), ValidationResourceEvaluationRow.id.desc())
+            ).all()
+            # Keep only the latest row per metric
+            seen_metrics: set[str] = set()
+            for r in deepeval_rows:
+                if r.metric not in seen_metrics:
+                    deepeval_real_values[r.metric] = r.current_value or ""
+                    seen_metrics.add(r.metric)
+        except Exception as e:
+            print(f"  [DeepEval] Could not read real values: {e}")
 
-                # Query latest run in the experiment
-                if mlflow_exp_id:
-                    req_run = urllib.request.Request(
-                        f"{mlflow_base_url}/api/2.0/mlflow/runs/search",
-                        method="POST",
-                        headers={"Content-Type": "application/json"}
-                    )
-                    search_payload = json.dumps({"experiment_ids": [mlflow_exp_id], "max_results": 1}).encode()
-                    with urllib.request.urlopen(req_run, data=search_payload, timeout=1.0) as resp:
-                        if resp.status == 200:
-                            run_data = json.loads(resp.read().decode())
-                            runs = run_data.get("runs", [])
-                            if runs:
-                                mlflow_run_id = str(runs[0].get("info", {}).get("run_id"))
-            except Exception as e:
-                print(f"  [MLflow REST Query] Skipping dynamic fetch due to: {e}")
-            mlflow_dur = time.time() - mlflow_start
-            print(f"  - MLflow REST queries took {mlflow_dur:.4f}s")
+        # ── Query Jaeger API directly via REST ────────────────────────────────
+        jaeger_metrics = self._collect_jaeger_runtime_metrics(liveness_cache.get("Jaeger", False))
+
+        # ── Query Zipkin API directly via REST ────────────────────────────────
+        zipkin_metrics = self._collect_zipkin_runtime_metrics(liveness_cache.get("Zipkin", False))
 
         results = []
         for resource in resources:
@@ -185,91 +180,103 @@ class ValidationResourceEvaluationService:
                 sdk_ok = resource.sdk_available
                 api_key_req = resource.api_key_required
                 status = "SUCCESS" if service_running else "FAILED"
-                
+
                 detected = False
-                current_val = "0.0"
+                current_val = "Unavailable"
                 evidence_text = ""
-                agent_run_executed = False
+                agent_run_executed = score_row is not None
 
                 if score_row is not None:
                     agent_run_executed = True
-                    v_sub = score_row.sub_metrics.get("V", {})
-                    q_sub = score_row.sub_metrics.get("Q", {})
-                    e_sub = score_row.sub_metrics.get("E", {})
 
-                    # Extract dynamically from actual runtime execution scores
                     if resource.name == "DeepEval":
-                        if metric == "answer_relevancy" and q_sub.get('QA Accuracy') is not None:
-                            current_val = f"{q_sub.get('QA Accuracy'):.3f}"
+                        # Use ONLY real DeepEval values pushed by the SDK at runtime.
+                        # If no real value exists, mark as Unavailable — never heuristic Q values.
+                        real_val = deepeval_real_values.get(metric)
+                        if real_val and real_val not in ("", "0.0", "Unavailable"):
+                            current_val = real_val
                             detected = True
-                        elif metric == "faithfulness" and q_sub.get('Groundedness') is not None:
-                            current_val = f"{q_sub.get('Groundedness'):.3f}"
-                            detected = True
-                        elif metric == "hallucination" and q_sub.get('Hallucination Rate') is not None:
-                            current_val = f"{q_sub.get('Hallucination Rate'):.3f}"
-                            detected = True
-                        elif metric == "correctness" and q_sub.get('QA Accuracy') is not None:
-                            current_val = f"{q_sub.get('QA Accuracy'):.3f}"
-                            detected = True
-                        elif metric == "evaluation_status":
-                            current_val = "COMPLETED"
-                            detected = True
-                        elif metric == "evaluation_count":
-                            current_val = str(score_row.id)
-                            detected = True
+                            evidence_text = f"Real DeepEval SDK metric collected at runtime. Value: {current_val}."
+                        else:
+                            current_val = "Unavailable"
+                            detected = False
+                            evidence_text = (
+                                "DeepEval SDK metric not yet collected. "
+                                "Run examples/test_agent.py to populate real values."
+                            )
 
-                    elif resource.name == "MLflow":
-                        if metric == "run_id" and mlflow_run_id:
-                            current_val = mlflow_run_id
-                            detected = True
-                        elif metric == "experiment_id" and mlflow_exp_id:
-                            current_val = mlflow_exp_id
-                            detected = True
-                        elif metric == "prompt_version":
-                            current_val = "Unavailable"
-                        elif metric == "model_version":
-                            current_val = "Unavailable"
-                        elif metric == "lineage":
-                            current_val = "Unavailable"
-                        elif metric == "validation_history":
-                            current_val = "Unavailable"
-                        elif metric == "audit_evidence":
-                            current_val = "Unavailable"
+                    elif resource.name == "Jaeger":
+                        # Use live Jaeger API queries and OpenTelemetry introspection
+                        if metric == "trace_id":
+                            current_val = jaeger_metrics.get("trace_id", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = jaeger_metrics.get("trace_id_evidence", "Jaeger API query.")
+                        elif metric == "span_count":
+                            current_val = str(jaeger_metrics.get("span_count", "Unavailable"))
+                            detected = current_val not in ("Unavailable", "0", "0.0", "")
+                            evidence_text = jaeger_metrics.get("span_count_evidence", "Jaeger API query.")
+                        elif metric == "latency":
+                            current_val = jaeger_metrics.get("latency", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = jaeger_metrics.get("latency_evidence", "Jaeger API query.")
+                        elif metric == "execution_time":
+                            current_val = jaeger_metrics.get("execution_time", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = jaeger_metrics.get("execution_time_evidence", "Jaeger API query.")
+                        elif metric == "dependencies":
+                            current_val = str(jaeger_metrics.get("dependencies", "Unavailable"))
+                            detected = current_val not in ("Unavailable", "0", "0.0", "")
+                            evidence_text = jaeger_metrics.get("dependencies_evidence", "Jaeger API query.")
+                        elif metric == "request_duration":
+                            current_val = jaeger_metrics.get("request_duration", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = jaeger_metrics.get("request_duration_evidence", "Jaeger API query.")
+                        elif metric == "error_count":
+                            current_val = str(jaeger_metrics.get("error_count", "Unavailable"))
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = jaeger_metrics.get("error_count_evidence", "Jaeger API query.")
+                        elif metric == "validation_traces":
+                            current_val = str(jaeger_metrics.get("validation_traces", "Unavailable"))
+                            detected = current_val not in ("Unavailable", "0", "0.0", "")
+                            evidence_text = jaeger_metrics.get("validation_traces_evidence", "Jaeger API query.")
 
-                    elif resource.name == "SigNoz":
-                        attempts = e_sub.get("attempts")
-                        successful = e_sub.get("successful")
-                        failed = e_sub.get("failed")
-                        if metric == "runtime_traces" and attempts is not None:
-                            current_val = str(attempts)
-                            detected = True
-                        elif metric == "validation_latency":
-                            current_val = "Unavailable"
-                        elif metric == "success_count" and successful is not None:
-                            current_val = str(successful)
-                            detected = True
-                        elif metric == "failure_count" and failed is not None:
-                            current_val = str(failed)
-                            detected = True
-                        elif metric == "error_rate" and failed is not None and attempts:
-                            current_val = f"{(failed / max(attempts, 1) * 100):.1f}%"
-                            detected = True
-                        elif metric == "active_validation_requests":
-                            current_val = "Unavailable"
-                        elif metric == "dependency_health":
-                            current_val = "Healthy" if service_running else "Unhealthy"
-                            detected = True
+                    elif resource.name == "Zipkin":
+                        # Use live Zipkin API queries and OpenTelemetry introspection
+                        if metric == "trace_timeline":
+                            current_val = zipkin_metrics.get("trace_timeline", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("trace_timeline_evidence", "Zipkin API query.")
+                        elif metric == "span_timeline":
+                            current_val = zipkin_metrics.get("span_timeline", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("span_timeline_evidence", "Zipkin API query.")
+                        elif metric == "service_calls":
+                            current_val = str(zipkin_metrics.get("service_calls", "Unavailable"))
+                            detected = current_val not in ("Unavailable", "0", "0.0", "")
+                            evidence_text = zipkin_metrics.get("service_calls_evidence", "Zipkin API query.")
+                        elif metric == "request_path":
+                            current_val = zipkin_metrics.get("request_path", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("request_path_evidence", "Zipkin API query.")
+                        elif metric == "trace_latency":
+                            current_val = zipkin_metrics.get("trace_latency", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("trace_latency_evidence", "Zipkin API query.")
+                        elif metric == "execution_timeline":
+                            current_val = zipkin_metrics.get("execution_timeline", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("execution_timeline_evidence", "Zipkin API query.")
+                        elif metric == "error_timeline":
+                            current_val = zipkin_metrics.get("error_timeline", "Unavailable")
+                            detected = current_val not in ("Unavailable", "")
+                            evidence_text = zipkin_metrics.get("error_timeline_evidence", "Zipkin API query.")
 
-                    if detected:
-                        evidence_text = f"Telemetry verified from latest agent score. Value extracted: {current_val}."
-                    else:
-                        evidence_text = f"Metric '{metric}' not found or unavailable in latest agent score sub-metrics."
                 else:
                     evidence_text = "No agent run execution score found in database."
 
                 # Fallbacks or test mocks if required
                 is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
-                if is_test_env and (current_val == "0.0" or current_val == "None"):
+                if is_test_env and (current_val == "0.0" or current_val == "None" or current_val == "Unavailable"):
                     detected = True
                     mock_vals = {
                         "answer_relevancy": "1.000",
@@ -278,20 +285,21 @@ class ValidationResourceEvaluationService:
                         "correctness": "1.000",
                         "evaluation_status": "COMPLETED",
                         "evaluation_count": "1",
-                        "run_id": "tr-fb75267fa6fe44d12292d39bbc76f13d",
-                        "experiment_id": "1",
-                        "prompt_version": "1",
-                        "model_version": "qwen.qwen3-next-80b-a3b",
-                        "lineage": "AWS Bedrock",
-                        "validation_history": "100%",
-                        "audit_evidence": "Pass",
-                        "runtime_traces": "12",
-                        "validation_latency": "0.145s",
-                        "success_count": "6",
-                        "failure_count": "0",
-                        "error_rate": "0.0%",
-                        "active_validation_requests": "0",
-                        "dependency_health": "Healthy"
+                        "trace_id": "7a8b9c1d2e3f4567",
+                        "span_count": "12",
+                        "latency": "145ms",
+                        "execution_time": "2.3s",
+                        "dependencies": "3",
+                        "request_duration": "150ms",
+                        "error_count": "0",
+                        "validation_traces": "5",
+                        "trace_timeline": "2024-12-30T10:30:00Z-2024-12-30T10:32:15Z",
+                        "span_timeline": "span_001:0ms,span_002:45ms,span_003:120ms",
+                        "service_calls": "4",
+                        "request_path": "/api/agent/score -> /dpi_ls/evaluation -> /zipkin/traces",
+                        "trace_latency": "2150ms",
+                        "execution_timeline": "init:0ms,process:800ms,validate:1200ms,complete:2150ms",
+                        "error_timeline": "No errors recorded"
                     }
                     current_val = mock_vals.get(metric, "0.0")
 
@@ -310,6 +318,232 @@ class ValidationResourceEvaluationService:
         tot_dur = time.time() - total_start
         print(f"[DPI-LS Validation Service] Completed technical evaluation workflow in {tot_dur:.4f}s\n")
         return results
+
+    def _collect_jaeger_runtime_metrics(self, jaeger_online: bool) -> dict[str, Any]:
+        """Collect Jaeger runtime metrics via API queries and OpenTelemetry introspection.
+
+        When Jaeger is online, queries the Jaeger API for real trace data.
+        When offline, returns "Unavailable" for each metric so the UI clearly
+        shows the service is down.
+        """
+        result: dict[str, Any] = {
+            "trace_id": "Unavailable",
+            "span_count": "Unavailable",
+            "latency": "Unavailable",
+            "execution_time": "Unavailable",
+            "dependencies": "Unavailable",
+            "request_duration": "Unavailable",
+            "error_count": "Unavailable",
+            "validation_traces": "Unavailable",
+        }
+
+        if jaeger_online:
+            try:
+                # Query Jaeger API for the latest traces
+                jaeger_base_url = os.environ.get("JAEGER_QUERY_URL", "http://localhost:16686").rstrip("/")
+                import urllib.request
+                import json
+
+                # Get services to find our service
+                req = urllib.request.Request(f"{jaeger_base_url}/api/services")
+                with urllib.request.urlopen(req, timeout=2.0) as resp:
+                    if resp.status == 200:
+                        services = json.loads(resp.read().decode()).get("data", [])
+                        target_service = "chandra-finops-agent"  # Match the service name from test_agent.py
+
+                        if target_service in services:
+                            # Query traces for our service
+                            trace_req = urllib.request.Request(
+                                f"{jaeger_base_url}/api/traces?service={target_service}&limit=1"
+                            )
+                            with urllib.request.urlopen(trace_req, timeout=2.0) as trace_resp:
+                                if trace_resp.status == 200:
+                                    trace_data = json.loads(trace_resp.read().decode())
+                                    traces = trace_data.get("data", [])
+
+                                    if traces:
+                                        latest_trace = traces[0]
+                                        trace_id = latest_trace.get("traceID", "")[:16]  # First 16 chars
+                                        spans = latest_trace.get("spans", [])
+
+                                        # Calculate metrics from the trace data
+                                        span_count = len(spans)
+                                        total_duration = latest_trace.get("spans", [{}])[0].get("duration", 0) if spans else 0
+                                        latency_ms = total_duration / 1000  # Convert microseconds to milliseconds
+
+                                        # Count errors
+                                        error_count = sum(1 for span in spans if span.get("tags", [])
+                                                         for tag in span["tags"] if tag.get("key") == "error" and tag.get("value") == "true")
+
+                                        # Set real values
+                                        result["trace_id"] = trace_id
+                                        result["trace_id_evidence"] = f"Live Jaeger API query returned trace ID {trace_id}."
+                                        result["span_count"] = str(span_count)
+                                        result["span_count_evidence"] = f"Live Jaeger API query found {span_count} spans."
+                                        result["latency"] = f"{latency_ms:.2f}ms"
+                                        result["latency_evidence"] = f"Calculated from Jaeger trace duration: {latency_ms:.2f}ms."
+                                        result["execution_time"] = f"{latency_ms/1000:.3f}s"
+                                        result["execution_time_evidence"] = f"Derived from trace latency: {latency_ms/1000:.3f}s."
+                                        result["dependencies"] = str(len(set(span.get("process", {}).get("serviceName", "") for span in spans)))
+                                        result["dependencies_evidence"] = "Counted unique services in trace spans."
+                                        result["request_duration"] = f"{latency_ms:.2f}ms"
+                                        result["request_duration_evidence"] = f"Same as latency: {latency_ms:.2f}ms."
+                                        result["error_count"] = str(error_count)
+                                        result["error_count_evidence"] = f"Found {error_count} error spans in trace."
+                                        result["validation_traces"] = "1"
+                                        result["validation_traces_evidence"] = "Live trace found for validation service."
+
+            except Exception as e:
+                # Jaeger is online but API query failed
+                for k in list(result.keys()):
+                    if not k.endswith("_evidence"):
+                        result[k] = "0"
+                        result[k + "_evidence"] = f"Jaeger UI is reachable at http://localhost:16686 but API query failed: {str(e)[:100]}"
+        else:
+            # Jaeger is offline
+            for k in list(result.keys()):
+                if not k.endswith("_evidence"):
+                    result[k + "_evidence"] = (
+                        "Jaeger service is offline. Start Jaeger via Docker "
+                        "(see https://www.jaegertracing.io/docs/getting-started/) to enable."
+                    )
+
+        return result
+
+    def _collect_zipkin_runtime_metrics(self, zipkin_healthy: bool) -> Dict[str, str]:
+        """
+        Query Zipkin REST API for trace timeline and service call metrics.
+        """
+        zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
+        result = {
+            "trace_timeline": "Unavailable",
+            "span_timeline": "Unavailable",
+            "service_calls": "Unavailable",
+            "request_path": "Unavailable",
+            "trace_latency": "Unavailable",
+            "execution_timeline": "Unavailable",
+            "error_timeline": "Unavailable"
+        }
+
+        # Check if Zipkin is accessible
+        zipkin_online = zipkin_healthy
+        if zipkin_online:
+            try:
+                # Query Zipkin API for traces
+                # Use Zipkin's /api/v2/traces API to get recent traces
+                import datetime
+                from datetime import timedelta
+                import requests
+
+                # Look for traces in the last hour
+                end_time = datetime.datetime.now()
+                start_time = end_time - timedelta(hours=1)
+
+                # Convert to milliseconds since epoch (Zipkin format)
+                end_ts = int(end_time.timestamp() * 1000)
+                start_ts = int(start_time.timestamp() * 1000)
+
+                # Zipkin trace search API
+                traces_url = f"{zipkin_url}/api/v2/traces?endTs={end_ts}&lookback={3600000}&limit=10"
+
+                trace_response = requests.get(traces_url, timeout=5)
+                if trace_response.status_code == 200:
+                    traces = trace_response.json()
+
+                    if traces and len(traces) > 0:
+                        # Process the most recent trace
+                        recent_trace = traces[0]  # Zipkin returns array of trace arrays
+
+                        if recent_trace and len(recent_trace) > 0:
+                            # Extract timeline information
+                            spans = recent_trace
+
+                            # Get trace duration
+                            if spans:
+                                min_timestamp = min(span.get('timestamp', 0) for span in spans)
+                                max_timestamp = max(span.get('timestamp', 0) + span.get('duration', 0) for span in spans)
+                                total_duration_us = max_timestamp - min_timestamp
+                                total_duration_ms = total_duration_us / 1000.0 if total_duration_us > 0 else 0
+
+                                # Build trace timeline
+                                start_time_str = datetime.datetime.fromtimestamp(min_timestamp / 1_000_000).isoformat()
+                                end_time_str = datetime.datetime.fromtimestamp(max_timestamp / 1_000_000).isoformat()
+                                result["trace_timeline"] = f"{start_time_str}-{end_time_str}"
+                                result["trace_timeline_evidence"] = f"Zipkin trace timeline extracted from {len(spans)} spans."
+
+                                # Build span timeline
+                                span_timings = []
+                                for span in spans[:5]:  # Limit to first 5 spans
+                                    span_id = span.get('id', 'unknown')[:8]
+                                    relative_start = (span.get('timestamp', 0) - min_timestamp) / 1000.0  # Convert to ms
+                                    span_timings.append(f"{span_id}:{relative_start:.0f}ms")
+
+                                result["span_timeline"] = ",".join(span_timings)
+                                result["span_timeline_evidence"] = f"Extracted timeline from {len(span_timings)} spans."
+
+                                # Count service calls
+                                services = set()
+                                for span in spans:
+                                    if 'localEndpoint' in span and 'serviceName' in span['localEndpoint']:
+                                        services.add(span['localEndpoint']['serviceName'])
+
+                                result["service_calls"] = str(len(services))
+                                result["service_calls_evidence"] = f"Found {len(services)} distinct services in trace."
+
+                                # Build request path from span names
+                                operation_names = []
+                                for span in spans[:3]:  # First 3 operations
+                                    if 'name' in span:
+                                        operation_names.append(span['name'])
+
+                                result["request_path"] = " -> ".join(operation_names) if operation_names else "Unknown"
+                                result["request_path_evidence"] = f"Extracted from {len(operation_names)} span operations."
+
+                                # Trace latency
+                                result["trace_latency"] = f"{total_duration_ms:.0f}ms"
+                                result["trace_latency_evidence"] = f"Total trace duration: {total_duration_ms:.2f}ms."
+
+                                # Build execution timeline
+                                execution_steps = []
+                                for i, span in enumerate(spans[:4]):
+                                    relative_start = (span.get('timestamp', 0) - min_timestamp) / 1000.0
+                                    step_name = span.get('name', f'step_{i+1}').replace(' ', '_').lower()
+                                    execution_steps.append(f"{step_name}:{relative_start:.0f}ms")
+
+                                result["execution_timeline"] = ",".join(execution_steps)
+                                result["execution_timeline_evidence"] = f"Extracted from {len(execution_steps)} execution steps."
+
+                                # Check for errors
+                                error_spans = [span for span in spans if span.get('tags', {}).get('error') == 'true' or
+                                             'error' in span.get('tags', {}) or span.get('tags', {}).get('http.status_code', '').startswith('5')]
+
+                                if error_spans:
+                                    error_times = []
+                                    for span in error_spans[:3]:
+                                        relative_time = (span.get('timestamp', 0) - min_timestamp) / 1000.0
+                                        error_times.append(f"error:{relative_time:.0f}ms")
+                                    result["error_timeline"] = ",".join(error_times)
+                                    result["error_timeline_evidence"] = f"Found {len(error_spans)} error spans."
+                                else:
+                                    result["error_timeline"] = "No errors recorded"
+                                    result["error_timeline_evidence"] = "No error tags found in trace spans."
+
+            except Exception as e:
+                # Zipkin is online but API query failed
+                for k in list(result.keys()):
+                    if not k.endswith("_evidence"):
+                        result[k] = "0"
+                        result[k + "_evidence"] = f"Zipkin UI is reachable at http://localhost:9411 but API query failed: {str(e)[:100]}"
+        else:
+            # Zipkin is offline
+            for k in list(result.keys()):
+                if not k.endswith("_evidence"):
+                    result[k + "_evidence"] = (
+                        "Zipkin service is offline. Start Zipkin via Docker "
+                        "(docker run -d -p 9411:9411 openzipkin/zipkin) to enable."
+                    )
+
+        return result
 
     def _get_env_keys(self, name: str) -> list[str]:
         return []

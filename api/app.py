@@ -22,72 +22,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
-# Port Check and Cleanup at Startup
-def check_port_and_cleanup():
-    import sys
-    import socket
-    import subprocess
-    import time
-
-    # Only run check if we are starting via uvicorn
-    is_uvicorn = any("uvicorn" in arg for arg in sys.argv)
-    if not is_uvicorn:
-        return
-
-    port = 8000
-    for i, arg in enumerate(sys.argv):
-        if arg == "--port" and i + 1 < len(sys.argv):
-            try:
-                port = int(sys.argv[i + 1])
-            except ValueError:
-                pass
-
-    occupied_pid = None
-    try:
-        out = subprocess.check_output("netstat -ano", shell=True).decode()
-        for line in out.splitlines():
-            if f":{port} " in line and "LISTENING" in line:
-                parts = line.strip().split()
-                if len(parts) >= 5:
-                    try:
-                        occupied_pid = int(parts[-1])
-                    except ValueError:
-                        pass
-                    break
-    except Exception:
-        pass
-
-    if occupied_pid is not None and occupied_pid != os.getpid():
-        try:
-            subprocess.run(f"taskkill /F /PID {occupied_pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(0.5)
-        except Exception:
-            pass
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.bind(("127.0.0.1", port))
-        s.close()
-    except OSError:
-        if port == 8000:
-            args = list(sys.argv)
-            if "--port" in args:
-                idx = args.index("--port")
-                if idx + 1 < len(args):
-                    args[idx + 1] = "8001"
-            else:
-                args.extend(["--port", "8001"])
-            
-            try:
-                if sys.argv[0].endswith(".py"):
-                    os.execv(sys.executable, [sys.executable] + args)
-                else:
-                    os.execv(sys.argv[0], args)
-            except Exception:
-                pass
-
-check_port_and_cleanup()
-
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -648,7 +582,7 @@ def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[st
     service = ValidationResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"DeepEval", "MLflow", "SigNoz"}
+    active_resources = {"DeepEval", "Jaeger", "Zipkin"}
     return [
         {
             "id": r.id,
@@ -675,7 +609,7 @@ def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[
         service.run_evaluations()
         s.commit()
         eval_rows = repo.list_latest_validation_resource_evaluations(s)
-    active_resources = {"DeepEval", "MLflow", "SigNoz"}
+    active_resources = {"DeepEval", "Jaeger", "Zipkin"}
     return [
         {
             "id": r.id,
@@ -728,6 +662,76 @@ def push_deepeval_results(
     return {"updated": updated, "count": len(updated)}
 
 
+@app.post("/api/validation-evaluation/push-jaeger")
+def push_jaeger_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """
+    Accept Jaeger trace metrics from test_agent.py and persist them
+    directly so the dashboard shows live values without needing a full evaluation run.
+    Payload: { "trace_id": "abc123", "span_count": "5", "latency": "150ms", ... }
+    """
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    jaeger_metrics = [
+        "trace_id", "span_count", "latency", "execution_time",
+        "dependencies", "request_duration", "error_count", "validation_traces",
+    ]
+    for metric in jaeger_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_validation_resource_evaluation(
+                s,
+                resource_name="Jaeger",
+                metric=metric,
+                detected=True,
+                evidence=f"Real Jaeger trace metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
+@app.post("/api/validation-evaluation/push-zipkin")
+def push_zipkin_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """
+    Accept Zipkin trace timeline metrics from test_agent.py and persist them
+    directly so the dashboard shows live values without needing a full evaluation run.
+    Payload: { "trace_timeline": "...", "span_timeline": "...", "service_calls": "4", ... }
+    """
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    zipkin_metrics = [
+        "trace_timeline", "span_timeline", "service_calls", "request_path",
+        "trace_latency", "execution_timeline", "error_timeline",
+    ]
+    for metric in zipkin_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_validation_resource_evaluation(
+                s,
+                resource_name="Zipkin",
+                metric=metric,
+                detected=True,
+                evidence=f"Real Zipkin trace metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
     """Return validation dashboard URLs with live reachability status."""
@@ -745,8 +749,8 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
             return False
 
     deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
-    mlflow_url = os.environ.get("MLFLOW_URL", "http://localhost:5000")
-    signoz_url = os.environ.get("SIGNOZ_URL", "http://localhost:8080")
+    jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
+    zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
 
     def _cloud_or_tcp(url: str) -> bool:
         if not url or url.strip() == "":
@@ -754,20 +758,13 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
         return _is_reachable(url)
 
     deepeval_online = True  # DeepEval is a library and runs in-process
-    mlflow_online = _cloud_or_tcp(mlflow_url)
-    
-    # Fallback: if port is down but OTel SDK is importable, show online/reachable
-    try:
-        import opentelemetry
-        has_otel = True
-    except ImportError:
-        has_otel = False
-    signoz_online = _cloud_or_tcp(signoz_url) or has_otel
+    jaeger_online = _cloud_or_tcp(jaeger_url)
+    zipkin_online = _cloud_or_tcp(zipkin_url)
 
     return {
         "DeepEval": {"url": deepeval_url, "online": deepeval_online},
-        "MLflow":   {"url": mlflow_url,    "online": mlflow_online},
-        "SigNoz":   {"url": signoz_url,    "online": signoz_online},
+        "Jaeger":   {"url": jaeger_url,    "online": jaeger_online},
+        "Zipkin":   {"url": zipkin_url,    "online": zipkin_online},
     }
 
 

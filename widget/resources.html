@@ -486,8 +486,8 @@ let dashboardUrls = {
   Prometheus:      { url: 'http://localhost:9090', online: false },
   Grafana:         { url: 'http://localhost:3000', online: false },
   'DeepEval':      { url: 'https://deepeval.com', online: true },
-  'MLflow':        { url: 'http://localhost:5000', online: false },
-  'SigNoz':        { url: 'http://localhost:8080', online: false },
+  'Jaeger':        { url: 'http://localhost:16686', online: false },
+  'Zipkin':        { url: 'http://localhost:9411', online: false },
 };
 
 async function loadChandraData() {
@@ -572,26 +572,26 @@ const RESOURCE_META = {
     dpi_status: 'primary',
     description: 'Calculates Answer Relevancy, Faithfulness, Hallucination, Correctness, and Evaluation Status directly from agent outputs.',
     dashboard_url: 'https://deepeval.com',
-    dashboard_label: 'DeepEval Documentation',
+    dashboard_label: 'Open DeepEval',
     color: '#ff4d4d',
     sdk: 'deepeval',
   },
-  'MLflow': {
-    icon: '🧪', category: 'MLOps & Prompt Registry',
+  'Jaeger': {
+    icon: '🔍', category: 'Distributed Tracing & Observability',
     dpi_status: 'foundational',
-    description: 'Tracks validation runs, lineage, and experiment artifacts. Ensures model and prompt version control with full audit logs.',
-    dashboard_url: 'http://localhost:5000',
-    dashboard_label: 'Open MLflow UI',
-    color: '#0194e2',
-    sdk: 'mlflow',
+    description: 'Monitors validation service traces, latency, span counts, and error rates. Provides deep visibility into validation runtime behavior.',
+    dashboard_url: 'http://localhost:16686',
+    dashboard_label: 'Open Jaeger UI',
+    color: '#60dea9',
+    sdk: 'opentelemetry',
   },
-  'SigNoz': {
-    icon: '📊', category: 'OpenTelemetry Observability',
-    dpi_status: 'recommended',
-    description: 'Monitors runtime latency, requests volume, and error rates of active validations. Uses OpenTelemetry metrics for validation health.',
-    dashboard_url: 'http://localhost:8080',
-    dashboard_label: 'Open SigNoz UI',
-    color: '#ee4337',
+  'Zipkin': {
+    icon: '⚡', category: 'Distributed Tracing',
+    dpi_status: 'foundational',
+    description: 'Tracks trace timelines, service calls, and latency. Provides a comprehensive view of execution duration.',
+    dashboard_url: 'http://localhost:9411',
+    dashboard_label: 'Open Zipkin UI',
+    color: '#ff9800',
     sdk: 'opentelemetry',
   },
 };
@@ -697,13 +697,20 @@ function formatMetricValue(metric, current_value) {
 }
 
 function renderResourceTable(metrics, name) {
+  const liveMetrics = {};
+  metrics.forEach(m => {
+    liveMetrics[m.metric] = m.current_value;
+  });
+
   if (['Langfuse', 'Prometheus', 'Grafana'].includes(name)) {
     if (typeof window.renderCostTableHtml === 'function') {
-      return window.renderCostTableHtml(chandraCostSub, settingsObj, chandraCostValue, name);
+      const mergedSub = { ...chandraCostSub, ...liveMetrics };
+      return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
     }
   } else {
     if (typeof window.renderValidationTableHtml === 'function') {
-      return window.renderValidationTableHtml(chandraSub, settingsObj, chandraValidationValue, name);
+      const mergedSub = { ...chandraSub, ...liveMetrics };
+      return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);
     }
   }
   return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
@@ -871,7 +878,7 @@ async function runEvaluation() {
     await loadChandraData();
     const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
-    const valResources = ["DeepEval", "MLflow", "SigNoz"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name))
@@ -896,7 +903,7 @@ async function loadData() {
     if (!r1.ok || !r2.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
-    const valResources = ["DeepEval", "MLflow", "SigNoz"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name))

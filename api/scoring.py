@@ -189,23 +189,24 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "evaluation_status": eval_map.get("DeepEval:evaluation_status") or ("COMPLETED" if obs.quality else "Unavailable"),
             "evaluation_count": eval_map.get("DeepEval:evaluation_count") or "Unavailable",
 
-            # MLflow
-            "run_id": eval_map.get("MLflow:run_id") or "Unavailable",
-            "experiment_id": eval_map.get("MLflow:experiment_id") or "Unavailable",
-            "prompt_version": eval_map.get("MLflow:prompt_version") or "Unavailable",
-            "model_version": eval_map.get("MLflow:model_version") or "Unavailable",
-            "lineage": eval_map.get("MLflow:lineage") or "Unavailable",
-            "validation_history": eval_map.get("MLflow:validation_history") or "Unavailable",
-            "audit_evidence": eval_map.get("MLflow:audit_evidence") or "Unavailable",
+            # Jaeger
+            "trace_id": eval_map.get("Jaeger:trace_id") or "Unavailable",
+            "runtime_trace_count": eval_map.get("Jaeger:validation_traces") or "Unavailable",
+            "span_count": eval_map.get("Jaeger:span_count") or "Unavailable",
+            "latency": eval_map.get("Jaeger:latency") or "Unavailable",
+            "execution_time": eval_map.get("Jaeger:execution_time") or "Unavailable",
+            "dependency_graph": eval_map.get("Jaeger:dependencies") or "Unavailable",
+            "request_duration": eval_map.get("Jaeger:request_duration") or "Unavailable",
+            "error_count": eval_map.get("Jaeger:error_count") or "Unavailable",
 
-            # SigNoz
-            "runtime_traces": eval_map.get("SigNoz:runtime_traces") or "Unavailable",
-            "validation_latency": eval_map.get("SigNoz:validation_latency") or "Unavailable",
-            "success_count": eval_map.get("SigNoz:success_count") or "Unavailable",
-            "failure_count": eval_map.get("SigNoz:failure_count") or "Unavailable",
-            "error_rate": eval_map.get("SigNoz:error_rate") or "Unavailable",
-            "active_validation_requests": eval_map.get("SigNoz:active_validation_requests") or "Unavailable",
-            "dependency_health": eval_map.get("SigNoz:dependency_health") or "Unavailable",
+            # Zipkin
+            "trace_timeline": eval_map.get("Zipkin:trace_timeline") or "Unavailable",
+            "span_timeline": eval_map.get("Zipkin:span_timeline") or "Unavailable",
+            "service_calls": eval_map.get("Zipkin:service_calls") or "Unavailable",
+            "request_path": eval_map.get("Zipkin:request_path") or "Unavailable",
+            "trace_latency": eval_map.get("Zipkin:trace_latency") or "Unavailable",
+            "execution_timeline": eval_map.get("Zipkin:execution_timeline") or "Unavailable",
+            "error_timeline": eval_map.get("Zipkin:error_timeline") or "Unavailable",
         }
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")

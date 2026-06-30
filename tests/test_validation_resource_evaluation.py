@@ -21,8 +21,8 @@ def test_seeding_and_evaluation(client):
         resource_names = {r.name for r in resources}
         expected_names = {
             "DeepEval",
-            "MLflow",
-            "SigNoz",
+            "Jaeger",
+            "Zipkin",
         }
         assert expected_names.issubset(resource_names)
 
@@ -40,14 +40,14 @@ def test_api_endpoints_validation_evaluation(client):
     r_eval = client.post("/api/validation-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
-    # 3 resources: DeepEval (6 metrics), MLflow (2 metrics), SigNoz (7 metrics) = 15 total results
-    assert len(eval_results) == 15
+    # 3 resources: DeepEval (6 metrics), Jaeger (8 metrics), Zipkin (7 metrics) = 21 total results
+    assert len(eval_results) == 21
 
     # 3. GET /api/validation-evaluation/results
     r_results = client.get("/api/validation-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 15
+    assert len(latest_results) == 21
 
     # Check that DeepEval answer_relevancy is detected
     deepeval_accuracy = [

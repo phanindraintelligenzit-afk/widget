@@ -1,105 +1,128 @@
-========================================
-SECTION 1
-COST DIMENSION
-========================================
+==========================================================
+DPI-LS TEST EXECUTION RESULTS
+==========================================================
+Date: 30-06-2026
 
-1. Start Backend:
-   Command: uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
-   Explanation: Starts the FastAPI server which serves the API endpoints and mounts the static dashboards.
+==========================================================
+VERIFICATION COMMANDS & CHECKS
+==========================================================
 
-2. Start Prometheus:
-   Command: C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64\prometheus.exe --config.file=prometheus.yml --web.listen-address=127.0.0.1:9090
-   Explanation: Launches the Prometheus metrics collector to poll and store cost telemetry.
+1. Activate Virtual Environment
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& .\.venv\Scripts\Activate.ps1)
 
-3. Start Grafana:
-   Command: C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin\grafana.exe server --homepath C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2
-   Explanation: Runs the Grafana server to display visual analytical panels.
+2. Verify Docker Containers
+docker ps
 
-4. Start Langfuse:
-   Command: Langfuse runs on the cloud host (https://cloud.langfuse.com).
-   Explanation: Used to log LLM queries, token consumption, and trace execution details.
+Expected Running Containers:
+- Jaeger
+- Zipkin
 
-5. Run Agent:
-   Command: uv run python examples/test_agent.py
-   Explanation: Triggers agent runs to generate real cost telemetry and output results.
+3. Start DPI-LS Backend
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
 
-6. Run Tests:
-   Command: uv run pytest tests/test_cost_resource_evaluation.py
-   Explanation: Runs integration tests verifying that cost metrics are exported and loaded correctly.
+Verify:
+- Application startup complete
+- Started Prometheus metrics export task
 
-URLs:
-* Metrics URL: http://127.0.0.1:8000/metrics
-* Grafana URL: http://localhost:3000
-* Langfuse URL: https://cloud.langfuse.com
-* Resources Dashboard URL: http://127.0.0.1:8000/resources.html
-* Agent Dashboard URL: http://127.0.0.1:8000/index.html
+4. Open Dashboard
+http://127.0.0.1:8000/widget/demo.html
 
+5. Open Resources Dashboard
+http://127.0.0.1:8000/widget/resources.html
 
-========================================
-SECTION 2
-VALIDATION DIMENSION
-========================================
+6. Run Chandra FinOps Agent
+uv run python examples/test_agent.py
 
-1. Start Backend:
-   Command: uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
-   Explanation: Runs the primary backend, enabling validation APIs and the self-healing DB registry.
+This verifies:
+- DeepEval
+- Jaeger
+- Zipkin
+- Validation Metrics
+- Cost Metrics
+- Dashboard updates
 
-2. Start MLflow:
-   Command: uv run mlflow server --host 127.0.0.1 --port 5000
-   Explanation: Starts the MLflow tracking server. Agent runs will log metrics, params, and artifacts here.
-   NOTE: After running test_agent.py, go to http://localhost:5000 → Experiments → Chandra-FinOps
-         to see real run data (accuracy, hallucination_rate, dpi_ls_score, etc.)
-   WHY IT WAS EMPTY: The agent was not calling mlflow.start_run() before. Now it does automatically.
+7. Multiple Agent Runs
+for ($i=1; $i -le 5; $i++) {
+    uv run python examples/test_agent.py
+}
 
-3. Start SigNoz (requires Docker Desktop):
-   Command: docker run -d --name signoz -p 8080:3301 -p 4317:4317 -p 4318:4318 signoz/signoz:latest
-   Explanation: SigNoz is an OpenTelemetry-based observability platform. Must be running Docker Desktop.
-   UI: http://localhost:8080
-   OTel GRPC endpoint: http://localhost:4317 (receives traces from test_agent.py)
-   WHY IT WAS NOT OPENING: SigNoz requires Docker — it cannot run as a standalone Windows process.
+This verifies:
+- Continuous telemetry
+- Multiple traces
+- Live dashboard updates
+- Resource evaluation
 
-4. Run Evaluation Harness (DeepEval):
-   Command: DeepEval now runs automatically inside test_agent.py via the DeepEval SDK.
-   Explanation: Real AnswerRelevancyMetric, FaithfulnessMetric, and HallucinationMetric are computed
-   from the actual agent output and pushed directly to the dashboard via /api/validation-evaluation/push-deepeval.
-   WHY IT WAS NOT SHOWING: The DeepEval SDK was never actually called — only names were used.
+8. Verify Jaeger
+Open:
+http://localhost:16686
 
-5. Run Agent:
-   Command: uv run python examples/test_agent.py
-   Explanation: Runs the Chandra FinOps agent.
-   After each run:
-   - DeepEval metrics (real SDK scores) are pushed to the dashboard
-   - MLflow logs the run with params + metrics
-   - SigNoz receives OpenTelemetry spans (if Docker is running)
+Check:
+- Service: chandra-finops-agent
+- Traces are visible
+- Spans: agent_initialization, bedrock_call, validation_check
+- Trace IDs
+- Span Count
 
-6. Run Tests:
-   Command: uv run pytest tests/test_validation_resource_evaluation.py
-   Explanation: Verifies all DeepEval, MLflow, and SigNoz integration endpoints.
+9. Verify Zipkin
+Open:
+http://localhost:9411
 
-URLs:
-* MLflow URL: http://localhost:5000
-  - Go to: Experiments > Chandra-FinOps > latest run to see real metrics
-  - TIME FILTER: Change "Last Hour" to "Last 7 Days" if you ran the agent hours ago
-* SigNoz URL: http://localhost:8080 (only works if Docker container is running)
-* DeepEval: Runs in-process. Results appear in Resources dashboard automatically.
-* Resources Dashboard URL: http://127.0.0.1:8000/resources.html
-* Agent Dashboard URL: http://127.0.0.1:8000/index.html
+Check:
+- Trace Timeline
+- Span Timeline
+- Service Calls
+- Request Path
+- Execution Timeline
+- Error Timeline
 
-========================================
-TROUBLESHOOTING
-========================================
+10. Verify Resources Dashboard
+Open:
+http://127.0.0.1:8000/widget/resources.html
 
-MLflow shows "No data available for selected time range":
-  - CAUSE: You ran the agent more than 1 hour ago, but the filter is set to "Last Hour"
-  - FIX: In MLflow UI → click the time filter dropdown → select "Last 7 days" or "Last 30 days"
-  - FIX: Or simply run: uv run python examples/test_agent.py  (creates a new run NOW)
+Confirm:
+- DeepEval: Answer Relevancy, Faithfulness, Correctness, Evaluation Status, Evaluation Count
+- Jaeger: Trace ID, Validation Traces, Span Count, Latency, Execution Time, Dependencies, Request Duration, Error Count
+- Zipkin: Trace Timeline, Span Timeline, Service Calls, Request Path, Trace Latency, Execution Timeline, Error Timeline
+- Langfuse (Cost): Input Tokens, Output Tokens, Prompt Cost, Completion Cost, Model Cost
+- Prometheus (Cost): AI Cost per Output, Utilization
+- Grafana (Cost): Human Cost, Efficiency Ratio, Cost Score, TCO
 
-SigNoz shows "Service Offline" in the dashboard:
-  - CAUSE: SigNoz requires Docker Desktop. It is not installed as a Windows service.
-  - FIX: Install Docker Desktop, then run:
-    docker run -d --name signoz -p 8080:3301 -p 4317:4317 signoz/signoz:latest
+11. Verify Dashboard
+Open:
+http://127.0.0.1:8000/widget/demo.html
 
-DeepEval shows "Unavailable":
-  - CAUSE: The agent has not been run yet, OR the evaluation failed silently.
-  - FIX: Run: uv run python examples/test_agent.py
-  - NOTE: DeepEval requires the AWS Bedrock model to be reachable for LLM-based evaluation.
+Confirm:
+- PI Score
+- Validation Score
+- Cost Score
+- Overall Dashboard updates
+
+==========================================================
+FINAL VERIFICATION CHECKLIST
+==========================================================
+Component                       Status
+--------------------------------------
+Docker                          PASS
+Backend                         PASS
+Dashboard                       PASS
+Resources Dashboard             PASS
+DeepEval                        PASS
+Jaeger                          PASS
+Zipkin                          PASS
+Langfuse                        PASS
+Prometheus                      PASS
+Grafana                         PASS
+Cost Metrics                    PASS
+Validation Metrics              PASS
+Live Runtime Metrics            PASS
+Trace Collection                PASS
+Chandra Agent                   PASS
+
+==========================================================
+OVERALL STATUS
+==========================================================
+Cost Dimension (C): PASS
+Validation Dimension (V): PASS
+
+Overall Project Status:
+READY FOR USER TESTING

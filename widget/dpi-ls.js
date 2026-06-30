@@ -272,18 +272,22 @@
 
 
 
-    const runId = sub.run_id || "Unavailable";
-    const experimentId = sub.experiment_id || "Unavailable";
+    const traceId = sub.trace_id || "Unavailable";
+    const spanCount = sub.span_count || "Unavailable";
+    const latency = sub.latency || "Unavailable";
+    const executionTime = sub.execution_time || "Unavailable";
+    const dependencies = sub.dependencies || "Unavailable";
+    const requestDuration = sub.request_duration || "Unavailable";
+    const errorCount = sub.error_count || "Unavailable";
+    const validationTraces = sub.validation_traces || "Unavailable";
 
-    const isSigNozOffline = !sub.dependency_health || sub.dependency_health === "Unavailable" || sub.dependency_health === "Unhealthy" || sub.dependency_health === "Offline";
-
-    const runtimeTraces = isSigNozOffline ? "Service Offline" : (sub.runtime_traces || "Unavailable");
-    const validationLatency = isSigNozOffline ? "Service Offline" : (sub.validation_latency || "Unavailable");
-    const successCount = isSigNozOffline ? "Service Offline" : (sub.success_count || "Unavailable");
-    const failureCount = isSigNozOffline ? "Service Offline" : (sub.failure_count || "Unavailable");
-    const errorRate = isSigNozOffline ? "Service Offline" : (sub.error_rate || "Unavailable");
-    const activeValRequests = isSigNozOffline ? "Service Offline" : (sub.active_validation_requests || "Unavailable");
-    const dependencyHealth = isSigNozOffline ? "Service Offline" : (sub.dependency_health || "Unavailable");
+    const traceTimeline = sub.trace_timeline || "Unavailable";
+    const spanTimeline = sub.span_timeline || "Unavailable";
+    const serviceCalls = sub.service_calls || "Unavailable";
+    const requestPath = sub.request_path || "Unavailable";
+    const traceLatency = sub.trace_latency || "Unavailable";
+    const executionTimeline = sub.execution_timeline || "Unavailable";
+    const errorTimeline = sub.error_timeline || "Unavailable";
 
     return {
       answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
@@ -293,16 +297,22 @@
       evaluation_status: { val: sub.evaluation_status || "Unavailable", calc: sub.evaluation_status || "Unavailable", disp: sub.evaluation_status || "Unavailable", formula: "Evaluation Status", src: "DeepEval", resource: "DeepEval", dec: 0 },
       evaluation_count: { val: sub.evaluation_count || "Unavailable", calc: sub.evaluation_count || "Unavailable", disp: sub.evaluation_count || "Unavailable", formula: "Evaluation Count", src: "DeepEval", resource: "DeepEval", dec: 0 },
 
-      run_id: { val: runId, calc: runId, disp: runId, formula: "Active Run UUID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
-      experiment_id: { val: experimentId, calc: experimentId, disp: experimentId, formula: "Experiment ID", src: "MLflow Registry", resource: "MLflow", dec: 0 },
+      trace_id: { val: traceId, calc: traceId, disp: traceId, formula: "Active Trace ID", src: "Jaeger Registry", resource: "Jaeger", dec: 0 },
+      validation_traces: { val: validationTraces, calc: validationTraces, disp: validationTraces, formula: "Runtime Trace Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      span_count: { val: spanCount, calc: spanCount, disp: spanCount, formula: "Span Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      latency: { val: latency, calc: latency, disp: latency, formula: "Latency", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      execution_time: { val: executionTime, calc: executionTime, disp: executionTime, formula: "Execution Time", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      dependencies: { val: dependencies, calc: dependencies, disp: dependencies, formula: "Dependency Graph", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      request_duration: { val: requestDuration, calc: requestDuration, disp: requestDuration, formula: "Request Duration", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      error_count: { val: errorCount, calc: errorCount, disp: errorCount, formula: "Error Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
 
-      runtime_traces: { val: runtimeTraces, calc: runtimeTraces, disp: runtimeTraces, formula: "Total Spans Captured", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      validation_latency: { val: validationLatency, calc: validationLatency, disp: validationLatency, formula: "Response Latency", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      success_count: { val: successCount, calc: successCount, disp: successCount, formula: "Success Checks Count", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      failure_count: { val: failureCount, calc: failureCount, disp: failureCount, formula: "Failure Checks Count", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      error_rate: { val: errorRate, calc: errorRate, disp: errorRate, formula: "Failures ÷ Total Checks", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      active_validation_requests: { val: activeValRequests, calc: activeValRequests, disp: activeValRequests, formula: "Active Requests", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
-      dependency_health: { val: dependencyHealth, calc: dependencyHealth, disp: dependencyHealth, formula: "OTel Dependency Status", src: "SigNoz Dashboard", resource: "SigNoz", dec: 0 },
+      trace_timeline: { val: traceTimeline, calc: traceTimeline, disp: traceTimeline, formula: "Trace Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      span_timeline: { val: spanTimeline, calc: spanTimeline, disp: spanTimeline, formula: "Span Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      service_calls: { val: serviceCalls, calc: serviceCalls, disp: serviceCalls, formula: "Service Calls", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      request_path: { val: requestPath, calc: requestPath, disp: requestPath, formula: "Request Path", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      trace_latency: { val: traceLatency, calc: traceLatency, disp: traceLatency, formula: "Trace Latency", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      execution_timeline: { val: executionTimeline, calc: executionTimeline, disp: executionTimeline, formula: "Execution Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      error_timeline: { val: errorTimeline, calc: errorTimeline, disp: errorTimeline, formula: "Error Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
     };
   }
 
@@ -1561,7 +1571,7 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "DeepEval", "MLflow"];
+      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "DeepEval", "Jaeger", "Zipkin"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q
