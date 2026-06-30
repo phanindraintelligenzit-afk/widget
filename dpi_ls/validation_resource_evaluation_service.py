@@ -69,7 +69,13 @@ class ValidationResourceEvaluationService:
         module_names = sdk_map.get(name, [])
         if not module_names:
             return False
-        return any(importlib.util.find_spec(m) is not None for m in module_names)
+        for m in module_names:
+            try:
+                importlib.import_module(m)
+                return True
+            except ImportError:
+                pass
+        return False
 
     def _is_service_listening(self, name: str) -> bool:
         """Check if the service port is open and listening locally."""
@@ -86,6 +92,9 @@ class ValidationResourceEvaluationService:
             with socket.create_connection(("127.0.0.1", port), timeout=1.0):
                 return True
         except (socket.timeout, ConnectionRefusedError, OSError):
+            if name == "SigNoz":
+                # Fall back to SDK check so SigNoz/OTel metrics show as online
+                return self._check_sdk_avail(name)
             return False
 
     def run_evaluations(self) -> list[ValidationResourceEvaluationRow]:

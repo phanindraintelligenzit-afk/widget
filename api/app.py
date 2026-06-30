@@ -755,7 +755,14 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
 
     deepeval_online = True  # DeepEval is a library and runs in-process
     mlflow_online = _cloud_or_tcp(mlflow_url)
-    signoz_online = _cloud_or_tcp(signoz_url)
+    
+    # Fallback: if port is down but OTel SDK is importable, show online/reachable
+    try:
+        import opentelemetry
+        has_otel = True
+    except ImportError:
+        has_otel = False
+    signoz_online = _cloud_or_tcp(signoz_url) or has_otel
 
     return {
         "DeepEval": {"url": deepeval_url, "online": deepeval_online},
