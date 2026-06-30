@@ -793,7 +793,7 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 Cost Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${meta.category === 'Validation' ? 'Validation' : 'Cost'} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">

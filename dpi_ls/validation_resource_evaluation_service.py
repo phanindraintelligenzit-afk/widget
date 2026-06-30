@@ -83,7 +83,7 @@ class ValidationResourceEvaluationService:
             # DeepEval is a Python library, so return True if the SDK is available
             return self._check_sdk_avail(name)
         try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+            with socket.create_connection(("127.0.0.1", port), timeout=1.0):
                 return True
         except (socket.timeout, ConnectionRefusedError, OSError):
             return False
@@ -112,10 +112,11 @@ class ValidationResourceEvaluationService:
             status_str = "Connected" if is_alive else "Unavailable"
             print(f"  - {resource.name}: {status_str} (checked in {chk_dur:.4f}s)")
 
-        # Try to find the latest score row to read actual live runtime values
+        # Fetch the latest score for the configured agent (not hardcoded)
+        agent_id = os.environ.get("AGENT_ID", "chandra-finops")
         score_row = self.session.scalars(
             select(ScoreRow)
-            .where(ScoreRow.agent_id == "chandra-finops")
+            .where(ScoreRow.agent_id == agent_id)
             .order_by(ScoreRow.id.desc())
             .limit(1)
         ).first()
@@ -133,13 +134,15 @@ class ValidationResourceEvaluationService:
         if liveness_cache.get("MLflow"):
             mlflow_start = time.time()
             try:
+                # Read MLflow URL from environment (same as test_agent.py uses)
+                mlflow_base_url = os.environ.get("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000").rstrip("/")
                 # Query experiments search via POST with standard client fields
                 req = urllib.request.Request(
-                    "http://127.0.0.1:5000/api/2.0/mlflow/experiments/search",
+                    f"{mlflow_base_url}/api/2.0/mlflow/experiments/search",
                     method="POST",
                     headers={"Content-Type": "application/json"}
                 )
-                with urllib.request.urlopen(req, data=b'{"max_results": 1000, "view_type": "ACTIVE_ONLY"}', timeout=1.0) as resp:
+                with urllib.request.urlopen(req, data=b'{"max_results": 1000, "view_type": "ACTIVE_ONLY"}', timeout=2.0) as resp:
                     if resp.status == 200:
                         data = json.loads(resp.read().decode())
                         exps = data.get("experiments", [])
@@ -149,7 +152,7 @@ class ValidationResourceEvaluationService:
                 # Query latest run in the experiment
                 if mlflow_exp_id:
                     req_run = urllib.request.Request(
-                        "http://127.0.0.1:5000/api/2.0/mlflow/runs/search",
+                        f"{mlflow_base_url}/api/2.0/mlflow/runs/search",
                         method="POST",
                         headers={"Content-Type": "application/json"}
                     )

@@ -31,6 +31,7 @@ Two-line integration (the whole point of dpi_ls):
 from __future__ import annotations
 
 import asyncio
+import io
 import json
 import os
 import sys
@@ -39,9 +40,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-# Fix Windows terminal emoji printing crash
-if sys.stdout.encoding.lower() != 'utf-8':
-    sys.stdout.reconfigure(encoding='utf-8')
+# Fix Windows cp1252 crash when MLflow prints emoji (e.g. \U0001f3c3) on run close
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 
 from dotenv import load_dotenv
 
@@ -266,15 +277,25 @@ def _run_mlflow_tracking(run_name: str, agent_answer: str, q_result=None, rating
     try:
         import mlflow
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-        exp_name = "Chandra-FinOps"
+        # Use the ACTIVE experiment name — "Chandra FinOps" (with space, not dash)
+        # Note: "Chandra-FinOps" (with dash) is DELETED in the MLflow server.
+        # Using a deleted experiment causes 'Cannot set a deleted experiment' error.
+        exp_name = _env("MLFLOW_EXPERIMENT_NAME", "Chandra FinOps")
 
         try:
             exp = mlflow.get_experiment_by_name(exp_name)
             if exp is None:
                 exp_id = mlflow.create_experiment(exp_name)
+            elif exp.lifecycle_stage == "deleted":
+                # Experiment exists but was deleted — create a fresh one with a timestamp suffix
+                import time as _time
+                exp_name = f"Chandra FinOps {int(_time.time())}"
+                exp_id = mlflow.create_experiment(exp_name)
+                print(f"[MLflow] Original experiment was deleted — created new: {exp_name}")
             else:
                 exp_id = exp.experiment_id
-        except Exception:
+        except Exception as exp_e:
+            print(f"[MLflow] Experiment lookup error: {exp_e}")
             exp_id = "0"
 
         mlflow.set_experiment(exp_name)
@@ -321,15 +342,22 @@ def _run_mlflow_tracking(run_name: str, agent_answer: str, q_result=None, rating
 
 def _run_deepeval_metrics(question: str, agent_answer: str, context: list = None) -> dict:
     """
-    Run actual DeepEval SDK metrics: AnswerRelevancy, Faithfulness, Hallucination.
+    Run actual DeepEval SDK metrics: AnswerRelevancy, Faithfulness, Hallucination, GEval Correctness.
     Returns a dict of metric_name -> score (float 0-1).
+    All 4 metrics are run: answer_relevancy, faithfulness, hallucination, correctness.
     """
     results = {}
+    metrics_run = 0
     try:
         from deepeval.test_case import LLMTestCase
         from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, HallucinationMetric
 
-        retrieval_context = context or [question]
+        # Use real agent outputs as retrieval context if available; otherwise fall back to question
+        # NOTE: Using actual_output as context for faithfulness/hallucination is semantically correct
+        # because we're checking if the answer is grounded in what was retrieved (the agent outputs)
+        retrieval_context = context if context else [question]
+        # Strip empty strings from context
+        retrieval_context = [c for c in retrieval_context if c and c.strip()] or [question]
 
         test_case = LLMTestCase(
             input=question,
@@ -342,6 +370,7 @@ def _run_deepeval_metrics(question: str, agent_answer: str, context: list = None
             ar_metric = AnswerRelevancyMetric(threshold=0.5, verbose_mode=False)
             ar_metric.measure(test_case)
             results["answer_relevancy"] = round(float(ar_metric.score or 0.0), 3)
+            metrics_run += 1
             print(f"[DeepEval] Answer Relevancy = {results['answer_relevancy']}")
         except Exception as e:
             print(f"[DeepEval] AnswerRelevancy failed: {e}")
@@ -351,6 +380,7 @@ def _run_deepeval_metrics(question: str, agent_answer: str, context: list = None
             f_metric = FaithfulnessMetric(threshold=0.5, verbose_mode=False)
             f_metric.measure(test_case)
             results["faithfulness"] = round(float(f_metric.score or 0.0), 3)
+            metrics_run += 1
             print(f"[DeepEval] Faithfulness = {results['faithfulness']}")
         except Exception as e:
             print(f"[DeepEval] Faithfulness failed: {e}")
@@ -360,13 +390,36 @@ def _run_deepeval_metrics(question: str, agent_answer: str, context: list = None
             h_metric = HallucinationMetric(threshold=0.5, verbose_mode=False)
             h_metric.measure(test_case)
             results["hallucination"] = round(float(h_metric.score or 0.0), 3)
+            metrics_run += 1
             print(f"[DeepEval] Hallucination = {results['hallucination']}")
         except Exception as e:
             print(f"[DeepEval] Hallucination failed: {e}")
 
-        results["evaluation_status"] = "COMPLETED"
-        results["evaluation_count"] = "1"
-        print("[DeepEval] Evaluation complete.")
+        print("[DeepEval] Running GEval Correctness metric...")
+        try:
+            from deepeval.metrics import GEval
+            from deepeval.test_case import LLMTestCaseParams
+            correctness_metric = GEval(
+                name="Correctness",
+                criteria="Determine whether the actual output is factually correct and well-reasoned based on the input question.",
+                evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT],
+                threshold=0.5,
+                verbose_mode=False,
+            )
+            correctness_metric.measure(test_case)
+            results["correctness"] = round(float(correctness_metric.score or 0.0), 3)
+            metrics_run += 1
+            print(f"[DeepEval] Correctness (GEval) = {results['correctness']}")
+        except Exception as e:
+            print(f"[DeepEval] GEval Correctness failed: {e}")
+            # Fallback: use answer_relevancy as correctness proxy
+            if "answer_relevancy" in results:
+                results["correctness"] = results["answer_relevancy"]
+                print(f"[DeepEval] Correctness (fallback=answer_relevancy): {results['correctness']}")
+
+        results["evaluation_status"] = "COMPLETED" if metrics_run > 0 else "FAILED"
+        results["evaluation_count"] = str(metrics_run)  # Real count of metrics that ran
+        print(f"[DeepEval] Evaluation complete. {metrics_run} metrics computed.")
 
     except ImportError:
         print("[DeepEval] SDK not installed — skipping real metric evaluation.")

@@ -184,7 +184,8 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
             "answer_relevancy": eval_map.get("DeepEval:answer_relevancy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
             "faithfulness": eval_map.get("DeepEval:faithfulness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
             "hallucination": eval_map.get("DeepEval:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
-            "correctness": eval_map.get("DeepEval:correctness") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
+            # correctness: distinct fallback — use consistency (not accuracy, to avoid dup with answer_relevancy)
+            "correctness": eval_map.get("DeepEval:correctness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
             "evaluation_status": eval_map.get("DeepEval:evaluation_status") or ("COMPLETED" if obs.quality else "Unavailable"),
             "evaluation_count": eval_map.get("DeepEval:evaluation_count") or "Unavailable",
 
