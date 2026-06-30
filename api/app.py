@@ -236,6 +236,16 @@ def root() -> RedirectResponse:
     return RedirectResponse(url="/widget/demo.html")
 
 
+@app.get("/index.html", include_in_schema=False)
+def index_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/widget/index.html")
+
+
+@app.get("/resources.html", include_in_schema=False)
+def resources_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/widget/resources.html")
+
+
 # ---- liveness + adapter discovery ----------------------------------------
 
 @app.get("/healthz")
