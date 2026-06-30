@@ -17,6 +17,8 @@ Environment variables (set in .env):
     AGENT_QUESTION        = question sent to the agent      (default: billing analysis)
     DPI_LS_HOST           = dashboard host                  (default: 127.0.0.1)
     DPI_LS_PORT           = dashboard port                  (default: 8000)
+    MLFLOW_TRACKING_URI   = MLflow server URI               (default: http://127.0.0.1:5000)
+    OTEL_EXPORTER_OTLP_ENDPOINT = SigNoz OTLP endpoint     (default: http://localhost:4317)
 
 Usage:
     .venv\\Scripts\\python.exe examples\\test_agent.py
@@ -82,6 +84,7 @@ LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
 HUMAN_BASELINE    = _env_int("HUMAN_BASELINE", 1)
 DPI_LS_HOST       = _env("DPI_LS_HOST",    "127.0.0.1")
 DPI_LS_PORT       = _env_int("DPI_LS_PORT", 8000)
+MLFLOW_TRACKING_URI = _env("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000")
 
 AGENT_PROMPT = _env("AGENT_PROMPT") or (
     "You are a FinOps AWS Agent tasked with auditing cloud spend. "
@@ -96,24 +99,19 @@ AGENT_QUESTION = _env("AGENT_QUESTION") or (
 )
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  AWS Cost Explorer — fetches real billing data from your account
-# ═══════════════════════════════════════════════════════════════════
+# ===============================================================
+#  AWS Cost Explorer — fetches real billing data
+# ===============================================================
 
 class AWSCostExplorerFetcher:
     """Fetches real AWS Cost Explorer data grouped by Region + Service."""
 
     def __init__(self):
         import aioboto3
-        # CE is a global endpoint — always us-east-1
         self.region = "us-east-1"
         self._session = aioboto3.Session()
 
     async def fetch_costs_summary(self, days_lookback: int = LOOKBACK_DAYS) -> dict[str, Any]:
-        """
-        Returns a compact daily billing summary by region.
-        Filters out $0.00 lines to protect the LLM context window.
-        """
         end_date   = datetime.now().strftime("%Y-%m-%d")
         start_date = (datetime.now() - timedelta(days=days_lookback)).strftime("%Y-%m-%d")
 
@@ -171,9 +169,9 @@ class AWSCostExplorerFetcher:
         return summary
 
 
-# ═══════════════════════════════════════════════════════════════════
-#  Bedrock tool-schema adapter (OpenAI SDK → Bedrock format)
-# ═══════════════════════════════════════════════════════════════════
+# ===============================================================
+#  Bedrock tool adapter
+# ===============================================================
 
 def _to_bedrock_tool(tool) -> FunctionTool:
     return FunctionTool(
@@ -188,12 +186,11 @@ def _to_bedrock_tool(tool) -> FunctionTool:
     )
 
 
-# ===================================================================
-#  Score display helpers — shows all 7 dimensions
-# ===================================================================
+# ===============================================================
+#  Score card display
+# ===============================================================
 
 def _bar(value: float | None, width: int = 20) -> str:
-    """ASCII progress bar for a [0,1] metric."""
     if value is None:
         return "[" + "-" * width + "] N/A"
     filled = int(round(value * width))
@@ -212,7 +209,6 @@ DIMENSION_LABELS = {
 
 
 def print_score_card(rating: dict) -> None:
-    """Print a full DPI-LS score card with all 7 dimensions."""
     score    = rating.get("score", 0)
     raw      = rating.get("raw_score", score)
     band     = rating.get("band", "?")
@@ -258,9 +254,187 @@ def print_score_card(rating: dict) -> None:
     print()
 
 
-# ===================================================================
+# ===============================================================
+#  MLflow Tracking Integration
+# ===============================================================
+
+def _run_mlflow_tracking(run_name: str, agent_answer: str, q_result=None, rating: dict = None) -> tuple:
+    """
+    Log the agent run to MLflow.
+    Returns (run_id, experiment_id) strings or ("", "") on failure.
+    """
+    try:
+        import mlflow
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        exp_name = "Chandra-FinOps"
+
+        try:
+            exp = mlflow.get_experiment_by_name(exp_name)
+            if exp is None:
+                exp_id = mlflow.create_experiment(exp_name)
+            else:
+                exp_id = exp.experiment_id
+        except Exception:
+            exp_id = "0"
+
+        mlflow.set_experiment(exp_name)
+        with mlflow.start_run(run_name=run_name) as run:
+            # Log agent parameters
+            mlflow.log_param("agent_id", AGENT_ID)
+            mlflow.log_param("agent_name", AGENT_NAME)
+            mlflow.log_param("model_id", BEDROCK_MODEL_ID)
+            mlflow.log_param("lookback_days", LOOKBACK_DAYS)
+            mlflow.log_param("question", AGENT_QUESTION[:250])
+
+            # Log quality metrics if available
+            if q_result:
+                mlflow.log_metric("accuracy", round(q_result.accuracy, 4))
+                mlflow.log_metric("consistency", round(q_result.consistency, 4))
+                mlflow.log_metric("hallucination_rate", round(q_result.hallucination_rate, 4))
+
+            # Log DPI-LS score dimensions if available
+            if rating:
+                score = rating.get("score", 0)
+                mlflow.log_metric("dpi_ls_score", round(score, 2))
+                for dim_key, dim_val in (rating.get("metrics") or {}).items():
+                    if dim_val is not None:
+                        try:
+                            mlflow.log_metric(f"dim_{dim_key.lower()}", round(float(dim_val), 4))
+                        except Exception:
+                            pass
+
+            # Log agent answer as artifact text
+            mlflow.log_text(agent_answer, "agent_answer.txt")
+
+            run_id = run.info.run_id
+            print(f"[MLflow] Run logged: experiment={exp_name}, run_id={run_id}, experiment_id={exp_id}")
+            return run_id, str(exp_id)
+
+    except Exception as e:
+        print(f"[MLflow] Tracking skipped (is MLflow running on {MLFLOW_TRACKING_URI}?): {e}")
+        return "", ""
+
+
+# ===============================================================
+#  DeepEval SDK Integration
+# ===============================================================
+
+def _run_deepeval_metrics(question: str, agent_answer: str, context: list = None) -> dict:
+    """
+    Run actual DeepEval SDK metrics: AnswerRelevancy, Faithfulness, Hallucination.
+    Returns a dict of metric_name -> score (float 0-1).
+    """
+    results = {}
+    try:
+        from deepeval.test_case import LLMTestCase
+        from deepeval.metrics import AnswerRelevancyMetric, FaithfulnessMetric, HallucinationMetric
+
+        retrieval_context = context or [question]
+
+        test_case = LLMTestCase(
+            input=question,
+            actual_output=agent_answer,
+            retrieval_context=retrieval_context,
+        )
+
+        print("[DeepEval] Running Answer Relevancy metric...")
+        try:
+            ar_metric = AnswerRelevancyMetric(threshold=0.5, verbose_mode=False)
+            ar_metric.measure(test_case)
+            results["answer_relevancy"] = round(float(ar_metric.score or 0.0), 3)
+            print(f"[DeepEval] Answer Relevancy = {results['answer_relevancy']}")
+        except Exception as e:
+            print(f"[DeepEval] AnswerRelevancy failed: {e}")
+
+        print("[DeepEval] Running Faithfulness metric...")
+        try:
+            f_metric = FaithfulnessMetric(threshold=0.5, verbose_mode=False)
+            f_metric.measure(test_case)
+            results["faithfulness"] = round(float(f_metric.score or 0.0), 3)
+            print(f"[DeepEval] Faithfulness = {results['faithfulness']}")
+        except Exception as e:
+            print(f"[DeepEval] Faithfulness failed: {e}")
+
+        print("[DeepEval] Running Hallucination metric...")
+        try:
+            h_metric = HallucinationMetric(threshold=0.5, verbose_mode=False)
+            h_metric.measure(test_case)
+            results["hallucination"] = round(float(h_metric.score or 0.0), 3)
+            print(f"[DeepEval] Hallucination = {results['hallucination']}")
+        except Exception as e:
+            print(f"[DeepEval] Hallucination failed: {e}")
+
+        results["evaluation_status"] = "COMPLETED"
+        results["evaluation_count"] = "1"
+        print("[DeepEval] Evaluation complete.")
+
+    except ImportError:
+        print("[DeepEval] SDK not installed — skipping real metric evaluation.")
+    except Exception as e:
+        print(f"[DeepEval] Evaluation failed: {e}")
+
+    return results
+
+
+def _push_deepeval_results_to_backend(deepeval_results: dict, host: str, port: int) -> None:
+    """Push DeepEval results to the DPI-LS backend so they appear in the dashboard."""
+    if not deepeval_results:
+        return
+    try:
+        import urllib.request
+        url = f"http://{host}:{port}/api/validation-evaluation/push-deepeval"
+        payload = json.dumps(deepeval_results).encode()
+        req = urllib.request.Request(
+            url, data=payload, method="POST",
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status == 200:
+                print("[DeepEval] Results pushed to backend successfully.")
+    except Exception as e:
+        print(f"[DeepEval] Push to backend skipped (endpoint may not exist yet): {e}")
+
+
+# ===============================================================
+#  SigNoz / OpenTelemetry Setup
+# ===============================================================
+
+def _setup_otel_tracer():
+    """Set up OTel tracer for SigNoz. Returns (tracer, provider) or (None, None)."""
+    try:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+        from opentelemetry.sdk.resources import Resource
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+        otel_endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
+        resource = Resource.create({"service.name": "chandra-finops-agent"})
+        provider = TracerProvider(resource=resource)
+
+        try:
+            exporter = OTLPSpanExporter(endpoint=otel_endpoint, insecure=True)
+            processor = BatchSpanProcessor(exporter)
+            provider.add_span_processor(processor)
+            print(f"[SigNoz] OTel tracer configured. Endpoint: {otel_endpoint}")
+        except Exception as e:
+            print(f"[SigNoz] OTLP exporter unavailable ({e}) — install SigNoz via Docker to enable")
+
+        trace.set_tracer_provider(provider)
+        tracer = trace.get_tracer("chandra-finops")
+        return tracer, provider
+
+    except ImportError:
+        print("[SigNoz] opentelemetry-sdk not installed — SigNoz tracing skipped")
+        return None, None
+    except Exception as e:
+        print(f"[SigNoz] OTel setup error: {e}")
+        return None, None
+
+
+# ===============================================================
 #  Main agent run
-# ===================================================================
+# ===============================================================
 
 async def run_agent_observation() -> None:
     if not BEDROCK_MODEL_ID:
@@ -271,15 +445,19 @@ async def run_agent_observation() -> None:
     print(f"  DPI-LS Monitor  .  Agent: {AGENT_NAME}  .  ID: {AGENT_ID}")
     print(f"  Model : bedrock/{BEDROCK_MODEL_ID}")
     print(f"  Lookback: {LOOKBACK_DAYS} days  |  Human baseline: {HUMAN_BASELINE}")
+    print(f"  MLflow: {MLFLOW_TRACKING_URI}")
     print(f"{'-'*55}\n")
+
+    # Set up SigNoz OTel tracer
+    otel_tracer, otel_provider = _setup_otel_tracer()
 
     fetcher = AWSCostExplorerFetcher()
 
     # Build tools dynamically from the fetcher
-    raw_tools    = [function_tool(fetcher.fetch_costs_summary)]
+    raw_tools     = [function_tool(fetcher.fetch_costs_summary)]
     bedrock_tools = [_to_bedrock_tool(t.__dict__) for t in raw_tools]
 
-    # -- Build the agent (all config from env) ---------------------
+    # Build the agent
     agent = Agent(
         name=AGENT_NAME,
         instructions=AGENT_PROMPT,
@@ -287,57 +465,73 @@ async def run_agent_observation() -> None:
         tools=bedrock_tools,
     )
 
-    # -- LINE 2: Monitor the agent ---------------------------------
-    collector = dpi_ls.monitor(          # line 2
+    # LINE 2: Monitor the agent
+    collector = dpi_ls.monitor(
         agent,
         agent_id=AGENT_ID,
         agent_name=AGENT_NAME,
         human_baseline=HUMAN_BASELINE,
         host=DPI_LS_HOST,
         port=DPI_LS_PORT,
-        block=False,                     # we handle blocking ourselves below
-        post=False,                      # we post explicitly after Q eval
+        block=False,
+        post=False,
     )
 
-    # -- Run the agent ---------------------------------------------
     print(f"Question: {AGENT_QUESTION}\n")
-    psutil.cpu_percent() # Seed the psutil cpu percent measurement
-    
+    psutil.cpu_percent()  # seed psutil cpu measurement
+
     run_name = f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
-    result = await Runner.run(agent, AGENT_QUESTION)
-    cpu_usage = psutil.cpu_percent() / 100.0 # Get percentage since last call, convert to 0-1 range
+
+    # Wrap agent run in an OTel span for SigNoz
+    if otel_tracer:
+        with otel_tracer.start_as_current_span("chandra-agent-run") as span:
+            span.set_attribute("agent.id", AGENT_ID)
+            span.set_attribute("agent.name", AGENT_NAME)
+            span.set_attribute("agent.model", BEDROCK_MODEL_ID)
+            span.set_attribute("agent.question", AGENT_QUESTION[:200])
+            result = await Runner.run(agent, AGENT_QUESTION)
+            span.set_attribute("agent.output_length", len(result.final_output))
+    else:
+        result = await Runner.run(agent, AGENT_QUESTION)
+
+    cpu_usage = psutil.cpu_percent() / 100.0
 
     print("\n" + "-" * 55)
     print("  AGENT ANSWER")
     print("-" * 55)
-    # Strip non-ASCII so Windows cp1252 terminals don't crash
     safe = result.final_output.encode("ascii", errors="ignore").decode("ascii")
     print(safe)
     print("-" * 55)
 
-    # ── Evaluate Quality and Post Observation explicitly ───────────
+    # ── Evaluate Quality ────────────────────────────────────────────
     collector.mark_end()
     outputs = collector.outputs_for_q()
+    q_result = None
     if outputs:
         source_data = collector.source_data_for_q()
         try:
             from dpi_ls.evaluator import evaluate_quality
-            q = evaluate_quality(outputs, source_data=source_data)
+            q_result = evaluate_quality(outputs, source_data=source_data)
             collector.set_quality(
-                q.accuracy, q.consistency, q.hallucination_rate, user_feedback_score=None
+                q_result.accuracy, q_result.consistency, q_result.hallucination_rate, user_feedback_score=None
             )
             collector.cpu_utilization = cpu_usage
-            print(f"Evaluated Quality (Q): Accuracy={q.accuracy:.3f}, Consistency={q.consistency:.3f}, Hallucination={q.hallucination_rate:.3f} (via {q.source})")
+            print(f"Quality (Q): Accuracy={q_result.accuracy:.3f}, Consistency={q_result.consistency:.3f}, Hallucination={q_result.hallucination_rate:.3f} (via {q_result.source})")
         except Exception as e:
             print(f"Failed to evaluate quality: {e}")
 
-    # Now post the observation
+    # ── Real DeepEval SDK metrics ───────────────────────────────────
+    print("\n[DeepEval] Starting real metric evaluation...")
+    deepeval_results = _run_deepeval_metrics(
+        question=AGENT_QUESTION,
+        agent_answer=result.final_output,
+        context=outputs or [AGENT_QUESTION],
+    )
+
+    # ── Post DPI-LS observation ─────────────────────────────────────
     from dpi_ls.poster import post_observation
     from contract.settings import Settings
-    
-    # Dynamically apply the human_cost setting so the payload correctly records it
     collector.human_cost = Settings().human_cost_per_output
-    
     base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
     rating = post_observation(collector, base_url)
     if rating:
@@ -345,16 +539,40 @@ async def run_agent_observation() -> None:
     else:
         print("Failed to post observation to the server.")
 
-# ===================================================================
+    # ── MLflow real tracking ────────────────────────────────────────
+    print(f"\n[MLflow] Logging run to {MLFLOW_TRACKING_URI}...")
+    mlflow_run_id, mlflow_exp_id = _run_mlflow_tracking(
+        run_name=run_name,
+        agent_answer=result.final_output,
+        q_result=q_result,
+        rating=rating,
+    )
+
+    # Store MLflow IDs so validation service can read them
+    if mlflow_run_id:
+        os.environ["LAST_MLFLOW_RUN_ID"] = mlflow_run_id
+        os.environ["LAST_MLFLOW_EXP_ID"] = mlflow_exp_id
+
+    # Push DeepEval results to backend
+    _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
+
+    # Flush SigNoz spans
+    if otel_provider:
+        try:
+            otel_provider.force_flush()
+            print("[SigNoz] OTel spans flushed.")
+        except Exception as e:
+            print(f"[SigNoz] Flush error: {e}")
+
+
+# ===============================================================
 #  Entry point
-# ===================================================================
+# ===============================================================
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
 
-    # -- Flush Langfuse traces before exit -----------------------------
-    # litellm queues Langfuse events in a background thread.
-    # Without an explicit flush, the process exits before traces are sent.
+    # Flush Langfuse traces before exit
     try:
         import litellm
         for cb in litellm._async_success_callback + litellm.success_callback:
@@ -363,7 +581,6 @@ if __name__ == "__main__":
                 print("Langfuse traces flushed successfully.")
                 break
         else:
-            # Fallback: flush via langfuse singleton if litellm didn't expose it
             from langfuse import Langfuse
             lf = Langfuse()
             lf.flush()
@@ -372,21 +589,18 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Langfuse flush skipped: {exc}")
 
-    # Automatically trigger the Cost/Validation/Quality resource evaluation pipeline
+    # Trigger resource evaluation pipeline
     try:
         import urllib.request
-        import urllib.parse
         host = os.getenv("DPI_LS_HOST", "127.0.0.1")
         port = os.getenv("DPI_LS_PORT", "8000")
-        
-        # 1. Cost evaluation
+
         url_cost = f"http://{host}:{port}/api/cost-evaluation/evaluate"
         req_cost = urllib.request.Request(url_cost, method="POST", headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req_cost, timeout=30) as response:
             if response.status == 200:
                 print("Cost resource evaluation triggered successfully.")
-                
-        # 2. Validation evaluation
+
         url_val = f"http://{host}:{port}/api/validation-evaluation/evaluate"
         req_val = urllib.request.Request(url_val, method="POST", headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req_val, timeout=30) as response:

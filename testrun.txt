@@ -46,19 +46,31 @@ VALIDATION DIMENSION
 
 2. Start MLflow:
    Command: uv run mlflow server --host 127.0.0.1 --port 5000
-   Explanation: Starts the MLflow server to track runs, lineage, and experiment configurations.
+   Explanation: Starts the MLflow tracking server. Agent runs will log metrics, params, and artifacts here.
+   NOTE: After running test_agent.py, go to http://localhost:5000 → Experiments → Chandra-FinOps
+         to see real run data (accuracy, hallucination_rate, dpi_ls_score, etc.)
+   WHY IT WAS EMPTY: The agent was not calling mlflow.start_run() before. Now it does automatically.
 
-3. Start SigNoz:
-   Command: SigNoz runs on http://localhost:8080.
-   Explanation: Observability platform used to trace and monitor validation system latency and errors.
+3. Start SigNoz (requires Docker Desktop):
+   Command: docker run -d --name signoz -p 8080:3301 -p 4317:4317 -p 4318:4318 signoz/signoz:latest
+   Explanation: SigNoz is an OpenTelemetry-based observability platform. Must be running Docker Desktop.
+   UI: http://localhost:8080
+   OTel GRPC endpoint: http://localhost:4317 (receives traces from test_agent.py)
+   WHY IT WAS NOT OPENING: SigNoz requires Docker — it cannot run as a standalone Windows process.
 
-4. Run Evaluation Harness:
-   Command: DeepEval runs in-process automatically when the agent executes.
-   Explanation: DeepEval performs checks (Faithfulness, Relevancy, etc.) on the generated outputs directly inside the agent loop.
+4. Run Evaluation Harness (DeepEval):
+   Command: DeepEval now runs automatically inside test_agent.py via the DeepEval SDK.
+   Explanation: Real AnswerRelevancyMetric, FaithfulnessMetric, and HallucinationMetric are computed
+   from the actual agent output and pushed directly to the dashboard via /api/validation-evaluation/push-deepeval.
+   WHY IT WAS NOT SHOWING: The DeepEval SDK was never actually called — only names were used.
 
 5. Run Agent:
    Command: uv run python examples/test_agent.py
-   Explanation: Runs the Chandra FinOps agent, feeding validation logs into MLflow and evaluating with DeepEval.
+   Explanation: Runs the Chandra FinOps agent.
+   After each run:
+   - DeepEval metrics (real SDK scores) are pushed to the dashboard
+   - MLflow logs the run with params + metrics
+   - SigNoz receives OpenTelemetry spans (if Docker is running)
 
 6. Run Tests:
    Command: uv run pytest tests/test_validation_resource_evaluation.py
@@ -66,6 +78,28 @@ VALIDATION DIMENSION
 
 URLs:
 * MLflow URL: http://localhost:5000
-* SigNoz URL: http://localhost:8080
+  - Go to: Experiments > Chandra-FinOps > latest run to see real metrics
+  - TIME FILTER: Change "Last Hour" to "Last 7 Days" if you ran the agent hours ago
+* SigNoz URL: http://localhost:8080 (only works if Docker container is running)
+* DeepEval: Runs in-process. Results appear in Resources dashboard automatically.
 * Resources Dashboard URL: http://127.0.0.1:8000/resources.html
 * Agent Dashboard URL: http://127.0.0.1:8000/index.html
+
+========================================
+TROUBLESHOOTING
+========================================
+
+MLflow shows "No data available for selected time range":
+  - CAUSE: You ran the agent more than 1 hour ago, but the filter is set to "Last Hour"
+  - FIX: In MLflow UI → click the time filter dropdown → select "Last 7 days" or "Last 30 days"
+  - FIX: Or simply run: uv run python examples/test_agent.py  (creates a new run NOW)
+
+SigNoz shows "Service Offline" in the dashboard:
+  - CAUSE: SigNoz requires Docker Desktop. It is not installed as a Windows service.
+  - FIX: Install Docker Desktop, then run:
+    docker run -d --name signoz -p 8080:3301 -p 4317:4317 signoz/signoz:latest
+
+DeepEval shows "Unavailable":
+  - CAUSE: The agent has not been run yet, OR the evaluation failed silently.
+  - FIX: Run: uv run python examples/test_agent.py
+  - NOTE: DeepEval requires the AWS Bedrock model to be reachable for LLM-based evaluation.

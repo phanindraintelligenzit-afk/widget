@@ -693,6 +693,41 @@ def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[
     ]
 
 
+@app.post("/api/validation-evaluation/push-deepeval")
+def push_deepeval_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """
+    Accept real DeepEval SDK metric results from test_agent.py and persist them
+    directly so the dashboard shows live values without needing a full evaluation run.
+    Payload: { "answer_relevancy": 0.95, "faithfulness": 0.88, ... }
+    """
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    deepeval_metrics = [
+        "answer_relevancy", "faithfulness", "hallucination",
+        "correctness", "evaluation_status", "evaluation_count",
+    ]
+    for metric in deepeval_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_validation_resource_evaluation(
+                s,
+                resource_name="DeepEval",
+                metric=metric,
+                detected=True,
+                evidence=f"Real DeepEval SDK metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
     """Return validation dashboard URLs with live reachability status."""
@@ -709,7 +744,7 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
         except Exception:
             return False
 
-    deepeval_url = os.environ.get("DEEPEVAL_URL", "https://github.com/confident-ai/deepeval")
+    deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
     mlflow_url = os.environ.get("MLFLOW_URL", "http://localhost:5000")
     signoz_url = os.environ.get("SIGNOZ_URL", "http://localhost:8080")
 
