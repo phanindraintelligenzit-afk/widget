@@ -422,36 +422,16 @@ def _push_deepeval_results_to_backend(deepeval_results: dict, host: str, port: i
         print(f"[DeepEval] Push to backend skipped (endpoint may not exist yet): {e}")
 
 
-def _push_jaeger_metrics_to_backend(jaeger_metrics: dict, host: str, port: int) -> None:
-    """Push Jaeger trace metrics to the DPI-LS validation backend."""
-    if not jaeger_metrics:
-        return
-    try:
-        import urllib.request
-        url = f"http://{host}:{port}/api/validation-evaluation/push-jaeger"
-        payload = json.dumps(jaeger_metrics).encode()
-        req = urllib.request.Request(
-            url, data=payload, method="POST",
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            if resp.status == 200:
-                print("[Jaeger] Metrics pushed to backend successfully.")
-    except Exception as e:
-        print(f"[Jaeger] Push to backend skipped (endpoint may not exist yet): {e}")
+
 
 
 def _setup_zipkin_tracing() -> tuple:
     """
     Set up Zipkin tracing for the agent run.
-    Returns (trace_id, span_count) strings or ("", "") on failure.
+    Returns (tracer, provider) or (None, None) on failure.
     """
     try:
         from opentelemetry.exporter.zipkin.json import ZipkinExporter
-        import uuid
-
-        # Use global tracer
-        tracer = trace.get_tracer(__name__)
 
         # Configure Zipkin endpoint
         zipkin_endpoint = os.environ.get("ZIPKIN_URL", "http://localhost:9411") + "/api/v2/spans"
@@ -462,7 +442,7 @@ def _setup_zipkin_tracing() -> tuple:
                 pass
         except OSError:
             print("[Zipkin] Zipkin is offline — Zipkin tracing skipped")
-            return "", ""
+            return None, None
 
         zipkin_exporter = ZipkinExporter(
             endpoint=zipkin_endpoint,
@@ -470,55 +450,17 @@ def _setup_zipkin_tracing() -> tuple:
 
         span_processor = BatchSpanProcessor(zipkin_exporter)
         _global_provider.add_span_processor(span_processor)
-
-        # Create a test span for validation
-        trace_id = str(uuid.uuid4())[:16]
-        with tracer.start_as_current_span(f"dpi_ls_validation_trace_{trace_id}") as span:
-            span.set_attribute("dpi_ls.service", "test_agent")
-            span.set_attribute("dpi_ls.validation", "zipkin_tracing")
-            span.set_attribute("trace_id", trace_id)
-
-            # Add some child spans for validation
-            with tracer.start_as_current_span("agent_initialization") as child1:
-                child1.set_attribute("step", "init")
-                child1.set_attribute("duration_ms", 45)
-
-            with tracer.start_as_current_span("bedrock_call") as child2:
-                child2.set_attribute("step", "llm_call")
-                child2.set_attribute("duration_ms", 1200)
-
-            with tracer.start_as_current_span("validation_check") as child3:
-                child3.set_attribute("step", "validation")
-                child3.set_attribute("duration_ms", 150)
-
-        # Force flush spans
-        span_processor.force_flush()
-
-        print(f"[Zipkin] Trace created with ID: {trace_id}")
-        return trace_id, "4"  # 1 parent + 3 child spans
+        
+        tracer = trace.get_tracer(__name__)
+        print(f"[Zipkin] OTel tracer configured. Endpoint: {zipkin_endpoint}")
+        return tracer, _global_provider
 
     except Exception as e:
         print(f"[Zipkin] Tracing setup failed: {e}")
-        return "", ""
+        return None, None
 
 
-def _push_zipkin_metrics_to_backend(zipkin_metrics: dict, host: str, port: int) -> None:
-    """Push Zipkin trace timeline metrics to the DPI-LS validation backend."""
-    if not zipkin_metrics:
-        return
-    try:
-        import urllib.request
-        url = f"http://{host}:{port}/api/validation-evaluation/push-zipkin"
-        payload = json.dumps(zipkin_metrics).encode()
-        req = urllib.request.Request(
-            url, data=payload, method="POST",
-            headers={"Content-Type": "application/json"}
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if response.status == 200:
-                print("[Zipkin] Metrics pushed to backend successfully.")
-    except Exception as e:
-        print(f"[Zipkin] Push to backend skipped (endpoint may not exist yet): {e}")
+
 
 
 # ===============================================================
@@ -591,6 +533,9 @@ async def run_agent_observation() -> None:
 
     # Set up Jaeger tracing
     jaeger_tracer, jaeger_provider = _setup_jaeger_tracing()
+    
+    # Set up Zipkin tracing
+    zipkin_tracer, zipkin_provider = _setup_zipkin_tracing()
 
     fetcher = AWSCostExplorerFetcher()
 
@@ -626,7 +571,7 @@ async def run_agent_observation() -> None:
 
     run_name = f"Chandra-FinOps-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-    # Wrap agent run in a Jaeger span for distributed tracing
+    # Wrap agent run in Jaeger & Zipkin spans for distributed tracing
     if jaeger_tracer:
         with jaeger_tracer.start_as_current_span("chandra-agent-run") as span:
             span.set_attribute("agent.id", AGENT_ID)
@@ -677,6 +622,24 @@ async def run_agent_observation() -> None:
         context=outputs or [AGENT_QUESTION],
     )
 
+    # ── Jaeger tracing finalization ────────────────────────────────────
+    print(f"\n[Jaeger] Finalizing traces...")
+    if jaeger_tracer and jaeger_provider:
+        try:
+            jaeger_provider.force_flush()
+            print(f"[Jaeger] Spans flushed successfully.")
+        except Exception as e:
+            print(f"[Jaeger] Flush error: {e}")
+
+    # ── Zipkin tracing finalization ────────────────────────────────────
+    print(f"\n[Zipkin] Finalizing trace timelines...")
+    if zipkin_tracer and zipkin_provider:
+        try:
+            zipkin_provider.force_flush()
+            print(f"[Zipkin] Spans flushed successfully.")
+        except Exception as e:
+            print(f"[Zipkin] Flush error: {e}")
+
     # ── Post DPI-LS observation ─────────────────────────────────────
     from dpi_ls.poster import post_observation
     from contract.settings import Settings
@@ -688,68 +651,8 @@ async def run_agent_observation() -> None:
     else:
         print("Failed to post observation to the server.")
 
-    # ── Jaeger tracing finalization ────────────────────────────────────
-    print(f"\n[Jaeger] Finalizing traces...")
-    jaeger_trace_data = {}
-    if jaeger_tracer and jaeger_provider:
-        try:
-            # Force flush Jaeger spans
-            jaeger_provider.force_flush()
-
-            # Collect trace data for validation service
-            current_span = trace.get_current_span()
-            if current_span and current_span.get_span_context().is_valid:
-                trace_id = format(current_span.get_span_context().trace_id, '016x')
-                span_count = 1  # At least our main span
-
-                jaeger_trace_data = {
-                    "trace_id": trace_id,
-                    "span_count": span_count,
-                    "latency": "calculated",  # Will be calculated by validation service
-                    "execution_time": f"{cpu_usage:.3f}s",
-                    "dependencies": "1",  # This service
-                    "request_duration": "calculated",  # Will be calculated
-                    "error_count": "0",  # No errors if we reach here
-                    "validation_traces": "1"
-                }
-
-                print(f"[Jaeger] Trace ID: {trace_id}")
-                print(f"[Jaeger] Spans flushed successfully.")
-            else:
-                print("[Jaeger] No active span found.")
-        except Exception as e:
-            print(f"[Jaeger] Flush error: {e}")
-
     # Push DeepEval results to backend
     _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
-
-    # Push Jaeger metrics to validation backend
-    if jaeger_trace_data:
-        _push_jaeger_metrics_to_backend(jaeger_trace_data, DPI_LS_HOST, DPI_LS_PORT)
-
-    # ── Zipkin tracing finalization ────────────────────────────────────
-    print(f"\n[Zipkin] Finalizing trace timelines...")
-    zipkin_trace_id, zipkin_span_count = _setup_zipkin_tracing()
-    zipkin_trace_data = {}
-
-    if zipkin_trace_id:
-        current_time = datetime.now()
-        start_time = (current_time - timedelta(seconds=2)).isoformat()
-        end_time = current_time.isoformat()
-
-        zipkin_trace_data = {
-            "trace_timeline": f"{start_time}-{end_time}",
-            "span_timeline": "init:0ms,bedrock:45ms,validation:1245ms,complete:1395ms",
-            "service_calls": zipkin_span_count,
-            "request_path": "/agent/init -> /aws/bedrock -> /zipkin/trace -> /dpi_ls/validation",
-            "trace_latency": "1395ms",
-            "execution_timeline": f"start:0ms,process:{cpu_usage*800:.0f}ms,validate:{cpu_usage*1200:.0f}ms,complete:{cpu_usage*1395:.0f}ms",
-            "error_timeline": "No errors recorded"
-        }
-
-    # Push Zipkin metrics to validation backend
-    if zipkin_trace_data:
-        _push_zipkin_metrics_to_backend(zipkin_trace_data, DPI_LS_HOST, DPI_LS_PORT)
 
 
 # ===============================================================

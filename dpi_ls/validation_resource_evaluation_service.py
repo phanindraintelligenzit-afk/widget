@@ -274,34 +274,7 @@ class ValidationResourceEvaluationService:
                 else:
                     evidence_text = "No agent run execution score found in database."
 
-                # Fallbacks or test mocks if required
-                is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
-                if is_test_env and (current_val == "0.0" or current_val == "None" or current_val == "Unavailable"):
-                    detected = True
-                    mock_vals = {
-                        "answer_relevancy": "1.000",
-                        "faithfulness": "1.000",
-                        "hallucination": "0.000",
-                        "correctness": "1.000",
-                        "evaluation_status": "COMPLETED",
-                        "evaluation_count": "1",
-                        "trace_id": "7a8b9c1d2e3f4567",
-                        "span_count": "12",
-                        "latency": "145ms",
-                        "execution_time": "2.3s",
-                        "dependencies": "3",
-                        "request_duration": "150ms",
-                        "error_count": "0",
-                        "validation_traces": "5",
-                        "trace_timeline": "2024-12-30T10:30:00Z-2024-12-30T10:32:15Z",
-                        "span_timeline": "span_001:0ms,span_002:45ms,span_003:120ms",
-                        "service_calls": "4",
-                        "request_path": "/api/agent/score -> /dpi_ls/evaluation -> /zipkin/traces",
-                        "trace_latency": "2150ms",
-                        "execution_timeline": "init:0ms,process:800ms,validate:1200ms,complete:2150ms",
-                        "error_timeline": "No errors recorded"
-                    }
-                    current_val = mock_vals.get(metric, "0.0")
+
 
                 row = save_validation_resource_evaluation(
                     self.session,
@@ -475,8 +448,8 @@ class ValidationResourceEvaluationService:
                                 span_timings = []
                                 for span in spans[:5]:  # Limit to first 5 spans
                                     span_id = span.get('id', 'unknown')[:8]
-                                    relative_start = (span.get('timestamp', 0) - min_timestamp) / 1000.0  # Convert to ms
-                                    span_timings.append(f"{span_id}:{relative_start:.0f}ms")
+                                    span_duration = span.get('duration', 0) / 1000.0  # Convert to ms
+                                    span_timings.append(f"{span_id}:{span_duration:.0f}ms")
 
                                 result["span_timeline"] = ",".join(span_timings)
                                 result["span_timeline_evidence"] = f"Extracted timeline from {len(span_timings)} spans."
@@ -506,9 +479,9 @@ class ValidationResourceEvaluationService:
                                 # Build execution timeline
                                 execution_steps = []
                                 for i, span in enumerate(spans[:4]):
-                                    relative_start = (span.get('timestamp', 0) - min_timestamp) / 1000.0
+                                    span_duration = span.get('duration', 0) / 1000.0
                                     step_name = span.get('name', f'step_{i+1}').replace(' ', '_').lower()
-                                    execution_steps.append(f"{step_name}:{relative_start:.0f}ms")
+                                    execution_steps.append(f"{step_name}:{span_duration:.0f}ms")
 
                                 result["execution_timeline"] = ",".join(execution_steps)
                                 result["execution_timeline_evidence"] = f"Extracted from {len(execution_steps)} execution steps."
