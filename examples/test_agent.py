@@ -640,6 +640,29 @@ async def run_agent_observation() -> None:
         except Exception as e:
             print(f"[Zipkin] Flush error: {e}")
 
+    # Push DeepEval results to backend
+    _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
+
+    # Trigger resource evaluation pipeline so telemetry is available for the agent score
+    try:
+        import urllib.request
+        host = os.getenv("DPI_LS_HOST", "127.0.0.1")
+        port = os.getenv("DPI_LS_PORT", "8000")
+
+        url_cost = f"http://{host}:{port}/api/cost-evaluation/evaluate"
+        req_cost = urllib.request.Request(url_cost, method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req_cost, timeout=30) as response:
+            if response.status == 200:
+                print("Cost resource evaluation triggered successfully.")
+
+        url_val = f"http://{host}:{port}/api/validation-evaluation/evaluate"
+        req_val = urllib.request.Request(url_val, method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req_val, timeout=30) as response:
+            if response.status == 200:
+                print("Validation resource evaluation triggered successfully.")
+    except Exception as e:
+        print(f"Failed to trigger resource evaluation: {e}")
+
     # ── Post DPI-LS observation ─────────────────────────────────────
     from dpi_ls.poster import post_observation
     from contract.settings import Settings
@@ -650,9 +673,6 @@ async def run_agent_observation() -> None:
         print_score_card(rating)
     else:
         print("Failed to post observation to the server.")
-
-    # Push DeepEval results to backend
-    _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
 
 
 # ===============================================================
@@ -679,25 +699,7 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"Langfuse flush skipped: {exc}")
 
-    # Trigger resource evaluation pipeline
-    try:
-        import urllib.request
-        host = os.getenv("DPI_LS_HOST", "127.0.0.1")
-        port = os.getenv("DPI_LS_PORT", "8000")
 
-        url_cost = f"http://{host}:{port}/api/cost-evaluation/evaluate"
-        req_cost = urllib.request.Request(url_cost, method="POST", headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req_cost, timeout=30) as response:
-            if response.status == 200:
-                print("Cost resource evaluation triggered successfully.")
-
-        url_val = f"http://{host}:{port}/api/validation-evaluation/evaluate"
-        req_val = urllib.request.Request(url_val, method="POST", headers={"Content-Type": "application/json"})
-        with urllib.request.urlopen(req_val, timeout=30) as response:
-            if response.status == 200:
-                print("Validation resource evaluation triggered successfully.")
-    except Exception as e:
-        print(f"Failed to trigger resource evaluation: {e}")
 
     # Keep the dashboard alive for browsing
     from dpi_ls import _state

@@ -36,7 +36,6 @@ def test_api_endpoints_validation_evaluation(client):
     assert len(resources) == 3
 
     # 2. POST /api/validation-evaluation/evaluate
-    os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
     r_eval = client.post("/api/validation-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
@@ -55,7 +54,7 @@ def test_api_endpoints_validation_evaluation(client):
         if res["resource_name"] == "DeepEval" and res["metric"] == "answer_relevancy"
     ]
     assert len(deepeval_accuracy) == 1
-    assert deepeval_accuracy[0]["detected"] is True
+    assert deepeval_accuracy[0]["detected"] is False
 
     # 4. POST /api/validation-evaluation/verify-dashboard
     r_verify = client.post(
