@@ -166,14 +166,25 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
     if obs.validation:
         v_raw = obs.validation.model_dump(mode="json")
-        req = v_raw.get("required_components") or 6
-        val = v_raw.get("validated_components") or 0
-        v_score = (val / max(req, 1)) * 100
 
+        req = 0
+        val = 0
         eval_map = {}
         if s is not None:
             evals = repo.list_latest_validation_resource_evaluations(s)
             eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in evals}
+            for r in evals:
+                if not r.metric.endswith("_evidence"):
+                    req += 1
+                    if r.status == "SUCCESS":
+                        val += 1
+        
+        # Fallback to static if no runtime evaluations exist (e.g., tests without bootstrap)
+        if req == 0:
+            req = v_raw.get("required_components") or 6
+            val = v_raw.get("validated_components") or 0
+
+        v_score = (val / max(req, 1)) * 100
 
         res["V"] = {
             "Required Components": req,

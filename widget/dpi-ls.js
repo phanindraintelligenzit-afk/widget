@@ -266,10 +266,13 @@
     sub = sub || {};
     settings = settings || {};
     
-    const req = sub["Required Components"] || 6;
-    const val = sub["Validated Components"] || 0;
-    const vScore = (value !== undefined && value !== null) ? (value * 5) : null;
-
+    const req = sub["Required Components"] !== undefined ? sub["Required Components"] : 0;
+    const val = sub["Validated Components"] !== undefined ? sub["Validated Components"] : 0;
+    let calcVScore = 1.0;
+    if (req > 0) {
+      calcVScore = val / req;
+    }
+    const vScoreVal = (value !== undefined && value !== null) ? value : calcVScore;
 
 
     const traceId = sub.trace_id || "Unavailable";
@@ -313,6 +316,10 @@
       trace_latency: { val: traceLatency, calc: traceLatency, disp: traceLatency, formula: "Trace Latency", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
       execution_timeline: { val: executionTimeline, calc: executionTimeline, disp: executionTimeline, formula: "Execution Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
       error_timeline: { val: errorTimeline, calc: errorTimeline, disp: errorTimeline, formula: "Error Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+
+      Required_Components: { val: req, calc: req, disp: req, formula: "Count of Expected Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
+      Validated_Components: { val: val, calc: val, disp: val, formula: "Count of SUCCESS Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
+      Validation_Score: { val: vScoreVal, calc: calcVScore, disp: vScoreVal, formula: "Validated Components / Required Components", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 4 },
     };
   }
 
@@ -364,6 +371,45 @@
     // Filter out rows where value is "Unavailable"
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
+
+    let vScoreVal = 1.0;
+    if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
+      vScoreVal = metricsMap["Validation_Score"].val;
+    }
+    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
+    
+    let gateHtml = "";
+    if (vScoreVal < 0.60) {
+      gateHtml = `
+        <div style="margin-top:10px;background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;color:#f87171;font-size:11px;">
+          <strong style="color:#ef4444;">Validation Gate Triggered</strong><br/>
+          Overall DPI-LS Score capped at 69<br/>
+          Unsafe = TRUE
+        </div>
+      `;
+    }
+
+    const breakdownObj = sub.Breakdown || {};
+    const breakdownHtml = Object.keys(breakdownObj).length > 0 ? `
+      <div style="margin-top:4px;margin-bottom:4px;padding-left:10px;border-left:2px solid #334155;">
+        <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:2px;">Breakdown</div>
+        ${Object.entries(breakdownObj).map(([res, counts]) => 
+          `<div style="display:flex;justify-content:space-between;width:150px;">
+            <span>${res}</span><span>${counts.val} / ${counts.req}</span>
+          </div>`
+        ).join('')}
+      </div>
+    ` : "";
+
+    // dynamic calculation rows are now properly generated in calculateValidationMetrics
+    // Prepare table entries
+    entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+    // Filter out rows where value is "Unavailable"
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "N/A";
       const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "N/A";
@@ -374,20 +420,15 @@
         <tr style="border-bottom:1px solid #1e293b;">
           <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
           <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;">${valStr}</td>
-          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
           <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${calcStr}</td>
           <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${dispStr}</td>
           <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
-          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || r.resource}</td>
         </tr>
       `;
     }).join("");
 
-    const val = sub["Validated Components"] || 0;
-    const req = sub["Required Components"] || 6;
-    const vScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
-    
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
@@ -408,6 +449,16 @@
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
             <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Validation Score = Validated Components / Required Components</div>
           </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Validation Calculation</div>
+          <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+            <div>Required Components : ${req}</div>
+            ${breakdownHtml}
+            <div>Validated Components : ${val}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Validation Score : ${val} / ${req} = ${vScoreVal.toFixed(3)}</div>
+          </div>
+          ${gateHtml}
         </div>
       </div>
 
