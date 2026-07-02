@@ -372,6 +372,9 @@
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
 
+    const req = metricsMap["Required_Components"] ? metricsMap["Required_Components"].val : 0;
+    const val = metricsMap["Validated_Components"] ? metricsMap["Validated_Components"].val : 0;
+    
     let vScoreVal = 1.0;
     if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
       vScoreVal = metricsMap["Validation_Score"].val;
