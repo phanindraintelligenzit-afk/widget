@@ -1,0 +1,128 @@
+==========================================================
+DPI-LS TEST EXECUTION RESULTS
+==========================================================
+Date: 30-06-2026
+
+==========================================================
+VERIFICATION COMMANDS & CHECKS
+==========================================================
+
+1. Activate Virtual Environment
+(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& .\.venv\Scripts\Activate.ps1)
+
+2. Verify Docker Containers
+docker ps
+
+Expected Running Containers:
+- Jaeger
+- Zipkin
+
+3. Start DPI-LS Backend
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
+
+Verify:
+- Application startup complete
+- Started Prometheus metrics export task
+
+4. Open Dashboard
+http://127.0.0.1:8000/widget/demo.html
+
+5. Open Resources Dashboard
+http://127.0.0.1:8000/widget/resources.html
+
+6. Run Chandra FinOps Agent
+uv run python examples/test_agent.py
+
+This verifies:
+- DeepEval
+- Jaeger
+- Zipkin
+- Validation Metrics
+- Cost Metrics
+- Dashboard updates
+
+7. Multiple Agent Runs
+for ($i=1; $i -le 5; $i++) {
+    uv run python examples/test_agent.py
+}
+
+This verifies:
+- Continuous telemetry
+- Multiple traces
+- Live dashboard updates
+- Resource evaluation
+
+8. Verify Jaeger
+Open:
+http://localhost:16686
+
+Check:
+- Service: chandra-finops-agent
+- Traces are visible
+- Spans: agent_initialization, bedrock_call, validation_check
+- Trace IDs
+- Span Count
+
+9. Verify Zipkin
+Open:
+http://localhost:9411
+
+Check:
+- Trace Timeline
+- Span Timeline
+- Service Calls
+- Request Path
+- Execution Timeline
+- Error Timeline
+
+10. Verify Resources Dashboard
+Open:
+http://127.0.0.1:8000/widget/resources.html
+
+Confirm:
+- DeepEval: Answer Relevancy, Faithfulness, Correctness, Evaluation Status, Evaluation Count
+- Jaeger: Trace ID, Validation Traces, Span Count, Latency, Execution Time, Dependencies, Request Duration, Error Count
+- Zipkin: Trace Timeline, Span Timeline, Service Calls, Request Path, Trace Latency, Execution Timeline, Error Timeline
+- Langfuse (Cost): Input Tokens, Output Tokens, Prompt Cost, Completion Cost, Model Cost
+- Prometheus (Cost): AI Cost per Output, Utilization
+- Grafana (Cost): Human Cost, Efficiency Ratio, Cost Score, TCO
+
+11. Verify Dashboard
+Open:
+http://127.0.0.1:8000/widget/demo.html
+
+Confirm:
+- PI Score
+- Validation Score
+- Cost Score
+- Overall Dashboard updates
+
+==========================================================
+FINAL VERIFICATION CHECKLIST
+==========================================================
+Component                       Status
+--------------------------------------
+Docker                          PASS
+Backend                         PASS
+Dashboard                       PASS
+Resources Dashboard             PASS
+DeepEval                        PASS
+Jaeger                          PASS
+Zipkin                          PASS
+Langfuse                        PASS
+Prometheus                      PASS
+Grafana                         PASS
+Cost Metrics                    PASS
+Validation Metrics              PASS
+Live Runtime Metrics            PASS
+Trace Collection                PASS
+Chandra Agent                   PASS
+
+==========================================================
+OVERALL STATUS
+==========================================================
+Cost Dimension (C): PASS
+Validation Dimension (V): PASS
+
+Overall Project Status:
+READY FOR USER TESTING

@@ -3,8 +3,21 @@ narrow slice of the canonical contract.
 """
 from .aws_cost import AwsCostAdapter
 from .base import SourceAdapter
+from .jira import JiraAdapter
+from .puvi_noise import PuviNoiseAdapter
+from .ray import RayAdapter
+from .servicenow import ServiceNowAdapter
+from .bmc import BmcAdapter
 from .bedrock import BedrockAdapter
+from .sap_hr import SapHrAdapter
+from .langgraph import LangGraphAdapter
+from .audit_trail import AuditTrailAdapter
+from .langsmith import LangSmithAdapter
+from .braintrust import BraintrustAdapter
+from .galileo import GalileoAdapter
+from .opik import OpikAdapter
 from .langfuse import LangfuseAdapter
+from .agentops import AgentOpsAdapter
 from .prometheus import PrometheusAdapter
 from .registry import clear, get, list_sources, register
 from .stubs import (
@@ -13,8 +26,21 @@ from .stubs import (
 
 REAL_ADAPTERS = (
     AwsCostAdapter,
+    PuviNoiseAdapter,
+    JiraAdapter,
+    RayAdapter,
+    ServiceNowAdapter,
+    BmcAdapter,
     BedrockAdapter,
+    SapHrAdapter,
+    LangGraphAdapter,
+    AuditTrailAdapter,
+    LangSmithAdapter,
+    BraintrustAdapter,
+    GalileoAdapter,
+    OpikAdapter,
     LangfuseAdapter,
+    AgentOpsAdapter,
     PrometheusAdapter,
 )
 
@@ -30,10 +56,21 @@ __all__ = [
     "ALL_STUBS",
     "AwsCostAdapter",
     "BedrockAdapter",
-    "LangfuseAdapter",
-    "PrometheusAdapter",
+    "BmcAdapter",
+    "JiraAdapter",
+    "LangGraphAdapter",
+    "PuviNoiseAdapter",
+    "RayAdapter",
     "REAL_ADAPTERS",
+    "SapHrAdapter",
     "SourceAdapter",
+    "LangSmithAdapter",
+    "BraintrustAdapter",
+    "GalileoAdapter",
+    "OpikAdapter",
+    "LangfuseAdapter",
+    "AgentOpsAdapter",
+    "PrometheusAdapter",
     "clear",
     "get",
     "list_sources",

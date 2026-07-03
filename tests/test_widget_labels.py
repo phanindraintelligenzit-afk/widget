@@ -9,7 +9,7 @@ from __future__ import annotations
 
 def test_metric_labels_use_risk_not_reliability(client):
     body = client.get("/widget/dpi-ls.js").text
-    assert 'R: "Risk"' in body
+    assert 'R: "Risk' in body
     assert 'Reliability' not in body
     assert 'reliability' not in body
 

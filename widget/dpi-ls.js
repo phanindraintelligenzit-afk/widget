@@ -262,11 +262,239 @@
     };
   }
 
+  function calculateValidationMetrics(sub, settings, value) {
+    sub = sub || {};
+    settings = settings || {};
+    
+    const req = sub["Required Components"] !== undefined ? sub["Required Components"] : 0;
+    const val = sub["Validated Components"] !== undefined ? sub["Validated Components"] : 0;
+    let calcVScore = 1.0;
+    if (req > 0) {
+      calcVScore = val / req;
+    }
+    const vScoreVal = (value !== undefined && value !== null) ? value : calcVScore;
+
+
+    const traceId = sub.trace_id || "Unavailable";
+    const spanCount = sub.span_count || "Unavailable";
+    const latency = sub.latency || "Unavailable";
+    const executionTime = sub.execution_time || "Unavailable";
+    const dependencies = sub.dependencies || "Unavailable";
+    const requestDuration = sub.request_duration || "Unavailable";
+    const errorCount = sub.error_count || "Unavailable";
+    const validationTraces = sub.validation_traces || "Unavailable";
+
+    const traceTimeline = sub.trace_timeline || "Unavailable";
+    const spanTimeline = sub.span_timeline || "Unavailable";
+    const serviceCalls = sub.service_calls || "Unavailable";
+    const requestPath = sub.request_path || "Unavailable";
+    const traceLatency = sub.trace_latency || "Unavailable";
+    const executionTimeline = sub.execution_timeline || "Unavailable";
+    const errorTimeline = sub.error_timeline || "Unavailable";
+
+    return {
+      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      hallucination: { val: sub.hallucination || "Unavailable", calc: sub.hallucination || "Unavailable", disp: sub.hallucination || "Unavailable", formula: "Hallucination Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      evaluation_status: { val: sub.evaluation_status || "Unavailable", calc: sub.evaluation_status || "Unavailable", disp: sub.evaluation_status || "Unavailable", formula: "Evaluation Status", src: "DeepEval", resource: "DeepEval", dec: 0 },
+      evaluation_count: { val: sub.evaluation_count || "Unavailable", calc: sub.evaluation_count || "Unavailable", disp: sub.evaluation_count || "Unavailable", formula: "Evaluation Count", src: "DeepEval", resource: "DeepEval", dec: 0 },
+
+      trace_id: { val: traceId, calc: traceId, disp: traceId, formula: "Active Trace ID", src: "Jaeger Registry", resource: "Jaeger", dec: 0 },
+      validation_traces: { val: validationTraces, calc: validationTraces, disp: validationTraces, formula: "Runtime Trace Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      span_count: { val: spanCount, calc: spanCount, disp: spanCount, formula: "Span Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      latency: { val: latency, calc: latency, disp: latency, formula: "Latency", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      execution_time: { val: executionTime, calc: executionTime, disp: executionTime, formula: "Execution Time", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      dependencies: { val: dependencies, calc: dependencies, disp: dependencies, formula: "Dependency Graph", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      request_duration: { val: requestDuration, calc: requestDuration, disp: requestDuration, formula: "Request Duration", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      error_count: { val: errorCount, calc: errorCount, disp: errorCount, formula: "Error Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+
+      trace_timeline: { val: traceTimeline, calc: traceTimeline, disp: traceTimeline, formula: "Trace Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      span_timeline: { val: spanTimeline, calc: spanTimeline, disp: spanTimeline, formula: "Span Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      service_calls: { val: serviceCalls, calc: serviceCalls, disp: serviceCalls, formula: "Service Calls", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      request_path: { val: requestPath, calc: requestPath, disp: requestPath, formula: "Request Path", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      trace_latency: { val: traceLatency, calc: traceLatency, disp: traceLatency, formula: "Trace Latency", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      execution_timeline: { val: executionTimeline, calc: executionTimeline, disp: executionTimeline, formula: "Execution Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+      error_timeline: { val: errorTimeline, calc: errorTimeline, disp: errorTimeline, formula: "Error Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
+
+      Required_Components: { val: req, calc: req, disp: req, formula: "Count of Expected Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
+      Validated_Components: { val: val, calc: val, disp: val, formula: "Count of SUCCESS Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
+      Validation_Score: { val: vScoreVal, calc: calcVScore, disp: vScoreVal, formula: "Validated Components / Required Components", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 4 },
+    };
+  }
+
+  function renderValidationTableHtml(sub, settings, value, resourceFilter) {
+    const metricsMap = calculateValidationMetrics(sub, settings, value);
+    
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined) return "Unavailable";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    const METRIC_NICE_NAMES = {
+      answer_relevancy: "Answer Relevancy",
+      faithfulness: "Faithfulness",
+      hallucination: "Hallucination",
+      correctness: "Correctness",
+      evaluation_status: "Evaluation Status",
+      evaluation_count: "Evaluation Count",
+      run_id: "Run ID",
+      experiment_id: "Experiment ID",
+      runtime_traces: "Runtime Traces",
+      validation_latency: "Validation Latency",
+      success_count: "Success Count",
+      failure_count: "Failure Count",
+      error_rate: "Error Rate",
+      active_validation_requests: "Active Requests",
+      dependency_health: "Dependency Health"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+    // Filter out rows where value is "Unavailable"
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+
+
+    const req = metricsMap["Required_Components"] ? metricsMap["Required_Components"].val : 0;
+    const val = metricsMap["Validated_Components"] ? metricsMap["Validated_Components"].val : 0;
+    
+    let vScoreVal = 1.0;
+    if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
+      vScoreVal = metricsMap["Validation_Score"].val;
+    }
+    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
+    
+    let gateHtml = "";
+    if (vScoreVal < 0.60) {
+      gateHtml = `
+        <div style="margin-top:10px;background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;color:#f87171;font-size:11px;">
+          <strong style="color:#ef4444;">Validation Gate Triggered</strong><br/>
+          Overall DPI-LS Score capped at 69<br/>
+          Unsafe = TRUE
+        </div>
+      `;
+    }
+
+    const breakdownObj = sub.Breakdown || {};
+    const breakdownHtml = Object.keys(breakdownObj).length > 0 ? `
+      <div style="margin-top:4px;margin-bottom:4px;padding-left:10px;border-left:2px solid #334155;">
+        <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:2px;">Breakdown</div>
+        ${Object.entries(breakdownObj).map(([res, counts]) => 
+          `<div style="display:flex;justify-content:space-between;width:150px;">
+            <span>${res}</span><span>${counts.val} / ${counts.req}</span>
+          </div>`
+        ).join('')}
+      </div>
+    ` : "";
+
+    // dynamic calculation rows are now properly generated in calculateValidationMetrics
+    // Prepare table entries
+    entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+    // Filter out rows where value is "Unavailable"
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;">${valStr}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${calcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${dispStr}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || r.resource}</td>
+        </tr>
+      `;
+    }).join("");
+
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (10%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 10%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${vScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×10%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Validation Score = Validated Components / Required Components</div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Validation Calculation</div>
+          <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+            <div>Required Components : ${req}</div>
+            ${breakdownHtml}
+            <div>Validated Components : ${val}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Validation Score : ${val} / ${req} = ${vScoreVal.toFixed(3)}</div>
+          </div>
+          ${gateHtml}
+        </div>
+      </div>
+
+      <div class="validation-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}VALIDATION TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function renderCostTableHtml(sub, settings, value, resourceFilter) {
     const metricsMap = calculateCostMetrics(sub, settings, value);
     
     const fmt = (val, dec = 6) => {
-      if (val === null || val === undefined) return "N/A";
+      if (val === null || val === undefined) return "Unavailable";
       if (typeof val === 'number') {
         return val.toFixed(dec);
       }
@@ -276,6 +504,7 @@
 
     const tolerance = 0.00001;
     const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
       if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
       const c = parseFloat(calc);
       const d = parseFloat(disp);
@@ -306,11 +535,16 @@
       const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
       const prefix = isDollarMetric ? "$" : "";
       
-      const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec) : "N/A";
-      const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec) : "N/A";
+      const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec).replace("Unavailable", "") : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec).replace("Unavailable", "") : "Unavailable";
       const valStr = r.val !== null && r.val !== undefined 
-        ? prefix + (r.dec === 0 && typeof r.val === 'number' ? r.val.toFixed(0) : fmt(r.val, r.dec))
-        : "N/A";
+        ? prefix + (r.dec === 0 && typeof r.val === 'number' ? r.val.toFixed(0) : fmt(r.val, r.dec)).replace("Unavailable", "")
+        : "Unavailable";
+      
+      // Fix prefix prepending to Unavailable
+      const finalCalcStr = r.calc !== null && r.calc !== undefined ? calcStr : "Unavailable";
+      const finalDispStr = r.disp !== null && r.disp !== undefined ? dispStr : "Unavailable";
+      const finalValStr = r.val !== null && r.val !== undefined ? valStr : "Unavailable";
       const rawCalcStr = fmt(r.calc, r.dec);
       const rawDispStr = fmt(r.disp, r.dec);
       const matchStatus = checkMatch(rawCalcStr, rawDispStr);
@@ -318,10 +552,10 @@
       return `
         <tr style="border-bottom:1px solid #1e293b;">
           <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
-          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${valStr}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${finalValStr}</td>
           <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${calcStr}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${dispStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${finalCalcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${finalDispStr}</td>
           <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
           <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src}</td>
         </tr>
@@ -387,6 +621,9 @@
   function metricDetailHtml(key, value, sub, settings) {
     if (key === "C") {
       return renderCostTableHtml(sub, settings, value);
+    }
+    if (key === "V") {
+      return renderValidationTableHtml(sub, settings, value);
     }
     const label  = METRIC_LABELS[key]  || key;
     const weight = METRIC_WEIGHTS[key] || 0;
@@ -1395,7 +1632,7 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "Arize Phoenix", "MLflow"];
+      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "DeepEval", "Jaeger", "Zipkin"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q
@@ -1526,6 +1763,8 @@
   }
   window.calculateCostMetrics = calculateCostMetrics;
   window.renderCostTableHtml = renderCostTableHtml;
+  window.calculateValidationMetrics = calculateValidationMetrics;
+  window.renderValidationTableHtml = renderValidationTableHtml;
 
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);
