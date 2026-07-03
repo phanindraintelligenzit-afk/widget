@@ -31,11 +31,12 @@ def configure(url: str | None = None) -> Engine:
     is_sqlite = url.startswith("sqlite")
     is_memory = is_sqlite and ":memory:" in url
 
-    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    connect_args = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
     kwargs = {"connect_args": connect_args, "future": True}
     if is_memory:
         # Share the same in-memory DB across sessions for the duration
         # of the process.
+        from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
 
     _engine = create_engine(url, **kwargs)

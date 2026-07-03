@@ -14,11 +14,10 @@ uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
 
 
 # ══════════════════════════════════════════════════════════════════
-# TERMINAL TAB 2 – Start MLflow Server
+# TERMINAL TAB 2 – Start Jaeger & Zipkin
 # ══════════════════════════════════════════════════════════════════
-& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
-cd d:\Projects\widget\widget
-uv run mlflow server --host 127.0.0.1 --port 5000
+docker run -d --name jaeger -p 16686:16686 -p 14268:14268 jaegertracing/all-in-one:latest
+docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin:latest
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -55,8 +54,10 @@ $env:PYTHONIOENCODING="utf-8"; $env:DPI_LS_NO_BLOCK="1"; uv run python examples/
 #  PROMETHEUS (Real)
 #  http://localhost:9090/targets               ← Scrape targets (UP/DOWN)
 #
-#  MLFLOW
-#  http://localhost:5000                       ← Model runs & experiments
+#  JAEGER
+#  http://localhost:16686                      ← OpenTelemetry traces
 #
+#  ZIPKIN
+#  http://localhost:9411                       ← Trace timeline dashboard
 #  DPI-LS BACKEND
 #  http://localhost:8000/widget/resources.html ← Resource evaluation UI

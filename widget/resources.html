@@ -473,16 +473,21 @@
 const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
   ? window.location.origin
   : '';
-let chandraSub = {};
+let chandraSub = {}; // validation sub-metrics
+let chandraCostSub = {}; // cost sub-metrics
 let settingsObj = {};
 let chandraCostValue = 1.0;
+let chandraValidationValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
 let dashboardUrls = {
-  Langfuse:   { url: 'https://cloud.langfuse.com', online: false },
-  Prometheus: { url: 'http://localhost:9090',       online: false },
-  Grafana:    { url: 'http://localhost:3000',        online: false },
+  Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
+  Prometheus:      { url: 'http://localhost:9090', online: false },
+  Grafana:         { url: 'http://localhost:3000', online: false },
+  'DeepEval':      { url: 'https://deepeval.com', online: true },
+  'Jaeger':        { url: 'http://localhost:16686', online: false },
+  'Zipkin':        { url: 'http://localhost:9411', online: false },
 };
 
 async function loadChandraData() {
@@ -495,7 +500,9 @@ async function loadChandraData() {
       const ratings = await r1.json();
       const chandra = ratings.find(r => r.agent_id === "chandra-finops");
       if (chandra) {
-        chandraSub = chandra.sub_metrics?.C || {};
+        chandraSub = chandra.sub_metrics?.V || {};
+        chandraValidationValue = chandra.metrics?.V !== undefined ? chandra.metrics.V : 1.0;
+        chandraCostSub = chandra.sub_metrics?.C || {};
         chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
       }
     }
@@ -509,20 +516,24 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/urls`);
-    if (r.ok) {
-      const raw = await r.json();
-      // API now returns {Langfuse: {url, online}, ...}
-      // Support both old string format and new object format
-      for (const [name, val] of Object.entries(raw)) {
-        if (val && typeof val === 'object' && 'url' in val) {
-          dashboardUrls[name] = { url: val.url, online: val.online };
-        } else {
-          // Legacy: plain string URL
-          dashboardUrls[name] = { url: String(val), online: false };
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/urls`),
+      fetch(`${API}/api/validation-evaluation/urls`)
+    ]);
+    const processUrls = async (r) => {
+      if (r.ok) {
+        const raw = await r.json();
+        for (const [name, val] of Object.entries(raw)) {
+          if (val && typeof val === 'object' && 'url' in val) {
+            dashboardUrls[name] = { url: val.url, online: val.online };
+          } else {
+            dashboardUrls[name] = { url: String(val), online: false };
+          }
         }
       }
-    }
+    };
+    await processUrls(r1);
+    await processUrls(r2);
   } catch (e) {
     console.error("Failed to load urls", e);
   }
@@ -556,6 +567,33 @@ const RESOURCE_META = {
     color: '#f46800',
     sdk: 'grafana',
   },
+  'DeepEval': {
+    icon: '🔮', category: 'LLM Eval & Validation',
+    dpi_status: 'primary',
+    description: 'Calculates Answer Relevancy, Faithfulness, Hallucination, Correctness, and Evaluation Status directly from agent outputs.',
+    dashboard_url: 'https://deepeval.com',
+    dashboard_label: 'Open DeepEval',
+    color: '#ff4d4d',
+    sdk: 'deepeval',
+  },
+  'Jaeger': {
+    icon: '🔍', category: 'Distributed Tracing & Observability',
+    dpi_status: 'foundational',
+    description: 'Monitors validation service traces, latency, span counts, and error rates. Provides deep visibility into validation runtime behavior.',
+    dashboard_url: 'http://localhost:16686',
+    dashboard_label: 'Open Jaeger UI',
+    color: '#60dea9',
+    sdk: 'opentelemetry',
+  },
+  'Zipkin': {
+    icon: '⚡', category: 'Distributed Tracing',
+    dpi_status: 'foundational',
+    description: 'Tracks trace timelines, service calls, and latency. Provides a comprehensive view of execution duration.',
+    dashboard_url: 'http://localhost:9411',
+    dashboard_label: 'Open Zipkin UI',
+    color: '#ff9800',
+    sdk: 'opentelemetry',
+  },
 };
 
 
@@ -582,7 +620,8 @@ function groupByResource(data) {
 
 // Determine overall status per resource
 function resourceStatus(metrics) {
-  const ok = metrics.filter(m => m.detected).length;
+  if (metrics.some(m => m.status === 'CREDENTIALS_MISSING')) return 'failed';
+  const ok = metrics.filter(m => m.status === 'SUCCESS').length;
   if (ok > 0) return 'success';
   return 'failed';
 }
@@ -655,33 +694,25 @@ const METRIC_NICE_NAMES = {
 
 function formatMetricValue(metric, current_value) {
   if (current_value === null || current_value === undefined || current_value === "") return '—';
-  const val = parseFloat(current_value);
-  if (isNaN(val)) return current_value;
-  
-  if (metric === 'input_tokens' || metric === 'output_tokens') {
-    return val.toFixed(0);
-  }
-  if (metric === 'utilization') {
-    return val.toFixed(0);
-  }
-  if (metric === 'efficiency_ratio') {
-    return val.toFixed(2);
-  }
-  if (metric === 'human_cost_per_output') {
-    return "$" + val.toFixed(0);
-  }
-  if (['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'tco'].includes(metric)) {
-    return "$" + val.toFixed(6);
-  }
-  if (metric === 'cost_score') {
-    return val.toFixed(6);
-  }
-  return val.toFixed(4);
+  return current_value;
 }
 
 function renderResourceTable(metrics, name) {
-  if (typeof window.renderCostTableHtml === 'function') {
-    return window.renderCostTableHtml(chandraSub, settingsObj, chandraCostValue, name);
+  const liveMetrics = {};
+  metrics.forEach(m => {
+    liveMetrics[m.metric] = m.current_value;
+  });
+
+  if (['Langfuse', 'Prometheus', 'Grafana'].includes(name)) {
+    if (typeof window.renderCostTableHtml === 'function') {
+      const mergedSub = { ...chandraCostSub, ...liveMetrics };
+      return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
+    }
+  } else {
+    if (typeof window.renderValidationTableHtml === 'function') {
+      const mergedSub = { ...chandraSub, ...liveMetrics };
+      return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);
+    }
   }
   return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
 }
@@ -729,9 +760,14 @@ function renderResourceCard(name, metrics) {
     ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
     : `<span style="color:var(--text);">${escHtml(name)}</span>`;
 
-  const linkHtml = isOnline
-    ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
-    : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+  let linkHtml;
+  if (name === 'DeepEval') {
+    linkHtml = `<a class="rc-dashboard-link-inline" href="https://deepeval.com" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔮 DeepEval Documentation</a><span style="font-size:10px;color:#4ade80;margin-left:6px;">● Running In Process</span>`;
+  } else {
+    linkHtml = isOnline
+      ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
+      : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+  }
 
 
   const verifyHtml = dashVerified
@@ -765,7 +801,7 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 Cost Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${meta.category === 'Validation' ? 'Validation' : 'Cost'} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
@@ -813,10 +849,13 @@ function showToast(msg, type='info') {
 
 async function verifyDashboard(resourceName) {
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/verify-dashboard`, {
+    const isCost = ['Langfuse', 'Prometheus', 'Grafana'].includes(resourceName);
+    const endpoint = isCost ? '/api/cost-evaluation/verify-dashboard' : '/api/validation-evaluation/verify-dashboard';
+    const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
+    const r = await fetch(`${API}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ resource_name: resourceName, metric: 'model_cost' })
+      body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     showToast(`✅ ${resourceName} marked as dashboard verified!`, 'success');
@@ -832,15 +871,19 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const r = await fetch(`${API}/api/cost-evaluation/evaluate`, {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' }
-    });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+    ]);
+    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
-    allData = rawData.filter(r => activeResources.includes(r.resource_name));
+    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
+    allData = [
+      ...costData.filter(r => costResources.includes(r.resource_name)),
+      ...valData.filter(r => valResources.includes(r.resource_name))
+    ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
   } catch (e) {
@@ -854,11 +897,18 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const r = await fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const rawData = await r.json();
-    const activeResources = ["Langfuse", "Prometheus", "Grafana"];
-    allData = rawData.filter(r => activeResources.includes(r.resource_name));
+    const [r1, r2] = await Promise.all([
+      fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } })
+    ]);
+    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error loading results`);
+    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
+    allData = [
+      ...costData.filter(r => costResources.includes(r.resource_name)),
+      ...valData.filter(r => valResources.includes(r.resource_name))
+    ];
     renderGrid();
   } catch (e) {
     document.getElementById('resources-grid').innerHTML = `

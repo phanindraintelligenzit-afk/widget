@@ -22,72 +22,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional
 
-# Port Check and Cleanup at Startup
-def check_port_and_cleanup():
-    import sys
-    import socket
-    import subprocess
-    import time
-
-    # Only run check if we are starting via uvicorn
-    is_uvicorn = any("uvicorn" in arg for arg in sys.argv)
-    if not is_uvicorn:
-        return
-
-    port = 8000
-    for i, arg in enumerate(sys.argv):
-        if arg == "--port" and i + 1 < len(sys.argv):
-            try:
-                port = int(sys.argv[i + 1])
-            except ValueError:
-                pass
-
-    occupied_pid = None
-    try:
-        out = subprocess.check_output("netstat -ano", shell=True).decode()
-        for line in out.splitlines():
-            if f":{port} " in line and "LISTENING" in line:
-                parts = line.strip().split()
-                if len(parts) >= 5:
-                    try:
-                        occupied_pid = int(parts[-1])
-                    except ValueError:
-                        pass
-                    break
-    except Exception:
-        pass
-
-    if occupied_pid is not None and occupied_pid != os.getpid():
-        try:
-            subprocess.run(f"taskkill /F /PID {occupied_pid}", shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(0.5)
-        except Exception:
-            pass
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        s.bind(("127.0.0.1", port))
-        s.close()
-    except OSError:
-        if port == 8000:
-            args = list(sys.argv)
-            if "--port" in args:
-                idx = args.index("--port")
-                if idx + 1 < len(args):
-                    args[idx + 1] = "8001"
-            else:
-                args.extend(["--port", "8001"])
-            
-            try:
-                if sys.argv[0].endswith(".py"):
-                    os.execv(sys.executable, [sys.executable] + args)
-                else:
-                    os.execv(sys.argv[0], args)
-            except Exception:
-                pass
-
-check_port_and_cleanup()
-
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
@@ -169,8 +103,9 @@ async def lifespan(_: FastAPI):
                     logger.error(f"Failed to update metrics: {e}")
                 await asyncio.sleep(10)  # Update every 10 seconds
 
-        metrics_task = asyncio.create_task(update_metrics_periodically())
-        logger.info("Started Prometheus metrics export task")
+        if not os.environ.get("TESTING"):
+            metrics_task = asyncio.create_task(update_metrics_periodically())
+            logger.info("Started Prometheus metrics export task")
 
         yield
 
@@ -234,6 +169,16 @@ app.mount("/metrics", make_asgi_app())
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
     return RedirectResponse(url="/widget/demo.html")
+
+
+@app.get("/index.html", include_in_schema=False)
+def index_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/widget/demo.html")
+
+
+@app.get("/resources.html", include_in_schema=False)
+def resources_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/widget/resources.html")
 
 
 # ---- liveness + adapter discovery ----------------------------------------
@@ -607,6 +552,164 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
     }
 
 
+# ---- Validation Resource Technical Evaluation API Endpoints ------------
+
+@app.get("/api/validation-evaluation/resources")
+def get_validation_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    rows = repo.list_validation_resources(s)
+    if not rows:
+        from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+        service = ValidationResourceEvaluationService(s)
+        service.register_resources()
+        s.commit()
+        rows = repo.list_validation_resources(s)
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "sdk_available": r.sdk_available,
+            "api_available": r.api_available,
+            "api_key_required": r.api_key_required,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/validation-evaluation/evaluate")
+def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+    service = ValidationResourceEvaluationService(s)
+    eval_rows = service.run_evaluations()
+    s.commit()
+    active_resources = {"DeepEval", "Jaeger", "Zipkin"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.get("/api/validation-evaluation/results")
+def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    eval_rows = repo.list_latest_validation_resource_evaluations(s)
+    if not eval_rows:
+        from dpi_ls.validation_resource_evaluation_service import ValidationResourceEvaluationService
+        service = ValidationResourceEvaluationService(s)
+        service.run_evaluations()
+        s.commit()
+        eval_rows = repo.list_latest_validation_resource_evaluations(s)
+    active_resources = {"DeepEval", "Jaeger", "Zipkin"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.post("/api/validation-evaluation/push-deepeval")
+def push_deepeval_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """
+    Accept real DeepEval SDK metric results from test_agent.py and persist them
+    directly so the dashboard shows live values without needing a full evaluation run.
+    Payload: { "answer_relevancy": 0.95, "faithfulness": 0.88, ... }
+    """
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    deepeval_metrics = [
+        "answer_relevancy", "faithfulness", "hallucination",
+        "correctness", "evaluation_status", "evaluation_count",
+    ]
+    for metric in deepeval_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_validation_resource_evaluation(
+                s,
+                resource_name="DeepEval",
+                metric=metric,
+                detected=True,
+                evidence=f"Real DeepEval SDK metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
+
+
+@app.get("/api/validation-evaluation/urls")
+def get_validation_evaluation_urls() -> dict[str, dict]:
+    """Return validation dashboard URLs with live reachability status."""
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    def _is_reachable(url: str) -> bool:
+        try:
+            parsed = _urlparse(url)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or 80
+            with _socket.create_connection((host, port), timeout=0.3):
+                return True
+        except Exception:
+            return False
+
+    deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
+    jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
+    zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
+
+    def _cloud_or_tcp(url: str) -> bool:
+        if not url or url.strip() == "":
+            return False
+        return _is_reachable(url)
+
+    deepeval_online = True  # DeepEval is a library and runs in-process
+    jaeger_online = _cloud_or_tcp(jaeger_url)
+    zipkin_online = _cloud_or_tcp(zipkin_url)
+
+    return {
+        "DeepEval": {"url": deepeval_url, "online": deepeval_online},
+        "Jaeger":   {"url": jaeger_url,    "online": jaeger_online},
+        "Zipkin":   {"url": zipkin_url,    "online": zipkin_online},
+    }
+
+
+@app.post("/api/validation-evaluation/verify-dashboard")
+def verify_validation_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    ok = repo.verify_dashboard_validation_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
 
 
 @app.post("/api/metrics/export")

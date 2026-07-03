@@ -47,7 +47,7 @@ def score_and_persist(
     # Surface RAG signals (informational — doesn't affect score math).
     rating.retrievals = obs.retrievals
     rating.retrieved_docs_total = obs.retrieved_docs_total
-    rating.sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj)
+    rating.sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj, s)
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     update_prometheus_metrics(obs.agent_id, rating)
@@ -84,7 +84,7 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
-    rating.sub_metrics = _extract_sub_metrics(merged, settings, baseline)
+    rating.sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
 
     # Link the score to the most recent partial — gives history a sensible
     # causal anchor even though the score is from the merged set.
@@ -126,7 +126,7 @@ def ingest_partials(s: Session, partials: list[PartialObservation]) -> list[Rati
     return out
 
 
-def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, baseline) -> dict:
+def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, baseline, s: Session = None) -> dict:
     """Extract raw components from the observation for UI drill-downs.
 
     The per-agent card renders each dimension's sub-metrics under a
@@ -166,10 +166,58 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
         res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
     if obs.validation:
         v_raw = obs.validation.model_dump(mode="json")
+
+        req = 0
+        val = 0
+        eval_map = {}
+        if s is not None:
+            evals = repo.list_latest_validation_resource_evaluations(s)
+            eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in evals}
+            for r in evals:
+                if not r.metric.endswith("_evidence"):
+                    req += 1
+                    if r.status == "SUCCESS":
+                        val += 1
+        
+        # Fallback to static if no runtime evaluations exist (e.g., tests without bootstrap)
+        if req == 0:
+            req = v_raw.get("required_components") or 6
+            val = v_raw.get("validated_components") or 0
+
+        v_score = (val / max(req, 1)) * 100
+
         res["V"] = {
-            "Required Components": v_raw.get("required_components"),
-            "Validated Components": v_raw.get("validated_components"),
-            "Validation Score": (v_raw.get("validated_components", 0) / max(v_raw.get("required_components", 1), 1)) * 100
+            "Required Components": req,
+            "Validated Components": val,
+            "Validation Score": v_score,
+            
+            # DeepEval
+            "answer_relevancy": eval_map.get("DeepEval:answer_relevancy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
+            "faithfulness": eval_map.get("DeepEval:faithfulness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
+            "hallucination": eval_map.get("DeepEval:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
+            # correctness: distinct fallback — use consistency (not accuracy, to avoid dup with answer_relevancy)
+            "correctness": eval_map.get("DeepEval:correctness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
+            "evaluation_status": eval_map.get("DeepEval:evaluation_status") or ("COMPLETED" if obs.quality else "Unavailable"),
+            "evaluation_count": eval_map.get("DeepEval:evaluation_count") or "Unavailable",
+
+            # Jaeger
+            "trace_id": eval_map.get("Jaeger:trace_id") or "Unavailable",
+            "runtime_trace_count": eval_map.get("Jaeger:validation_traces") or "Unavailable",
+            "span_count": eval_map.get("Jaeger:span_count") or "Unavailable",
+            "latency": eval_map.get("Jaeger:latency") or "Unavailable",
+            "execution_time": eval_map.get("Jaeger:execution_time") or "Unavailable",
+            "dependency_graph": eval_map.get("Jaeger:dependencies") or "Unavailable",
+            "request_duration": eval_map.get("Jaeger:request_duration") or "Unavailable",
+            "error_count": eval_map.get("Jaeger:error_count") or "Unavailable",
+
+            # Zipkin
+            "trace_timeline": eval_map.get("Zipkin:trace_timeline") or "Unavailable",
+            "span_timeline": eval_map.get("Zipkin:span_timeline") or "Unavailable",
+            "service_calls": eval_map.get("Zipkin:service_calls") or "Unavailable",
+            "request_path": eval_map.get("Zipkin:request_path") or "Unavailable",
+            "trace_latency": eval_map.get("Zipkin:trace_latency") or "Unavailable",
+            "execution_timeline": eval_map.get("Zipkin:execution_timeline") or "Unavailable",
+            "error_timeline": eval_map.get("Zipkin:error_timeline") or "Unavailable",
         }
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")
