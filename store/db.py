@@ -36,6 +36,7 @@ def configure(url: str | None = None) -> Engine:
     if is_memory:
         # Share the same in-memory DB across sessions for the duration
         # of the process.
+        from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
 
     _engine = create_engine(url, **kwargs)

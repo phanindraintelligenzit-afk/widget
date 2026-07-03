@@ -103,8 +103,9 @@ async def lifespan(_: FastAPI):
                     logger.error(f"Failed to update metrics: {e}")
                 await asyncio.sleep(10)  # Update every 10 seconds
 
-        metrics_task = asyncio.create_task(update_metrics_periodically())
-        logger.info("Started Prometheus metrics export task")
+        if not os.environ.get("TESTING"):
+            metrics_task = asyncio.create_task(update_metrics_periodically())
+            logger.info("Started Prometheus metrics export task")
 
         yield
 

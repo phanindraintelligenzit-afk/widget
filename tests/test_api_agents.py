@@ -41,12 +41,21 @@ def test_agent_score_404_for_unknown(client):
 
 
 def test_agent_history_newest_first(client):
+    import time
     _post_canonical(client, "strong")
+    time.sleep(0.01)
     _post_canonical(client, "strong")
+    time.sleep(0.01)
     _post_canonical(client, "strong")
     r = client.get("/agents/agent-strong-001/history")
     assert r.status_code == 200
     h = r.json()
+    from store import db as db_mod
+    from sqlalchemy import text
+    engine = db_mod.get_engine()
+    with engine.connect() as conn:
+        c = conn.execute(text("SELECT count(*) FROM score_history")).scalar()
+        print(f"DB COUNT: {c}")
     assert len(h) == 3
     # Same observation re-ingested → same score; just verify chronological key present.
     for p in h:

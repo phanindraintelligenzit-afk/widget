@@ -620,7 +620,8 @@ function groupByResource(data) {
 
 // Determine overall status per resource
 function resourceStatus(metrics) {
-  const ok = metrics.filter(m => m.detected).length;
+  if (metrics.some(m => m.status === 'CREDENTIALS_MISSING')) return 'failed';
+  const ok = metrics.filter(m => m.status === 'SUCCESS').length;
   if (ok > 0) return 'success';
   return 'failed';
 }

@@ -327,7 +327,7 @@
     const metricsMap = calculateValidationMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
-      if (val === null || val === undefined) return "N/A";
+      if (val === null || val === undefined) return "Unavailable";
       if (typeof val === 'number') {
         return val.toFixed(dec);
       }
@@ -336,6 +336,7 @@
     };
 
     const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
       if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
       if (calc === disp) return "MATCH";
       const c = parseFloat(calc);
@@ -414,9 +415,9 @@
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
     const rowHtml = entries.map(([key, r]) => {
-      const valStr = r.val !== null && r.val !== undefined ? r.val : "N/A";
-      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "N/A";
-      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "N/A";
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
       const matchStatus = checkMatch(calcStr, dispStr);
       const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
       return `
@@ -493,7 +494,7 @@
     const metricsMap = calculateCostMetrics(sub, settings, value);
     
     const fmt = (val, dec = 6) => {
-      if (val === null || val === undefined) return "N/A";
+      if (val === null || val === undefined) return "Unavailable";
       if (typeof val === 'number') {
         return val.toFixed(dec);
       }
@@ -503,6 +504,7 @@
 
     const tolerance = 0.00001;
     const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
       if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
       const c = parseFloat(calc);
       const d = parseFloat(disp);
@@ -533,11 +535,16 @@
       const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
       const prefix = isDollarMetric ? "$" : "";
       
-      const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec) : "N/A";
-      const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec) : "N/A";
+      const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec).replace("Unavailable", "") : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec).replace("Unavailable", "") : "Unavailable";
       const valStr = r.val !== null && r.val !== undefined 
-        ? prefix + (r.dec === 0 && typeof r.val === 'number' ? r.val.toFixed(0) : fmt(r.val, r.dec))
-        : "N/A";
+        ? prefix + (r.dec === 0 && typeof r.val === 'number' ? r.val.toFixed(0) : fmt(r.val, r.dec)).replace("Unavailable", "")
+        : "Unavailable";
+      
+      // Fix prefix prepending to Unavailable
+      const finalCalcStr = r.calc !== null && r.calc !== undefined ? calcStr : "Unavailable";
+      const finalDispStr = r.disp !== null && r.disp !== undefined ? dispStr : "Unavailable";
+      const finalValStr = r.val !== null && r.val !== undefined ? valStr : "Unavailable";
       const rawCalcStr = fmt(r.calc, r.dec);
       const rawDispStr = fmt(r.disp, r.dec);
       const matchStatus = checkMatch(rawCalcStr, rawDispStr);
@@ -545,10 +552,10 @@
       return `
         <tr style="border-bottom:1px solid #1e293b;">
           <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
-          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${valStr}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${finalValStr}</td>
           <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${calcStr}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${dispStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${finalCalcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${finalDispStr}</td>
           <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
           <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src}</td>
         </tr>

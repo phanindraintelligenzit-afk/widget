@@ -9,6 +9,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(monkeypatch):
+    import os
+    os.environ["TESTING"] = "1"
+    
     # Fresh in-memory DB for each test.
     from store import db as db_mod
     db_mod._engine = None  # type: ignore[attr-defined]

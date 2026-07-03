@@ -643,6 +643,23 @@ async def run_agent_observation() -> None:
     # Push DeepEval results to backend
     _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
 
+    # Flush Langfuse traces before triggering resource evaluation
+    try:
+        import litellm
+        for cb in getattr(litellm, "_async_success_callback", []) + getattr(litellm, "success_callback", []):
+            if hasattr(cb, "Langfuse"):
+                cb.Langfuse.flush()
+                print("[Langfuse] Traces flushed successfully (via litellm cb).")
+                break
+        else:
+            from langfuse import Langfuse
+            lf = Langfuse()
+            lf.flush()
+            lf.shutdown()
+            print("[Langfuse] Traces flushed successfully (via SDK).")
+    except Exception as exc:
+        print(f"[Langfuse] Flush skipped: {exc}")
+
     # Trigger resource evaluation pipeline so telemetry is available for the agent score
     try:
         import urllib.request
@@ -681,23 +698,6 @@ async def run_agent_observation() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
-
-    # Flush Langfuse traces before exit
-    try:
-        import litellm
-        for cb in litellm._async_success_callback + litellm.success_callback:
-            if hasattr(cb, "Langfuse"):
-                cb.Langfuse.flush()
-                print("Langfuse traces flushed successfully.")
-                break
-        else:
-            from langfuse import Langfuse
-            lf = Langfuse()
-            lf.flush()
-            lf.shutdown()
-            print("Langfuse traces flushed successfully (via SDK).")
-    except Exception as exc:
-        print(f"Langfuse flush skipped: {exc}")
 
 
 
