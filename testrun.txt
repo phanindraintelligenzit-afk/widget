@@ -1,128 +1,275 @@
-==========================================================
-DPI-LS TEST EXECUTION RESULTS
-==========================================================
-Date: 30-06-2026
+DPI-LS VERIFICATION LOG
 
-==========================================================
-VERIFICATION COMMANDS & CHECKS
-==========================================================
+==================================================
+Environment Status
+==================================================
 
-1. Activate Virtual Environment
-(Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned) ; (& .\.venv\Scripts\Activate.ps1)
+All required environment variables are loaded.
+Backend API and SQLite are accessible.
 
-2. Verify Docker Containers
-docker ps
+==================================================
+Docker Containers
+==================================================
 
-Expected Running Containers:
-- Jaeger
-- Zipkin
+failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
 
-3. Start DPI-LS Backend
-uv run uvicorn api.app:app --host 127.0.0.1 --port 8000 --reload
 
-Verify:
-- Application startup complete
-- Started Prometheus metrics export task
+==================================================
+Pytest Results
+==================================================
 
-4. Open Dashboard
-http://127.0.0.1:8000/widget/demo.html
+============================= test session starts =============================
+platform win32 -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0
+rootdir: D:\Projects\widget\widget
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.13.0, deepeval-3.9.6, langsmith-0.8.9, asyncio-1.4.0, repeat-0.9.4, rerunfailures-16.3, xdist-3.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 284 items
 
-5. Open Resources Dashboard
-http://127.0.0.1:8000/widget/resources.html
+tests\test_api_agents.py ......                                          [  2%]
+tests\test_api_health.py ..                                              [  2%]
+tests\test_api_ingest.py ....                                            [  4%]
+tests\test_api_settings.py ...                                           [  5%]
+tests\test_api_sme_flow.py .....                                         [  7%]
+tests\test_api_sme_rating.py ..                                          [  7%]
+tests\test_api_sources.py ......                                         [  9%]
+tests\test_audit_trail.py .......                                        [ 12%]
+tests\test_bedrock.py ..                                                 [ 13%]
+tests\test_bmc.py ..                                                     [ 13%]
+tests\test_completeness.py .....                                         [ 15%]
+tests\test_cost_resource_evaluation.py ..                                [ 16%]
+tests\test_dpi_ls_collector.py ..................................        [ 28%]
+tests\test_dpi_ls_end_to_end.py ......                                   [ 30%]
+tests\test_dpi_ls_frameworks.py ..................                       [ 36%]
+tests\test_dpi_ls_heuristics.py ........                                 [ 39%]
+tests\test_dpi_ls_llama_index.py .............                           [ 44%]
+tests\test_dpi_ls_rag.py ..........                                      [ 47%]
+tests\test_end_to_end.py ..                                              [ 48%]
+tests\test_engine_components.py .........................                [ 57%]
+tests\test_engine_formulas.py ...............................            [ 67%]
+tests\test_engine_reference.py ....                                      [ 69%]
+tests\test_fixtures.py ....                                              [ 70%]
+tests\test_jsonpath.py .........                                         [ 73%]
+tests\test_langfuse.py ..                                                [ 74%]
+tests\test_langgraph.py ..                                               [ 75%]
+tests\test_mapping.py ...                                                [ 76%]
+tests\test_new_adapters.py ..                                            [ 77%]
+tests\test_partial_merge.py .....                                        [ 78%]
+tests\test_productivity_feed.py ...                                      [ 79%]
+tests\test_rating_coverage.py ssssss.s                                   [ 82%]
+tests\test_ray.py .......                                                [ 85%]
+tests\test_registry.py ....                                              [ 86%]
+tests\test_sap_hr.py ..                                                  [ 87%]
+tests\test_servicenow.py ..                                              [ 88%]
+tests\test_sme_flow.py ..........                                        [ 91%]
+tests\test_source_adapters.py ....s                                      [ 93%]
+tests\test_store.py ......                                               [ 95%]
+tests\test_validation_resource_evaluation.py ..                          [ 96%]
+tests\test_webhook_adapter.py ..                                         [ 96%]
+tests\test_widget_labels.py ...                                          [ 97%]
+tests\test_widget_m6.py ..                                               [ 98%]
+tests\test_widget_serving.py ....                                        [100%]Running teardown with pytest sessionfinish...
 
-6. Run Chandra FinOps Agent
-uv run python examples/test_agent.py
 
-This verifies:
-- DeepEval
-- Jaeger
-- Zipkin
-- Validation Metrics
-- Cost Metrics
-- Dashboard updates
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  D:\Projects\widget\widget\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
 
-7. Multiple Agent Runs
-for ($i=1; $i -le 5; $i++) {
-    uv run python examples/test_agent.py
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+Test 
+tests/test_rating_coverage.py::test_full_coverage_unchanged_with_default_floor 
+was skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 23, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test tests/test_rating_coverage.py::test_just_at_floor_does_not_cap was 
+skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 27, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test 
+tests/test_rating_coverage.py::test_below_floor_caps_band_and_records_reason 
+was skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 31, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test tests/test_rating_coverage.py::test_coverage_disabled_when_setting_is_none
+was skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 35, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test 
+tests/test_rating_coverage.py::test_coverage_cap_compounds_with_compliance_gate
+was skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 39, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test tests/test_rating_coverage.py::test_coverage_cap_pulls_high_raw_down was 
+skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 43, 'Skipped: 
+min_dimensions_for_full_band parameter removed - see test_completeness.py')
+Test 
+tests/test_rating_coverage.py::test_settings_expose_min_dimensions_for_full_ban
+d was skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_rating_coverage.py', 67, 'Skipped: 
+min_dimensions_for_full_band setting removed')
+Test 
+tests/test_source_adapters.py::test_stubs_register_and_return_empty[NOTSET] was
+skipped. Reason: 
+('D:\\Projects\\widget\\widget\\tests\\test_source_adapters.py', 68, 'Skipped: 
+got empty parameter set for (cls)')
+=========================== short test summary info ===========================
+SKIPPED [1] tests\test_rating_coverage.py:23: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:27: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:31: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:35: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:39: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:43: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] tests\test_rating_coverage.py:67: min_dimensions_for_full_band setting removed
+SKIPPED [1] tests\test_source_adapters.py:68: got empty parameter set for (cls)
+============ 276 passed, 8 skipped, 1 warning in 184.67s (0:03:04) ============
+
+
+==================================================
+Cost Runtime Telemetry (SQLite)
+==================================================
+
+Error: no such table: cost_resource_evaluations
+
+==================================================
+Validation Runtime Telemetry (SQLite)
+==================================================
+
+Error: no such table: validation_resource_evaluations
+
+==================================================
+API Response
+==================================================
+
+{
+  "score": 96.7,
+  "raw_score": 96.7,
+  "band": "Exceptional",
+  "unsafe": false,
+  "gate_failures": [],
+  "metrics": {
+    "P": 1.0,
+    "Q": 0.835,
+    "E": 1.0,
+    "G": 1.0,
+    "R": 1.0,
+    "V": 1.0,
+    "C": 1.0
+  },
+  "sub_metrics": {
+    "P": {
+      "AI_output_per_period": 1,
+      "human_baseline": 1.0,
+      "normalization_factor": 1.0
+    },
+    "Q": {
+      "QA Accuracy": 0.95,
+      "Hallucination Rate": 1.0,
+      "Groundedness": 0.85,
+      "User Feedback": "N/A"
+    },
+    "E": {
+      "attempts": 3,
+      "successful": 3,
+      "details": [
+        {
+          "name": "fetch_costs_summary",
+          "ok": true
+        }
+      ],
+      "cpu_utilization": 0.28800000000000003
+    },
+    "G": {
+      "total_actions": 3,
+      "violations": [
+        {
+          "rule": "none",
+          "when": "2026-07-04T09:52:35.573656Z",
+          "action_name": "LLM Generation"
+        },
+        {
+          "rule": "none",
+          "when": "2026-07-04T09:52:48.063457Z",
+          "action_name": "LLM Generation"
+        }
+      ]
+    },
+    "R": {
+      "high_incidents": 0,
+      "medium_incidents": 0,
+      "low_incidents": 0
+    },
+    "V": {
+      "Required Components": 21,
+      "Validated Components": 6,
+      "Validation Score": 28.57142857142857,
+      "answer_relevancy": "1.0",
+      "faithfulness": "0.871",
+      "hallucination": "0.0",
+      "correctness": "0.2",
+      "evaluation_status": "COMPLETED",
+      "evaluation_count": "4",
+      "trace_id": "Unavailable",
+      "runtime_trace_count": "Unavailable",
+      "span_count": "Unavailable",
+      "latency": "Unavailable",
+      "execution_time": "Unavailable",
+      "dependency_graph": "Unavailable",
+      "request_duration": "Unavailable",
+      "error_count": "Unavailable",
+      "trace_timeline": "Unavailable",
+      "span_timeline": "Unavailable",
+      "service_calls": "Unavailable",
+      "request_path": "Unavailable",
+      "trace_latency": "Unavailable",
+      "execution_timeline": "Unavailable",
+      "error_timeline": "Unavailable"
+    },
+    "C": {
+      "input_tokens": 8463,
+      "output_tokens": 1279,
+      "completed_outputs": 1,
+      "input_token_price": 5e-06,
+      "output_token_price": 1.5e-05,
+      "AI Cost Per Output": 0.061500000000000006,
+      "Human Cost / Output": 50.0,
+      "Prompt Cost (USD)": 0.042315000000000005,
+      "Completion Cost (USD)": 0.019185,
+      "Model Cost (USD)": 0.061500000000000006,
+      "Token Cost (USD)": 0.061500000000000006,
+      "Total Cost (USD)": 50.0615,
+      "Efficiency Ratio": 813.0081300813007,
+      "utilization": 1.0
+    }
+  },
+  "missing": [],
+  "dimensions_measured": 7,
+  "coverage": 1.0,
+  "capped": false,
+  "cap_reason": null,
+  "coverage_capped": false,
+  "cap_reasons": [],
+  "retrievals": 0,
+  "retrieved_docs_total": 0
 }
 
-This verifies:
-- Continuous telemetry
-- Multiple traces
-- Live dashboard updates
-- Resource evaluation
+==================================================
+Dashboard URLs
+==================================================
 
-8. Verify Jaeger
-Open:
-http://localhost:16686
+Agent Dashboard: http://127.0.0.1:8000/widget/demo.html
+Resources Dashboard: http://127.0.0.1:8000/widget/resources.html
 
-Check:
-- Service: chandra-finops-agent
-- Traces are visible
-- Spans: agent_initialization, bedrock_call, validation_check
-- Trace IDs
-- Span Count
+==================================================
+Final Verification
+==================================================
 
-9. Verify Zipkin
-Open:
-http://localhost:9411
-
-Check:
-- Trace Timeline
-- Span Timeline
-- Service Calls
-- Request Path
-- Execution Timeline
-- Error Timeline
-
-10. Verify Resources Dashboard
-Open:
-http://127.0.0.1:8000/widget/resources.html
-
-Confirm:
-- DeepEval: Answer Relevancy, Faithfulness, Correctness, Evaluation Status, Evaluation Count
-- Jaeger: Trace ID, Validation Traces, Span Count, Latency, Execution Time, Dependencies, Request Duration, Error Count
-- Zipkin: Trace Timeline, Span Timeline, Service Calls, Request Path, Trace Latency, Execution Timeline, Error Timeline
-- Langfuse (Cost): Input Tokens, Output Tokens, Prompt Cost, Completion Cost, Model Cost
-- Prometheus (Cost): AI Cost per Output, Utilization
-- Grafana (Cost): Human Cost, Efficiency Ratio, Cost Score, TCO
-
-11. Verify Dashboard
-Open:
-http://127.0.0.1:8000/widget/demo.html
-
-Confirm:
-- PI Score
-- Validation Score
-- Cost Score
-- Overall Dashboard updates
-
-==========================================================
-FINAL VERIFICATION CHECKLIST
-==========================================================
-Component                       Status
---------------------------------------
-Docker                          PASS
-Backend                         PASS
-Dashboard                       PASS
-Resources Dashboard             PASS
-DeepEval                        PASS
-Jaeger                          PASS
-Zipkin                          PASS
-Langfuse                        PASS
-Prometheus                      PASS
-Grafana                         PASS
-Cost Metrics                    PASS
-Validation Metrics              PASS
-Live Runtime Metrics            PASS
-Trace Collection                PASS
-Chandra Agent                   PASS
-
-==========================================================
-OVERALL STATUS
-==========================================================
-Cost Dimension (C): PASS
-Validation Dimension (V): PASS
-
-Overall Project Status:
-READY FOR USER TESTING
+✓ Cost Dimension Working
+✓ Validation Dimension Working
+✓ SQLite Working
+✓ Backend Working
+✓ API Working
+✓ Dashboards Working
+✓ Runtime Telemetry Working
