@@ -11,7 +11,10 @@ Backend API and SQLite are accessible.
 Docker Containers
 ==================================================
 
-failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified.
+CONTAINER ID   IMAGE                             COMMAND                  CREATED        STATUS                    PORTS                                                                                              NAMES
+484c5c89fbb2   postgres:16-alpine                "docker-entrypoint.sâ€¦"   24 hours ago   Up 37 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp                                                        chandra-postgres-1
+6534dabe6205   openzipkin/zipkin:latest          "start-zipkin"           7 days ago     Up 36 minutes (healthy)   0.0.0.0:9411->9411/tcp, [::]:9411->9411/tcp                                                        zipkin
+b903d294eb3a   jaegertracing/all-in-one:latest   "/go/bin/all-in-one-â€¦"   7 days ago     Up 11 minutes             0.0.0.0:14268->14268/tcp, [::]:14268->14268/tcp, 0.0.0.0:16686->16686/tcp, [::]:16686->16686/tcp   jaeger
 
 
 ==================================================
@@ -20,7 +23,7 @@ Pytest Results
 
 ============================= test session starts =============================
 platform win32 -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0
-rootdir: D:\Projects\widget\widget
+rootdir: D:\DPI-LS\widget\widget
 configfile: pyproject.toml
 testpaths: tests
 plugins: anyio-4.13.0, deepeval-3.9.6, langsmith-0.8.9, asyncio-1.4.0, repeat-0.9.4, rerunfailures-16.3, xdist-3.8.0
@@ -74,7 +77,7 @@ tests\test_widget_serving.py ....                                        [100%]R
 
 ============================== warnings summary ===============================
 .venv\Lib\site-packages\fastapi\testclient.py:1
-  D:\Projects\widget\widget\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+  D:\DPI-LS\widget\widget\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
     from starlette.testclient import TestClient as TestClient  # noqa
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
@@ -116,42 +119,60 @@ skipped. Reason:
 ('D:\\Projects\\widget\\widget\\tests\\test_source_adapters.py', 68, 'Skipped: 
 got empty parameter set for (cls)')
 =========================== short test summary info ===========================
-SKIPPED [1] tests\test_rating_coverage.py:23: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:27: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:31: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:35: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:39: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:43: min_dimensions_for_full_band parameter removed - see test_completeness.py
-SKIPPED [1] tests\test_rating_coverage.py:67: min_dimensions_for_full_band setting removed
-SKIPPED [1] tests\test_source_adapters.py:68: got empty parameter set for (cls)
-============ 276 passed, 8 skipped, 1 warning in 184.67s (0:03:04) ============
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:23: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:27: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:31: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:35: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:39: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:43: min_dimensions_for_full_band parameter removed - see test_completeness.py
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_rating_coverage.py:67: min_dimensions_for_full_band setting removed
+SKIPPED [1] ..\..\..\Projects\widget\widget\tests\test_source_adapters.py:68: got empty parameter set for (cls)
+============ 276 passed, 8 skipped, 1 warning in 73.16s (0:01:13) =============
 
 
 ==================================================
 Cost Runtime Telemetry (SQLite)
 ==================================================
 
-Error: no such table: cost_resource_evaluations
+Total records: 5126
+Latest 3 records:
+{'resource_name': 'Prometheus', 'metric': 'utilization', 'current_value': '1.0'}
+{'resource_name': 'Prometheus', 'metric': 'ai_cost_per_output', 'current_value': '0.06383'}
+{'resource_name': 'Langfuse', 'metric': 'Total Cost (USD)', 'current_value': '50.06383'}
 
 ==================================================
 Validation Runtime Telemetry (SQLite)
 ==================================================
 
-Error: no such table: validation_resource_evaluations
+Total records: 6951
+Latest 3 records:
+{'resource_name': 'Zipkin', 'metric': 'error_timeline', 'current_value': 'Unavailable'}
+{'resource_name': 'Zipkin', 'metric': 'execution_timeline', 'current_value': 'Unavailable'}
+{'resource_name': 'Zipkin', 'metric': 'trace_latency', 'current_value': 'Unavailable'}
+
+==================================================
+Quality Runtime Telemetry (SQLite)
+==================================================
+
+Total records: 763
+Latest 3 records:
+{'resource_name': 'Ragas', 'metric': 'context_recall', 'current_value': '0.85'}
+{'resource_name': 'Ragas', 'metric': 'context_precision', 'current_value': '0.9'}
+{'resource_name': 'Ragas', 'metric': 'answer_relevancy', 'current_value': '0.91'}
 
 ==================================================
 API Response
 ==================================================
 
 {
-  "score": 96.7,
-  "raw_score": 96.7,
+  "score": 97.3,
+  "raw_score": 97.3,
   "band": "Exceptional",
   "unsafe": false,
   "gate_failures": [],
   "metrics": {
     "P": 1.0,
-    "Q": 0.835,
+    "Q": 0.865,
     "E": 1.0,
     "G": 1.0,
     "R": 1.0,
@@ -167,7 +188,7 @@ API Response
     "Q": {
       "QA Accuracy": 0.95,
       "Hallucination Rate": 1.0,
-      "Groundedness": 0.85,
+      "Groundedness": 1.0,
       "User Feedback": "N/A"
     },
     "E": {
@@ -179,19 +200,19 @@ API Response
           "ok": true
         }
       ],
-      "cpu_utilization": 0.28800000000000003
+      "cpu_utilization": 0.314
     },
     "G": {
       "total_actions": 3,
       "violations": [
         {
           "rule": "none",
-          "when": "2026-07-04T09:52:35.573656Z",
+          "when": "2026-07-10T06:19:14.118214Z",
           "action_name": "LLM Generation"
         },
         {
           "rule": "none",
-          "when": "2026-07-04T09:52:48.063457Z",
+          "when": "2026-07-10T06:19:25.676799Z",
           "action_name": "LLM Generation"
         }
       ]
@@ -203,44 +224,44 @@ API Response
     },
     "V": {
       "Required Components": 21,
-      "Validated Components": 6,
-      "Validation Score": 28.57142857142857,
+      "Validated Components": 21,
+      "Validation Score": 100.0,
       "answer_relevancy": "1.0",
-      "faithfulness": "0.871",
+      "faithfulness": "0.868",
       "hallucination": "0.0",
-      "correctness": "0.2",
+      "correctness": "1.0",
       "evaluation_status": "COMPLETED",
       "evaluation_count": "4",
-      "trace_id": "Unavailable",
-      "runtime_trace_count": "Unavailable",
-      "span_count": "Unavailable",
-      "latency": "Unavailable",
-      "execution_time": "Unavailable",
-      "dependency_graph": "Unavailable",
-      "request_duration": "Unavailable",
-      "error_count": "Unavailable",
-      "trace_timeline": "Unavailable",
-      "span_timeline": "Unavailable",
-      "service_calls": "Unavailable",
-      "request_path": "Unavailable",
-      "trace_latency": "Unavailable",
-      "execution_timeline": "Unavailable",
-      "error_timeline": "Unavailable"
+      "trace_id": "3241fa2dc9ab526f",
+      "runtime_trace_count": "1",
+      "span_count": "1",
+      "latency": "16610.60ms",
+      "execution_time": "16.611s",
+      "dependency_graph": "1",
+      "request_duration": "16610.60ms",
+      "error_count": "0",
+      "trace_timeline": "2026-07-10T11:49:09.066194-2026-07-10T11:49:25.676799",
+      "span_timeline": "dd870a5f:16611ms",
+      "service_calls": "1",
+      "request_path": "chandra-agent-run",
+      "trace_latency": "16611ms",
+      "execution_timeline": "chandra-agent-run:16611ms",
+      "error_timeline": "No errors recorded"
     },
     "C": {
-      "input_tokens": 8463,
-      "output_tokens": 1279,
+      "input_tokens": 8481,
+      "output_tokens": 1249,
       "completed_outputs": 1,
       "input_token_price": 5e-06,
       "output_token_price": 1.5e-05,
-      "AI Cost Per Output": 0.061500000000000006,
+      "AI Cost Per Output": 0.06114000000000001,
       "Human Cost / Output": 50.0,
-      "Prompt Cost (USD)": 0.042315000000000005,
-      "Completion Cost (USD)": 0.019185,
-      "Model Cost (USD)": 0.061500000000000006,
-      "Token Cost (USD)": 0.061500000000000006,
-      "Total Cost (USD)": 50.0615,
-      "Efficiency Ratio": 813.0081300813007,
+      "Prompt Cost (USD)": 0.042405000000000005,
+      "Completion Cost (USD)": 0.018735,
+      "Model Cost (USD)": 0.06114000000000001,
+      "Token Cost (USD)": 0.06114000000000001,
+      "Total Cost (USD)": 50.06114,
+      "Efficiency Ratio": 817.7952240758913,
       "utilization": 1.0
     }
   },

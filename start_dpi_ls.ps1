@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 Write-Host "Starting DPI-LS Services..."
 
 # Navigate to project root
-Set-Location "D:\Projects\widget\widget"
+Set-Location "D:\DPI-LS\widget\widget"
 
 # 1. FastAPI (Port 8000)
 Write-Host "Starting FastAPI..."
@@ -56,7 +56,7 @@ Write-Host "=========================================="
 Write-Host ""
 
 # Return to project root
-Set-Location "D:\Projects\widget\widget"
+Set-Location "D:\DPI-LS\widget\widget"
 
 Write-Host "Services have been initiated. Use URLs:"
 Write-Host "  FastAPI:  http://127.0.0.1:8000"

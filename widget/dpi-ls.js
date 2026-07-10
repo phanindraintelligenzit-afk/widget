@@ -323,6 +323,167 @@
     };
   }
 
+  function calculateQualityMetrics(sub, settings, value) {
+    sub = sub || {};
+    settings = settings || {};
+    
+    const accuracy = sub.semantic_accuracy || "Unavailable";
+    const consistency = sub.consistency_measurement || "Unavailable";
+    const hallucination = sub.hallucination_analysis || "Unavailable";
+    
+    let qScoreVal = "Pending SME Review";
+    if (value !== undefined && value !== null && value !== "Pending SME Review") {
+      qScoreVal = value;
+    }
+
+    return {
+      runtime_traces: { val: sub.runtime_traces || "Unavailable", calc: sub.runtime_traces || "Unavailable", disp: sub.runtime_traces || "Unavailable", formula: "Runtime Traces", src: "LangSmith", resource: "LangSmith", dec: 0 },
+      llm_evaluation: { val: sub.llm_evaluation || "Unavailable", calc: sub.llm_evaluation || "Unavailable", disp: sub.llm_evaluation || "Unavailable", formula: "LLM Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
+      hallucination_analysis: { val: sub.hallucination_analysis || "Unavailable", calc: sub.hallucination_analysis || "Unavailable", disp: sub.hallucination_analysis || "Unavailable", formula: "Hallucination Rate", src: "LangSmith", resource: "LangSmith", dec: 3 },
+      prompt_evaluation: { val: sub.prompt_evaluation || "Unavailable", calc: sub.prompt_evaluation || "Unavailable", disp: sub.prompt_evaluation || "Unavailable", formula: "Prompt Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
+      context_evaluation: { val: sub.context_evaluation || "Unavailable", calc: sub.context_evaluation || "Unavailable", disp: sub.context_evaluation || "Unavailable", formula: "Context Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
+
+      semantic_accuracy: { val: sub.semantic_accuracy || "Unavailable", calc: sub.semantic_accuracy || "Unavailable", disp: sub.semantic_accuracy || "Unavailable", formula: "Semantic Accuracy (QA)", src: "Ragas", resource: "Ragas", dec: 3 },
+      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "Ragas", resource: "Ragas", dec: 3 },
+      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "Ragas", resource: "Ragas", dec: 3 },
+      context_precision: { val: sub.context_precision || "Unavailable", calc: sub.context_precision || "Unavailable", disp: sub.context_precision || "Unavailable", formula: "Context Precision", src: "Ragas", resource: "Ragas", dec: 3 },
+      context_recall: { val: sub.context_recall || "Unavailable", calc: sub.context_recall || "Unavailable", disp: sub.context_recall || "Unavailable", formula: "Context Recall", src: "Ragas", resource: "Ragas", dec: 3 },
+
+      runtime_execution_history: { val: sub.runtime_execution_history || "Unavailable", calc: sub.runtime_execution_history || "Unavailable", disp: sub.runtime_execution_history || "Unavailable", formula: "Execution History", src: "AgentOps", resource: "AgentOps", dec: 0 },
+      agent_behaviour: { val: sub.agent_behaviour || "Unavailable", calc: sub.agent_behaviour || "Unavailable", disp: sub.agent_behaviour || "Unavailable", formula: "Agent Behaviour Score", src: "AgentOps", resource: "AgentOps", dec: 3 },
+      consistency_measurement: { val: sub.consistency_measurement || "Unavailable", calc: sub.consistency_measurement || "Unavailable", disp: sub.consistency_measurement || "Unavailable", formula: "Consistency", src: "AgentOps", resource: "AgentOps", dec: 3 },
+      session_metrics: { val: sub.session_metrics || "Unavailable", calc: sub.session_metrics || "Unavailable", disp: sub.session_metrics || "Unavailable", formula: "Session Metrics", src: "AgentOps", resource: "AgentOps", dec: 0 },
+      stability_metrics: { val: sub.stability_metrics || "Unavailable", calc: sub.stability_metrics || "Unavailable", disp: sub.stability_metrics || "Unavailable", formula: "Stability Metrics", src: "AgentOps", resource: "AgentOps", dec: 3 },
+
+      Quality_Score: { val: qScoreVal, calc: qScoreVal, disp: qScoreVal, formula: "0.7*Accuracy + 0.2*Consistency + 0.1*(1 - Hallucination)", src: "Quality Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 4 },
+    };
+  }
+
+  function renderQualityTableHtml(sub, settings, value, resourceFilter) {
+    const metricsMap = calculateQualityMetrics(sub, settings, value);
+    
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined || val === "Unavailable" || val === "Pending SME Review") return val;
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    const METRIC_NICE_NAMES = {
+      runtime_traces: "Runtime Traces",
+      llm_evaluation: "LLM Evaluation",
+      hallucination_analysis: "Hallucination Rate",
+      prompt_evaluation: "Prompt Evaluation",
+      context_evaluation: "Context Evaluation",
+      semantic_accuracy: "Semantic Accuracy",
+      faithfulness: "Faithfulness",
+      answer_relevancy: "Answer Relevancy",
+      context_precision: "Context Precision",
+      context_recall: "Context Recall",
+      runtime_execution_history: "Execution History",
+      agent_behaviour: "Agent Behaviour",
+      consistency_measurement: "Consistency",
+      session_metrics: "Session Metrics",
+      stability_metrics: "Stability",
+      Quality_Score: "Quality Score"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(valStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(calcStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(dispStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || ''}</td>
+        </tr>
+      `;
+    }).join("");
+
+    let qScoreVal = "Pending SME Review";
+    let qScoreRaw = qScoreVal;
+    if (metricsMap["Quality_Score"] && metricsMap["Quality_Score"].val !== undefined) {
+      qScoreRaw = parseFloat(metricsMap["Quality_Score"].val);
+      qScoreVal = qScoreRaw.toFixed(4);
+    }
+    let finalWeightedVal = "N/A";
+    if (qScoreVal !== "Pending SME Review") {
+      finalWeightedVal = (qScoreRaw * 20.0).toFixed(2);
+    }
+    
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">Q</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (20%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${qScoreVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Q = 0.7*Accuracy + 0.2*Consistency + 0.1*(1 - Hallucination)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quality-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}QUALITY TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Quality telemetry mapped.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function renderValidationTableHtml(sub, settings, value, resourceFilter) {
     const metricsMap = calculateValidationMetrics(sub, settings, value);
     
@@ -624,6 +785,9 @@
     }
     if (key === "V") {
       return renderValidationTableHtml(sub, settings, value);
+    }
+    if (key === "Q") {
+      return renderQualityTableHtml(sub, settings, value);
     }
     const label  = METRIC_LABELS[key]  || key;
     const weight = METRIC_WEIGHTS[key] || 0;
@@ -1618,7 +1782,7 @@
         validated_components: 'Validated Components', required_components: 'Required Components',
         validation_score: 'Validation Score',
         hallucination_score: 'Hallucination Score', relevance_score: 'Relevance Score',
-        groundedness_score: 'Groundedness Score', user_feedback_score: 'User Feedback Score',
+        consistency: 'Consistency', user_feedback_score: 'User Feedback Score',
         model_correctness: 'Model Correctness',
       };
       const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
@@ -1765,6 +1929,7 @@
   window.renderCostTableHtml = renderCostTableHtml;
   window.calculateValidationMetrics = calculateValidationMetrics;
   window.renderValidationTableHtml = renderValidationTableHtml;
+  window.renderQualityTableHtml = renderQualityTableHtml;
 
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);

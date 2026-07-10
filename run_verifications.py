@@ -33,23 +33,36 @@ except Exception as e:
 
 print("Fetching Cost SQLite metrics...")
 try:
-    conn = sqlite3.connect('store/dpi_ls.db')
+    conn = sqlite3.connect('dpi_ls.db')
     conn.row_factory = sqlite3.Row
-    cost_data = '\n'.join([str(dict(r)) for r in conn.execute('SELECT resource_name, metric, current_value FROM cost_resource_evaluations')])
-    append_to_file("Cost Runtime Telemetry (SQLite)", cost_data)
+    count = conn.execute('SELECT count(*) FROM cost_resource_evaluations').fetchone()[0]
+    sample = '\n'.join([str(dict(r)) for r in conn.execute('SELECT resource_name, metric, current_value FROM cost_resource_evaluations ORDER BY rowid DESC LIMIT 3')])
+    append_to_file("Cost Runtime Telemetry (SQLite)", f"Total records: {count}\nLatest 3 records:\n{sample}")
     conn.close()
 except Exception as e:
     append_to_file("Cost Runtime Telemetry (SQLite)", f"Error: {e}")
 
 print("Fetching Validation SQLite metrics...")
 try:
-    conn = sqlite3.connect('store/dpi_ls.db')
+    conn = sqlite3.connect('dpi_ls.db')
     conn.row_factory = sqlite3.Row
-    val_data = '\n'.join([str(dict(r)) for r in conn.execute('SELECT resource_name, metric, current_value FROM validation_resource_evaluations')])
-    append_to_file("Validation Runtime Telemetry (SQLite)", val_data)
+    count = conn.execute('SELECT count(*) FROM validation_resource_evaluations').fetchone()[0]
+    sample = '\n'.join([str(dict(r)) for r in conn.execute('SELECT resource_name, metric, current_value FROM validation_resource_evaluations ORDER BY rowid DESC LIMIT 3')])
+    append_to_file("Validation Runtime Telemetry (SQLite)", f"Total records: {count}\nLatest 3 records:\n{sample}")
     conn.close()
 except Exception as e:
     append_to_file("Validation Runtime Telemetry (SQLite)", f"Error: {e}")
+
+print("Fetching Quality SQLite metrics...")
+try:
+    conn = sqlite3.connect('dpi_ls.db')
+    conn.row_factory = sqlite3.Row
+    count = conn.execute('SELECT count(*) FROM quality_resource_evaluations').fetchone()[0]
+    sample = '\n'.join([str(dict(r)) for r in conn.execute('SELECT resource_name, metric, current_value FROM quality_resource_evaluations ORDER BY rowid DESC LIMIT 3')])
+    append_to_file("Quality Runtime Telemetry (SQLite)", f"Total records: {count}\nLatest 3 records:\n{sample}")
+    conn.close()
+except Exception as e:
+    append_to_file("Quality Runtime Telemetry (SQLite)", f"Error: {e}")
 
 print("Fetching API Payload...")
 try:
