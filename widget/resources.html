@@ -476,8 +476,10 @@ const API = (typeof window !== 'undefined' && window.location?.origin && window.
 let chandraSub = {}; // validation sub-metrics
 let chandraCostSub = {}; // cost sub-metrics
 let settingsObj = {};
+let chandraQualitySub = {}; // quality sub-metrics
 let chandraCostValue = 1.0;
 let chandraValidationValue = 1.0;
+let chandraQualityValue = "Pending SME Review";
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
@@ -488,6 +490,9 @@ let dashboardUrls = {
   'DeepEval':      { url: 'https://deepeval.com', online: true },
   'Jaeger':        { url: 'http://localhost:16686', online: false },
   'Zipkin':        { url: 'http://localhost:9411', online: false },
+  'LangSmith':     { url: 'https://smith.langchain.com', online: true },
+  'Ragas':         { url: 'https://ragas.io', online: true },
+  'AgentOps':      { url: 'https://app.agentops.ai', online: true },
 };
 
 async function loadChandraData() {
@@ -504,6 +509,8 @@ async function loadChandraData() {
         chandraValidationValue = chandra.metrics?.V !== undefined ? chandra.metrics.V : 1.0;
         chandraCostSub = chandra.sub_metrics?.C || {};
         chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
+        chandraQualitySub = chandra.sub_metrics?.Q || {};
+        chandraQualityValue = chandra.metrics?.Q !== undefined ? chandra.metrics.Q : "Pending SME Review";
       }
     }
     if (r2.ok) {
@@ -516,9 +523,10 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, r3] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/urls`),
-      fetch(`${API}/api/validation-evaluation/urls`)
+      fetch(`${API}/api/validation-evaluation/urls`),
+      fetch(`${API}/api/quality-evaluation/urls`)
     ]);
     const processUrls = async (r) => {
       if (r.ok) {
@@ -534,6 +542,7 @@ async function loadUrls() {
     };
     await processUrls(r1);
     await processUrls(r2);
+    await processUrls(r3);
   } catch (e) {
     console.error("Failed to load urls", e);
   }
@@ -593,6 +602,33 @@ const RESOURCE_META = {
     dashboard_label: 'Open Zipkin UI',
     color: '#ff9800',
     sdk: 'opentelemetry',
+  },
+  'LangSmith': {
+    icon: '🦜', category: 'LLM Observability',
+    dpi_status: 'primary',
+    description: 'Calculates runtime traces, LLM evaluation, hallucination analysis, prompt evaluation, and context evaluation.',
+    dashboard_url: 'https://smith.langchain.com',
+    dashboard_label: 'Open LangSmith',
+    color: '#1c1c1c',
+    sdk: 'langsmith',
+  },
+  'Ragas': {
+    icon: '🔍', category: 'LLM Eval & Validation',
+    dpi_status: 'primary',
+    description: 'Calculates Semantic Accuracy, Faithfulness, Answer Relevancy, Context Precision, and Context Recall.',
+    dashboard_url: 'https://ragas.io',
+    dashboard_label: 'Open Ragas',
+    color: '#e74c3c',
+    sdk: 'ragas',
+  },
+  'AgentOps': {
+    icon: '🤖', category: 'Agent Observability',
+    dpi_status: 'primary',
+    description: 'Calculates runtime execution history, agent behaviour, consistency measurement, session metrics, and stability metrics.',
+    dashboard_url: 'https://app.agentops.ai',
+    dashboard_label: 'Open AgentOps',
+    color: '#2980b9',
+    sdk: 'agentops',
   },
 };
 
@@ -687,7 +723,7 @@ const METRIC_NICE_NAMES = {
   validation_score: 'Validation Score',
   hallucination_score: 'Hallucination Score',
   relevance_score: 'Relevance Score',
-  groundedness_score: 'Groundedness Score',
+  consistency: 'Consistency',
   user_feedback_score: 'User Feedback Score',
   model_correctness: 'Model Correctness',
 };
@@ -707,6 +743,11 @@ function renderResourceTable(metrics, name) {
     if (typeof window.renderCostTableHtml === 'function') {
       const mergedSub = { ...chandraCostSub, ...liveMetrics };
       return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
+    }
+  } else if (['LangSmith', 'Ragas', 'AgentOps'].includes(name)) {
+    if (typeof window.renderQualityTableHtml === 'function') {
+      const mergedSub = { ...chandraQualitySub, ...liveMetrics };
+      return window.renderQualityTableHtml(mergedSub, settingsObj, chandraQualityValue, name);
     }
   } else {
     if (typeof window.renderValidationTableHtml === 'function') {
@@ -764,9 +805,13 @@ function renderResourceCard(name, metrics) {
   if (name === 'DeepEval') {
     linkHtml = `<a class="rc-dashboard-link-inline" href="https://deepeval.com" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔮 DeepEval Documentation</a><span style="font-size:10px;color:#4ade80;margin-left:6px;">● Running In Process</span>`;
   } else {
+    const serviceOfflineStatus = ['LangSmith', 'Ragas', 'AgentOps'].includes(name) 
+      ? `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Configuration Required</span>` 
+      : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+
     linkHtml = isOnline
       ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
-      : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+      : serviceOfflineStatus;
   }
 
 
@@ -801,7 +846,7 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 ${meta.category === 'Validation' ? 'Validation' : 'Cost'} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${meta.category === 'Validation' ? 'Validation' : (meta.category === 'Cost' ? 'Cost' : 'Quality')} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
@@ -850,7 +895,12 @@ function showToast(msg, type='info') {
 async function verifyDashboard(resourceName) {
   try {
     const isCost = ['Langfuse', 'Prometheus', 'Grafana'].includes(resourceName);
-    const endpoint = isCost ? '/api/cost-evaluation/verify-dashboard' : '/api/validation-evaluation/verify-dashboard';
+    const isQual = ['LangSmith', 'Ragas', 'AgentOps'].includes(resourceName);
+    
+    let endpoint = '/api/validation-evaluation/verify-dashboard';
+    if (isCost) endpoint = '/api/cost-evaluation/verify-dashboard';
+    if (isQual) endpoint = '/api/quality-evaluation/verify-dashboard';
+    
     const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
     const r = await fetch(`${API}${endpoint}`, {
       method: 'POST',
@@ -871,18 +921,21 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, r3] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
-      fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+      fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/quality-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error during evaluation`);
+    if (!r1.ok || !r2.ok || !r3.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    const [costData, valData, qualData] = await Promise.all([r1.json(), r2.json(), r3.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
+    const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
-      ...valData.filter(r => valResources.includes(r.resource_name))
+      ...valData.filter(r => valResources.includes(r.resource_name)),
+      ...qualData.filter(r => qualResources.includes(r.resource_name))
     ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -897,17 +950,20 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, r3] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
-      fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } })
+      fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/quality-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok) throw new Error(`HTTP Error loading results`);
-    const [costData, valData] = await Promise.all([r1.json(), r2.json()]);
+    if (!r1.ok || !r2.ok || !r3.ok) throw new Error(`HTTP Error loading results`);
+    const [costData, valData, qualData] = await Promise.all([r1.json(), r2.json(), r3.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
+    const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
-      ...valData.filter(r => valResources.includes(r.resource_name))
+      ...valData.filter(r => valResources.includes(r.resource_name)),
+      ...qualData.filter(r => qualResources.includes(r.resource_name))
     ];
     renderGrid();
   } catch (e) {

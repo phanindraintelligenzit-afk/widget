@@ -136,21 +136,88 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
     see at a glance whether the spend is prompt-heavy (large input)
     or completion-heavy (large output).
     """
-    res: dict = {}
-    if obs.tasks:
-        res["P"] = {
-            "AI_output_per_period": obs.tasks.completed,
-            "human_baseline": baseline.human_output_per_period,
-            "normalization_factor": settings.normalization_factor
-        }
+    return build_sub_metrics(obs, settings, s)
+
+def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
+    if "Q" not in sub_metrics:
+        return sub_metrics
+
+    q_eval_map = {}
+    if s is not None:
+        q_evals = repo.list_latest_quality_resource_evaluations(s)
+        if q_evals:
+            q_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in q_evals}
+
+    accuracy_str = sub_metrics["Q"].get("QA Accuracy") or q_eval_map.get("Ragas:semantic_accuracy", "Unavailable")
+    consistency_str = sub_metrics["Q"].get("Consistency") or q_eval_map.get("AgentOps:consistency_measurement", "Unavailable")
+    hallucination_str = sub_metrics["Q"].get("Hallucination Rate") or q_eval_map.get("LangSmith:hallucination_analysis", "Unavailable")
+    
+    try:
+        if "Unavailable" not in (accuracy_str, consistency_str, hallucination_str) and "" not in (accuracy_str, consistency_str, hallucination_str):
+            acc = float(accuracy_str)
+            cons = float(consistency_str)
+            hall = float(hallucination_str)
+            q_score = (0.7 * acc) + (0.2 * cons) + (0.1 * (1.0 - hall))
+            q_score = round(q_score, 4)
+            status = "COMPLETED"
+        else:
+            q_score = sub_metrics["Q"].get("Quality Score") if sub_metrics["Q"].get("Quality Score") != "Pending SME Review" else None
+            status = sub_metrics["Q"].get("Status", "Pending SME Review")
+    except (ValueError, TypeError):
+        q_score = None
+        status = sub_metrics["Q"].get("Status", "Pending SME Review")
+
+    if "Groundedness" in sub_metrics["Q"]:
+        del sub_metrics["Q"]["Groundedness"]
+
+    sub_metrics["Q"].update({
+        "QA Accuracy": accuracy_str,
+        "Hallucination Rate": hallucination_str,
+        "Consistency": consistency_str,
+        "Quality Score": q_score if q_score is not None else "Pending SME Review",
+        "Status": status,
+        "runtime_traces": q_eval_map.get("LangSmith:runtime_traces") or sub_metrics["Q"].get("runtime_traces", "Unavailable"),
+        "llm_evaluation": q_eval_map.get("LangSmith:llm_evaluation") or sub_metrics["Q"].get("llm_evaluation", "Unavailable"),
+        "hallucination_analysis": hallucination_str,
+        "prompt_evaluation": q_eval_map.get("LangSmith:prompt_evaluation") or sub_metrics["Q"].get("prompt_evaluation", "Unavailable"),
+        "context_evaluation": q_eval_map.get("LangSmith:context_evaluation") or sub_metrics["Q"].get("context_evaluation", "Unavailable"),
+        "semantic_accuracy": accuracy_str,
+        "faithfulness": q_eval_map.get("Ragas:faithfulness") or sub_metrics["Q"].get("faithfulness", "Unavailable"),
+        "answer_relevancy": q_eval_map.get("Ragas:answer_relevancy") or sub_metrics["Q"].get("answer_relevancy", "Unavailable"),
+        "context_precision": q_eval_map.get("Ragas:context_precision") or sub_metrics["Q"].get("context_precision", "Unavailable"),
+        "context_recall": q_eval_map.get("Ragas:context_recall") or sub_metrics["Q"].get("context_recall", "Unavailable"),
+        "runtime_execution_history": q_eval_map.get("AgentOps:runtime_execution_history") or sub_metrics["Q"].get("runtime_execution_history", "Unavailable"),
+        "agent_behaviour": q_eval_map.get("AgentOps:agent_behaviour") or sub_metrics["Q"].get("agent_behaviour", "Unavailable"),
+        "consistency_measurement": consistency_str,
+        "session_metrics": q_eval_map.get("AgentOps:session_metrics") or sub_metrics["Q"].get("session_metrics", "Unavailable"),
+        "stability_metrics": q_eval_map.get("AgentOps:stability_metrics") or sub_metrics["Q"].get("stability_metrics", "Unavailable"),
+    })
+    return sub_metrics
+
+def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dict[str, Any]:
+    res: dict[str, Any] = {}
+    prod = getattr(obs, "productivity", getattr(obs, "tasks", None))
+    if prod:
+        res["P"] = prod.model_dump(mode="json")
     if obs.quality:
         q_raw = obs.quality.model_dump(mode="json")
         res["Q"] = {
             "QA Accuracy": q_raw.get("accuracy"),
+            "Consistency": q_raw.get("consistency"),
             "Hallucination Rate": q_raw.get("hallucination_rate"),
-            "Groundedness": q_raw.get("consistency"),
             "User Feedback": q_raw.get("user_feedback_score", "N/A") if q_raw.get("user_feedback_score") is not None else "N/A"
         }
+        res = enrich_quality_sub_metrics(s, res)
+        
+        # Update obs.quality so scoring uses the enriched values
+        q_score = res["Q"].get("Quality Score")
+        if q_score != "Pending SME Review" and q_score is not None:
+            try:
+                obs.quality.accuracy = float(res["Q"].get("QA Accuracy", 0))
+                obs.quality.consistency = float(res["Q"].get("Consistency", 0))
+                obs.quality.hallucination_rate = float(res["Q"].get("Hallucination Rate", 0))
+            except (ValueError, TypeError):
+                pass
     if obs.executions:
         res["E"] = obs.executions.model_dump(mode="json")
     if obs.policy:

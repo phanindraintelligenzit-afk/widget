@@ -25,6 +25,8 @@ from .models import (
     CostResourceEvaluationRow,
     ValidationResourceRegistryRow,
     ValidationResourceEvaluationRow,
+    QualityResourceRegistryRow,
+    QualityResourceEvaluationRow,
 )
 
 
@@ -499,3 +501,113 @@ def verify_dashboard_validation_resource_evaluation(s: Session, resource_name: s
     return True
 
 
+def upsert_quality_resource(
+    s: Session,
+    name: str,
+    sdk_available: bool = False,
+    api_available: bool = False,
+    api_key_required: bool = False,
+    integration_implemented: bool = False,
+) -> QualityResourceRegistryRow:
+    row = s.scalars(
+        select(QualityResourceRegistryRow).where(QualityResourceRegistryRow.name == name)
+    ).first()
+    if row is None:
+        row = QualityResourceRegistryRow(
+            name=name,
+            sdk_available=sdk_available,
+            api_available=api_available,
+            api_key_required=api_key_required,
+            integration_implemented=integration_implemented,
+        )
+        s.add(row)
+    else:
+        row.sdk_available = sdk_available
+        row.api_available = api_available
+        row.api_key_required = api_key_required
+        row.integration_implemented = integration_implemented
+    s.flush()
+    return row
+
+
+def list_quality_resources(s: Session) -> list[QualityResourceRegistryRow]:
+    return list(s.scalars(select(QualityResourceRegistryRow).order_by(QualityResourceRegistryRow.name)))
+
+
+def save_quality_resource_evaluation(
+    s: Session,
+    resource_name: str,
+    metric: str,
+    detected: bool,
+    evidence: Optional[str],
+    current_value: Optional[str] = None,
+    status: str = "SUCCESS",
+    dashboard_verified: bool = False,
+    agent_executed: bool = False,
+) -> QualityResourceEvaluationRow:
+    existing = s.scalars(
+        select(QualityResourceEvaluationRow)
+        .where(
+            QualityResourceEvaluationRow.resource_name == resource_name,
+            QualityResourceEvaluationRow.metric == metric,
+        )
+        .order_by(QualityResourceEvaluationRow.last_run.desc())
+        .limit(1)
+    ).first()
+
+    verified = dashboard_verified
+    if existing and not dashboard_verified:
+        verified = existing.dashboard_verified
+
+    row = QualityResourceEvaluationRow(
+        resource_name=resource_name,
+        metric=metric,
+        current_value=current_value,
+        detected=detected,
+        evidence=evidence,
+        last_run=_utcnow(),
+        status=status,
+        dashboard_verified=verified,
+        agent_executed=agent_executed,
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+
+def list_latest_quality_resource_evaluations(s: Session) -> list[QualityResourceEvaluationRow]:
+    """Return the most recent evaluation row for each quality resource-metric pair."""
+    from sqlalchemy import func
+    subq = (
+        select(
+            QualityResourceEvaluationRow.resource_name.label("rname"),
+            QualityResourceEvaluationRow.metric.label("met"),
+            func.max(QualityResourceEvaluationRow.id).label("max_id"),
+        )
+        .group_by(QualityResourceEvaluationRow.resource_name, QualityResourceEvaluationRow.metric)
+        .subquery()
+    )
+    stmt = (
+        select(QualityResourceEvaluationRow)
+        .join(
+            subq,
+            QualityResourceEvaluationRow.id == subq.c.max_id
+        )
+        .order_by(QualityResourceEvaluationRow.resource_name, QualityResourceEvaluationRow.metric)
+    )
+    return list(s.scalars(stmt))
+
+
+def verify_dashboard_quality_resource_evaluation(s: Session, resource_name: str, metric: Optional[str] = None) -> bool:
+    """Flag evaluations for this quality resource (and optionally specific metric) as dashboard_verified."""
+    query = select(QualityResourceEvaluationRow).where(QualityResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        query = query.where(QualityResourceEvaluationRow.metric == metric)
+        
+    rows = list(s.scalars(query))
+    if not rows:
+        return False
+    for r in rows:
+        r.dashboard_verified = True
+    s.flush()
+    return True
