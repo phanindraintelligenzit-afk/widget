@@ -133,7 +133,7 @@ def export_cost_metrics(session: Session) -> None:
         logger.info(f"Processing {len(scores_list)} agent scores")
 
         for agent, score in scores_list:
-            if not agent or agent.id != "chandra-finops":
+            if not agent:
                 continue
 
             logger.info(f"Processing agent {agent.id} with score {bool(score)}")
