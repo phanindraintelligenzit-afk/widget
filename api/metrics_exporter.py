@@ -75,6 +75,16 @@ cost_metrics = {
         'Normalized cost score (0-5)',
         ['agent_id', 'agent_name']
     ),
+    'dpi_ls_validation_score': get_or_create_gauge(
+        'dpi_ls_validation_score',
+        'Normalized validation score (0-1)',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_ls_quality_score': get_or_create_gauge(
+        'dpi_ls_quality_score',
+        'Normalized quality score (0-1)',
+        ['agent_id', 'agent_name']
+    ),
     'dpi_ls_tco': get_or_create_gauge(
         'dpi_ls_tco',
         'Total cost of ownership (human + AI) in USD',
@@ -123,7 +133,7 @@ def export_cost_metrics(session: Session) -> None:
         logger.info(f"Processing {len(scores_list)} agent scores")
 
         for agent, score in scores_list:
-            if not agent or agent.id != "chandra-finops":
+            if not agent:
                 continue
 
             logger.info(f"Processing agent {agent.id} with score {bool(score)}")
@@ -194,10 +204,16 @@ def export_cost_metrics(session: Session) -> None:
                     float(cost_sub['Efficiency Ratio'])
                 )
 
-            # Cost score is the C metric value * 5 (normalized to 0-5 scale)
+            # Cost score is the C metric value
             if score.metrics and 'C' in score.metrics and score.metrics['C'] is not None:
-                cost_score = float(score.metrics['C']) * 5
+                cost_score = float(score.metrics['C'])
                 cost_metrics['dpi_ls_cost_score'].labels(*labels).set(cost_score)
+
+            if score.metrics and 'V' in score.metrics and score.metrics['V'] is not None:
+                cost_metrics['dpi_ls_validation_score'].labels(*labels).set(float(score.metrics['V']))
+                
+            if score.metrics and 'Q' in score.metrics and score.metrics['Q'] is not None:
+                cost_metrics['dpi_ls_quality_score'].labels(*labels).set(float(score.metrics['Q']))
 
             if 'Total Cost (USD)' in cost_sub:
                 cost_metrics['dpi_ls_tco'].labels(*labels).set(
@@ -238,7 +254,7 @@ def get_metrics_summary(session: Session) -> Dict[str, Any]:
                 'human_cost_per_output': cost_sub.get('Human Cost / Output'),
                 'utilization': cost_sub.get('utilization'),
                 'efficiency_ratio': cost_sub.get('Efficiency Ratio'),
-                'cost_score': score.metrics.get('C') * 5 if score.metrics and 'C' in score.metrics and score.metrics.get('C') is not None else None,
+                'cost_score': score.metrics.get('C') if score.metrics and 'C' in score.metrics and score.metrics.get('C') is not None else None,
                 'tco': cost_sub.get('Total Cost (USD)'),
             }
 

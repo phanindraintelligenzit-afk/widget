@@ -1,0 +1,2732 @@
+version: '1.0'
+policies:
+- id: enterprise_compliance-001
+  name: Enterprise Compliance Rule 1
+  description: Ensures compliance with enterprise_compliance standards for action
+    1.
+  severity: low
+  category: gdpr
+  action: reportGenerated1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-002
+  name: Enterprise Compliance Rule 2
+  description: Ensures compliance with enterprise_compliance standards for action
+    2.
+  severity: medium
+  category: soc2
+  action: recordDeleted2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-003
+  name: Enterprise Compliance Rule 3
+  description: Ensures compliance with enterprise_compliance standards for action
+    3.
+  severity: low
+  category: sox
+  action: dataAccessed3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-004
+  name: Enterprise Compliance Rule 4
+  description: Ensures compliance with enterprise_compliance standards for action
+    4.
+  severity: medium
+  category: gdpr
+  action: reportGenerated4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-005
+  name: Enterprise Compliance Rule 5
+  description: Ensures compliance with enterprise_compliance standards for action
+    5.
+  severity: high
+  category: soc2
+  action: recordDeleted5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-006
+  name: Enterprise Compliance Rule 6
+  description: Ensures compliance with enterprise_compliance standards for action
+    6.
+  severity: medium
+  category: sox
+  action: dataAccessed6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-007
+  name: Enterprise Compliance Rule 7
+  description: Ensures compliance with enterprise_compliance standards for action
+    7.
+  severity: low
+  category: gdpr
+  action: reportGenerated7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-008
+  name: Enterprise Compliance Rule 8
+  description: Ensures compliance with enterprise_compliance standards for action
+    8.
+  severity: medium
+  category: soc2
+  action: recordDeleted8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-009
+  name: Enterprise Compliance Rule 9
+  description: Ensures compliance with enterprise_compliance standards for action
+    9.
+  severity: low
+  category: sox
+  action: dataAccessed9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-010
+  name: Enterprise Compliance Rule 10
+  description: Ensures compliance with enterprise_compliance standards for action
+    10.
+  severity: high
+  category: gdpr
+  action: reportGenerated10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-011
+  name: Enterprise Compliance Rule 11
+  description: Ensures compliance with enterprise_compliance standards for action
+    11.
+  severity: low
+  category: soc2
+  action: recordDeleted11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-012
+  name: Enterprise Compliance Rule 12
+  description: Ensures compliance with enterprise_compliance standards for action
+    12.
+  severity: medium
+  category: sox
+  action: dataAccessed12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-013
+  name: Enterprise Compliance Rule 13
+  description: Ensures compliance with enterprise_compliance standards for action
+    13.
+  severity: low
+  category: gdpr
+  action: reportGenerated13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-014
+  name: Enterprise Compliance Rule 14
+  description: Ensures compliance with enterprise_compliance standards for action
+    14.
+  severity: medium
+  category: soc2
+  action: recordDeleted14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-015
+  name: Enterprise Compliance Rule 15
+  description: Ensures compliance with enterprise_compliance standards for action
+    15.
+  severity: high
+  category: sox
+  action: dataAccessed15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-016
+  name: Enterprise Compliance Rule 16
+  description: Ensures compliance with enterprise_compliance standards for action
+    16.
+  severity: medium
+  category: gdpr
+  action: reportGenerated16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-017
+  name: Enterprise Compliance Rule 17
+  description: Ensures compliance with enterprise_compliance standards for action
+    17.
+  severity: low
+  category: soc2
+  action: recordDeleted17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-018
+  name: Enterprise Compliance Rule 18
+  description: Ensures compliance with enterprise_compliance standards for action
+    18.
+  severity: medium
+  category: sox
+  action: dataAccessed18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-019
+  name: Enterprise Compliance Rule 19
+  description: Ensures compliance with enterprise_compliance standards for action
+    19.
+  severity: low
+  category: gdpr
+  action: reportGenerated19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-020
+  name: Enterprise Compliance Rule 20
+  description: Ensures compliance with enterprise_compliance standards for action
+    20.
+  severity: high
+  category: soc2
+  action: recordDeleted20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-021
+  name: Enterprise Compliance Rule 21
+  description: Ensures compliance with enterprise_compliance standards for action
+    21.
+  severity: low
+  category: sox
+  action: dataAccessed21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-022
+  name: Enterprise Compliance Rule 22
+  description: Ensures compliance with enterprise_compliance standards for action
+    22.
+  severity: medium
+  category: gdpr
+  action: reportGenerated22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-023
+  name: Enterprise Compliance Rule 23
+  description: Ensures compliance with enterprise_compliance standards for action
+    23.
+  severity: low
+  category: soc2
+  action: recordDeleted23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-024
+  name: Enterprise Compliance Rule 24
+  description: Ensures compliance with enterprise_compliance standards for action
+    24.
+  severity: medium
+  category: sox
+  action: dataAccessed24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-025
+  name: Enterprise Compliance Rule 25
+  description: Ensures compliance with enterprise_compliance standards for action
+    25.
+  severity: high
+  category: gdpr
+  action: reportGenerated25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-026
+  name: Enterprise Compliance Rule 26
+  description: Ensures compliance with enterprise_compliance standards for action
+    26.
+  severity: medium
+  category: soc2
+  action: recordDeleted26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-027
+  name: Enterprise Compliance Rule 27
+  description: Ensures compliance with enterprise_compliance standards for action
+    27.
+  severity: low
+  category: sox
+  action: dataAccessed27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-028
+  name: Enterprise Compliance Rule 28
+  description: Ensures compliance with enterprise_compliance standards for action
+    28.
+  severity: medium
+  category: gdpr
+  action: reportGenerated28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-029
+  name: Enterprise Compliance Rule 29
+  description: Ensures compliance with enterprise_compliance standards for action
+    29.
+  severity: low
+  category: soc2
+  action: recordDeleted29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-030
+  name: Enterprise Compliance Rule 30
+  description: Ensures compliance with enterprise_compliance standards for action
+    30.
+  severity: high
+  category: sox
+  action: dataAccessed30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-031
+  name: Enterprise Compliance Rule 31
+  description: Ensures compliance with enterprise_compliance standards for action
+    31.
+  severity: low
+  category: gdpr
+  action: reportGenerated31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-032
+  name: Enterprise Compliance Rule 32
+  description: Ensures compliance with enterprise_compliance standards for action
+    32.
+  severity: medium
+  category: soc2
+  action: recordDeleted32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-033
+  name: Enterprise Compliance Rule 33
+  description: Ensures compliance with enterprise_compliance standards for action
+    33.
+  severity: low
+  category: sox
+  action: dataAccessed33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-034
+  name: Enterprise Compliance Rule 34
+  description: Ensures compliance with enterprise_compliance standards for action
+    34.
+  severity: medium
+  category: gdpr
+  action: reportGenerated34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-035
+  name: Enterprise Compliance Rule 35
+  description: Ensures compliance with enterprise_compliance standards for action
+    35.
+  severity: high
+  category: soc2
+  action: recordDeleted35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-036
+  name: Enterprise Compliance Rule 36
+  description: Ensures compliance with enterprise_compliance standards for action
+    36.
+  severity: medium
+  category: sox
+  action: dataAccessed36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-037
+  name: Enterprise Compliance Rule 37
+  description: Ensures compliance with enterprise_compliance standards for action
+    37.
+  severity: low
+  category: gdpr
+  action: reportGenerated37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-038
+  name: Enterprise Compliance Rule 38
+  description: Ensures compliance with enterprise_compliance standards for action
+    38.
+  severity: medium
+  category: soc2
+  action: recordDeleted38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-039
+  name: Enterprise Compliance Rule 39
+  description: Ensures compliance with enterprise_compliance standards for action
+    39.
+  severity: low
+  category: sox
+  action: dataAccessed39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-040
+  name: Enterprise Compliance Rule 40
+  description: Ensures compliance with enterprise_compliance standards for action
+    40.
+  severity: high
+  category: gdpr
+  action: reportGenerated40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-041
+  name: Enterprise Compliance Rule 41
+  description: Ensures compliance with enterprise_compliance standards for action
+    41.
+  severity: low
+  category: soc2
+  action: recordDeleted41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-042
+  name: Enterprise Compliance Rule 42
+  description: Ensures compliance with enterprise_compliance standards for action
+    42.
+  severity: medium
+  category: sox
+  action: dataAccessed42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-043
+  name: Enterprise Compliance Rule 43
+  description: Ensures compliance with enterprise_compliance standards for action
+    43.
+  severity: low
+  category: gdpr
+  action: reportGenerated43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-044
+  name: Enterprise Compliance Rule 44
+  description: Ensures compliance with enterprise_compliance standards for action
+    44.
+  severity: medium
+  category: soc2
+  action: recordDeleted44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-045
+  name: Enterprise Compliance Rule 45
+  description: Ensures compliance with enterprise_compliance standards for action
+    45.
+  severity: high
+  category: sox
+  action: dataAccessed45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-046
+  name: Enterprise Compliance Rule 46
+  description: Ensures compliance with enterprise_compliance standards for action
+    46.
+  severity: medium
+  category: gdpr
+  action: reportGenerated46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-047
+  name: Enterprise Compliance Rule 47
+  description: Ensures compliance with enterprise_compliance standards for action
+    47.
+  severity: low
+  category: soc2
+  action: recordDeleted47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-048
+  name: Enterprise Compliance Rule 48
+  description: Ensures compliance with enterprise_compliance standards for action
+    48.
+  severity: medium
+  category: sox
+  action: dataAccessed48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-049
+  name: Enterprise Compliance Rule 49
+  description: Ensures compliance with enterprise_compliance standards for action
+    49.
+  severity: low
+  category: gdpr
+  action: reportGenerated49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-050
+  name: Enterprise Compliance Rule 50
+  description: Ensures compliance with enterprise_compliance standards for action
+    50.
+  severity: high
+  category: soc2
+  action: recordDeleted50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-051
+  name: Enterprise Compliance Rule 51
+  description: Ensures compliance with enterprise_compliance standards for action
+    51.
+  severity: low
+  category: sox
+  action: dataAccessed51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-052
+  name: Enterprise Compliance Rule 52
+  description: Ensures compliance with enterprise_compliance standards for action
+    52.
+  severity: medium
+  category: gdpr
+  action: reportGenerated52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-053
+  name: Enterprise Compliance Rule 53
+  description: Ensures compliance with enterprise_compliance standards for action
+    53.
+  severity: low
+  category: soc2
+  action: recordDeleted53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-054
+  name: Enterprise Compliance Rule 54
+  description: Ensures compliance with enterprise_compliance standards for action
+    54.
+  severity: medium
+  category: sox
+  action: dataAccessed54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-055
+  name: Enterprise Compliance Rule 55
+  description: Ensures compliance with enterprise_compliance standards for action
+    55.
+  severity: high
+  category: gdpr
+  action: reportGenerated55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-056
+  name: Enterprise Compliance Rule 56
+  description: Ensures compliance with enterprise_compliance standards for action
+    56.
+  severity: medium
+  category: soc2
+  action: recordDeleted56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-057
+  name: Enterprise Compliance Rule 57
+  description: Ensures compliance with enterprise_compliance standards for action
+    57.
+  severity: low
+  category: sox
+  action: dataAccessed57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-058
+  name: Enterprise Compliance Rule 58
+  description: Ensures compliance with enterprise_compliance standards for action
+    58.
+  severity: medium
+  category: gdpr
+  action: reportGenerated58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-059
+  name: Enterprise Compliance Rule 59
+  description: Ensures compliance with enterprise_compliance standards for action
+    59.
+  severity: low
+  category: soc2
+  action: recordDeleted59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-060
+  name: Enterprise Compliance Rule 60
+  description: Ensures compliance with enterprise_compliance standards for action
+    60.
+  severity: high
+  category: sox
+  action: dataAccessed60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-061
+  name: Enterprise Compliance Rule 61
+  description: Ensures compliance with enterprise_compliance standards for action
+    61.
+  severity: low
+  category: gdpr
+  action: reportGenerated61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-062
+  name: Enterprise Compliance Rule 62
+  description: Ensures compliance with enterprise_compliance standards for action
+    62.
+  severity: medium
+  category: soc2
+  action: recordDeleted62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-063
+  name: Enterprise Compliance Rule 63
+  description: Ensures compliance with enterprise_compliance standards for action
+    63.
+  severity: low
+  category: sox
+  action: dataAccessed63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-064
+  name: Enterprise Compliance Rule 64
+  description: Ensures compliance with enterprise_compliance standards for action
+    64.
+  severity: medium
+  category: gdpr
+  action: reportGenerated64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-065
+  name: Enterprise Compliance Rule 65
+  description: Ensures compliance with enterprise_compliance standards for action
+    65.
+  severity: high
+  category: soc2
+  action: recordDeleted65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-066
+  name: Enterprise Compliance Rule 66
+  description: Ensures compliance with enterprise_compliance standards for action
+    66.
+  severity: medium
+  category: sox
+  action: dataAccessed66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-067
+  name: Enterprise Compliance Rule 67
+  description: Ensures compliance with enterprise_compliance standards for action
+    67.
+  severity: low
+  category: gdpr
+  action: reportGenerated67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-068
+  name: Enterprise Compliance Rule 68
+  description: Ensures compliance with enterprise_compliance standards for action
+    68.
+  severity: medium
+  category: soc2
+  action: recordDeleted68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-069
+  name: Enterprise Compliance Rule 69
+  description: Ensures compliance with enterprise_compliance standards for action
+    69.
+  severity: low
+  category: sox
+  action: dataAccessed69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-070
+  name: Enterprise Compliance Rule 70
+  description: Ensures compliance with enterprise_compliance standards for action
+    70.
+  severity: high
+  category: gdpr
+  action: reportGenerated70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-071
+  name: Enterprise Compliance Rule 71
+  description: Ensures compliance with enterprise_compliance standards for action
+    71.
+  severity: low
+  category: soc2
+  action: recordDeleted71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-072
+  name: Enterprise Compliance Rule 72
+  description: Ensures compliance with enterprise_compliance standards for action
+    72.
+  severity: medium
+  category: sox
+  action: dataAccessed72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-073
+  name: Enterprise Compliance Rule 73
+  description: Ensures compliance with enterprise_compliance standards for action
+    73.
+  severity: low
+  category: gdpr
+  action: reportGenerated73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-074
+  name: Enterprise Compliance Rule 74
+  description: Ensures compliance with enterprise_compliance standards for action
+    74.
+  severity: medium
+  category: soc2
+  action: recordDeleted74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-075
+  name: Enterprise Compliance Rule 75
+  description: Ensures compliance with enterprise_compliance standards for action
+    75.
+  severity: high
+  category: sox
+  action: dataAccessed75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-076
+  name: Enterprise Compliance Rule 76
+  description: Ensures compliance with enterprise_compliance standards for action
+    76.
+  severity: medium
+  category: gdpr
+  action: reportGenerated76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-077
+  name: Enterprise Compliance Rule 77
+  description: Ensures compliance with enterprise_compliance standards for action
+    77.
+  severity: low
+  category: soc2
+  action: recordDeleted77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-078
+  name: Enterprise Compliance Rule 78
+  description: Ensures compliance with enterprise_compliance standards for action
+    78.
+  severity: medium
+  category: sox
+  action: dataAccessed78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-079
+  name: Enterprise Compliance Rule 79
+  description: Ensures compliance with enterprise_compliance standards for action
+    79.
+  severity: low
+  category: gdpr
+  action: reportGenerated79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-080
+  name: Enterprise Compliance Rule 80
+  description: Ensures compliance with enterprise_compliance standards for action
+    80.
+  severity: high
+  category: soc2
+  action: recordDeleted80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-081
+  name: Enterprise Compliance Rule 81
+  description: Ensures compliance with enterprise_compliance standards for action
+    81.
+  severity: low
+  category: sox
+  action: dataAccessed81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-082
+  name: Enterprise Compliance Rule 82
+  description: Ensures compliance with enterprise_compliance standards for action
+    82.
+  severity: medium
+  category: gdpr
+  action: reportGenerated82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-083
+  name: Enterprise Compliance Rule 83
+  description: Ensures compliance with enterprise_compliance standards for action
+    83.
+  severity: low
+  category: soc2
+  action: recordDeleted83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-084
+  name: Enterprise Compliance Rule 84
+  description: Ensures compliance with enterprise_compliance standards for action
+    84.
+  severity: medium
+  category: sox
+  action: dataAccessed84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-085
+  name: Enterprise Compliance Rule 85
+  description: Ensures compliance with enterprise_compliance standards for action
+    85.
+  severity: high
+  category: gdpr
+  action: reportGenerated85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-086
+  name: Enterprise Compliance Rule 86
+  description: Ensures compliance with enterprise_compliance standards for action
+    86.
+  severity: medium
+  category: soc2
+  action: recordDeleted86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-087
+  name: Enterprise Compliance Rule 87
+  description: Ensures compliance with enterprise_compliance standards for action
+    87.
+  severity: low
+  category: sox
+  action: dataAccessed87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-088
+  name: Enterprise Compliance Rule 88
+  description: Ensures compliance with enterprise_compliance standards for action
+    88.
+  severity: medium
+  category: gdpr
+  action: reportGenerated88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-089
+  name: Enterprise Compliance Rule 89
+  description: Ensures compliance with enterprise_compliance standards for action
+    89.
+  severity: low
+  category: soc2
+  action: recordDeleted89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-090
+  name: Enterprise Compliance Rule 90
+  description: Ensures compliance with enterprise_compliance standards for action
+    90.
+  severity: high
+  category: sox
+  action: dataAccessed90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-091
+  name: Enterprise Compliance Rule 91
+  description: Ensures compliance with enterprise_compliance standards for action
+    91.
+  severity: low
+  category: gdpr
+  action: reportGenerated91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-092
+  name: Enterprise Compliance Rule 92
+  description: Ensures compliance with enterprise_compliance standards for action
+    92.
+  severity: medium
+  category: soc2
+  action: recordDeleted92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-093
+  name: Enterprise Compliance Rule 93
+  description: Ensures compliance with enterprise_compliance standards for action
+    93.
+  severity: low
+  category: sox
+  action: dataAccessed93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-094
+  name: Enterprise Compliance Rule 94
+  description: Ensures compliance with enterprise_compliance standards for action
+    94.
+  severity: medium
+  category: gdpr
+  action: reportGenerated94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-095
+  name: Enterprise Compliance Rule 95
+  description: Ensures compliance with enterprise_compliance standards for action
+    95.
+  severity: high
+  category: soc2
+  action: recordDeleted95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-096
+  name: Enterprise Compliance Rule 96
+  description: Ensures compliance with enterprise_compliance standards for action
+    96.
+  severity: medium
+  category: sox
+  action: dataAccessed96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-097
+  name: Enterprise Compliance Rule 97
+  description: Ensures compliance with enterprise_compliance standards for action
+    97.
+  severity: low
+  category: gdpr
+  action: reportGenerated97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-098
+  name: Enterprise Compliance Rule 98
+  description: Ensures compliance with enterprise_compliance standards for action
+    98.
+  severity: medium
+  category: soc2
+  action: recordDeleted98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-099
+  name: Enterprise Compliance Rule 99
+  description: Ensures compliance with enterprise_compliance standards for action
+    99.
+  severity: low
+  category: sox
+  action: dataAccessed99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-100
+  name: Enterprise Compliance Rule 100
+  description: Ensures compliance with enterprise_compliance standards for action
+    100.
+  severity: high
+  category: gdpr
+  action: reportGenerated100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-101
+  name: Enterprise Compliance Rule 101
+  description: Ensures compliance with enterprise_compliance standards for action
+    101.
+  severity: low
+  category: soc2
+  action: recordDeleted101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-102
+  name: Enterprise Compliance Rule 102
+  description: Ensures compliance with enterprise_compliance standards for action
+    102.
+  severity: medium
+  category: sox
+  action: dataAccessed102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-103
+  name: Enterprise Compliance Rule 103
+  description: Ensures compliance with enterprise_compliance standards for action
+    103.
+  severity: low
+  category: gdpr
+  action: reportGenerated103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-104
+  name: Enterprise Compliance Rule 104
+  description: Ensures compliance with enterprise_compliance standards for action
+    104.
+  severity: medium
+  category: soc2
+  action: recordDeleted104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-105
+  name: Enterprise Compliance Rule 105
+  description: Ensures compliance with enterprise_compliance standards for action
+    105.
+  severity: high
+  category: sox
+  action: dataAccessed105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-106
+  name: Enterprise Compliance Rule 106
+  description: Ensures compliance with enterprise_compliance standards for action
+    106.
+  severity: medium
+  category: gdpr
+  action: reportGenerated106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-107
+  name: Enterprise Compliance Rule 107
+  description: Ensures compliance with enterprise_compliance standards for action
+    107.
+  severity: low
+  category: soc2
+  action: recordDeleted107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-108
+  name: Enterprise Compliance Rule 108
+  description: Ensures compliance with enterprise_compliance standards for action
+    108.
+  severity: medium
+  category: sox
+  action: dataAccessed108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-109
+  name: Enterprise Compliance Rule 109
+  description: Ensures compliance with enterprise_compliance standards for action
+    109.
+  severity: low
+  category: gdpr
+  action: reportGenerated109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-110
+  name: Enterprise Compliance Rule 110
+  description: Ensures compliance with enterprise_compliance standards for action
+    110.
+  severity: high
+  category: soc2
+  action: recordDeleted110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-111
+  name: Enterprise Compliance Rule 111
+  description: Ensures compliance with enterprise_compliance standards for action
+    111.
+  severity: low
+  category: sox
+  action: dataAccessed111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-112
+  name: Enterprise Compliance Rule 112
+  description: Ensures compliance with enterprise_compliance standards for action
+    112.
+  severity: medium
+  category: gdpr
+  action: reportGenerated112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-113
+  name: Enterprise Compliance Rule 113
+  description: Ensures compliance with enterprise_compliance standards for action
+    113.
+  severity: low
+  category: soc2
+  action: recordDeleted113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-114
+  name: Enterprise Compliance Rule 114
+  description: Ensures compliance with enterprise_compliance standards for action
+    114.
+  severity: medium
+  category: sox
+  action: dataAccessed114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-115
+  name: Enterprise Compliance Rule 115
+  description: Ensures compliance with enterprise_compliance standards for action
+    115.
+  severity: high
+  category: gdpr
+  action: reportGenerated115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-116
+  name: Enterprise Compliance Rule 116
+  description: Ensures compliance with enterprise_compliance standards for action
+    116.
+  severity: medium
+  category: soc2
+  action: recordDeleted116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-117
+  name: Enterprise Compliance Rule 117
+  description: Ensures compliance with enterprise_compliance standards for action
+    117.
+  severity: low
+  category: sox
+  action: dataAccessed117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-118
+  name: Enterprise Compliance Rule 118
+  description: Ensures compliance with enterprise_compliance standards for action
+    118.
+  severity: medium
+  category: gdpr
+  action: reportGenerated118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-119
+  name: Enterprise Compliance Rule 119
+  description: Ensures compliance with enterprise_compliance standards for action
+    119.
+  severity: low
+  category: soc2
+  action: recordDeleted119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-120
+  name: Enterprise Compliance Rule 120
+  description: Ensures compliance with enterprise_compliance standards for action
+    120.
+  severity: high
+  category: sox
+  action: dataAccessed120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-121
+  name: Enterprise Compliance Rule 121
+  description: Ensures compliance with enterprise_compliance standards for action
+    121.
+  severity: low
+  category: gdpr
+  action: reportGenerated121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-122
+  name: Enterprise Compliance Rule 122
+  description: Ensures compliance with enterprise_compliance standards for action
+    122.
+  severity: medium
+  category: soc2
+  action: recordDeleted122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-123
+  name: Enterprise Compliance Rule 123
+  description: Ensures compliance with enterprise_compliance standards for action
+    123.
+  severity: low
+  category: sox
+  action: dataAccessed123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-124
+  name: Enterprise Compliance Rule 124
+  description: Ensures compliance with enterprise_compliance standards for action
+    124.
+  severity: medium
+  category: gdpr
+  action: reportGenerated124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-125
+  name: Enterprise Compliance Rule 125
+  description: Ensures compliance with enterprise_compliance standards for action
+    125.
+  severity: high
+  category: soc2
+  action: recordDeleted125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-126
+  name: Enterprise Compliance Rule 126
+  description: Ensures compliance with enterprise_compliance standards for action
+    126.
+  severity: medium
+  category: sox
+  action: dataAccessed126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-127
+  name: Enterprise Compliance Rule 127
+  description: Ensures compliance with enterprise_compliance standards for action
+    127.
+  severity: low
+  category: gdpr
+  action: reportGenerated127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-128
+  name: Enterprise Compliance Rule 128
+  description: Ensures compliance with enterprise_compliance standards for action
+    128.
+  severity: medium
+  category: soc2
+  action: recordDeleted128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-129
+  name: Enterprise Compliance Rule 129
+  description: Ensures compliance with enterprise_compliance standards for action
+    129.
+  severity: low
+  category: sox
+  action: dataAccessed129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-130
+  name: Enterprise Compliance Rule 130
+  description: Ensures compliance with enterprise_compliance standards for action
+    130.
+  severity: high
+  category: gdpr
+  action: reportGenerated130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-131
+  name: Enterprise Compliance Rule 131
+  description: Ensures compliance with enterprise_compliance standards for action
+    131.
+  severity: low
+  category: soc2
+  action: recordDeleted131
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-132
+  name: Enterprise Compliance Rule 132
+  description: Ensures compliance with enterprise_compliance standards for action
+    132.
+  severity: medium
+  category: sox
+  action: dataAccessed132
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-133
+  name: Enterprise Compliance Rule 133
+  description: Ensures compliance with enterprise_compliance standards for action
+    133.
+  severity: low
+  category: gdpr
+  action: reportGenerated133
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-134
+  name: Enterprise Compliance Rule 134
+  description: Ensures compliance with enterprise_compliance standards for action
+    134.
+  severity: medium
+  category: soc2
+  action: recordDeleted134
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-135
+  name: Enterprise Compliance Rule 135
+  description: Ensures compliance with enterprise_compliance standards for action
+    135.
+  severity: high
+  category: sox
+  action: dataAccessed135
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-136
+  name: Enterprise Compliance Rule 136
+  description: Ensures compliance with enterprise_compliance standards for action
+    136.
+  severity: medium
+  category: gdpr
+  action: reportGenerated136
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-137
+  name: Enterprise Compliance Rule 137
+  description: Ensures compliance with enterprise_compliance standards for action
+    137.
+  severity: low
+  category: soc2
+  action: recordDeleted137
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-138
+  name: Enterprise Compliance Rule 138
+  description: Ensures compliance with enterprise_compliance standards for action
+    138.
+  severity: medium
+  category: sox
+  action: dataAccessed138
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-139
+  name: Enterprise Compliance Rule 139
+  description: Ensures compliance with enterprise_compliance standards for action
+    139.
+  severity: low
+  category: gdpr
+  action: reportGenerated139
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-140
+  name: Enterprise Compliance Rule 140
+  description: Ensures compliance with enterprise_compliance standards for action
+    140.
+  severity: high
+  category: soc2
+  action: recordDeleted140
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-141
+  name: Enterprise Compliance Rule 141
+  description: Ensures compliance with enterprise_compliance standards for action
+    141.
+  severity: low
+  category: sox
+  action: dataAccessed141
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-142
+  name: Enterprise Compliance Rule 142
+  description: Ensures compliance with enterprise_compliance standards for action
+    142.
+  severity: medium
+  category: gdpr
+  action: reportGenerated142
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-143
+  name: Enterprise Compliance Rule 143
+  description: Ensures compliance with enterprise_compliance standards for action
+    143.
+  severity: low
+  category: soc2
+  action: recordDeleted143
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-144
+  name: Enterprise Compliance Rule 144
+  description: Ensures compliance with enterprise_compliance standards for action
+    144.
+  severity: medium
+  category: sox
+  action: dataAccessed144
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-145
+  name: Enterprise Compliance Rule 145
+  description: Ensures compliance with enterprise_compliance standards for action
+    145.
+  severity: high
+  category: gdpr
+  action: reportGenerated145
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-146
+  name: Enterprise Compliance Rule 146
+  description: Ensures compliance with enterprise_compliance standards for action
+    146.
+  severity: medium
+  category: soc2
+  action: recordDeleted146
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-147
+  name: Enterprise Compliance Rule 147
+  description: Ensures compliance with enterprise_compliance standards for action
+    147.
+  severity: low
+  category: sox
+  action: dataAccessed147
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-148
+  name: Enterprise Compliance Rule 148
+  description: Ensures compliance with enterprise_compliance standards for action
+    148.
+  severity: medium
+  category: gdpr
+  action: reportGenerated148
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-149
+  name: Enterprise Compliance Rule 149
+  description: Ensures compliance with enterprise_compliance standards for action
+    149.
+  severity: low
+  category: soc2
+  action: recordDeleted149
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-150
+  name: Enterprise Compliance Rule 150
+  description: Ensures compliance with enterprise_compliance standards for action
+    150.
+  severity: high
+  category: sox
+  action: dataAccessed150
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-151
+  name: Enterprise Compliance Rule 151
+  description: Ensures compliance with enterprise_compliance standards for action
+    151.
+  severity: low
+  category: gdpr
+  action: reportGenerated151
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-152
+  name: Enterprise Compliance Rule 152
+  description: Ensures compliance with enterprise_compliance standards for action
+    152.
+  severity: medium
+  category: soc2
+  action: recordDeleted152
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-153
+  name: Enterprise Compliance Rule 153
+  description: Ensures compliance with enterprise_compliance standards for action
+    153.
+  severity: low
+  category: sox
+  action: dataAccessed153
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-154
+  name: Enterprise Compliance Rule 154
+  description: Ensures compliance with enterprise_compliance standards for action
+    154.
+  severity: medium
+  category: gdpr
+  action: reportGenerated154
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-155
+  name: Enterprise Compliance Rule 155
+  description: Ensures compliance with enterprise_compliance standards for action
+    155.
+  severity: high
+  category: soc2
+  action: recordDeleted155
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-156
+  name: Enterprise Compliance Rule 156
+  description: Ensures compliance with enterprise_compliance standards for action
+    156.
+  severity: medium
+  category: sox
+  action: dataAccessed156
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-157
+  name: Enterprise Compliance Rule 157
+  description: Ensures compliance with enterprise_compliance standards for action
+    157.
+  severity: low
+  category: gdpr
+  action: reportGenerated157
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-158
+  name: Enterprise Compliance Rule 158
+  description: Ensures compliance with enterprise_compliance standards for action
+    158.
+  severity: medium
+  category: soc2
+  action: recordDeleted158
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-159
+  name: Enterprise Compliance Rule 159
+  description: Ensures compliance with enterprise_compliance standards for action
+    159.
+  severity: low
+  category: sox
+  action: dataAccessed159
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-160
+  name: Enterprise Compliance Rule 160
+  description: Ensures compliance with enterprise_compliance standards for action
+    160.
+  severity: high
+  category: gdpr
+  action: reportGenerated160
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-161
+  name: Enterprise Compliance Rule 161
+  description: Ensures compliance with enterprise_compliance standards for action
+    161.
+  severity: low
+  category: soc2
+  action: recordDeleted161
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-162
+  name: Enterprise Compliance Rule 162
+  description: Ensures compliance with enterprise_compliance standards for action
+    162.
+  severity: medium
+  category: sox
+  action: dataAccessed162
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-163
+  name: Enterprise Compliance Rule 163
+  description: Ensures compliance with enterprise_compliance standards for action
+    163.
+  severity: low
+  category: gdpr
+  action: reportGenerated163
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-164
+  name: Enterprise Compliance Rule 164
+  description: Ensures compliance with enterprise_compliance standards for action
+    164.
+  severity: medium
+  category: soc2
+  action: recordDeleted164
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-165
+  name: Enterprise Compliance Rule 165
+  description: Ensures compliance with enterprise_compliance standards for action
+    165.
+  severity: high
+  category: sox
+  action: dataAccessed165
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-166
+  name: Enterprise Compliance Rule 166
+  description: Ensures compliance with enterprise_compliance standards for action
+    166.
+  severity: medium
+  category: gdpr
+  action: reportGenerated166
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-167
+  name: Enterprise Compliance Rule 167
+  description: Ensures compliance with enterprise_compliance standards for action
+    167.
+  severity: low
+  category: soc2
+  action: recordDeleted167
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-168
+  name: Enterprise Compliance Rule 168
+  description: Ensures compliance with enterprise_compliance standards for action
+    168.
+  severity: medium
+  category: sox
+  action: dataAccessed168
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-169
+  name: Enterprise Compliance Rule 169
+  description: Ensures compliance with enterprise_compliance standards for action
+    169.
+  severity: low
+  category: gdpr
+  action: reportGenerated169
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-170
+  name: Enterprise Compliance Rule 170
+  description: Ensures compliance with enterprise_compliance standards for action
+    170.
+  severity: high
+  category: soc2
+  action: recordDeleted170
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-171
+  name: Enterprise Compliance Rule 171
+  description: Ensures compliance with enterprise_compliance standards for action
+    171.
+  severity: low
+  category: sox
+  action: dataAccessed171
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-172
+  name: Enterprise Compliance Rule 172
+  description: Ensures compliance with enterprise_compliance standards for action
+    172.
+  severity: medium
+  category: gdpr
+  action: reportGenerated172
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-173
+  name: Enterprise Compliance Rule 173
+  description: Ensures compliance with enterprise_compliance standards for action
+    173.
+  severity: low
+  category: soc2
+  action: recordDeleted173
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-174
+  name: Enterprise Compliance Rule 174
+  description: Ensures compliance with enterprise_compliance standards for action
+    174.
+  severity: medium
+  category: sox
+  action: dataAccessed174
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-175
+  name: Enterprise Compliance Rule 175
+  description: Ensures compliance with enterprise_compliance standards for action
+    175.
+  severity: high
+  category: gdpr
+  action: reportGenerated175
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-176
+  name: Enterprise Compliance Rule 176
+  description: Ensures compliance with enterprise_compliance standards for action
+    176.
+  severity: medium
+  category: soc2
+  action: recordDeleted176
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-177
+  name: Enterprise Compliance Rule 177
+  description: Ensures compliance with enterprise_compliance standards for action
+    177.
+  severity: low
+  category: sox
+  action: dataAccessed177
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-178
+  name: Enterprise Compliance Rule 178
+  description: Ensures compliance with enterprise_compliance standards for action
+    178.
+  severity: medium
+  category: gdpr
+  action: reportGenerated178
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-179
+  name: Enterprise Compliance Rule 179
+  description: Ensures compliance with enterprise_compliance standards for action
+    179.
+  severity: low
+  category: soc2
+  action: recordDeleted179
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-180
+  name: Enterprise Compliance Rule 180
+  description: Ensures compliance with enterprise_compliance standards for action
+    180.
+  severity: high
+  category: sox
+  action: dataAccessed180
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-181
+  name: Enterprise Compliance Rule 181
+  description: Ensures compliance with enterprise_compliance standards for action
+    181.
+  severity: low
+  category: gdpr
+  action: reportGenerated181
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-182
+  name: Enterprise Compliance Rule 182
+  description: Ensures compliance with enterprise_compliance standards for action
+    182.
+  severity: medium
+  category: soc2
+  action: recordDeleted182
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-183
+  name: Enterprise Compliance Rule 183
+  description: Ensures compliance with enterprise_compliance standards for action
+    183.
+  severity: low
+  category: sox
+  action: dataAccessed183
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-184
+  name: Enterprise Compliance Rule 184
+  description: Ensures compliance with enterprise_compliance standards for action
+    184.
+  severity: medium
+  category: gdpr
+  action: reportGenerated184
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-185
+  name: Enterprise Compliance Rule 185
+  description: Ensures compliance with enterprise_compliance standards for action
+    185.
+  severity: high
+  category: soc2
+  action: recordDeleted185
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-186
+  name: Enterprise Compliance Rule 186
+  description: Ensures compliance with enterprise_compliance standards for action
+    186.
+  severity: medium
+  category: sox
+  action: dataAccessed186
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-187
+  name: Enterprise Compliance Rule 187
+  description: Ensures compliance with enterprise_compliance standards for action
+    187.
+  severity: low
+  category: gdpr
+  action: reportGenerated187
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-188
+  name: Enterprise Compliance Rule 188
+  description: Ensures compliance with enterprise_compliance standards for action
+    188.
+  severity: medium
+  category: soc2
+  action: recordDeleted188
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-189
+  name: Enterprise Compliance Rule 189
+  description: Ensures compliance with enterprise_compliance standards for action
+    189.
+  severity: low
+  category: sox
+  action: dataAccessed189
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-190
+  name: Enterprise Compliance Rule 190
+  description: Ensures compliance with enterprise_compliance standards for action
+    190.
+  severity: high
+  category: gdpr
+  action: reportGenerated190
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-191
+  name: Enterprise Compliance Rule 191
+  description: Ensures compliance with enterprise_compliance standards for action
+    191.
+  severity: low
+  category: soc2
+  action: recordDeleted191
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-192
+  name: Enterprise Compliance Rule 192
+  description: Ensures compliance with enterprise_compliance standards for action
+    192.
+  severity: medium
+  category: sox
+  action: dataAccessed192
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-193
+  name: Enterprise Compliance Rule 193
+  description: Ensures compliance with enterprise_compliance standards for action
+    193.
+  severity: low
+  category: gdpr
+  action: reportGenerated193
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-194
+  name: Enterprise Compliance Rule 194
+  description: Ensures compliance with enterprise_compliance standards for action
+    194.
+  severity: medium
+  category: soc2
+  action: recordDeleted194
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-195
+  name: Enterprise Compliance Rule 195
+  description: Ensures compliance with enterprise_compliance standards for action
+    195.
+  severity: high
+  category: sox
+  action: dataAccessed195
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-196
+  name: Enterprise Compliance Rule 196
+  description: Ensures compliance with enterprise_compliance standards for action
+    196.
+  severity: medium
+  category: gdpr
+  action: reportGenerated196
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-197
+  name: Enterprise Compliance Rule 197
+  description: Ensures compliance with enterprise_compliance standards for action
+    197.
+  severity: low
+  category: soc2
+  action: recordDeleted197
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-198
+  name: Enterprise Compliance Rule 198
+  description: Ensures compliance with enterprise_compliance standards for action
+    198.
+  severity: medium
+  category: sox
+  action: dataAccessed198
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-199
+  name: Enterprise Compliance Rule 199
+  description: Ensures compliance with enterprise_compliance standards for action
+    199.
+  severity: low
+  category: gdpr
+  action: reportGenerated199
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-200
+  name: Enterprise Compliance Rule 200
+  description: Ensures compliance with enterprise_compliance standards for action
+    200.
+  severity: high
+  category: soc2
+  action: recordDeleted200
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-201
+  name: Enterprise Compliance Rule 201
+  description: Ensures compliance with enterprise_compliance standards for action
+    201.
+  severity: low
+  category: sox
+  action: dataAccessed201
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-202
+  name: Enterprise Compliance Rule 202
+  description: Ensures compliance with enterprise_compliance standards for action
+    202.
+  severity: medium
+  category: gdpr
+  action: reportGenerated202
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-203
+  name: Enterprise Compliance Rule 203
+  description: Ensures compliance with enterprise_compliance standards for action
+    203.
+  severity: low
+  category: soc2
+  action: recordDeleted203
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-204
+  name: Enterprise Compliance Rule 204
+  description: Ensures compliance with enterprise_compliance standards for action
+    204.
+  severity: medium
+  category: sox
+  action: dataAccessed204
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-205
+  name: Enterprise Compliance Rule 205
+  description: Ensures compliance with enterprise_compliance standards for action
+    205.
+  severity: high
+  category: gdpr
+  action: reportGenerated205
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-206
+  name: Enterprise Compliance Rule 206
+  description: Ensures compliance with enterprise_compliance standards for action
+    206.
+  severity: medium
+  category: soc2
+  action: recordDeleted206
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-207
+  name: Enterprise Compliance Rule 207
+  description: Ensures compliance with enterprise_compliance standards for action
+    207.
+  severity: low
+  category: sox
+  action: dataAccessed207
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-208
+  name: Enterprise Compliance Rule 208
+  description: Ensures compliance with enterprise_compliance standards for action
+    208.
+  severity: medium
+  category: gdpr
+  action: reportGenerated208
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-209
+  name: Enterprise Compliance Rule 209
+  description: Ensures compliance with enterprise_compliance standards for action
+    209.
+  severity: low
+  category: soc2
+  action: recordDeleted209
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: enterprise_compliance-210
+  name: Enterprise Compliance Rule 210
+  description: Ensures compliance with enterprise_compliance standards for action
+    210.
+  severity: high
+  category: sox
+  action: dataAccessed210
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

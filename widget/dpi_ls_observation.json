@@ -1,0 +1,58 @@
+{
+  "agent_id": "chandra-finops",
+  "agent_name": "Chandra",
+  "period_start": "2026-07-10T10:28:40.962116+00:00",
+  "period_end": "2026-07-10T10:29:05.327456+00:00",
+  "tasks": {
+    "assigned": 1,
+    "completed": 1,
+    "failed": 0
+  },
+  "executions": {
+    "attempts": 3,
+    "successful": 3,
+    "details": [
+      {
+        "name": "fetch_costs_summary",
+        "ok": true
+      }
+    ],
+    "cpu_utilization": 0.16899999999999998
+  },
+  "policy": {
+    "total_actions": 3,
+    "violations": [
+      {
+        "rule": "none",
+        "when": "2026-07-10T10:28:51.409378+00:00",
+        "action_name": "LLM Generation"
+      },
+      {
+        "rule": "none",
+        "when": "2026-07-10T10:29:05.323883+00:00",
+        "action_name": "LLM Generation"
+      }
+    ]
+  },
+  "incidents": [],
+  "validation": {
+    "required_components": 6,
+    "validated_components": 6,
+    "audit_ready": true
+  },
+  "cost": {
+    "input_tokens": 8502,
+    "output_tokens": 999,
+    "model_cost": 0.009501,
+    "number_of_llm_calls": 2,
+    "Human_cost": 50.0
+  },
+  "source": "dpi_ls:openai_agents",
+  "retrievals": 0,
+  "retrieved_docs_total": 0,
+  "quality": {
+    "accuracy": 1.0,
+    "consistency": 1.0,
+    "hallucination_rate": 1.0
+  }
+}

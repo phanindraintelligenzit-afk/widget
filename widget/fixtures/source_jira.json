@@ -1,0 +1,15 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Jira incident issues with customfield_agent_id",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "issues": [
+    {
+      "key": "OPS-501",
+      "fields": {
+        "customfield_agent_id": "agent-multi-001",
+        "priority": {"name": "Low"},
+        "created": "2026-06-01T15:32:00Z"
+      }
+    }
+  ]
+}

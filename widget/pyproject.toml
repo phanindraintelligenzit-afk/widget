@@ -1,0 +1,77 @@
+[project]
+name = "dpi-ls"
+version = "0.3.0"
+description = "Digital FTE Performance Index — engine + embeddable widget + 2-line installable monitor() entrypoint"
+requires-python = ">=3.11, <3.13"
+dependencies = [
+    "pydantic>=2.0",
+    "PyYAML>=6.0",
+    "fastapi>=0.110",
+    "sqlalchemy>=2.0",
+    "langgraph>=0.2",
+    "uvicorn>=0.49.0",
+    "python-dotenv>=1.2.2",
+    "langchain-aws>=1.5.0",
+    "langchain-community>=0.4.2",
+    "langchain-core>=0.3",
+    "opentelemetry-api>=1.22.0",
+    "opentelemetry-sdk>=1.22.0",
+    "opentelemetry-semantic-conventions>=0.40b0",
+    "opentelemetry-instrumentation-langchain>=0.61.0",
+    "opentelemetry-instrumentation-requests>=0.40b0",
+    "opentelemetry-instrumentation-botocore>=0.40b0",
+    "opentelemetry-exporter-zipkin-json>=1.22.0",
+    "opentelemetry-exporter-jaeger-thrift>=1.21.0",
+    "aioboto3>=7.0.0",
+    "openai-agents>=0.17.4",
+    "litellm>=1.50.0",
+    "httpx>=0.27",
+    "crewai>=1.6.1",
+    "pyautogen>=0.10.0",
+    "llama-index>=0.14.22",
+    "arize-otel>=0.13.0",
+    "deepeval>=1.0.0",
+    "openinference-instrumentation-crewai>=1.1.9",
+    "openinference-instrumentation-litellm>=0.1.34",
+    "openinference-instrumentation-bedrock>=0.1.41",
+    "openinference-instrumentation-langchain>=0.1.66",
+    "langfuse>=2.0.0,<3.0.0",
+    "prometheus-client>=0.20.0",
+    "openinference-instrumentation-openai>=0.1.52",
+    "psutil>=7.2.2",
+    "agentops>=0.3.16",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "respx>=0.21"]
+# LlamaIndex support — installs llama-index-core so the LlamaIndexPatcher
+# can be used. The patcher's import is lazy so the base package still
+# imports cleanly without this.
+llamaindex = ["llama-index-core>=0.10"]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = [
+    "dpi_ls*",
+    "api*",
+    "contract*",
+    "engine*",
+    "ingestion*",
+    "store*",
+    "widget*",
+]
+exclude = [
+    "tests*",
+    "fixtures*",
+    "scripts*",
+    "observation*",
+    "database*",
+    "sandbox_*",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

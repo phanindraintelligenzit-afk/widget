@@ -1,0 +1,17 @@
+{
+  "_label": "SYNTHETIC FIXTURE — LangGraph Webhooks mapping to Executions (E) and Productivity (P)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "executions": [
+    {
+      "agent_id": "chandra-finops",
+      "successful_runs": 85,
+      "failed_runs": 5
+    },
+    {
+      "agent_id": "agent-perfect-002",
+      "successful_runs": 200,
+      "failed_runs": 0
+    }
+  ]
+}

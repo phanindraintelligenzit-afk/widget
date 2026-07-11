@@ -1,0 +1,17 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Langfuse tracing and executions",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end": "2026-06-02T00:00:00Z",
+  "traces": [
+    {
+      "agent_id": "agent-multi-001",
+      "attempts": 10,
+      "successful": 9
+    },
+    {
+      "agent_id": "agent-perfect-002",
+      "attempts": 5,
+      "successful": 5
+    }
+  ]
+}

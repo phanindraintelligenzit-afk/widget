@@ -1,0 +1,1082 @@
+version: '1.0'
+policies:
+- id: legal-001
+  name: Legal Rule 1
+  description: Ensures compliance with legal standards for action 1.
+  severity: low
+  category: vendor
+  action: clauseModified1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-002
+  name: Legal Rule 2
+  description: Ensures compliance with legal standards for action 2.
+  severity: medium
+  category: employment
+  action: addendumCreated2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-003
+  name: Legal Rule 3
+  description: Ensures compliance with legal standards for action 3.
+  severity: low
+  category: nda
+  action: contractSigned3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-004
+  name: Legal Rule 4
+  description: Ensures compliance with legal standards for action 4.
+  severity: medium
+  category: vendor
+  action: clauseModified4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-005
+  name: Legal Rule 5
+  description: Ensures compliance with legal standards for action 5.
+  severity: high
+  category: employment
+  action: addendumCreated5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-006
+  name: Legal Rule 6
+  description: Ensures compliance with legal standards for action 6.
+  severity: medium
+  category: nda
+  action: contractSigned6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-007
+  name: Legal Rule 7
+  description: Ensures compliance with legal standards for action 7.
+  severity: low
+  category: vendor
+  action: clauseModified7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-008
+  name: Legal Rule 8
+  description: Ensures compliance with legal standards for action 8.
+  severity: medium
+  category: employment
+  action: addendumCreated8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-009
+  name: Legal Rule 9
+  description: Ensures compliance with legal standards for action 9.
+  severity: low
+  category: nda
+  action: contractSigned9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-010
+  name: Legal Rule 10
+  description: Ensures compliance with legal standards for action 10.
+  severity: high
+  category: vendor
+  action: clauseModified10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-011
+  name: Legal Rule 11
+  description: Ensures compliance with legal standards for action 11.
+  severity: low
+  category: employment
+  action: addendumCreated11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-012
+  name: Legal Rule 12
+  description: Ensures compliance with legal standards for action 12.
+  severity: medium
+  category: nda
+  action: contractSigned12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-013
+  name: Legal Rule 13
+  description: Ensures compliance with legal standards for action 13.
+  severity: low
+  category: vendor
+  action: clauseModified13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-014
+  name: Legal Rule 14
+  description: Ensures compliance with legal standards for action 14.
+  severity: medium
+  category: employment
+  action: addendumCreated14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-015
+  name: Legal Rule 15
+  description: Ensures compliance with legal standards for action 15.
+  severity: high
+  category: nda
+  action: contractSigned15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-016
+  name: Legal Rule 16
+  description: Ensures compliance with legal standards for action 16.
+  severity: medium
+  category: vendor
+  action: clauseModified16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-017
+  name: Legal Rule 17
+  description: Ensures compliance with legal standards for action 17.
+  severity: low
+  category: employment
+  action: addendumCreated17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-018
+  name: Legal Rule 18
+  description: Ensures compliance with legal standards for action 18.
+  severity: medium
+  category: nda
+  action: contractSigned18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-019
+  name: Legal Rule 19
+  description: Ensures compliance with legal standards for action 19.
+  severity: low
+  category: vendor
+  action: clauseModified19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-020
+  name: Legal Rule 20
+  description: Ensures compliance with legal standards for action 20.
+  severity: high
+  category: employment
+  action: addendumCreated20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-021
+  name: Legal Rule 21
+  description: Ensures compliance with legal standards for action 21.
+  severity: low
+  category: nda
+  action: contractSigned21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-022
+  name: Legal Rule 22
+  description: Ensures compliance with legal standards for action 22.
+  severity: medium
+  category: vendor
+  action: clauseModified22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-023
+  name: Legal Rule 23
+  description: Ensures compliance with legal standards for action 23.
+  severity: low
+  category: employment
+  action: addendumCreated23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-024
+  name: Legal Rule 24
+  description: Ensures compliance with legal standards for action 24.
+  severity: medium
+  category: nda
+  action: contractSigned24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-025
+  name: Legal Rule 25
+  description: Ensures compliance with legal standards for action 25.
+  severity: high
+  category: vendor
+  action: clauseModified25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-026
+  name: Legal Rule 26
+  description: Ensures compliance with legal standards for action 26.
+  severity: medium
+  category: employment
+  action: addendumCreated26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-027
+  name: Legal Rule 27
+  description: Ensures compliance with legal standards for action 27.
+  severity: low
+  category: nda
+  action: contractSigned27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-028
+  name: Legal Rule 28
+  description: Ensures compliance with legal standards for action 28.
+  severity: medium
+  category: vendor
+  action: clauseModified28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-029
+  name: Legal Rule 29
+  description: Ensures compliance with legal standards for action 29.
+  severity: low
+  category: employment
+  action: addendumCreated29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-030
+  name: Legal Rule 30
+  description: Ensures compliance with legal standards for action 30.
+  severity: high
+  category: nda
+  action: contractSigned30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-031
+  name: Legal Rule 31
+  description: Ensures compliance with legal standards for action 31.
+  severity: low
+  category: vendor
+  action: clauseModified31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-032
+  name: Legal Rule 32
+  description: Ensures compliance with legal standards for action 32.
+  severity: medium
+  category: employment
+  action: addendumCreated32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-033
+  name: Legal Rule 33
+  description: Ensures compliance with legal standards for action 33.
+  severity: low
+  category: nda
+  action: contractSigned33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-034
+  name: Legal Rule 34
+  description: Ensures compliance with legal standards for action 34.
+  severity: medium
+  category: vendor
+  action: clauseModified34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-035
+  name: Legal Rule 35
+  description: Ensures compliance with legal standards for action 35.
+  severity: high
+  category: employment
+  action: addendumCreated35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-036
+  name: Legal Rule 36
+  description: Ensures compliance with legal standards for action 36.
+  severity: medium
+  category: nda
+  action: contractSigned36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-037
+  name: Legal Rule 37
+  description: Ensures compliance with legal standards for action 37.
+  severity: low
+  category: vendor
+  action: clauseModified37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-038
+  name: Legal Rule 38
+  description: Ensures compliance with legal standards for action 38.
+  severity: medium
+  category: employment
+  action: addendumCreated38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-039
+  name: Legal Rule 39
+  description: Ensures compliance with legal standards for action 39.
+  severity: low
+  category: nda
+  action: contractSigned39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-040
+  name: Legal Rule 40
+  description: Ensures compliance with legal standards for action 40.
+  severity: high
+  category: vendor
+  action: clauseModified40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-041
+  name: Legal Rule 41
+  description: Ensures compliance with legal standards for action 41.
+  severity: low
+  category: employment
+  action: addendumCreated41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-042
+  name: Legal Rule 42
+  description: Ensures compliance with legal standards for action 42.
+  severity: medium
+  category: nda
+  action: contractSigned42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-043
+  name: Legal Rule 43
+  description: Ensures compliance with legal standards for action 43.
+  severity: low
+  category: vendor
+  action: clauseModified43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-044
+  name: Legal Rule 44
+  description: Ensures compliance with legal standards for action 44.
+  severity: medium
+  category: employment
+  action: addendumCreated44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-045
+  name: Legal Rule 45
+  description: Ensures compliance with legal standards for action 45.
+  severity: high
+  category: nda
+  action: contractSigned45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-046
+  name: Legal Rule 46
+  description: Ensures compliance with legal standards for action 46.
+  severity: medium
+  category: vendor
+  action: clauseModified46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-047
+  name: Legal Rule 47
+  description: Ensures compliance with legal standards for action 47.
+  severity: low
+  category: employment
+  action: addendumCreated47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-048
+  name: Legal Rule 48
+  description: Ensures compliance with legal standards for action 48.
+  severity: medium
+  category: nda
+  action: contractSigned48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-049
+  name: Legal Rule 49
+  description: Ensures compliance with legal standards for action 49.
+  severity: low
+  category: vendor
+  action: clauseModified49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-050
+  name: Legal Rule 50
+  description: Ensures compliance with legal standards for action 50.
+  severity: high
+  category: employment
+  action: addendumCreated50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-051
+  name: Legal Rule 51
+  description: Ensures compliance with legal standards for action 51.
+  severity: low
+  category: nda
+  action: contractSigned51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-052
+  name: Legal Rule 52
+  description: Ensures compliance with legal standards for action 52.
+  severity: medium
+  category: vendor
+  action: clauseModified52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-053
+  name: Legal Rule 53
+  description: Ensures compliance with legal standards for action 53.
+  severity: low
+  category: employment
+  action: addendumCreated53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-054
+  name: Legal Rule 54
+  description: Ensures compliance with legal standards for action 54.
+  severity: medium
+  category: nda
+  action: contractSigned54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-055
+  name: Legal Rule 55
+  description: Ensures compliance with legal standards for action 55.
+  severity: high
+  category: vendor
+  action: clauseModified55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-056
+  name: Legal Rule 56
+  description: Ensures compliance with legal standards for action 56.
+  severity: medium
+  category: employment
+  action: addendumCreated56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-057
+  name: Legal Rule 57
+  description: Ensures compliance with legal standards for action 57.
+  severity: low
+  category: nda
+  action: contractSigned57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-058
+  name: Legal Rule 58
+  description: Ensures compliance with legal standards for action 58.
+  severity: medium
+  category: vendor
+  action: clauseModified58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-059
+  name: Legal Rule 59
+  description: Ensures compliance with legal standards for action 59.
+  severity: low
+  category: employment
+  action: addendumCreated59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-060
+  name: Legal Rule 60
+  description: Ensures compliance with legal standards for action 60.
+  severity: high
+  category: nda
+  action: contractSigned60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-061
+  name: Legal Rule 61
+  description: Ensures compliance with legal standards for action 61.
+  severity: low
+  category: vendor
+  action: clauseModified61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-062
+  name: Legal Rule 62
+  description: Ensures compliance with legal standards for action 62.
+  severity: medium
+  category: employment
+  action: addendumCreated62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-063
+  name: Legal Rule 63
+  description: Ensures compliance with legal standards for action 63.
+  severity: low
+  category: nda
+  action: contractSigned63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-064
+  name: Legal Rule 64
+  description: Ensures compliance with legal standards for action 64.
+  severity: medium
+  category: vendor
+  action: clauseModified64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-065
+  name: Legal Rule 65
+  description: Ensures compliance with legal standards for action 65.
+  severity: high
+  category: employment
+  action: addendumCreated65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-066
+  name: Legal Rule 66
+  description: Ensures compliance with legal standards for action 66.
+  severity: medium
+  category: nda
+  action: contractSigned66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-067
+  name: Legal Rule 67
+  description: Ensures compliance with legal standards for action 67.
+  severity: low
+  category: vendor
+  action: clauseModified67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-068
+  name: Legal Rule 68
+  description: Ensures compliance with legal standards for action 68.
+  severity: medium
+  category: employment
+  action: addendumCreated68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-069
+  name: Legal Rule 69
+  description: Ensures compliance with legal standards for action 69.
+  severity: low
+  category: nda
+  action: contractSigned69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-070
+  name: Legal Rule 70
+  description: Ensures compliance with legal standards for action 70.
+  severity: high
+  category: vendor
+  action: clauseModified70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-071
+  name: Legal Rule 71
+  description: Ensures compliance with legal standards for action 71.
+  severity: low
+  category: employment
+  action: addendumCreated71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-072
+  name: Legal Rule 72
+  description: Ensures compliance with legal standards for action 72.
+  severity: medium
+  category: nda
+  action: contractSigned72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-073
+  name: Legal Rule 73
+  description: Ensures compliance with legal standards for action 73.
+  severity: low
+  category: vendor
+  action: clauseModified73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-074
+  name: Legal Rule 74
+  description: Ensures compliance with legal standards for action 74.
+  severity: medium
+  category: employment
+  action: addendumCreated74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-075
+  name: Legal Rule 75
+  description: Ensures compliance with legal standards for action 75.
+  severity: high
+  category: nda
+  action: contractSigned75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-076
+  name: Legal Rule 76
+  description: Ensures compliance with legal standards for action 76.
+  severity: medium
+  category: vendor
+  action: clauseModified76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-077
+  name: Legal Rule 77
+  description: Ensures compliance with legal standards for action 77.
+  severity: low
+  category: employment
+  action: addendumCreated77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-078
+  name: Legal Rule 78
+  description: Ensures compliance with legal standards for action 78.
+  severity: medium
+  category: nda
+  action: contractSigned78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-079
+  name: Legal Rule 79
+  description: Ensures compliance with legal standards for action 79.
+  severity: low
+  category: vendor
+  action: clauseModified79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-080
+  name: Legal Rule 80
+  description: Ensures compliance with legal standards for action 80.
+  severity: high
+  category: employment
+  action: addendumCreated80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-081
+  name: Legal Rule 81
+  description: Ensures compliance with legal standards for action 81.
+  severity: low
+  category: nda
+  action: contractSigned81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-082
+  name: Legal Rule 82
+  description: Ensures compliance with legal standards for action 82.
+  severity: medium
+  category: vendor
+  action: clauseModified82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-083
+  name: Legal Rule 83
+  description: Ensures compliance with legal standards for action 83.
+  severity: low
+  category: employment
+  action: addendumCreated83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-084
+  name: Legal Rule 84
+  description: Ensures compliance with legal standards for action 84.
+  severity: medium
+  category: nda
+  action: contractSigned84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-085
+  name: Legal Rule 85
+  description: Ensures compliance with legal standards for action 85.
+  severity: high
+  category: vendor
+  action: clauseModified85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-086
+  name: Legal Rule 86
+  description: Ensures compliance with legal standards for action 86.
+  severity: medium
+  category: employment
+  action: addendumCreated86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-087
+  name: Legal Rule 87
+  description: Ensures compliance with legal standards for action 87.
+  severity: low
+  category: nda
+  action: contractSigned87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-088
+  name: Legal Rule 88
+  description: Ensures compliance with legal standards for action 88.
+  severity: medium
+  category: vendor
+  action: clauseModified88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-089
+  name: Legal Rule 89
+  description: Ensures compliance with legal standards for action 89.
+  severity: low
+  category: employment
+  action: addendumCreated89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: legal-090
+  name: Legal Rule 90
+  description: Ensures compliance with legal standards for action 90.
+  severity: high
+  category: nda
+  action: contractSigned90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

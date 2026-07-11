@@ -1,0 +1,4 @@
+2026-07-10 15:58:18,942 - WARNING -  WARNING: agentops is out of date. Please update with the command: 'pip install --upgrade agentops'
+2026-07-10 15:58:36,446 - INFO - Session Replay: https://app.agentops.ai/drilldown?session_id=6ae3677a-b780-4afe-b376-44b16678c3d3
+2026-07-10 16:00:02,556 - INFO - Session Stats - Duration: 1m 24.3s | Cost: $0.00 | LLMs: 2 | Tools: 0 | Actions: 0 | Errors: 0
+2026-07-10 16:00:02,558 - INFO - Session Replay: https://app.agentops.ai/drilldown?session_id=6ae3677a-b780-4afe-b376-44b16678c3d3

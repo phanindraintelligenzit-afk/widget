@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 Write-Host "Starting DPI-LS Services..."
 
 # Navigate to project root
-Set-Location "D:\DPI-LS\widget\widget"
+Set-Location "D:\DPI-LS\widget"
 
 # 1. FastAPI (Port 8000)
 Write-Host "Starting FastAPI..."
@@ -13,7 +13,7 @@ Start-Process -FilePath "uv" -ArgumentList "run uvicorn api.app:app --host 127.0
 # 3. Prometheus (Port 9090)
 Write-Host "Starting Prometheus..."
 $PromDir = "C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64"
-Start-Process -FilePath "$PromDir\prometheus.exe" -ArgumentList "--config.file=prometheus.yml --web.listen-address=127.0.0.1:9090" -WorkingDirectory $PromDir
+Start-Process -FilePath "$PromDir\prometheus.exe" -ArgumentList "--config.file=D:\DPI-LS\widget\prometheus.yml --web.listen-address=127.0.0.1:9090" -WorkingDirectory $PromDir
 
 # 4. Grafana (Port 3000)
 Write-Host "Starting Grafana..."
@@ -21,7 +21,7 @@ $GrafDir = "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\gra
 Start-Process -FilePath "$GrafDir\grafana.exe" -ArgumentList "server --homepath .." -WorkingDirectory $GrafDir
 
 # ================================================================
-# 5. Jaeger — requires Docker Desktop
+# 5. Jaeger â€” requires Docker Desktop
 # ================================================================
 # docker run -d --name jaeger \
 #   -e COLLECTOR_ZIPKIN_HOST_PORT=:9411 \
@@ -36,7 +36,7 @@ Start-Process -FilePath "$GrafDir\grafana.exe" -ArgumentList "server --homepath 
 #   jaegertracing/all-in-one:latest
 #
 # ================================================================
-# 6. Zipkin — requires Docker Desktop
+# 6. Zipkin â€” requires Docker Desktop
 # ================================================================
 # docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin:latest
 # ================================================================
@@ -56,7 +56,7 @@ Write-Host "=========================================="
 Write-Host ""
 
 # Return to project root
-Set-Location "D:\DPI-LS\widget\widget"
+Set-Location "D:\DPI-LS\widget"
 
 Write-Host "Services have been initiated. Use URLs:"
 Write-Host "  FastAPI:  http://127.0.0.1:8000"
