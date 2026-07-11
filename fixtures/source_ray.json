@@ -1,0 +1,24 @@
+{
+  "_label": "SYNTHETIC FIXTURE — Ray observability: retries, crashes, quota breaches",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "agents": [
+    {
+      "agent_id": "agent-multi-001",
+      "successful_tasks": 100,
+      "task_retries": 5,
+      "actor_crashes": 1,
+      "quota_breaches": [
+        {"resource": "memory.oom", "at": "2026-06-01T14:30:00Z"},
+        {"resource": "api.rate_limit", "at": "2026-06-01T15:45:00Z"}
+      ]
+    },
+    {
+      "agent_id": "agent-perfect-002",
+      "successful_tasks": 50,
+      "task_retries": 0,
+      "actor_crashes": 0,
+      "quota_breaches": []
+    }
+  ]
+}

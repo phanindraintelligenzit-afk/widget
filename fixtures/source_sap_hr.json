@@ -1,0 +1,22 @@
+{
+  "_label": "SYNTHETIC FIXTURE — SAP HR events mapping to Governance (G)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "hr_alerts": [
+    {
+      "agent_id": "chandra-finops",
+      "total_scanned_actions": 50,
+      "violations": [
+        {
+          "rule": "unauthorized_employee_record_access",
+          "timestamp": "2026-06-01T10:30:00Z"
+        }
+      ]
+    },
+    {
+      "agent_id": "agent-perfect-002",
+      "total_scanned_actions": 120,
+      "violations": []
+    }
+  ]
+}

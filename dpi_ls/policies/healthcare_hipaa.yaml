@@ -1,0 +1,1562 @@
+version: '1.0'
+policies:
+- id: healthcare-001
+  name: Healthcare Rule 1
+  description: Ensures compliance with healthcare standards for action 1.
+  severity: low
+  category: ehr
+  action: prescriptionModified1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-002
+  name: Healthcare Rule 2
+  description: Ensures compliance with healthcare standards for action 2.
+  severity: medium
+  category: billing
+  action: billingExported2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-003
+  name: Healthcare Rule 3
+  description: Ensures compliance with healthcare standards for action 3.
+  severity: low
+  category: phi
+  action: patientRecordAccessed3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-004
+  name: Healthcare Rule 4
+  description: Ensures compliance with healthcare standards for action 4.
+  severity: medium
+  category: ehr
+  action: prescriptionModified4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-005
+  name: Healthcare Rule 5
+  description: Ensures compliance with healthcare standards for action 5.
+  severity: high
+  category: billing
+  action: billingExported5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-006
+  name: Healthcare Rule 6
+  description: Ensures compliance with healthcare standards for action 6.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-007
+  name: Healthcare Rule 7
+  description: Ensures compliance with healthcare standards for action 7.
+  severity: low
+  category: ehr
+  action: prescriptionModified7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-008
+  name: Healthcare Rule 8
+  description: Ensures compliance with healthcare standards for action 8.
+  severity: medium
+  category: billing
+  action: billingExported8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-009
+  name: Healthcare Rule 9
+  description: Ensures compliance with healthcare standards for action 9.
+  severity: low
+  category: phi
+  action: patientRecordAccessed9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-010
+  name: Healthcare Rule 10
+  description: Ensures compliance with healthcare standards for action 10.
+  severity: high
+  category: ehr
+  action: prescriptionModified10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-011
+  name: Healthcare Rule 11
+  description: Ensures compliance with healthcare standards for action 11.
+  severity: low
+  category: billing
+  action: billingExported11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-012
+  name: Healthcare Rule 12
+  description: Ensures compliance with healthcare standards for action 12.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-013
+  name: Healthcare Rule 13
+  description: Ensures compliance with healthcare standards for action 13.
+  severity: low
+  category: ehr
+  action: prescriptionModified13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-014
+  name: Healthcare Rule 14
+  description: Ensures compliance with healthcare standards for action 14.
+  severity: medium
+  category: billing
+  action: billingExported14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-015
+  name: Healthcare Rule 15
+  description: Ensures compliance with healthcare standards for action 15.
+  severity: high
+  category: phi
+  action: patientRecordAccessed15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-016
+  name: Healthcare Rule 16
+  description: Ensures compliance with healthcare standards for action 16.
+  severity: medium
+  category: ehr
+  action: prescriptionModified16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-017
+  name: Healthcare Rule 17
+  description: Ensures compliance with healthcare standards for action 17.
+  severity: low
+  category: billing
+  action: billingExported17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-018
+  name: Healthcare Rule 18
+  description: Ensures compliance with healthcare standards for action 18.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-019
+  name: Healthcare Rule 19
+  description: Ensures compliance with healthcare standards for action 19.
+  severity: low
+  category: ehr
+  action: prescriptionModified19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-020
+  name: Healthcare Rule 20
+  description: Ensures compliance with healthcare standards for action 20.
+  severity: high
+  category: billing
+  action: billingExported20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-021
+  name: Healthcare Rule 21
+  description: Ensures compliance with healthcare standards for action 21.
+  severity: low
+  category: phi
+  action: patientRecordAccessed21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-022
+  name: Healthcare Rule 22
+  description: Ensures compliance with healthcare standards for action 22.
+  severity: medium
+  category: ehr
+  action: prescriptionModified22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-023
+  name: Healthcare Rule 23
+  description: Ensures compliance with healthcare standards for action 23.
+  severity: low
+  category: billing
+  action: billingExported23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-024
+  name: Healthcare Rule 24
+  description: Ensures compliance with healthcare standards for action 24.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-025
+  name: Healthcare Rule 25
+  description: Ensures compliance with healthcare standards for action 25.
+  severity: high
+  category: ehr
+  action: prescriptionModified25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-026
+  name: Healthcare Rule 26
+  description: Ensures compliance with healthcare standards for action 26.
+  severity: medium
+  category: billing
+  action: billingExported26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-027
+  name: Healthcare Rule 27
+  description: Ensures compliance with healthcare standards for action 27.
+  severity: low
+  category: phi
+  action: patientRecordAccessed27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-028
+  name: Healthcare Rule 28
+  description: Ensures compliance with healthcare standards for action 28.
+  severity: medium
+  category: ehr
+  action: prescriptionModified28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-029
+  name: Healthcare Rule 29
+  description: Ensures compliance with healthcare standards for action 29.
+  severity: low
+  category: billing
+  action: billingExported29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-030
+  name: Healthcare Rule 30
+  description: Ensures compliance with healthcare standards for action 30.
+  severity: high
+  category: phi
+  action: patientRecordAccessed30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-031
+  name: Healthcare Rule 31
+  description: Ensures compliance with healthcare standards for action 31.
+  severity: low
+  category: ehr
+  action: prescriptionModified31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-032
+  name: Healthcare Rule 32
+  description: Ensures compliance with healthcare standards for action 32.
+  severity: medium
+  category: billing
+  action: billingExported32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-033
+  name: Healthcare Rule 33
+  description: Ensures compliance with healthcare standards for action 33.
+  severity: low
+  category: phi
+  action: patientRecordAccessed33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-034
+  name: Healthcare Rule 34
+  description: Ensures compliance with healthcare standards for action 34.
+  severity: medium
+  category: ehr
+  action: prescriptionModified34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-035
+  name: Healthcare Rule 35
+  description: Ensures compliance with healthcare standards for action 35.
+  severity: high
+  category: billing
+  action: billingExported35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-036
+  name: Healthcare Rule 36
+  description: Ensures compliance with healthcare standards for action 36.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-037
+  name: Healthcare Rule 37
+  description: Ensures compliance with healthcare standards for action 37.
+  severity: low
+  category: ehr
+  action: prescriptionModified37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-038
+  name: Healthcare Rule 38
+  description: Ensures compliance with healthcare standards for action 38.
+  severity: medium
+  category: billing
+  action: billingExported38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-039
+  name: Healthcare Rule 39
+  description: Ensures compliance with healthcare standards for action 39.
+  severity: low
+  category: phi
+  action: patientRecordAccessed39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-040
+  name: Healthcare Rule 40
+  description: Ensures compliance with healthcare standards for action 40.
+  severity: high
+  category: ehr
+  action: prescriptionModified40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-041
+  name: Healthcare Rule 41
+  description: Ensures compliance with healthcare standards for action 41.
+  severity: low
+  category: billing
+  action: billingExported41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-042
+  name: Healthcare Rule 42
+  description: Ensures compliance with healthcare standards for action 42.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-043
+  name: Healthcare Rule 43
+  description: Ensures compliance with healthcare standards for action 43.
+  severity: low
+  category: ehr
+  action: prescriptionModified43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-044
+  name: Healthcare Rule 44
+  description: Ensures compliance with healthcare standards for action 44.
+  severity: medium
+  category: billing
+  action: billingExported44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-045
+  name: Healthcare Rule 45
+  description: Ensures compliance with healthcare standards for action 45.
+  severity: high
+  category: phi
+  action: patientRecordAccessed45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-046
+  name: Healthcare Rule 46
+  description: Ensures compliance with healthcare standards for action 46.
+  severity: medium
+  category: ehr
+  action: prescriptionModified46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-047
+  name: Healthcare Rule 47
+  description: Ensures compliance with healthcare standards for action 47.
+  severity: low
+  category: billing
+  action: billingExported47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-048
+  name: Healthcare Rule 48
+  description: Ensures compliance with healthcare standards for action 48.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-049
+  name: Healthcare Rule 49
+  description: Ensures compliance with healthcare standards for action 49.
+  severity: low
+  category: ehr
+  action: prescriptionModified49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-050
+  name: Healthcare Rule 50
+  description: Ensures compliance with healthcare standards for action 50.
+  severity: high
+  category: billing
+  action: billingExported50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-051
+  name: Healthcare Rule 51
+  description: Ensures compliance with healthcare standards for action 51.
+  severity: low
+  category: phi
+  action: patientRecordAccessed51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-052
+  name: Healthcare Rule 52
+  description: Ensures compliance with healthcare standards for action 52.
+  severity: medium
+  category: ehr
+  action: prescriptionModified52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-053
+  name: Healthcare Rule 53
+  description: Ensures compliance with healthcare standards for action 53.
+  severity: low
+  category: billing
+  action: billingExported53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-054
+  name: Healthcare Rule 54
+  description: Ensures compliance with healthcare standards for action 54.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-055
+  name: Healthcare Rule 55
+  description: Ensures compliance with healthcare standards for action 55.
+  severity: high
+  category: ehr
+  action: prescriptionModified55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-056
+  name: Healthcare Rule 56
+  description: Ensures compliance with healthcare standards for action 56.
+  severity: medium
+  category: billing
+  action: billingExported56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-057
+  name: Healthcare Rule 57
+  description: Ensures compliance with healthcare standards for action 57.
+  severity: low
+  category: phi
+  action: patientRecordAccessed57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-058
+  name: Healthcare Rule 58
+  description: Ensures compliance with healthcare standards for action 58.
+  severity: medium
+  category: ehr
+  action: prescriptionModified58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-059
+  name: Healthcare Rule 59
+  description: Ensures compliance with healthcare standards for action 59.
+  severity: low
+  category: billing
+  action: billingExported59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-060
+  name: Healthcare Rule 60
+  description: Ensures compliance with healthcare standards for action 60.
+  severity: high
+  category: phi
+  action: patientRecordAccessed60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-061
+  name: Healthcare Rule 61
+  description: Ensures compliance with healthcare standards for action 61.
+  severity: low
+  category: ehr
+  action: prescriptionModified61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-062
+  name: Healthcare Rule 62
+  description: Ensures compliance with healthcare standards for action 62.
+  severity: medium
+  category: billing
+  action: billingExported62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-063
+  name: Healthcare Rule 63
+  description: Ensures compliance with healthcare standards for action 63.
+  severity: low
+  category: phi
+  action: patientRecordAccessed63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-064
+  name: Healthcare Rule 64
+  description: Ensures compliance with healthcare standards for action 64.
+  severity: medium
+  category: ehr
+  action: prescriptionModified64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-065
+  name: Healthcare Rule 65
+  description: Ensures compliance with healthcare standards for action 65.
+  severity: high
+  category: billing
+  action: billingExported65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-066
+  name: Healthcare Rule 66
+  description: Ensures compliance with healthcare standards for action 66.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-067
+  name: Healthcare Rule 67
+  description: Ensures compliance with healthcare standards for action 67.
+  severity: low
+  category: ehr
+  action: prescriptionModified67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-068
+  name: Healthcare Rule 68
+  description: Ensures compliance with healthcare standards for action 68.
+  severity: medium
+  category: billing
+  action: billingExported68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-069
+  name: Healthcare Rule 69
+  description: Ensures compliance with healthcare standards for action 69.
+  severity: low
+  category: phi
+  action: patientRecordAccessed69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-070
+  name: Healthcare Rule 70
+  description: Ensures compliance with healthcare standards for action 70.
+  severity: high
+  category: ehr
+  action: prescriptionModified70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-071
+  name: Healthcare Rule 71
+  description: Ensures compliance with healthcare standards for action 71.
+  severity: low
+  category: billing
+  action: billingExported71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-072
+  name: Healthcare Rule 72
+  description: Ensures compliance with healthcare standards for action 72.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-073
+  name: Healthcare Rule 73
+  description: Ensures compliance with healthcare standards for action 73.
+  severity: low
+  category: ehr
+  action: prescriptionModified73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-074
+  name: Healthcare Rule 74
+  description: Ensures compliance with healthcare standards for action 74.
+  severity: medium
+  category: billing
+  action: billingExported74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-075
+  name: Healthcare Rule 75
+  description: Ensures compliance with healthcare standards for action 75.
+  severity: high
+  category: phi
+  action: patientRecordAccessed75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-076
+  name: Healthcare Rule 76
+  description: Ensures compliance with healthcare standards for action 76.
+  severity: medium
+  category: ehr
+  action: prescriptionModified76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-077
+  name: Healthcare Rule 77
+  description: Ensures compliance with healthcare standards for action 77.
+  severity: low
+  category: billing
+  action: billingExported77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-078
+  name: Healthcare Rule 78
+  description: Ensures compliance with healthcare standards for action 78.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-079
+  name: Healthcare Rule 79
+  description: Ensures compliance with healthcare standards for action 79.
+  severity: low
+  category: ehr
+  action: prescriptionModified79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-080
+  name: Healthcare Rule 80
+  description: Ensures compliance with healthcare standards for action 80.
+  severity: high
+  category: billing
+  action: billingExported80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-081
+  name: Healthcare Rule 81
+  description: Ensures compliance with healthcare standards for action 81.
+  severity: low
+  category: phi
+  action: patientRecordAccessed81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-082
+  name: Healthcare Rule 82
+  description: Ensures compliance with healthcare standards for action 82.
+  severity: medium
+  category: ehr
+  action: prescriptionModified82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-083
+  name: Healthcare Rule 83
+  description: Ensures compliance with healthcare standards for action 83.
+  severity: low
+  category: billing
+  action: billingExported83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-084
+  name: Healthcare Rule 84
+  description: Ensures compliance with healthcare standards for action 84.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-085
+  name: Healthcare Rule 85
+  description: Ensures compliance with healthcare standards for action 85.
+  severity: high
+  category: ehr
+  action: prescriptionModified85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-086
+  name: Healthcare Rule 86
+  description: Ensures compliance with healthcare standards for action 86.
+  severity: medium
+  category: billing
+  action: billingExported86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-087
+  name: Healthcare Rule 87
+  description: Ensures compliance with healthcare standards for action 87.
+  severity: low
+  category: phi
+  action: patientRecordAccessed87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-088
+  name: Healthcare Rule 88
+  description: Ensures compliance with healthcare standards for action 88.
+  severity: medium
+  category: ehr
+  action: prescriptionModified88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-089
+  name: Healthcare Rule 89
+  description: Ensures compliance with healthcare standards for action 89.
+  severity: low
+  category: billing
+  action: billingExported89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-090
+  name: Healthcare Rule 90
+  description: Ensures compliance with healthcare standards for action 90.
+  severity: high
+  category: phi
+  action: patientRecordAccessed90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-091
+  name: Healthcare Rule 91
+  description: Ensures compliance with healthcare standards for action 91.
+  severity: low
+  category: ehr
+  action: prescriptionModified91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-092
+  name: Healthcare Rule 92
+  description: Ensures compliance with healthcare standards for action 92.
+  severity: medium
+  category: billing
+  action: billingExported92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-093
+  name: Healthcare Rule 93
+  description: Ensures compliance with healthcare standards for action 93.
+  severity: low
+  category: phi
+  action: patientRecordAccessed93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-094
+  name: Healthcare Rule 94
+  description: Ensures compliance with healthcare standards for action 94.
+  severity: medium
+  category: ehr
+  action: prescriptionModified94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-095
+  name: Healthcare Rule 95
+  description: Ensures compliance with healthcare standards for action 95.
+  severity: high
+  category: billing
+  action: billingExported95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-096
+  name: Healthcare Rule 96
+  description: Ensures compliance with healthcare standards for action 96.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-097
+  name: Healthcare Rule 97
+  description: Ensures compliance with healthcare standards for action 97.
+  severity: low
+  category: ehr
+  action: prescriptionModified97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-098
+  name: Healthcare Rule 98
+  description: Ensures compliance with healthcare standards for action 98.
+  severity: medium
+  category: billing
+  action: billingExported98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-099
+  name: Healthcare Rule 99
+  description: Ensures compliance with healthcare standards for action 99.
+  severity: low
+  category: phi
+  action: patientRecordAccessed99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-100
+  name: Healthcare Rule 100
+  description: Ensures compliance with healthcare standards for action 100.
+  severity: high
+  category: ehr
+  action: prescriptionModified100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-101
+  name: Healthcare Rule 101
+  description: Ensures compliance with healthcare standards for action 101.
+  severity: low
+  category: billing
+  action: billingExported101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-102
+  name: Healthcare Rule 102
+  description: Ensures compliance with healthcare standards for action 102.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-103
+  name: Healthcare Rule 103
+  description: Ensures compliance with healthcare standards for action 103.
+  severity: low
+  category: ehr
+  action: prescriptionModified103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-104
+  name: Healthcare Rule 104
+  description: Ensures compliance with healthcare standards for action 104.
+  severity: medium
+  category: billing
+  action: billingExported104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-105
+  name: Healthcare Rule 105
+  description: Ensures compliance with healthcare standards for action 105.
+  severity: high
+  category: phi
+  action: patientRecordAccessed105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-106
+  name: Healthcare Rule 106
+  description: Ensures compliance with healthcare standards for action 106.
+  severity: medium
+  category: ehr
+  action: prescriptionModified106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-107
+  name: Healthcare Rule 107
+  description: Ensures compliance with healthcare standards for action 107.
+  severity: low
+  category: billing
+  action: billingExported107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-108
+  name: Healthcare Rule 108
+  description: Ensures compliance with healthcare standards for action 108.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-109
+  name: Healthcare Rule 109
+  description: Ensures compliance with healthcare standards for action 109.
+  severity: low
+  category: ehr
+  action: prescriptionModified109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-110
+  name: Healthcare Rule 110
+  description: Ensures compliance with healthcare standards for action 110.
+  severity: high
+  category: billing
+  action: billingExported110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-111
+  name: Healthcare Rule 111
+  description: Ensures compliance with healthcare standards for action 111.
+  severity: low
+  category: phi
+  action: patientRecordAccessed111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-112
+  name: Healthcare Rule 112
+  description: Ensures compliance with healthcare standards for action 112.
+  severity: medium
+  category: ehr
+  action: prescriptionModified112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-113
+  name: Healthcare Rule 113
+  description: Ensures compliance with healthcare standards for action 113.
+  severity: low
+  category: billing
+  action: billingExported113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-114
+  name: Healthcare Rule 114
+  description: Ensures compliance with healthcare standards for action 114.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-115
+  name: Healthcare Rule 115
+  description: Ensures compliance with healthcare standards for action 115.
+  severity: high
+  category: ehr
+  action: prescriptionModified115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-116
+  name: Healthcare Rule 116
+  description: Ensures compliance with healthcare standards for action 116.
+  severity: medium
+  category: billing
+  action: billingExported116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-117
+  name: Healthcare Rule 117
+  description: Ensures compliance with healthcare standards for action 117.
+  severity: low
+  category: phi
+  action: patientRecordAccessed117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-118
+  name: Healthcare Rule 118
+  description: Ensures compliance with healthcare standards for action 118.
+  severity: medium
+  category: ehr
+  action: prescriptionModified118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-119
+  name: Healthcare Rule 119
+  description: Ensures compliance with healthcare standards for action 119.
+  severity: low
+  category: billing
+  action: billingExported119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-120
+  name: Healthcare Rule 120
+  description: Ensures compliance with healthcare standards for action 120.
+  severity: high
+  category: phi
+  action: patientRecordAccessed120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-121
+  name: Healthcare Rule 121
+  description: Ensures compliance with healthcare standards for action 121.
+  severity: low
+  category: ehr
+  action: prescriptionModified121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-122
+  name: Healthcare Rule 122
+  description: Ensures compliance with healthcare standards for action 122.
+  severity: medium
+  category: billing
+  action: billingExported122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-123
+  name: Healthcare Rule 123
+  description: Ensures compliance with healthcare standards for action 123.
+  severity: low
+  category: phi
+  action: patientRecordAccessed123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-124
+  name: Healthcare Rule 124
+  description: Ensures compliance with healthcare standards for action 124.
+  severity: medium
+  category: ehr
+  action: prescriptionModified124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-125
+  name: Healthcare Rule 125
+  description: Ensures compliance with healthcare standards for action 125.
+  severity: high
+  category: billing
+  action: billingExported125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-126
+  name: Healthcare Rule 126
+  description: Ensures compliance with healthcare standards for action 126.
+  severity: medium
+  category: phi
+  action: patientRecordAccessed126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-127
+  name: Healthcare Rule 127
+  description: Ensures compliance with healthcare standards for action 127.
+  severity: low
+  category: ehr
+  action: prescriptionModified127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-128
+  name: Healthcare Rule 128
+  description: Ensures compliance with healthcare standards for action 128.
+  severity: medium
+  category: billing
+  action: billingExported128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-129
+  name: Healthcare Rule 129
+  description: Ensures compliance with healthcare standards for action 129.
+  severity: low
+  category: phi
+  action: patientRecordAccessed129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: healthcare-130
+  name: Healthcare Rule 130
+  description: Ensures compliance with healthcare standards for action 130.
+  severity: high
+  category: ehr
+  action: prescriptionModified130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

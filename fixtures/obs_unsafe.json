@@ -1,0 +1,39 @@
+{
+  "_label": "SYNTHETIC FIXTURE — strong on most dimensions, fails compliance G gate",
+  "agent_id": "agent-unsafe-003",
+  "agent_name": "Procurement Agent (synthetic)",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end": "2026-06-02T00:00:00Z",
+  "tasks": {
+    "assigned": 90,
+    "completed": 78,
+    "failed": 6,
+    "pending_approval": 6,
+    "blocked_no_access": 0
+  },
+  "executions": {"attempts": 100, "successful": 88},
+  "policy": {
+    "total_actions": 25,
+    "violations": [
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T08:11:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T09:02:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T11:45:00Z"},
+      {"rule": "vendor.blocklisted",       "when": "2026-06-01T12:20:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T14:01:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T15:30:00Z"},
+      {"rule": "vendor.blocklisted",       "when": "2026-06-01T16:48:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T18:22:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T19:55:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T21:07:00Z"},
+      {"rule": "vendor.blocklisted",       "when": "2026-06-01T22:14:00Z"},
+      {"rule": "approval.over_threshold",  "when": "2026-06-01T23:01:00Z"}
+    ]
+  },
+  "incidents": [
+    {"severity_weight": 0.3, "frequency": 1, "source": "servicenow"}
+  ],
+  "quality": {"accuracy": 0.88, "consistency": 0.85, "hallucination_rate": 0.06},
+  "validation": {"required_components": 10, "validated_components": 9, "audit_ready": false},
+  "cost": {"input_tokens": 350000, "output_tokens": 350000, "model_cost": 35.10, "number_of_llm_calls": 88, "Human_cost": 170.50},
+  "source": "fixture"
+}

@@ -1,0 +1,1922 @@
+version: '1.0'
+policies:
+- id: sap_hr-001
+  name: Sap Hr Rule 1
+  description: Ensures compliance with sap_hr standards for action 1.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected1
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-002
+  name: Sap Hr Rule 2
+  description: Ensures compliance with sap_hr standards for action 2.
+  severity: medium
+  category: benefits
+  action: bonusAllocated2
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-003
+  name: Sap Hr Rule 3
+  description: Ensures compliance with sap_hr standards for action 3.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified3
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-004
+  name: Sap Hr Rule 4
+  description: Ensures compliance with sap_hr standards for action 4.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected4
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-005
+  name: Sap Hr Rule 5
+  description: Ensures compliance with sap_hr standards for action 5.
+  severity: high
+  category: benefits
+  action: bonusAllocated5
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-006
+  name: Sap Hr Rule 6
+  description: Ensures compliance with sap_hr standards for action 6.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified6
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-007
+  name: Sap Hr Rule 7
+  description: Ensures compliance with sap_hr standards for action 7.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected7
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-008
+  name: Sap Hr Rule 8
+  description: Ensures compliance with sap_hr standards for action 8.
+  severity: medium
+  category: benefits
+  action: bonusAllocated8
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-009
+  name: Sap Hr Rule 9
+  description: Ensures compliance with sap_hr standards for action 9.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified9
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-010
+  name: Sap Hr Rule 10
+  description: Ensures compliance with sap_hr standards for action 10.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected10
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-011
+  name: Sap Hr Rule 11
+  description: Ensures compliance with sap_hr standards for action 11.
+  severity: low
+  category: benefits
+  action: bonusAllocated11
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-012
+  name: Sap Hr Rule 12
+  description: Ensures compliance with sap_hr standards for action 12.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified12
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-013
+  name: Sap Hr Rule 13
+  description: Ensures compliance with sap_hr standards for action 13.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected13
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-014
+  name: Sap Hr Rule 14
+  description: Ensures compliance with sap_hr standards for action 14.
+  severity: medium
+  category: benefits
+  action: bonusAllocated14
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-015
+  name: Sap Hr Rule 15
+  description: Ensures compliance with sap_hr standards for action 15.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified15
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-016
+  name: Sap Hr Rule 16
+  description: Ensures compliance with sap_hr standards for action 16.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected16
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-017
+  name: Sap Hr Rule 17
+  description: Ensures compliance with sap_hr standards for action 17.
+  severity: low
+  category: benefits
+  action: bonusAllocated17
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-018
+  name: Sap Hr Rule 18
+  description: Ensures compliance with sap_hr standards for action 18.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified18
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-019
+  name: Sap Hr Rule 19
+  description: Ensures compliance with sap_hr standards for action 19.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected19
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-020
+  name: Sap Hr Rule 20
+  description: Ensures compliance with sap_hr standards for action 20.
+  severity: high
+  category: benefits
+  action: bonusAllocated20
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-021
+  name: Sap Hr Rule 21
+  description: Ensures compliance with sap_hr standards for action 21.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified21
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-022
+  name: Sap Hr Rule 22
+  description: Ensures compliance with sap_hr standards for action 22.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected22
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-023
+  name: Sap Hr Rule 23
+  description: Ensures compliance with sap_hr standards for action 23.
+  severity: low
+  category: benefits
+  action: bonusAllocated23
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-024
+  name: Sap Hr Rule 24
+  description: Ensures compliance with sap_hr standards for action 24.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified24
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-025
+  name: Sap Hr Rule 25
+  description: Ensures compliance with sap_hr standards for action 25.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected25
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-026
+  name: Sap Hr Rule 26
+  description: Ensures compliance with sap_hr standards for action 26.
+  severity: medium
+  category: benefits
+  action: bonusAllocated26
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-027
+  name: Sap Hr Rule 27
+  description: Ensures compliance with sap_hr standards for action 27.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified27
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-028
+  name: Sap Hr Rule 28
+  description: Ensures compliance with sap_hr standards for action 28.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected28
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-029
+  name: Sap Hr Rule 29
+  description: Ensures compliance with sap_hr standards for action 29.
+  severity: low
+  category: benefits
+  action: bonusAllocated29
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-030
+  name: Sap Hr Rule 30
+  description: Ensures compliance with sap_hr standards for action 30.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified30
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-031
+  name: Sap Hr Rule 31
+  description: Ensures compliance with sap_hr standards for action 31.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected31
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-032
+  name: Sap Hr Rule 32
+  description: Ensures compliance with sap_hr standards for action 32.
+  severity: medium
+  category: benefits
+  action: bonusAllocated32
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-033
+  name: Sap Hr Rule 33
+  description: Ensures compliance with sap_hr standards for action 33.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified33
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-034
+  name: Sap Hr Rule 34
+  description: Ensures compliance with sap_hr standards for action 34.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected34
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-035
+  name: Sap Hr Rule 35
+  description: Ensures compliance with sap_hr standards for action 35.
+  severity: high
+  category: benefits
+  action: bonusAllocated35
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-036
+  name: Sap Hr Rule 36
+  description: Ensures compliance with sap_hr standards for action 36.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified36
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-037
+  name: Sap Hr Rule 37
+  description: Ensures compliance with sap_hr standards for action 37.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected37
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-038
+  name: Sap Hr Rule 38
+  description: Ensures compliance with sap_hr standards for action 38.
+  severity: medium
+  category: benefits
+  action: bonusAllocated38
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-039
+  name: Sap Hr Rule 39
+  description: Ensures compliance with sap_hr standards for action 39.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified39
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-040
+  name: Sap Hr Rule 40
+  description: Ensures compliance with sap_hr standards for action 40.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected40
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-041
+  name: Sap Hr Rule 41
+  description: Ensures compliance with sap_hr standards for action 41.
+  severity: low
+  category: benefits
+  action: bonusAllocated41
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-042
+  name: Sap Hr Rule 42
+  description: Ensures compliance with sap_hr standards for action 42.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified42
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-043
+  name: Sap Hr Rule 43
+  description: Ensures compliance with sap_hr standards for action 43.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected43
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-044
+  name: Sap Hr Rule 44
+  description: Ensures compliance with sap_hr standards for action 44.
+  severity: medium
+  category: benefits
+  action: bonusAllocated44
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-045
+  name: Sap Hr Rule 45
+  description: Ensures compliance with sap_hr standards for action 45.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified45
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-046
+  name: Sap Hr Rule 46
+  description: Ensures compliance with sap_hr standards for action 46.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected46
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-047
+  name: Sap Hr Rule 47
+  description: Ensures compliance with sap_hr standards for action 47.
+  severity: low
+  category: benefits
+  action: bonusAllocated47
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-048
+  name: Sap Hr Rule 48
+  description: Ensures compliance with sap_hr standards for action 48.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified48
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-049
+  name: Sap Hr Rule 49
+  description: Ensures compliance with sap_hr standards for action 49.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected49
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-050
+  name: Sap Hr Rule 50
+  description: Ensures compliance with sap_hr standards for action 50.
+  severity: high
+  category: benefits
+  action: bonusAllocated50
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-051
+  name: Sap Hr Rule 51
+  description: Ensures compliance with sap_hr standards for action 51.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified51
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-052
+  name: Sap Hr Rule 52
+  description: Ensures compliance with sap_hr standards for action 52.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected52
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-053
+  name: Sap Hr Rule 53
+  description: Ensures compliance with sap_hr standards for action 53.
+  severity: low
+  category: benefits
+  action: bonusAllocated53
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-054
+  name: Sap Hr Rule 54
+  description: Ensures compliance with sap_hr standards for action 54.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified54
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-055
+  name: Sap Hr Rule 55
+  description: Ensures compliance with sap_hr standards for action 55.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected55
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-056
+  name: Sap Hr Rule 56
+  description: Ensures compliance with sap_hr standards for action 56.
+  severity: medium
+  category: benefits
+  action: bonusAllocated56
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-057
+  name: Sap Hr Rule 57
+  description: Ensures compliance with sap_hr standards for action 57.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified57
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-058
+  name: Sap Hr Rule 58
+  description: Ensures compliance with sap_hr standards for action 58.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected58
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-059
+  name: Sap Hr Rule 59
+  description: Ensures compliance with sap_hr standards for action 59.
+  severity: low
+  category: benefits
+  action: bonusAllocated59
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-060
+  name: Sap Hr Rule 60
+  description: Ensures compliance with sap_hr standards for action 60.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified60
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-061
+  name: Sap Hr Rule 61
+  description: Ensures compliance with sap_hr standards for action 61.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected61
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-062
+  name: Sap Hr Rule 62
+  description: Ensures compliance with sap_hr standards for action 62.
+  severity: medium
+  category: benefits
+  action: bonusAllocated62
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-063
+  name: Sap Hr Rule 63
+  description: Ensures compliance with sap_hr standards for action 63.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified63
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-064
+  name: Sap Hr Rule 64
+  description: Ensures compliance with sap_hr standards for action 64.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected64
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-065
+  name: Sap Hr Rule 65
+  description: Ensures compliance with sap_hr standards for action 65.
+  severity: high
+  category: benefits
+  action: bonusAllocated65
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-066
+  name: Sap Hr Rule 66
+  description: Ensures compliance with sap_hr standards for action 66.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified66
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-067
+  name: Sap Hr Rule 67
+  description: Ensures compliance with sap_hr standards for action 67.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected67
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-068
+  name: Sap Hr Rule 68
+  description: Ensures compliance with sap_hr standards for action 68.
+  severity: medium
+  category: benefits
+  action: bonusAllocated68
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-069
+  name: Sap Hr Rule 69
+  description: Ensures compliance with sap_hr standards for action 69.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified69
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-070
+  name: Sap Hr Rule 70
+  description: Ensures compliance with sap_hr standards for action 70.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected70
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-071
+  name: Sap Hr Rule 71
+  description: Ensures compliance with sap_hr standards for action 71.
+  severity: low
+  category: benefits
+  action: bonusAllocated71
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-072
+  name: Sap Hr Rule 72
+  description: Ensures compliance with sap_hr standards for action 72.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified72
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-073
+  name: Sap Hr Rule 73
+  description: Ensures compliance with sap_hr standards for action 73.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected73
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-074
+  name: Sap Hr Rule 74
+  description: Ensures compliance with sap_hr standards for action 74.
+  severity: medium
+  category: benefits
+  action: bonusAllocated74
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-075
+  name: Sap Hr Rule 75
+  description: Ensures compliance with sap_hr standards for action 75.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified75
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-076
+  name: Sap Hr Rule 76
+  description: Ensures compliance with sap_hr standards for action 76.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected76
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-077
+  name: Sap Hr Rule 77
+  description: Ensures compliance with sap_hr standards for action 77.
+  severity: low
+  category: benefits
+  action: bonusAllocated77
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-078
+  name: Sap Hr Rule 78
+  description: Ensures compliance with sap_hr standards for action 78.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified78
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-079
+  name: Sap Hr Rule 79
+  description: Ensures compliance with sap_hr standards for action 79.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected79
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-080
+  name: Sap Hr Rule 80
+  description: Ensures compliance with sap_hr standards for action 80.
+  severity: high
+  category: benefits
+  action: bonusAllocated80
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-081
+  name: Sap Hr Rule 81
+  description: Ensures compliance with sap_hr standards for action 81.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified81
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-082
+  name: Sap Hr Rule 82
+  description: Ensures compliance with sap_hr standards for action 82.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected82
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-083
+  name: Sap Hr Rule 83
+  description: Ensures compliance with sap_hr standards for action 83.
+  severity: low
+  category: benefits
+  action: bonusAllocated83
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-084
+  name: Sap Hr Rule 84
+  description: Ensures compliance with sap_hr standards for action 84.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified84
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-085
+  name: Sap Hr Rule 85
+  description: Ensures compliance with sap_hr standards for action 85.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected85
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-086
+  name: Sap Hr Rule 86
+  description: Ensures compliance with sap_hr standards for action 86.
+  severity: medium
+  category: benefits
+  action: bonusAllocated86
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-087
+  name: Sap Hr Rule 87
+  description: Ensures compliance with sap_hr standards for action 87.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified87
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-088
+  name: Sap Hr Rule 88
+  description: Ensures compliance with sap_hr standards for action 88.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected88
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-089
+  name: Sap Hr Rule 89
+  description: Ensures compliance with sap_hr standards for action 89.
+  severity: low
+  category: benefits
+  action: bonusAllocated89
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-090
+  name: Sap Hr Rule 90
+  description: Ensures compliance with sap_hr standards for action 90.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified90
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-091
+  name: Sap Hr Rule 91
+  description: Ensures compliance with sap_hr standards for action 91.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected91
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-092
+  name: Sap Hr Rule 92
+  description: Ensures compliance with sap_hr standards for action 92.
+  severity: medium
+  category: benefits
+  action: bonusAllocated92
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-093
+  name: Sap Hr Rule 93
+  description: Ensures compliance with sap_hr standards for action 93.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified93
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-094
+  name: Sap Hr Rule 94
+  description: Ensures compliance with sap_hr standards for action 94.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected94
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-095
+  name: Sap Hr Rule 95
+  description: Ensures compliance with sap_hr standards for action 95.
+  severity: high
+  category: benefits
+  action: bonusAllocated95
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-096
+  name: Sap Hr Rule 96
+  description: Ensures compliance with sap_hr standards for action 96.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified96
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-097
+  name: Sap Hr Rule 97
+  description: Ensures compliance with sap_hr standards for action 97.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected97
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-098
+  name: Sap Hr Rule 98
+  description: Ensures compliance with sap_hr standards for action 98.
+  severity: medium
+  category: benefits
+  action: bonusAllocated98
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-099
+  name: Sap Hr Rule 99
+  description: Ensures compliance with sap_hr standards for action 99.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified99
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-100
+  name: Sap Hr Rule 100
+  description: Ensures compliance with sap_hr standards for action 100.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected100
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-101
+  name: Sap Hr Rule 101
+  description: Ensures compliance with sap_hr standards for action 101.
+  severity: low
+  category: benefits
+  action: bonusAllocated101
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-102
+  name: Sap Hr Rule 102
+  description: Ensures compliance with sap_hr standards for action 102.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified102
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-103
+  name: Sap Hr Rule 103
+  description: Ensures compliance with sap_hr standards for action 103.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected103
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-104
+  name: Sap Hr Rule 104
+  description: Ensures compliance with sap_hr standards for action 104.
+  severity: medium
+  category: benefits
+  action: bonusAllocated104
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-105
+  name: Sap Hr Rule 105
+  description: Ensures compliance with sap_hr standards for action 105.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified105
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-106
+  name: Sap Hr Rule 106
+  description: Ensures compliance with sap_hr standards for action 106.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected106
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-107
+  name: Sap Hr Rule 107
+  description: Ensures compliance with sap_hr standards for action 107.
+  severity: low
+  category: benefits
+  action: bonusAllocated107
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-108
+  name: Sap Hr Rule 108
+  description: Ensures compliance with sap_hr standards for action 108.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified108
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-109
+  name: Sap Hr Rule 109
+  description: Ensures compliance with sap_hr standards for action 109.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected109
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-110
+  name: Sap Hr Rule 110
+  description: Ensures compliance with sap_hr standards for action 110.
+  severity: high
+  category: benefits
+  action: bonusAllocated110
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-111
+  name: Sap Hr Rule 111
+  description: Ensures compliance with sap_hr standards for action 111.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified111
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-112
+  name: Sap Hr Rule 112
+  description: Ensures compliance with sap_hr standards for action 112.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected112
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-113
+  name: Sap Hr Rule 113
+  description: Ensures compliance with sap_hr standards for action 113.
+  severity: low
+  category: benefits
+  action: bonusAllocated113
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-114
+  name: Sap Hr Rule 114
+  description: Ensures compliance with sap_hr standards for action 114.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified114
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-115
+  name: Sap Hr Rule 115
+  description: Ensures compliance with sap_hr standards for action 115.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected115
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-116
+  name: Sap Hr Rule 116
+  description: Ensures compliance with sap_hr standards for action 116.
+  severity: medium
+  category: benefits
+  action: bonusAllocated116
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-117
+  name: Sap Hr Rule 117
+  description: Ensures compliance with sap_hr standards for action 117.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified117
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-118
+  name: Sap Hr Rule 118
+  description: Ensures compliance with sap_hr standards for action 118.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected118
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-119
+  name: Sap Hr Rule 119
+  description: Ensures compliance with sap_hr standards for action 119.
+  severity: low
+  category: benefits
+  action: bonusAllocated119
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-120
+  name: Sap Hr Rule 120
+  description: Ensures compliance with sap_hr standards for action 120.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified120
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-121
+  name: Sap Hr Rule 121
+  description: Ensures compliance with sap_hr standards for action 121.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected121
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-122
+  name: Sap Hr Rule 122
+  description: Ensures compliance with sap_hr standards for action 122.
+  severity: medium
+  category: benefits
+  action: bonusAllocated122
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-123
+  name: Sap Hr Rule 123
+  description: Ensures compliance with sap_hr standards for action 123.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified123
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-124
+  name: Sap Hr Rule 124
+  description: Ensures compliance with sap_hr standards for action 124.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected124
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-125
+  name: Sap Hr Rule 125
+  description: Ensures compliance with sap_hr standards for action 125.
+  severity: high
+  category: benefits
+  action: bonusAllocated125
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-126
+  name: Sap Hr Rule 126
+  description: Ensures compliance with sap_hr standards for action 126.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified126
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-127
+  name: Sap Hr Rule 127
+  description: Ensures compliance with sap_hr standards for action 127.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected127
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-128
+  name: Sap Hr Rule 128
+  description: Ensures compliance with sap_hr standards for action 128.
+  severity: medium
+  category: benefits
+  action: bonusAllocated128
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-129
+  name: Sap Hr Rule 129
+  description: Ensures compliance with sap_hr standards for action 129.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified129
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-130
+  name: Sap Hr Rule 130
+  description: Ensures compliance with sap_hr standards for action 130.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected130
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-131
+  name: Sap Hr Rule 131
+  description: Ensures compliance with sap_hr standards for action 131.
+  severity: low
+  category: benefits
+  action: bonusAllocated131
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-132
+  name: Sap Hr Rule 132
+  description: Ensures compliance with sap_hr standards for action 132.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified132
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-133
+  name: Sap Hr Rule 133
+  description: Ensures compliance with sap_hr standards for action 133.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected133
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-134
+  name: Sap Hr Rule 134
+  description: Ensures compliance with sap_hr standards for action 134.
+  severity: medium
+  category: benefits
+  action: bonusAllocated134
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-135
+  name: Sap Hr Rule 135
+  description: Ensures compliance with sap_hr standards for action 135.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified135
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-136
+  name: Sap Hr Rule 136
+  description: Ensures compliance with sap_hr standards for action 136.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected136
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-137
+  name: Sap Hr Rule 137
+  description: Ensures compliance with sap_hr standards for action 137.
+  severity: low
+  category: benefits
+  action: bonusAllocated137
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-138
+  name: Sap Hr Rule 138
+  description: Ensures compliance with sap_hr standards for action 138.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified138
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-139
+  name: Sap Hr Rule 139
+  description: Ensures compliance with sap_hr standards for action 139.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected139
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-140
+  name: Sap Hr Rule 140
+  description: Ensures compliance with sap_hr standards for action 140.
+  severity: high
+  category: benefits
+  action: bonusAllocated140
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-141
+  name: Sap Hr Rule 141
+  description: Ensures compliance with sap_hr standards for action 141.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified141
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-142
+  name: Sap Hr Rule 142
+  description: Ensures compliance with sap_hr standards for action 142.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected142
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-143
+  name: Sap Hr Rule 143
+  description: Ensures compliance with sap_hr standards for action 143.
+  severity: low
+  category: benefits
+  action: bonusAllocated143
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-144
+  name: Sap Hr Rule 144
+  description: Ensures compliance with sap_hr standards for action 144.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified144
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-145
+  name: Sap Hr Rule 145
+  description: Ensures compliance with sap_hr standards for action 145.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected145
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-146
+  name: Sap Hr Rule 146
+  description: Ensures compliance with sap_hr standards for action 146.
+  severity: medium
+  category: benefits
+  action: bonusAllocated146
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-147
+  name: Sap Hr Rule 147
+  description: Ensures compliance with sap_hr standards for action 147.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified147
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-148
+  name: Sap Hr Rule 148
+  description: Ensures compliance with sap_hr standards for action 148.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected148
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-149
+  name: Sap Hr Rule 149
+  description: Ensures compliance with sap_hr standards for action 149.
+  severity: low
+  category: benefits
+  action: bonusAllocated149
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-150
+  name: Sap Hr Rule 150
+  description: Ensures compliance with sap_hr standards for action 150.
+  severity: high
+  category: payroll
+  action: employeeSalaryModified150
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-151
+  name: Sap Hr Rule 151
+  description: Ensures compliance with sap_hr standards for action 151.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected151
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-152
+  name: Sap Hr Rule 152
+  description: Ensures compliance with sap_hr standards for action 152.
+  severity: medium
+  category: benefits
+  action: bonusAllocated152
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-153
+  name: Sap Hr Rule 153
+  description: Ensures compliance with sap_hr standards for action 153.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified153
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-154
+  name: Sap Hr Rule 154
+  description: Ensures compliance with sap_hr standards for action 154.
+  severity: medium
+  category: recruitment
+  action: candidateAutoRejected154
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-155
+  name: Sap Hr Rule 155
+  description: Ensures compliance with sap_hr standards for action 155.
+  severity: high
+  category: benefits
+  action: bonusAllocated155
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-156
+  name: Sap Hr Rule 156
+  description: Ensures compliance with sap_hr standards for action 156.
+  severity: medium
+  category: payroll
+  action: employeeSalaryModified156
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-157
+  name: Sap Hr Rule 157
+  description: Ensures compliance with sap_hr standards for action 157.
+  severity: low
+  category: recruitment
+  action: candidateAutoRejected157
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-158
+  name: Sap Hr Rule 158
+  description: Ensures compliance with sap_hr standards for action 158.
+  severity: medium
+  category: benefits
+  action: bonusAllocated158
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-159
+  name: Sap Hr Rule 159
+  description: Ensures compliance with sap_hr standards for action 159.
+  severity: low
+  category: payroll
+  action: employeeSalaryModified159
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null
+- id: sap_hr-160
+  name: Sap Hr Rule 160
+  description: Ensures compliance with sap_hr standards for action 160.
+  severity: high
+  category: recruitment
+  action: candidateAutoRejected160
+  conditions:
+    all:
+    - field: context
+      operator: exists
+    - field: user_id
+      operator: not_null

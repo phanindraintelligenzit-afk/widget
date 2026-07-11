@@ -1,0 +1,16 @@
+{
+  "_label": "SYNTHETIC FIXTURE — AWS Cost Explorer GetCostAndUsage, GroupBy=TAG:agent_id",
+  "period_start": "2026-06-01T00:00:00Z",
+  "period_end":   "2026-06-02T00:00:00Z",
+  "agents": [
+    {
+      "agent_id": "agent-multi-001",
+      "agent_name": "Multi-Source Agent (synthetic)",
+      "spend_usd": 26.40,
+      "output_count": 88,
+      "tokens": 540000,
+      "cloud_cost_usd": 26.40,
+      "systems_accessed": 5
+    }
+  ]
+}

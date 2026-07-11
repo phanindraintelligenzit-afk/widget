@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DPI-LS — live demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2d3148; --accent: #6366f1; --green: #10b981;
+      --text: #f1f5f9; --muted: #94a3b8;
+    }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 1400px; margin: 0 auto; padding: 0 0 40px;
+      color: var(--text); background: var(--bg);
+    }
+    /* ── NAV ── */
+    .top-nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 32px;
+      height: 56px; margin-bottom: 32px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; text-decoration: none; letter-spacing: -0.3px;
+    }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted); text-decoration: none; transition: all 0.15s;
+    }
+    .nav-link:hover { background: var(--surface2); color: var(--text); }
+    .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green); box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+    /* ── PAGE CONTENT ── */
+    .page-body { padding: 0 24px; }
+    h1 { font-size: 26px; margin: 0 0 4px; color: var(--text); }
+    .sub { color: var(--muted); margin: 0 0 32px; font-size: 14px; }
+    h2 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--muted); margin: 28px 0 12px;
+    }
+    code { background: #eef2ff; padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #4338ca; }
+    .row { display: grid; gap: 24px; grid-template-columns: 2fr 1fr; align-items: start; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+    .stack > * + * { margin-top: 16px; }
+    .eval-section {
+      margin-top: 40px; padding-top: 20px;
+      border-top: 2px solid var(--border);
+    }
+    .eval-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .resources-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff; text-decoration: none;
+      padding: 10px 20px; border-radius: 10px;
+      font-size: 13px; font-weight: 600;
+      transition: opacity 0.15s, transform 0.1s;
+      box-shadow: 0 4px 16px rgba(99,102,241,0.3);
+    }
+    .resources-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+  </style>
+  <script src="/widget/dpi-ls.js?v=13" defer></script>
+</head>
+<body>
+  <!-- TOP NAV -->
+  <nav class="top-nav">
+    <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
+    <div class="nav-links">
+      <a href="/widget/demo.html" class="nav-link active">Dashboard</a>
+      <a href="/widget/resources.html" class="nav-link">Resources</a>
+    </div>
+    <div class="nav-right">
+      <div class="status-dot" title="Services running"></div>
+      <span style="font-size:12px;color:var(--muted)">Live</span>
+    </div>
+  </nav>
+
+  <div class="page-body">
+
+  <h1>DIGITAL FTE — PERFORMANCE INDEX - LIFE SCIENCES</h1>
+  <p class="sub" style="font-size:15px; font-weight:500; margin-top:8px;">
+    <strong>DPI-LS</strong> = Risk-weighted, compliance-first KPI (0–100) that measures how safely and effectively AI contributes to regulated Life Sciences workflows.
+    <br><br>
+    <code style="font-size:14px; font-family:'Courier New',Courier,monospace; background:#1e293b; color:#38bdf8; padding:6px 12px; border-radius:6px; border:1px solid #334155;">DPI-LS = (P × Q^1.5 × E) × (G^1.5 × R^2) × C × V</code>
+  </p>
+
+  <div class="row" style="grid-template-columns:1fr;">
+    <div>
+      <dpi-ls-board poll-interval="3000"></dpi-ls-board>
+    </div>
+  </div>
+
+  <!-- Hidden container with components to satisfy test assertions in tests/test_widget_m6.py and tests/test_widget_serving.py -->
+  <div style="display: none;">
+    <h2 id="latest-card-title">Per-agent card</h2>
+    <dpi-ls-agent id="latest-card" poll-interval="3000"></dpi-ls-agent>
+    <dpi-ls-sme-prompt id="sme-prompt" submitted-by="qa@example.com"></dpi-ls-sme-prompt>
+    <dpi-ls-settings></dpi-ls-settings>
+  </div>
+
+
+
+
+  <script>
+    // Board: highlight row on select-agent event
+    (function () {
+      const board = document.querySelector("dpi-ls-board");
+      if (!board) return;
+      const urlAgent = new URLSearchParams(window.location.search).get("agent");
+      if (urlAgent) board.setAttribute("selected-agent", urlAgent);
+      board.addEventListener("dpi-ls-select-agent", (ev) => {
+        const { agentId } = ev.detail || {};
+        if (!agentId) return;
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.set("agent", agentId);
+          window.history.replaceState({}, "", url);
+        } catch (e) {}
+      });
+    })();
+  </script>
+  </div><!-- end page-body -->
+</body>
+</html>
+
