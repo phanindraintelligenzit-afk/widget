@@ -1,4 +1,0 @@
-<1> https://app.slack.com/client/T0B2U1M5HHN/C0B23BKV8E8  => all_intelligenzit_chandra
-<2>https://app.slack.com/client/T0B2U1M5HHN/C0B23B3RRPE => attendence
-<3>https://app.slack.com/client/T0B2U1M5HHN/C0B23BKV8E8 => chandra_poc
-<4> https://app.slack.com/client/T0B2U1M5HHN/C0B6SF36UJX =>digital worker notifications
