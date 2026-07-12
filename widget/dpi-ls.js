@@ -1825,10 +1825,13 @@
         // Build drill-through URL with agent filter
         let dashUrl = baseUrl;
         if (baseUrl && isOnline) {
-          if (resourceName === 'Prometheus') {
-            dashUrl = `${baseUrl}/graph?g0.expr=dpi_ls_model_cost{agent_id="chandra-finops"}&g0.tab=0&g0.stacked=0&g0.range_input=1h`;
-          } else if (resourceName === 'Grafana') {
-            dashUrl = `${baseUrl}/d/dpi-ls-cost-001/dpi-ls-cost-dashboard-chandra-finops?orgId=1&var-agent=chandra-finops`;
+          // If using the fallback backend metrics URL, just open it directly
+          if (!baseUrl.includes("/metrics")) {
+            if (resourceName === 'Prometheus') {
+              dashUrl = `${baseUrl}/graph?g0.expr=dpi_ls_model_cost{agent_id="chandra-finops"}&g0.tab=0&g0.stacked=0&g0.range_input=1h`;
+            } else if (resourceName === 'Grafana') {
+              dashUrl = `${baseUrl}/d/dpi-ls-cost-001/dpi-ls-cost-dashboard-chandra-finops?orgId=1&var-agent=chandra-finops`;
+            }
           }
         }
 
