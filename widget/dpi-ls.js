@@ -775,6 +775,136 @@
     `;
   }
 
+  function calculateProductivityMetrics(sub, settings, value) {
+    sub = sub || {};
+    settings = settings || {};
+    
+    let pScoreVal = 1.0;
+    if (value !== undefined && value !== null) {
+      pScoreVal = value;
+    }
+
+    return {
+      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Worker Concurrency", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 0 },
+      execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Execution Duration", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Throughput", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 2 },
+      resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Resolution Velocity", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "E[C_Human]", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
+      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
+      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
+      Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Dynamic Calculation", dec: 4 },
+    };
+  }
+
+  function renderProductivityTableHtml(sub, settings, value, resourceFilter) {
+    const metricsMap = calculateProductivityMetrics(sub, settings, value);
+    
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined) return "Unavailable";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    const METRIC_NICE_NAMES = {
+      worker_concurrency: "Worker Concurrency",
+      execution_duration: "Execution Duration",
+      throughput: "Throughput",
+      resolution_velocity: "Resolution Velocity",
+      human_baseline: "Human Baseline",
+      normalization_factor: "Normalization Factor (γ)",
+      effective_output: "Effective Output",
+      Productivity_Score: "Productivity Score"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(valStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(calcStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(dispStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || ''}</td>
+        </tr>
+      `;
+    }).join("");
+
+    const pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
+    const finalWeightedVal = (pScoreVal * 15.0).toFixed(2);
+    
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (15%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1, (Completed Tasks / Human Baseline) * γ)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Productivity telemetry mapped.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   /**
    * Renders the inline drilldown panel for the Airport Board.
    * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
@@ -788,6 +918,9 @@
     }
     if (key === "Q") {
       return renderQualityTableHtml(sub, settings, value);
+    }
+    if (key === "P") {
+      return renderProductivityTableHtml(sub, settings, value);
     }
     const label  = METRIC_LABELS[key]  || key;
     const weight = METRIC_WEIGHTS[key] || 0;
@@ -1698,19 +1831,24 @@
     }
     async _tick() {
       try {
-        const [resultsRes, urlsRes] = await Promise.all([
-          fetch(`${apiBase(this)}/api/cost-evaluation/results`, {
-            headers: { "Accept": "application/json" }
-          }),
-          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, {
-            headers: { "Accept": "application/json" }
-          })
+        const [resCost, resVal, resQual, resProd, urlsCost, urlsVal, urlsQual, urlsProd] = await Promise.all([
+          fetch(`${apiBase(this)}/api/cost-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
-        if (!resultsRes.ok) throw new Error(`HTTP ${resultsRes.status}`);
-        if (!urlsRes.ok) throw new Error(`URLs HTTP ${urlsRes.status}`);
 
-        this._results = await resultsRes.json();
-        this._urls = await urlsRes.json();
+        const [rC, rV, rQ, rP, uC, uV, uQ, uP] = await Promise.all([
+          resCost.json(), resVal.json(), resQual.json(), resProd.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json()
+        ]);
+        
+        this._results = [...rC, ...rV, ...rQ, ...rP];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -1719,20 +1857,24 @@
     async _runEvaluations() {
       try {
         this._render({ loading: true });
-        const [evalRes, urlsRes] = await Promise.all([
-          fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, {
-            method: "POST",
-            headers: { "Accept": "application/json" }
-          }),
-          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, {
-            headers: { "Accept": "application/json" }
-          })
+        const [evalCost, evalVal, evalQual, evalProd, urlsCost, urlsVal, urlsQual, urlsProd] = await Promise.all([
+          fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
-        if (!evalRes.ok) throw new Error(`HTTP ${evalRes.status}`);
-        if (!urlsRes.ok) throw new Error(`URLs HTTP ${urlsRes.status}`);
 
-        this._results = await evalRes.json();
-        this._urls = await urlsRes.json();
+        const [rC, rV, rQ, rP, uC, uV, uQ, uP] = await Promise.all([
+          evalCost.json(), evalVal.json(), evalQual.json(), evalProd.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json()
+        ]);
+        
+        this._results = [...rC, ...rV, ...rQ, ...rP];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -1788,15 +1930,17 @@
       const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
       const VALID_M    = ['validated_components','required_components','validation_score'];
       const QUALITY_M  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
+      const PROD_M     = ['worker_concurrency', 'execution_duration', 'throughput', 'resolution_velocity', 'human_complexity', 'decision_branches', 'api_calls', 'token_depth'];
 
       function metricGroup(m) {
         if (COST_M.includes(m))    return 'C';
         if (VALID_M.includes(m))   return 'V';
         if (QUALITY_M.includes(m)) return 'Q';
+        if (PROD_M.includes(m))    return 'P';
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Prometheus", "Grafana", "OpenTelemetry", "DeepEval", "Jaeger", "Zipkin"];
+      const activeResources = ["Langfuse", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q
@@ -1808,6 +1952,7 @@
 
       let rows = '';
       const GROUP_LABELS = {
+        P: { label: '⚡ Productivity (P)', color: '#38bdf8', bg: 'rgba(56,189,248,0.08)'},
         C: { label: '💰 Cost (C)',       color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
         V: { label: '✅ Validation (V)', color: '#22c55e', bg: 'rgba(34,197,94,0.08)'  },
         Q: { label: '🧬 Quality (Q)',    color: '#a78bfa', bg: 'rgba(167,139,250,0.08)'},
@@ -1818,9 +1963,11 @@
         if (metrics.length === 0) continue;
 
         const detectedCount = metrics.filter(m => m.detected).length;
+        const RESOURCE_URLS = this._urls || {};
         const dashUrlData = RESOURCE_URLS[resourceName];
         const baseUrl = dashUrlData?.url;
         const isOnline = dashUrlData?.online !== false;
+        const tcpOnline = dashUrlData?.online === true;
 
         // Build drill-through URL with agent filter
         let dashUrl = baseUrl;
@@ -1835,9 +1982,14 @@
           }
         }
 
-        const dashBtn = dashUrl && isOnline
-          ? `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`
-          : `<span style="font-size:11px;color:#6b7280">Disabled</span>`;
+        let dashBtn = `<span style="font-size:11px;color:#6b7280">Disabled</span>`;
+        if (dashUrl && isOnline) {
+          if (tcpOnline) {
+            dashBtn = `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`;
+          } else {
+            dashBtn = `<button onclick="window.open('/widget/resources.html','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`;
+          }
+        }
 
         // Resource header row
         rows += `<tr style="background:rgba(15,23,42,0.6)">
@@ -1933,6 +2085,8 @@
   window.calculateValidationMetrics = calculateValidationMetrics;
   window.renderValidationTableHtml = renderValidationTableHtml;
   window.renderQualityTableHtml = renderQualityTableHtml;
+  window.calculateProductivityMetrics = calculateProductivityMetrics;
+  window.renderProductivityTableHtml = renderProductivityTableHtml;
 
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);

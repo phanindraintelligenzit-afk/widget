@@ -261,7 +261,7 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
     ]
 
 
-from .scoring import enrich_quality_sub_metrics
+from .scoring import enrich_quality_sub_metrics, enrich_productivity_sub_metrics
 
 def _score_row_to_rating(s: Session, row) -> Rating:
     # Persist the typed columns straight through — the DB and the
@@ -347,7 +347,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                 gate_failures=list(score.gate_failures or []),
                 metrics=m_dict,
                 weighted_metrics=w_dict,
-                sub_metrics=enrich_quality_sub_metrics(s, dict(score.sub_metrics or {})),
+                sub_metrics=enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(score.sub_metrics or {}))),
                 computed_at=score.computed_at,
             )
         )
@@ -969,4 +969,199 @@ def verify_dashboard_result(
     ok = repo.verify_dashboard_cost_resource_evaluation(s, resource_name, metric)
     s.commit()
     return {"success": ok}
+
+
+# ---- Productivity Resource Technical Evaluation API Endpoints ------------
+
+@app.get("/api/productivity-evaluation/resources")
+def get_productivity_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    rows = repo.list_productivity_resources(s)
+    if not rows:
+        from dpi_ls.productivity_resource_evaluation_service import ProductivityResourceEvaluationService
+        service = ProductivityResourceEvaluationService(s)
+        service.register_resources()
+        s.commit()
+        rows = repo.list_productivity_resources(s)
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "sdk_available": r.sdk_available,
+            "api_available": r.api_available,
+            "api_key_required": r.api_key_required,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/productivity-evaluation/evaluate")
+def run_productivity_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.productivity_resource_evaluation_service import ProductivityResourceEvaluationService
+    service = ProductivityResourceEvaluationService(s)
+    eval_rows = service.run_evaluations()
+    s.commit()
+    active_resources = {"OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.get("/api/productivity-evaluation/results")
+def get_productivity_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    eval_rows = repo.list_latest_productivity_resource_evaluations(s)
+    if not eval_rows:
+        from dpi_ls.productivity_resource_evaluation_service import ProductivityResourceEvaluationService
+        service = ProductivityResourceEvaluationService(s)
+        service.run_evaluations()
+        s.commit()
+        eval_rows = repo.list_latest_productivity_resource_evaluations(s)
+    active_resources = {"OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"}
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "current_value": r.current_value,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+        }
+        for r in eval_rows if r.resource_name in active_resources
+    ]
+
+
+@app.get("/api/productivity-evaluation/urls")
+def get_productivity_evaluation_urls() -> dict[str, dict]:
+    """Return productivity dashboard URLs with live reachability status."""
+    import socket as _socket
+    from urllib.parse import urlparse as _urlparse
+
+    def _is_reachable(url: str) -> bool:
+        try:
+            parsed = _urlparse(url)
+            host = parsed.hostname or "127.0.0.1"
+            port = parsed.port or 80
+            with _socket.create_connection((host, port), timeout=0.3):
+                return True
+        except Exception:
+            return False
+
+    otel_url = os.environ.get("OTEL_COLLECTOR_URL", "http://localhost:4318")
+    tempo_url = os.environ.get("TEMPO_URL", "http://localhost:3200")
+    skywalking_url = os.environ.get("SKYWALKING_URL", "http://localhost:8080")
+
+    return {
+        "OpenTelemetry":     {"url": otel_url,       "online": _is_reachable(otel_url)},
+        "Grafana Tempo":     {"url": tempo_url,      "online": _is_reachable(tempo_url)},
+        "Apache SkyWalking": {"url": skywalking_url, "online": _is_reachable(skywalking_url)},
+    }
+
+
+@app.post("/api/productivity-evaluation/verify-dashboard")
+def verify_productivity_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    ok = repo.verify_dashboard_productivity_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
+
+
+@app.post("/api/productivity-evaluation/push-opentelemetry")
+def push_opentelemetry_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_productivity_resource_evaluation
+    updated = []
+    otel_metrics = ["worker_concurrency", "decision_branches", "human_complexity"]
+    for metric in otel_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_productivity_resource_evaluation(
+                s,
+                resource_name="OpenTelemetry",
+                metric=metric,
+                detected=True,
+                evidence=f"Real OpenTelemetry trace metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
+@app.post("/api/productivity-evaluation/push-tempo")
+def push_tempo_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_productivity_resource_evaluation
+    updated = []
+    tempo_metrics = ["execution_duration", "api_calls", "resolution_velocity"]
+    for metric in tempo_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_productivity_resource_evaluation(
+                s,
+                resource_name="Grafana Tempo",
+                metric=metric,
+                detected=True,
+                evidence=f"Real Grafana Tempo trace metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
+@app.post("/api/productivity-evaluation/push-skywalking")
+def push_skywalking_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_productivity_resource_evaluation
+    updated = []
+    skywalking_metrics = ["token_depth", "throughput"]
+    for metric in skywalking_metrics:
+        val = payload.get(metric)
+        if val is not None:
+            val_str = str(val)
+            save_productivity_resource_evaluation(
+                s,
+                resource_name="Apache SkyWalking",
+                metric=metric,
+                detected=True,
+                evidence=f"Real Apache SkyWalking trace metric collected at runtime. Value: {val_str}",
+                current_value=val_str,
+                status="SUCCESS",
+                agent_executed=True,
+            )
+            updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
 

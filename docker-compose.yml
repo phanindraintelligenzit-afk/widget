@@ -22,4 +22,52 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: dpi-ls-tempo
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    volumes:
+      - ./tempo.yaml:/etc/tempo.yaml
+    ports:
+      - "3200:3200"   # Tempo
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: dpi-ls-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "13133:13133" # health_check extension
+      - "55679:55679" # zpages extension
+    restart: unless-stopped
+
+  skywalking-oap:
+    image: apache/skywalking-oap-server:9.4.0
+    container_name: dpi-ls-skywalking-oap
+    ports:
+      - "11800:11800"
+      - "12800:12800"
+    environment:
+      SW_HEALTH_CHECKER: default
+      SW_TELEMETRY: prometheus
+    restart: unless-stopped
+
+  skywalking-ui:
+    image: apache/skywalking-ui:9.4.0
+    container_name: dpi-ls-skywalking-ui
+    ports:
+      - "8080:8080"
+    environment:
+      SW_OAP_ADDRESS: http://skywalking-oap:12800
+    depends_on:
+      - skywalking-oap
     restart: unless-stopped

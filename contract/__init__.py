@@ -8,6 +8,7 @@ from .models import (
     Quality,
     TaskStats,
     Validation,
+    Productivity,
 )
 from .partial import PartialObservation, merge_partials
 from .rating import Rating
@@ -36,5 +37,6 @@ __all__ = [
     "Settings",
     "TaskStats",
     "Validation",
+    "Productivity",
     "merge_partials",
 ]

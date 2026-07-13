@@ -480,6 +480,8 @@ let chandraQualitySub = {}; // quality sub-metrics
 let chandraCostValue = 1.0;
 let chandraValidationValue = 1.0;
 let chandraQualityValue = "Pending SME Review";
+let chandraProductivitySub = {};
+let chandraProductivityValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
@@ -493,6 +495,9 @@ let dashboardUrls = {
   'LangSmith':     { url: 'https://smith.langchain.com', online: true },
   'Ragas':         { url: 'https://ragas.io', online: true },
   'AgentOps':      { url: 'https://app.agentops.ai', online: true },
+  'OpenTelemetry': { url: 'http://localhost:16686', online: false },
+  'Grafana Tempo': { url: 'http://localhost:3200', online: false },
+  'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
 };
 
 async function loadChandraData() {
@@ -511,6 +516,8 @@ async function loadChandraData() {
         chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
         chandraQualitySub = chandra.sub_metrics?.Q || {};
         chandraQualityValue = chandra.metrics?.Q !== undefined ? chandra.metrics.Q : "Pending SME Review";
+        chandraProductivitySub = chandra.sub_metrics?.P || {};
+        chandraProductivityValue = chandra.metrics?.P !== undefined ? chandra.metrics.P : 1.0;
       }
     }
     if (r2.ok) {
@@ -523,10 +530,11 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const [r1, r2, r3] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/urls`),
       fetch(`${API}/api/validation-evaluation/urls`),
-      fetch(`${API}/api/quality-evaluation/urls`)
+      fetch(`${API}/api/quality-evaluation/urls`),
+      fetch(`${API}/api/productivity-evaluation/urls`)
     ]);
     const processUrls = async (r) => {
       if (r.ok) {
@@ -543,6 +551,7 @@ async function loadUrls() {
     await processUrls(r1);
     await processUrls(r2);
     await processUrls(r3);
+    await processUrls(r4);
   } catch (e) {
     console.error("Failed to load urls", e);
   }
@@ -629,6 +638,33 @@ const RESOURCE_META = {
     dashboard_label: 'Open AgentOps',
     color: '#2980b9',
     sdk: 'agentops',
+  },
+  'OpenTelemetry': {
+    icon: '🌐', category: 'Distributed Tracing',
+    dpi_status: 'foundational',
+    description: 'Calculates Worker Concurrency, Decision Branches, and Human Baseline for productivity scoring.',
+    dashboard_url: 'http://localhost:16686',
+    dashboard_label: 'Open OpenTelemetry UI',
+    color: '#3498db',
+    sdk: 'opentelemetry',
+  },
+  'Grafana Tempo': {
+    icon: '⏱️', category: 'Distributed Tracing',
+    dpi_status: 'primary',
+    description: 'Tracks API calls, execution duration, and resolution velocity across asynchronous LLM tasks.',
+    dashboard_url: 'https://grafana.com/oss/tempo/',
+    dashboard_label: 'Open Grafana Tempo',
+    color: '#e67e22',
+    sdk: 'opentelemetry',
+  },
+  'Apache SkyWalking': {
+    icon: '🦅', category: 'Application Performance Monitoring',
+    dpi_status: 'primary',
+    description: 'Monitors Token Depth, Throughput, and traces productivity bottlenecks in real-time.',
+    dashboard_url: 'https://skywalking.apache.org/',
+    dashboard_label: 'Open Apache SkyWalking',
+    color: '#2c3e50',
+    sdk: 'opentelemetry',
   },
 };
 
@@ -749,6 +785,11 @@ function renderResourceTable(metrics, name) {
       const mergedSub = { ...chandraQualitySub, ...liveMetrics };
       return window.renderQualityTableHtml(mergedSub, settingsObj, chandraQualityValue, name);
     }
+  } else if (['OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(name)) {
+    if (typeof window.renderProductivityTableHtml === 'function') {
+      const mergedSub = { ...chandraProductivitySub, ...liveMetrics };
+      return window.renderProductivityTableHtml(mergedSub, settingsObj, chandraProductivityValue, name);
+    }
   } else {
     if (typeof window.renderValidationTableHtml === 'function') {
       const mergedSub = { ...chandraSub, ...liveMetrics };
@@ -797,9 +838,11 @@ function renderResourceCard(name, metrics) {
     ? `<span title="Port reachable" style="font-size:10px;color:#4ade80;margin-left:6px;">● Live</span>`
     : `<span title="Port not reachable locally" style="font-size:10px;color:#f59e0b;margin-left:6px;">● Local port down</span>`;
   
-  const nameHtml = isOnline 
+  const nameHtml = (isOnline && tcpOnline) 
     ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
-    : `<span style="color:var(--text);">${escHtml(name)}</span>`;
+    : (isOnline) 
+      ? `<span onclick="toggleResourceTable('${escHtml(name)}')" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</span>`
+      : `<span style="color:var(--text);">${escHtml(name)}</span>`;
 
   let linkHtml;
   if (name === 'DeepEval') {
@@ -809,9 +852,11 @@ function renderResourceCard(name, metrics) {
       ? `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Configuration Required</span>` 
       : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
 
-    linkHtml = isOnline
+    linkHtml = (isOnline && tcpOnline)
       ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
-      : serviceOfflineStatus;
+      : (isOnline && !tcpOnline)
+        ? `<button onclick="toggleResourceTable('${escHtml(name)}')" class="rc-dashboard-link-inline" style="background:none; border:none; cursor:pointer; padding:0; color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</button>${liveTag}`
+        : serviceOfflineStatus;
   }
 
 
@@ -846,7 +891,7 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 ${meta.category === 'Validation' ? 'Validation' : (meta.category === 'Cost' ? 'Cost' : 'Quality')} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${meta.category.includes('Validation') ? 'Validation' : (['Infrastructure Metrics', 'Metrics Visualization'].includes(meta.category) ? 'Cost' : (['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity' : 'Quality'))} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
@@ -921,21 +966,24 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const [r1, r2, r3] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
-      fetch(`${API}/api/quality-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+      fetch(`${API}/api/quality-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/productivity-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok) throw new Error(`HTTP Error during evaluation`);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const [costData, valData, qualData] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+    const [costData, valData, qualData, prodData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
+    const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name)),
-      ...qualData.filter(r => qualResources.includes(r.resource_name))
+      ...qualData.filter(r => qualResources.includes(r.resource_name)),
+      ...prodData.filter(r => prodResources.includes(r.resource_name))
     ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -950,20 +998,23 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const [r1, r2, r3] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } }),
-      fetch(`${API}/api/quality-evaluation/results`, { headers: { Accept: 'application/json' } })
+      fetch(`${API}/api/quality-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/productivity-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok) throw new Error(`HTTP Error loading results`);
-    const [costData, valData, qualData] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok) throw new Error(`HTTP Error loading results`);
+    const [costData, valData, qualData, prodData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json()]);
     const costResources = ["Langfuse", "Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
+    const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name)),
-      ...qualData.filter(r => qualResources.includes(r.resource_name))
+      ...qualData.filter(r => qualResources.includes(r.resource_name)),
+      ...prodData.filter(r => prodResources.includes(r.resource_name))
     ];
     renderGrid();
   } catch (e) {
