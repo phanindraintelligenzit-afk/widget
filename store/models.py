@@ -204,3 +204,30 @@ class QualityResourceEvaluationRow(Base):
     agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
+class ProductivityResourceRegistryRow(Base):
+    """List of all evaluated productivity resources."""
+    __tablename__ = "productivity_resource_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    sdk_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_key_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    integration_implemented: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class ProductivityResourceEvaluationRow(Base):
+    """Runtime evaluation results per productivity resource and metric."""
+    __tablename__ = "productivity_resource_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    resource_name: Mapped[str] = mapped_column(String(128), ForeignKey("productivity_resource_registry.name"), index=True)
+    metric: Mapped[str] = mapped_column(String(128))
+    current_value: Mapped[str] = mapped_column(String(256), nullable=True)
+    detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(String(512), nullable=True)
+    last_run: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    status: Mapped[str] = mapped_column(String(64), default="PENDING")
+    dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)

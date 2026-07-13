@@ -138,6 +138,48 @@ def _extract_sub_metrics(obs: AgentObservation | PartialObservation, settings, b
     """
     return build_sub_metrics(obs, settings, s)
 
+
+def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
+    if "P" not in sub_metrics:
+        sub_metrics["P"] = {}
+
+    p_eval_map = {}
+    if s is not None:
+        p_evals = repo.list_latest_productivity_resource_evaluations(s)
+        if p_evals:
+            p_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in p_evals}
+
+    completed_tasks = sub_metrics["P"].get("completed") or 1
+    t_d = float(p_eval_map.get("Apache SkyWalking:token_depth") or 0.0)
+    a_c = float(p_eval_map.get("Grafana Tempo:api_calls") or 0.0)
+    d_b = float(p_eval_map.get("OpenTelemetry:decision_branches") or 0.0)
+    
+    alpha1, alpha2, alpha3 = 0.001, 2.5, 5.0
+    N_AI = completed_tasks
+    
+    e_c_ai = ((alpha1 * t_d) + (alpha2 * a_c) + (alpha3 * d_b)) / max(N_AI, 1)
+    e_c_human = float(p_eval_map.get("OpenTelemetry:human_complexity") or 10.0)
+    
+    gamma = e_c_ai / max(e_c_human, 0.0001) if e_c_ai > 0 else 1.0
+    effective_output = completed_tasks * gamma
+    
+    sub_metrics["P"].update({
+        "E[C_AI]": e_c_ai,
+        "E[C_Human]": e_c_human,
+        "gamma": gamma,
+        "effective_output": effective_output,
+        "token_depth": t_d,
+        "api_calls": a_c,
+        "decision_branches": d_b,
+        "worker_concurrency": float(p_eval_map.get("OpenTelemetry:worker_concurrency") or 1.0),
+        "execution_duration": float(p_eval_map.get("Grafana Tempo:execution_duration") or 0.0),
+        "throughput": float(p_eval_map.get("Apache SkyWalking:throughput") or 0.0),
+        "resolution_velocity": float(p_eval_map.get("Grafana Tempo:resolution_velocity") or 0.0),
+        "human_baseline": e_c_human,
+        "normalization_factor": gamma,
+    })
+    return sub_metrics
+
 def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     if "Q" not in sub_metrics:
         return sub_metrics
@@ -196,9 +238,16 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
 
 def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dict[str, Any]:
     res: dict[str, Any] = {}
-    prod = getattr(obs, "productivity", getattr(obs, "tasks", None))
+    prod = obs.productivity if getattr(obs, "productivity", None) else getattr(obs, "tasks", None)
     if prod:
         res["P"] = prod.model_dump(mode="json")
+        res = enrich_productivity_sub_metrics(s, res)
+        from contract.models import Productivity
+        if not getattr(obs, "productivity", None):
+            obs.productivity = Productivity()
+        obs.productivity.normalization_factor = res["P"].get("normalization_factor", 1.0)
+        obs.productivity.human_baseline = res["P"].get("human_baseline", 10.0)
+        obs.productivity.effective_output = res["P"].get("effective_output", 0.0)
     if obs.quality:
         q_raw = obs.quality.model_dump(mode="json")
         res["Q"] = {

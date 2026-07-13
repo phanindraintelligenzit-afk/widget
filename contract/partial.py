@@ -16,7 +16,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from .models import Cost, Executions, Incident, Policy, Quality, TaskStats, Validation
+from .models import Cost, Executions, Incident, Policy, Quality, TaskStats, Validation, Productivity
 
 
 class PartialObservation(BaseModel):
@@ -40,6 +40,7 @@ class PartialObservation(BaseModel):
     quality: Optional[Quality] = None
     validation: Optional[Validation] = None
     cost: Optional[Cost] = None
+    productivity: Optional[Productivity] = None
 
 
 def merge_partials(partials: list[PartialObservation]) -> PartialObservation:
@@ -69,7 +70,7 @@ def merge_partials(partials: list[PartialObservation]) -> PartialObservation:
         if p.period_end and p.period_end > merged.period_end:
             merged.period_end = p.period_end
         for field in ("tasks", "executions", "policy", "incidents",
-                      "quality", "validation", "cost"):
+                      "quality", "validation", "cost", "productivity"):
             v = getattr(p, field)
             if v is not None:
                 setattr(merged, field, v)

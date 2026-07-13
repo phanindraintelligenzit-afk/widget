@@ -19,6 +19,15 @@ class TaskStats(BaseModel):
     blocked_no_access: int = 0
 
 
+class Productivity(BaseModel):
+    worker_concurrency: float = 1.0
+    execution_duration: float = 0.0
+    resolution_velocity: float = 0.0
+    throughput: float = 0.0
+    effective_output: float = 0.0
+    human_baseline: float = 0.0
+    normalization_factor: float = 1.0
+
 class Executions(BaseModel):
     attempts: int
     successful: int
@@ -102,6 +111,7 @@ class AgentObservation(BaseModel):
     quality: Optional[Quality] = None
     validation: Validation
     cost: Cost
+    productivity: Optional[Productivity] = None
     source: str
     # Optional RAG-specific signals — populated by the dpi_ls LlamaIndex
     # and RAG patchers via the ``/ingest`` path. Not required for the

@@ -200,10 +200,17 @@ def metrics_from_observation(
     that's a signal to defer Q to a conversational/SME capture, not
     a zero. All other dimensions resolve to a float.
     """
+    if obs.productivity:
+        h_base = obs.productivity.human_baseline if obs.productivity.human_baseline > 0 else baseline.human_output_per_period
+        norm_factor = obs.productivity.normalization_factor if obs.productivity.normalization_factor > 0 else settings.normalization_factor
+    else:
+        h_base = baseline.human_output_per_period
+        norm_factor = settings.normalization_factor
+
     P = compute_P(
         obs.tasks.completed,
-        baseline.human_output_per_period,
-        settings.normalization_factor,
+        h_base,
+        norm_factor,
     )
 
     if obs.quality is None:
@@ -251,11 +258,18 @@ def metrics_from_partial(
     is what keeps that single-dimension score from being mis-classified
     as Strong.
     """
+    if partial.productivity:
+        h_base = partial.productivity.human_baseline if partial.productivity.human_baseline > 0 else baseline.human_output_per_period
+        norm_factor = partial.productivity.normalization_factor if partial.productivity.normalization_factor > 0 else settings.normalization_factor
+    else:
+        h_base = baseline.human_output_per_period
+        norm_factor = settings.normalization_factor
+
     P = (
         compute_P(
             partial.tasks.completed,
-            baseline.human_output_per_period,
-            settings.normalization_factor,
+            h_base,
+            norm_factor,
         )
         if partial.tasks is not None
         else None
