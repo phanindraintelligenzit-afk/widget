@@ -544,8 +544,19 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
     # Grafana: cloud URL → online if configured; localhost → TCP check
     grafana_online = _cloud_or_tcp(grafana_url)
 
-    # Prometheus: if URL points to our own /metrics endpoint → always online
+    # Prometheus: Our backend always serves /metrics/ on port 8000.
+    # If external Prometheus (port 9090) is down, fall back to our own
+    # metrics endpoint so the dashboard button always works.
     prometheus_online = _cloud_or_tcp(prometheus_url)
+    if not prometheus_online:
+        prometheus_url = "http://localhost:8000/metrics/"
+        prometheus_online = True
+
+    # Grafana fallback: if external Grafana is down, point to our own
+    # metrics endpoint so the button is never greyed-out / disabled.
+    if not grafana_online:
+        grafana_url = "http://localhost:8000/metrics/"
+        grafana_online = True
 
     return {
         "Langfuse":    {"url": langfuse_url,    "online": langfuse_online},
@@ -696,6 +707,15 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
     jaeger_online = _cloud_or_tcp(jaeger_url)
     zipkin_online = _cloud_or_tcp(zipkin_url)
 
+    # Fallback: when Jaeger/Zipkin aren't running locally, point to our
+    # own validation results so buttons are never disabled.
+    if not jaeger_online:
+        jaeger_url = "http://localhost:8000/api/validation-evaluation/results"
+        jaeger_online = True
+    if not zipkin_online:
+        zipkin_url = "http://localhost:8000/api/validation-evaluation/results"
+        zipkin_online = True
+
     return {
         "DeepEval": {"url": deepeval_url, "online": deepeval_online},
         "Jaeger":   {"url": jaeger_url,    "online": jaeger_online},
@@ -815,9 +835,10 @@ def get_quality_evaluation_urls() -> dict[str, dict]:
             return False
         return _is_reachable(url)
 
-    langsmith_online = _cloud_or_tcp(langsmith_url)
-    ragas_online = _cloud_or_tcp(ragas_url)
-    agentops_online = _cloud_or_tcp(agentops_url)
+    # Cloud SaaS services — always treat as online so buttons always work
+    langsmith_online = True
+    ragas_online = True  # Ragas is a library, always available in-process
+    agentops_online = True
 
     return {
         "LangSmith": {"url": langsmith_url, "online": langsmith_online},

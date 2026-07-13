@@ -3,6 +3,14 @@
 > **Score any AI agent in real time on a 0–100 index across 7 performance
 > dimensions, with hard compliance gates and a live embeddable dashboard.**
 
+**AI is not just thinking—it’s continuously deciding, accessing, executing, and communicating.** 
+It requires real-time governance at every step. DPI-LS is a risk-weighted, compliance-first KPI designed to measure how safely and effectively an AI "Digital Companion" (dFTE) contributes to regulated Life Sciences workflows. 
+
+**We Measure Trust, Not Just Productivity.**
+By bridging HR, Business, and Compliance, DPI-LS helps operationalize AI as a workforce—moving agents from L1 Experiments to L5 Collaborative Workers with full-lifecycle governance.
+
+---
+
 The pitch: *two lines of code — and the agent shows up on a live board,
 rated across P, Q, E, G, R, V, C, with safety gates that fire automatically.*
 
