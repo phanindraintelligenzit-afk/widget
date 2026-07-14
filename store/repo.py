@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
 from contract import AgentObservation, PartialObservation, Rating, Settings
@@ -29,6 +29,8 @@ from .models import (
     QualityResourceEvaluationRow,
     ProductivityResourceRegistryRow,
     ProductivityResourceEvaluationRow,
+    ExecutionResourceRegistryRow,
+    ExecutionResourceEvaluationRow,
 )
 
 
@@ -727,3 +729,57 @@ def verify_dashboard_productivity_resource_evaluation(s: Session, resource_name:
         r.dashboard_verified = True
     s.flush()
     return True
+
+def list_execution_resources(session: Session) -> Sequence[ExecutionResourceRegistryRow]:
+    return session.scalars(select(ExecutionResourceRegistryRow).order_by(ExecutionResourceRegistryRow.name)).all()
+
+def upsert_execution_resource(session: Session, name: str, sdk_available: bool, api_available: bool, api_key_required: bool, integration_implemented: bool) -> ExecutionResourceRegistryRow:
+    row = session.scalars(select(ExecutionResourceRegistryRow).where(ExecutionResourceRegistryRow.name == name)).first()
+    if not row:
+        row = ExecutionResourceRegistryRow(name=name)
+        session.add(row)
+    row.sdk_available = sdk_available
+    row.api_available = api_available
+    row.api_key_required = api_key_required
+    row.integration_implemented = integration_implemented
+    return row
+
+def save_execution_resource_evaluation(session: Session, resource_name: str, metric: str, detected: bool, evidence: str, current_value: str, status: str, agent_executed: bool = False) -> ExecutionResourceEvaluationRow:
+    row = ExecutionResourceEvaluationRow(
+        resource_name=resource_name,
+        metric=metric,
+        detected=detected,
+        evidence=evidence,
+        current_value=current_value,
+        status=status,
+        agent_executed=agent_executed,
+    )
+    session.add(row)
+    return row
+
+def list_latest_execution_resource_evaluations(session: Session) -> list[ExecutionResourceEvaluationRow]:
+    subq = (
+        select(
+            ExecutionResourceEvaluationRow.resource_name,
+            ExecutionResourceEvaluationRow.metric,
+            func.max(ExecutionResourceEvaluationRow.id).label("max_id")
+        )
+        .group_by(ExecutionResourceEvaluationRow.resource_name, ExecutionResourceEvaluationRow.metric)
+        .subquery()
+    )
+    rows = session.scalars(
+        select(ExecutionResourceEvaluationRow)
+        .join(subq, ExecutionResourceEvaluationRow.id == subq.c.max_id)
+    ).all()
+    return list(rows)
+
+def verify_dashboard_execution_resource_evaluation(session: Session, resource_name: str, metric: str = None) -> bool:
+    q = select(ExecutionResourceEvaluationRow).where(ExecutionResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        q = q.where(ExecutionResourceEvaluationRow.metric == metric)
+    q = q.order_by(ExecutionResourceEvaluationRow.id.desc()).limit(1)
+    row = session.scalars(q).first()
+    if row:
+        row.dashboard_verified = True
+        return True
+    return False

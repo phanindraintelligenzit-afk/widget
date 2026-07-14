@@ -530,11 +530,12 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/urls`),
       fetch(`${API}/api/validation-evaluation/urls`),
       fetch(`${API}/api/quality-evaluation/urls`),
-      fetch(`${API}/api/productivity-evaluation/urls`)
+      fetch(`${API}/api/productivity-evaluation/urls`),
+      fetch(`${API}/api/execution-evaluation/urls`)
     ]);
     const processUrls = async (r) => {
       if (r.ok) {
@@ -548,16 +549,37 @@ async function loadUrls() {
         }
       }
     };
-    await processUrls(r1);
-    await processUrls(r2);
-    await processUrls(r3);
-    await processUrls(r4);
+    await Promise.all([
+      processUrls(r1),
+      processUrls(r2),
+      processUrls(r3),
+      processUrls(r4),
+      processUrls(r5)
+    ]);
   } catch (e) {
     console.error("Failed to load urls", e);
   }
 }
 
 const RESOURCE_META = {
+  'Phoenix': {
+    icon: '🔥', category: 'Execution Metrics',
+    dpi_status: 'primary',
+    description: 'Tracks full execution details, step-by-step telemetry, and spans. Traces are pushed dynamically during execution.',
+    dashboard_url: 'http://localhost:6006',
+    dashboard_label: 'Open Phoenix Dashboard',
+    color: '#eab308',
+    sdk: 'arize-phoenix',
+  },
+  'Traceloop': {
+    icon: '🔁', category: 'Execution Metrics',
+    dpi_status: 'primary',
+    description: 'Tracks loop completion, retry counts, execution stability, and LLM orchestration telemetry.',
+    dashboard_url: 'https://app.traceloop.com',
+    dashboard_label: 'Open Traceloop Dashboard',
+    color: '#3b82f6',
+    sdk: 'traceloop-sdk',
+  },
   'Langfuse': {
     icon: '🔭', category: 'LLM Observability',
     dpi_status: 'primary',
@@ -775,7 +797,7 @@ function renderResourceTable(metrics, name) {
     liveMetrics[m.metric] = m.current_value;
   });
 
-  if (['Langfuse', 'Prometheus', 'Grafana'].includes(name)) {
+  if (['Prometheus', 'Grafana'].includes(name)) {
     if (typeof window.renderCostTableHtml === 'function') {
       const mergedSub = { ...chandraCostSub, ...liveMetrics };
       return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
@@ -790,6 +812,52 @@ function renderResourceTable(metrics, name) {
       const mergedSub = { ...chandraProductivitySub, ...liveMetrics };
       return window.renderProductivityTableHtml(mergedSub, settingsObj, chandraProductivityValue, name);
     }
+  } else if (['Langfuse', 'Phoenix', 'Traceloop'].includes(name)) {
+    if (name === 'Langfuse') {
+      // Langfuse spans both Cost and Execution — render both sections
+      const costMetrics  = metrics.filter(m => m._dimension === 'cost' || (!m._dimension && ['input_tokens','output_tokens','prompt_cost','total_cost','model_cost','trace_cost','cost_per_output'].some(k => m.metric && m.metric.includes(k))));
+      const execMetrics  = metrics.filter(m => m._dimension === 'execution' || (!m._dimension && !costMetrics.includes(m)));
+      let html = '';
+      if (costMetrics.length && typeof window.renderCostTableHtml === 'function') {
+        const costSub = {};
+        costMetrics.forEach(m => { costSub[m.metric] = m.current_value; });
+        const mergedCost = { ...chandraCostSub, ...costSub };
+        html += `<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💰 Cost Metrics</div>${window.renderCostTableHtml(mergedCost, settingsObj, chandraCostValue, name)}</div>`;
+      }
+      if (execMetrics.length) {
+        const execRows = execMetrics.map(m => `
+          <tr>
+            <td style="padding:6px 8px;color:var(--text);font-size:12px;">${escHtml(m.metric)}</td>
+            <td style="padding:6px 8px;color:var(--accent);font-size:12px;">${escHtml(String(m.current_value))}</td>
+            <td style="padding:6px 8px;color:var(--muted);font-size:11px;">${escHtml(m.evidence || '')}</td>
+          </tr>`).join('');
+        html += `<div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚡ Execution Metrics</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Metric</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
+            </tr></thead><tbody>${execRows}</tbody></table></div>`;
+      }
+      return html || `<div style="padding:10px;color:var(--muted);">No metrics captured yet.</div>`;
+    }
+    // Phoenix / Traceloop — execution only
+    if (typeof window.renderExecutionTableHtml === 'function') {
+      const mergedSub = { ...chandraExecutionSub, ...liveMetrics };
+      return window.renderExecutionTableHtml(mergedSub, settingsObj, chandraExecutionValue, name);
+    }
+    const rows = metrics.map(m => `
+      <tr>
+        <td style="padding:6px 8px;color:var(--text);font-size:12px;">${escHtml(m.metric)}</td>
+        <td style="padding:6px 8px;color:var(--accent);font-size:12px;">${escHtml(String(m.current_value))}</td>
+        <td style="padding:6px 8px;color:var(--muted);font-size:11px;">${escHtml(m.evidence || '')}</td>
+      </tr>`).join('');
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Metric</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
+      </tr></thead><tbody>${rows}</tbody></table>`;
   } else {
     if (typeof window.renderValidationTableHtml === 'function') {
       const mergedSub = { ...chandraSub, ...liveMetrics };
@@ -891,7 +959,15 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 ${meta.category.includes('Validation') ? 'Validation' : (['Infrastructure Metrics', 'Metrics Visualization'].includes(meta.category) ? 'Cost' : (['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity' : 'Quality'))} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${
+            name === 'Langfuse' ? 'Cost & Execution'
+            : meta.category === 'Execution Metrics' ? 'Execution'
+            : meta.category.includes('Validation') ? 'Validation'
+            : ['Infrastructure Metrics', 'Metrics Visualization'].includes(meta.category) ? 'Cost'
+            : ['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity'
+            : ['LLM Observability'].includes(meta.category) ? 'Execution'
+            : 'Quality'
+          } Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
@@ -939,12 +1015,16 @@ function showToast(msg, type='info') {
 
 async function verifyDashboard(resourceName) {
   try {
-    const isCost = ['Langfuse', 'Prometheus', 'Grafana'].includes(resourceName);
+    const isCost = ['Prometheus', 'Grafana'].includes(resourceName);
     const isQual = ['LangSmith', 'Ragas', 'AgentOps'].includes(resourceName);
+    const isProd = ['OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(resourceName);
+    const isExec = ['Langfuse', 'Phoenix', 'Traceloop'].includes(resourceName);
     
     let endpoint = '/api/validation-evaluation/verify-dashboard';
     if (isCost) endpoint = '/api/cost-evaluation/verify-dashboard';
     if (isQual) endpoint = '/api/quality-evaluation/verify-dashboard';
+    if (isProd) endpoint = '/api/productivity-evaluation/verify-dashboard';
+    if (isExec) endpoint = '/api/execution-evaluation/verify-dashboard';
     
     const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
     const r = await fetch(`${API}${endpoint}`, {
@@ -966,24 +1046,36 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/quality-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
-      fetch(`${API}/api/productivity-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+      fetch(`${API}/api/productivity-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/execution-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok) throw new Error(`HTTP Error during evaluation`);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const [costData, valData, qualData, prodData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json()]);
-    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    const [costData, valData, qualData, prodData, execData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json()]);
+    const costResources = ["Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+    const execResources = ["Langfuse", "Phoenix", "Traceloop"];
+    // Tag Langfuse cost rows so they can be distinguished from execution rows
+    const langfuseCostRows = costData
+      .filter(r => r.resource_name === 'Langfuse')
+      .map(r => ({ ...r, _dimension: 'cost' }));
+    const langfuseExecRows = execData
+      .filter(r => r.resource_name === 'Langfuse')
+      .map(r => ({ ...r, _dimension: 'execution' }));
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name)),
       ...qualData.filter(r => qualResources.includes(r.resource_name)),
-      ...prodData.filter(r => prodResources.includes(r.resource_name))
+      ...prodData.filter(r => prodResources.includes(r.resource_name)),
+      ...langfuseCostRows,
+      ...langfuseExecRows,
+      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name))
     ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -998,23 +1090,34 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/quality-evaluation/results`, { headers: { Accept: 'application/json' } }),
-      fetch(`${API}/api/productivity-evaluation/results`, { headers: { Accept: 'application/json' } })
+      fetch(`${API}/api/productivity-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/execution-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok) throw new Error(`HTTP Error loading results`);
-    const [costData, valData, qualData, prodData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json()]);
-    const costResources = ["Langfuse", "Prometheus", "Grafana"];
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error loading results`);
+    const [costData, valData, qualData, prodData, execData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json()]);
+    const costResources = ["Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+    // Tag Langfuse cost rows so they can be distinguished from execution rows
+    const langfuseCostRows = costData
+      .filter(r => r.resource_name === 'Langfuse')
+      .map(r => ({ ...r, _dimension: 'cost' }));
+    const langfuseExecRows = execData
+      .filter(r => r.resource_name === 'Langfuse')
+      .map(r => ({ ...r, _dimension: 'execution' }));
     allData = [
       ...costData.filter(r => costResources.includes(r.resource_name)),
       ...valData.filter(r => valResources.includes(r.resource_name)),
       ...qualData.filter(r => qualResources.includes(r.resource_name)),
-      ...prodData.filter(r => prodResources.includes(r.resource_name))
+      ...prodData.filter(r => prodResources.includes(r.resource_name)),
+      ...langfuseCostRows,
+      ...langfuseExecRows,
+      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name))
     ];
     renderGrid();
   } catch (e) {

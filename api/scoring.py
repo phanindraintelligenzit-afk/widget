@@ -150,15 +150,22 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
             p_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in p_evals}
 
     completed_tasks = sub_metrics["P"].get("completed") or 1
-    t_d = float(p_eval_map.get("Apache SkyWalking:token_depth") or 0.0)
-    a_c = float(p_eval_map.get("Grafana Tempo:api_calls") or 0.0)
-    d_b = float(p_eval_map.get("OpenTelemetry:decision_branches") or 0.0)
+    
+    def safe_float(val, default=0.0):
+        try:
+            return float(val)
+        except (ValueError, TypeError):
+            return default
+            
+    t_d = safe_float(p_eval_map.get("Apache SkyWalking:token_depth"))
+    a_c = safe_float(p_eval_map.get("Grafana Tempo:api_calls"))
+    d_b = safe_float(p_eval_map.get("OpenTelemetry:decision_branches"))
     
     alpha1, alpha2, alpha3 = 0.001, 2.5, 5.0
     N_AI = completed_tasks
     
     e_c_ai = ((alpha1 * t_d) + (alpha2 * a_c) + (alpha3 * d_b)) / max(N_AI, 1)
-    e_c_human = float(p_eval_map.get("OpenTelemetry:human_complexity") or 10.0)
+    e_c_human = safe_float(p_eval_map.get("OpenTelemetry:human_complexity"), 10.0)
     
     gamma = e_c_ai / max(e_c_human, 0.0001) if e_c_ai > 0 else 1.0
     effective_output = completed_tasks * gamma
@@ -171,10 +178,10 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "token_depth": t_d,
         "api_calls": a_c,
         "decision_branches": d_b,
-        "worker_concurrency": float(p_eval_map.get("OpenTelemetry:worker_concurrency") or 1.0),
-        "execution_duration": float(p_eval_map.get("Grafana Tempo:execution_duration") or 0.0),
-        "throughput": float(p_eval_map.get("Apache SkyWalking:throughput") or 0.0),
-        "resolution_velocity": float(p_eval_map.get("Grafana Tempo:resolution_velocity") or 0.0),
+        "worker_concurrency": safe_float(p_eval_map.get("OpenTelemetry:worker_concurrency"), 1.0),
+        "execution_duration": safe_float(p_eval_map.get("Grafana Tempo:execution_duration"), 0.0),
+        "throughput": safe_float(p_eval_map.get("Apache SkyWalking:throughput"), 0.0),
+        "resolution_velocity": safe_float(p_eval_map.get("Grafana Tempo:resolution_velocity"), 0.0),
         "human_baseline": e_c_human,
         "normalization_factor": gamma,
     })
@@ -236,6 +243,26 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     })
     return sub_metrics
 
+def enrich_execution_sub_metrics(s: Session, sub_metrics: dict) -> dict:
+    if "E" not in sub_metrics:
+        return sub_metrics
+
+    e_eval_map = {}
+    if s is not None:
+        e_evals = repo.list_latest_execution_resource_evaluations(s)
+        if e_evals:
+            e_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in e_evals}
+
+    # Inject metrics tracked by Execution resources (Langfuse, Phoenix, Traceloop)
+    sub_metrics["E"].update({
+        "trace_captured": e_eval_map.get("Langfuse:trace_captured") or sub_metrics["E"].get("trace_captured", "Unavailable"),
+        "execution_success": e_eval_map.get("Langfuse:execution_success") or sub_metrics["E"].get("execution_success", "Unavailable"),
+        "workflow_execution": e_eval_map.get("Traceloop:workflow_execution") or sub_metrics["E"].get("workflow_execution", "Unavailable"),
+        "iterations_used": e_eval_map.get("Phoenix:iterations_used") or sub_metrics["E"].get("iterations_used", "Unavailable"),
+        "execution_status": e_eval_map.get("Phoenix:execution_status") or sub_metrics["E"].get("execution_status", "Unavailable"),
+    })
+    return sub_metrics
+
 def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dict[str, Any]:
     res: dict[str, Any] = {}
     prod = obs.productivity if getattr(obs, "productivity", None) else getattr(obs, "tasks", None)
@@ -269,6 +296,7 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
                 pass
     if obs.executions:
         res["E"] = obs.executions.model_dump(mode="json")
+        res = enrich_execution_sub_metrics(s, res)
     if obs.policy:
         res["G"] = obs.policy.model_dump(mode="json")
     if obs.incidents is not None:

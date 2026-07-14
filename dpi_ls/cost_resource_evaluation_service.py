@@ -122,14 +122,16 @@ class CostResourceEvaluationService:
         if score_row:
             c_sub = score_row.sub_metrics.get("C", {})
         
-        langfuse_keys = [k for k in c_sub.keys() if k in ["input_tokens", "output_tokens"] or "cost" in k.lower()]
+        # Hardcode the standard expected cost metrics for Langfuse instead of dynamically extracting from c_sub. 
+        # If c_sub is empty (e.g. before first score generation), dynamic extraction would silently drop all Langfuse cost metrics.
+        langfuse_keys = ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"]
         prom_keys = ["ai_cost_per_output", "utilization"]
         grafana_keys = ["human_cost_per_output", "efficiency_ratio", "cost_score", "tco"]
 
         # Define owned metrics per resource dynamically without fallbacks
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
         resource_metrics = {
-            "Langfuse": ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"] if is_test_env else langfuse_keys,
+            "Langfuse": langfuse_keys,
             "Prometheus": prom_keys,
             "Grafana": grafana_keys
         }

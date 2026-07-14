@@ -231,3 +231,26 @@ class ProductivityResourceEvaluationRow(Base):
     status: Mapped[str] = mapped_column(String(64), default="PENDING")
     dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+class ExecutionResourceRegistryRow(Base):
+    __tablename__ = "execution_resource_registry"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String, unique=True, index=True)
+    sdk_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_key_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    integration_implemented: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class ExecutionResourceEvaluationRow(Base):
+    __tablename__ = "execution_resource_evaluations"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    resource_name: Mapped[str] = mapped_column(String, index=True)
+    metric: Mapped[str] = mapped_column(String, index=True)
+    detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(String, nullable=True)
+    current_value: Mapped[str] = mapped_column(String, nullable=True)
+    last_run: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String, default="FAILED")
+    dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
