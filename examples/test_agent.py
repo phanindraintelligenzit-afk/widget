@@ -1,4 +1,4 @@
-﻿"""
+"""
 DPI-LS FinOps Agent ΓÇö Fully Dynamic Example
 ============================================
 
@@ -261,6 +261,21 @@ async def run_agent_observation() -> None:
     print(safe)
     print("-" * 55)
 
+    from dpi_ls.poster import post_observation
+    from contract.settings import Settings
+    collector.human_cost = Settings().human_cost_per_output
+    base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
+    rating = post_observation(collector, base_url)
+    if rating:
+        from dpi_ls.poster import print_score_card
+        print_score_card(rating)
+    else:
+        print("Failed to post observation to the server.")
+        
+    from dpi_ls import _state
+    info = _state.get_server_info()
+    if info is not None and os.getenv("DPI_LS_NO_BLOCK") != "1":
+        print(f"Dashboard is live -> open  {info.base_url}  in your browser.")
 
 # ===============================================================
 #  Entry point
