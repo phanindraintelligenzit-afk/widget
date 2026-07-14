@@ -171,7 +171,14 @@ class CostResourceEvaluationService:
                     val = None
                     # Langfuse metrics use the backend runtime score logic from c_sub (same as Agent Dashboard)
                     if resource.name == "Langfuse":
-                        val = c_sub.get(metric)
+                        if metric == "prompt_cost":
+                            val = c_sub.get("Prompt Cost (USD)")
+                        elif metric == "completion_cost":
+                            val = c_sub.get("Completion Cost (USD)")
+                        elif metric == "model_cost":
+                            val = c_sub.get("Model Cost (USD)")
+                        else:
+                            val = c_sub.get(metric)
 
                     # Prometheus / Grafana metrics still use the backend runtime score logic as before
                     elif metric == "input_tokens":

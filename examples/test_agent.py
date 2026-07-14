@@ -1,8 +1,8 @@
-"""
-DPI-LS FinOps Agent — Fully Dynamic Example
+﻿"""
+DPI-LS FinOps Agent ΓÇö Fully Dynamic Example
 ============================================
 
-Every config value is read from the environment (.env file) — nothing is hardcoded.
+Every config value is read from the environment (.env file) ΓÇö nothing is hardcoded.
 
 Environment variables (set in .env):
     BEDROCK_MODEL_ID      = which Bedrock model to use      (required)
@@ -54,7 +54,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from dotenv import load_dotenv
 
-# ── Load .env FIRST so all os.getenv() calls below pick it up ─────────────────
+# ΓöÇΓöÇ Load .env FIRST so all os.getenv() calls below pick it up ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 load_dotenv(override=True)
 
 if os.getenv("AGENTOPS_API_KEY"):
@@ -68,14 +68,14 @@ if os.getenv("LANGFUSE_PUBLIC_KEY"):
     litellm.success_callback = ["langfuse"]
     litellm.failure_callback = ["langfuse"]
 
-import dpi_ls  # line 1 — the installable package
+import dpi_ls  # line 1 ΓÇö the installable package
 
 from agents import Agent, function_tool, Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.tool import FunctionTool
 
 
-# ── Read ALL config from environment (zero hardcoding) ────────────────────────
+# ΓöÇΓöÇ Read ALL config from environment (zero hardcoding) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip().strip('"').strip("'")
@@ -89,7 +89,7 @@ def _env_int(key: str, default: int) -> int:
 # Required
 BEDROCK_MODEL_ID  = _env("BEDROCK_MODEL_ID") or _env("MODEL_NAME")
 
-# Optional — all have sensible defaults
+# Optional ΓÇö all have sensible defaults
 AGENT_ID          = _env("AGENT_ID",       "chandra-finops")
 AGENT_NAME        = _env("AGENT_NAME",     "Chandra")
 LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
@@ -111,7 +111,7 @@ AGENT_QUESTION = _env("AGENT_QUESTION") or (
 
 
 # ===============================================================
-#  AWS Cost Explorer — fetches real billing data
+#  AWS Cost Explorer ΓÇö fetches real billing data
 # ===============================================================
 
 class AWSCostExplorerFetcher:

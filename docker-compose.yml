@@ -28,9 +28,9 @@ services:
     restart: unless-stopped
 
   tempo:
-    image: grafana/tempo:latest
+    image: grafana/tempo:2.6.1
     container_name: dpi-ls-tempo
-    command: [ "-config.file=/etc/tempo.yaml" ]
+    command: [ "-config.file=/etc/tempo.yaml", "-target=all" ]
     volumes:
       - ./tempo.yaml:/etc/tempo.yaml
     ports:
@@ -59,6 +59,7 @@ services:
     environment:
       SW_HEALTH_CHECKER: default
       SW_TELEMETRY: prometheus
+      JAVA_OPTS: "-Xms512M -Xmx1G"
     restart: unless-stopped
 
   skywalking-ui:
