@@ -29,7 +29,7 @@ Then open **http://localhost:8000/** in a browser — the root redirects to `/wi
 # Install (uses uv)
 uv sync
 
-# Run the full test suite (302 tests, < 12 s)
+# Run the full test suite (44 test files, 274 test functions, < 12 s)
 uv run pytest
 
 # Run a single test file
@@ -46,6 +46,9 @@ uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
 
 # Manual health check
 curl -s http://localhost:8000/healthz
+
+# Check Prometheus metrics
+curl -s http://localhost:8000/metrics
 ```
 
 The Windows bash here is MSYS/Git-Bash; use forward slashes and Unix-style commands (`/dev/null`, not `NUL`).
@@ -86,14 +89,14 @@ The single permitted cross-layer leak: `api/scoring.py` is the bridge that takes
 ```
 dpi-ls/
 ├── contract/         Pydantic models — the only schema the engine sees
-│   ├── models.py     AgentObservation, Quality, Cost, Policy, Validation, Executions
+│   ├── models.py     AgentObservation, Quality, Cost, Policy, Validation, Executions, Productivity
 │   ├── partial.py    PartialObservation — one dimension at a time, merged per agent
 │   ├── rating.py     Rating — the engine's public output (score, band, gates, metrics)
-│   └── settings.py   Tunables (weights, gate thresholds, R_max, human cost, baseline)
+│   └── settings.py   Tunables (weights, gate thresholds, R_max=3.0, human cost, baseline, token prices)
 │
 ├── engine/           PURE scoring. No I/O. No framework imports.
 │   ├── metrics.py    compute_P, Q, E, G, R, V, C  →  7 normalized [0,1] sub-metrics
-│   ├── score.py      composite() — weighted geometric mean × 100
+│   ├── score.py      composite() — weighted arithmetic mean × 100 (weight-redistribution off None)
 │   ├── gates.py      gate_check() — G/R/V compliance floors; cap at 69 if any fire
 │   ├── bands.py      band() — Exceptional / Strong / Needs Optimization / Underperforming
 │   ├── completeness.py   coverage cap — < 4 dims or any G/R/V missing → Needs Optimization
@@ -108,11 +111,10 @@ dpi-ls/
 │   │   ├── mapping.py         FieldMapping — YAML field-mapping for arbitrary payloads
 │   │   ├── jsonpath.py        JSONPath-lite for the mapping engine
 │   │   └── otel.py            OTelAdapter — OTel spans → AgentObservation
-│   └── sources/            Per-system partial-dimension adapters (one dim each)
+│   └── sources/            Per-system partial-dimension adapters (one dim each, 18 real)
 │       ├── base.py            SourceAdapter interface (returns list[PartialObservation])
 │       ├── aws_cost.py        → C
 │       ├── puvi_noise.py      → G (policy violations)
-│       ├── arize.py           → G + Q (Arize Phoenix)
 │       ├── bedrock.py         → C + P
 │       ├── sap_hr.py          → G
 │       ├── audit_trail.py     → G
@@ -121,55 +123,99 @@ dpi-ls/
 │       ├── bmc.py             → R
 │       ├── jira.py            → R
 │       ├── langgraph.py       → E
+│       ├── langsmith.py       → Q (LLM evaluation)
+│       ├── braintrust.py      → Q
+│       ├── galileo.py         → Q
+│       ├── opik.py            → Q
+│       ├── langfuse.py        → C (cost validation)
+│       ├── agentops.py        → E (execution)
+│       ├── prometheus.py      → C (cost validation)
 │       ├── stubs.py           ALL_STUBS = () — no stubs remain
 │       └── registry.py        source registry
 │
 ├── api/              FastAPI — the demo surface the widget polls
-│   ├── app.py            Routes (/ingest, /ratings, /agents/{id}/score, /settings, /sme-flow/*, /sources, /adapters, /widget/*)
-│   ├── scoring.py        score_and_persist() — the bridge: API ↔ engine ↔ store
-│   ├── bootstrap.py      Adapter registration, DB init, MAPPINGS_DIR scan
+│   ├── app.py            Routes (/ingest, /ratings, /agents/{id}/score, /settings,
+│   │                     /sme-flow/*, /sources, /adapters, /widget/*, /metrics,
+│   │                     /api/{cost,quality,validation,productivity}-evaluation/*)
+│   ├── scoring.py        score_and_persist() + rescore_from_partials() + enrich_*_sub_metrics()
+│   │                     + push_langfuse_trace()
+│   ├── bootstrap.py      Adapter registration, DB init, MAPPINGS_DIR scan,
+│   │                     seeds Cost/Validation resource evaluation services
+│   ├── dependencies.py   FastAPI dependency providers (db session, etc.)
+│   ├── metrics_exporter.py   Prometheus metrics export for cost/execution data
 │   ├── schemas.py        Request/response models
 │   └── sme_orchestration.py   Conversational Q-capture HTTP layer
 │
 ├── store/            SQLAlchemy persistence
 │   ├── db.py            Engine + session factory, portable across SQLite/Postgres
-│   ├── models.py        AgentRow, ObservationRow, ScoreRow, SettingsRow, PartialObservationRow, ...
-│   └── repo.py          upsert_agent, save_observation, save_partial, save_score, get_settings
+│   ├── models.py        AgentRow, ObservationRow, ScoreRow, SettingsRow,
+│   │                    PartialObservationRow, CostResourceEvaluationRow,
+│   │                    ValidationResourceEvaluationRow, QualityResourceEvaluationRow,
+│   │                    ProductivityResourceEvaluationRow, ExecutionResourceEvaluationRow,
+│   │                    SmeRatingRow, ...
+│   └── repo.py          upsert_agent, save_observation, save_partial, save_score,
+│   │                    get_settings, list_*_resource_evaluations,
+│   │                    verify_dashboard_*_evaluation, ...
 │
 ├── dpi_ls/           The 2-line installable package (separate concern from server)
-│   ├── monitor.py       Framework detection, server boot, atexit finalizer
-│   ├── collector.py     SignalCollector — accumulates P/Q/E/G/R/V/C signals
-│   ├── evaluator.py     LangGraph Q evaluator (accuracy, consistency, hallucination)
-│   ├── heuristics.py    Deterministic Q fallback when LLM unreachable
-│   ├── poster.py        post_observation() — POSTs AgentObservation to /ingest
-│   ├── server.py        Background uvicorn launcher (idempotent, daemon thread)
-│   ├── policy.py        Deterministic G policy scan (PII, secrets, prompt-injection)
-│   └── frameworks/      Framework-specific patchers
+│   ├── __init__.py   Public surface: monitor(), evaluate_quality(), SignalCollector, QResult
+│   ├── monitor.py    Framework detection, server boot, atexit finalizer,
+│   │                 deep-eval / ragas / langsmith / agentops orchestration,
+│   │                 Jaeger / Zipkin tracing setup
+│   ├── collector.py  SignalCollector — accumulates P/Q/E/G/R/V/C signals
+│   ├── evaluator.py  LangGraph Q evaluator (accuracy, consistency, hallucination)
+│   ├── heuristics.py Deterministic Q fallback when LLM unreachable
+│   ├── poster.py     post_observation() — POSTs AgentObservation to /ingest
+│   ├── server.py     Background uvicorn launcher (idempotent, daemon thread)
+│   ├── policy.py     Deterministic G policy scan (PII, secrets, prompt-injection, auth errors)
+│   ├── integrations.py  External SDK wrappers: deep_eval, ragas, langsmith, agentops,
+│   │                    langfuse, phoenix, traceloop, jaeger, zipkin
+│   ├── _state.py     Process-wide collector singleton
+│   ├── cost_calculator.py / cost_resource_evaluation_service.py
+│   ├── quality_resource_evaluation_service.py
+│   ├── validation_resource_evaluation_service.py
+│   ├── productivity_resource_evaluation_service.py
+│   ├── execution_resource_evaluation_service.py
+│   │     (one resource-evaluation service per dimension for its tooling checks)
+│   ├── policies/     YAML governance policy bundles
+│   │   ├── ai_ml_governance.yaml, cloud_infrastructure.yaml,
+│   │   ├── enterprise_sox_gdpr_soc2.yaml, healthcare_hipaa.yaml,
+│   │   ├── it_security_iso27001.yaml, legal_contracts.yaml,
+│   │   ├── pci_dss.yaml, sap_hr_compliance.yaml
+│   └── frameworks/      Framework-specific patchers (11 patchers, all lazy-imported)
 │       ├── base.py, openai_agents.py, langchain.py, langgraph.py,
 │       │   crewai.py, autogen.py, llama_index.py, rag.py,
 │       │   raw_openai.py, raw_anthropic.py, unknown.py
 │
 ├── widget/           Embeddable dashboard (vanilla web components, no framework)
 │   ├── dpi-ls.js        ~650 lines, two custom elements: <dpi-ls-board> and <dpi-ls-agent>
-│   └── demo.html        Standalone demo page
+│   ├── demo.html        Standalone demo page
+│   └── resources.html   Resource-evaluation dashboard page
 │
 ├── fixtures/         Sample observations + YAML mappings (mock-first dev)
 │   ├── obs_{baseline,strong,unsafe}.json    Canonical 7-dim observations
 │   ├── raw_acme_payload.json                Non-canonical payload (mapping target)
 │   ├── mapping_acme.yaml, mapping_servicenow.yaml  YAML field-mappings
-│   └── source_*.json                        Per-source adapter payloads
+│   └── source_*.json                        Per-source adapter payloads (arize, aws_cost, audit_trail, bedrock,
+│                                            bmc, jira, langfuse, langgraph, puvi_noise, ray, sap_hr, servicenow)
 │
-├── examples/         End-to-end demo agents (one per supported framework)
+├── examples/         End-to-end demo agents (11 demos) + governance violators
 │   ├── test_agent.py, langgraph_research.py, langchain_qa.py, crewai_research.py,
-│   │   autogen_debate.py, llamaindex_rag.py, raw_bedrock.py, run_all.py
+│   │   autogen_debate.py, llamaindex_rag.py, raw_bedrock.py, run_all.py,
+│   │   orchestrator_agent.py, governance_violator.py, arize_governance_violator.py
 │
-├── tests/            302 tests, < 12 s. See "Test layout" below.
+├── tests/            44 test files, 274 test functions, < 12 s. See "Test layout" below.
 ├── scripts/
 │   └── demo_seed.sh   POSTs every fixture through the right ingest path
-├── api/bootstrap.py   Auto-registers adapters at startup
+├── api/bootstrap.py   Auto-registers adapters at startup; seeds resource-evaluation services
 ├── start.sh           Railway entrypoint (uvicorn api.app:app on $PORT)
 ├── Dockerfile         Multi-stage build (python:3.11-slim, non-root dpi user)
+├── docker-compose.yml Compose for local stack (API + telemetry sidecars)
 ├── railway.toml       Railway deploy config
+├── prometheus.yml     Prometheus scrape config
+├── tempo.yaml         Tempo tracing config
+├── otel-collector-config.yaml  OpenTelemetry Collector config
+├── grafana/           Grafana provisioning (dashboards, datasources)
 └── pyproject.toml     Pydantic v2, FastAPI, SQLAlchemy 2, langgraph, OpenInference; pytest
 ```
 
@@ -317,10 +363,19 @@ Each `agent_id` lands as a separate row on the board. `_finalize` and `_state` a
 - `tests/test_engine_reference.py` — **the four spec numbers**. If this file fails, the engine is broken. Run this first.
 - `tests/test_engine_formulas.py` — edge cases for the 7 metric formulas and the gate/cap pipeline.
 - `tests/test_engine_components.py` — band, gates, completeness individually.
+- `tests/test_completeness.py` — coverage cap behaviour (gated-missing, low-coverage, G+R+V+1 = no cap, …).
+- `tests/test_rating_coverage.py` — coverage flag backwards-compat (`coverage_capped` / `cap_reasons`).
 - `tests/test_dpi_ls_*.py` — the `dpi_ls` package: collector, framework patchers, end-to-end monitor() → POST → score round-trip.
 - `tests/test_api_*.py` — FastAPI routes; one file per concern (agents, ingest, settings, sources, sme_flow, sme_rating).
-- `tests/test_{webhook,otel,partial_merge,mapping,...}.py` — adapter paths.
-- `tests/test_{arize,aws_cost,bedrock,sap_hr,langgraph,audit_trail,bmc,servicenow,ray}.py` — per-adapter, with fixtures in `fixtures/source_<name>.json`.
+- `tests/test_{webhook_adapter, source_adapters, mapping, jsonpath, partial_merge, registry}.py` — ingestion layer.
+- `tests/test_{aws_cost, bedrock, sap_hr, langgraph, audit_trail, bmc, servicenow, ray, langfuse, new_adapters}.py` — per-adapter, with fixtures in `fixtures/source_<name>.json`.
+- `tests/test_cost.py` / `tests/test_cost_resource_evaluation.py` — C-dimension math + resource-evaluation service.
+- `tests/test_productivity_feed.py` — P-dimension math (normalization_factor, baseline).
+- `tests/test_sme_flow.py` / `tests/test_widget_m6.py` — conversational Q capture + widget rendering.
+- `tests/test_widget_serving.py` / `tests/test_widget_labels.py` — static-file serving + label correctness.
+- `tests/test_fixtures.py` — all `fixtures/obs_*.json` parse + rate as expected.
+- `tests/test_store.py` — repo + DB round-trip (settings, agents, scores, history).
+- `tests/test_validation_resource_evaluation.py` — V resource evaluation service.
 
 **Useful invocations**:
 ```bash
@@ -331,7 +386,8 @@ uv run pytest tests/ --co -q                        # list test IDs only
 uv run pytest tests/ -q --tb=short                  # short tracebacks on failure
 ```
 
-The full suite is **302 tests, < 12 s** on a developer laptop.
+The full suite is **44 test files, 274 test functions / classes, < 12 s**
+on a developer laptop.
 
 ---
 
@@ -342,10 +398,11 @@ The full suite is **302 tests, < 12 s** on a developer laptop.
 - **M2** `ingestion/` + `GenericWebhookAdapter` + OTel + YAML mapping — done
 - **M3** `api/` + `store/` + score history — done
 - **M4** `widget/` (vanilla web components, no framework) — done
-- **M5** Real source adapters: `aws_cost`, `puvi_noise`, `arize`, `bedrock`, `sap_hr`, `audit_trail`, `ray`, `servicenow`, `bmc`, `jira`, `langgraph`, `langsmith`, `agentops`, `langfuse`, `braintrust`, `galileo`, `openllmetry`, `opik` — done. `stubs.py` now has `ALL_STUBS = ()` — there are no real stubs left.
+- **M5** Real source adapters: 18 of them — `aws_cost`, `puvi_noise`, `bedrock`, `sap_hr`, `audit_trail`, `ray`, `servicenow`, `bmc`, `jira`, `langgraph`, `langsmith`, `agentops`, `langfuse`, `braintrust`, `galileo`, `opik`, `prometheus`, plus the LLM-eval-pipeline adapters — done. `stubs.py` now has `ALL_STUBS = ()` — there are no real stubs left.
 - **M6** Conversational Q-capture (`engine/sme_flow.py` + `api/sme_orchestration.py`) — done.
+- **Post-M6 hardening** — score function is now a weighted arithmetic mean (with weight redistribution off `None` metrics) instead of a weighted geometric mean, `R_max` calibrated to 3.0, one resource-evaluation service per dimension (cost / quality / validation / productivity / execution) pushing evidence from external observability SDKs (DeepEval / Ragas / LangSmith / AgentOps / Langfuse / Phoenix / Traceloop / Jaeger / Zipkin) to the dashboard, `metrics_exporter.py` exposing Prometheus gauges from `/metrics`, YAML policy bundles in `dpi_ls/policies/`, langfuse trace push from `api/scoring.py` — done.
 
-Current work is post-M5 hardening: the latest commits calibrate `R_max` to 3.0, finish the last source adapters, add test coverage, and remove the final TODOs. The demo target — *score one real agent, live* — is reachable via `examples/llamaindex_rag.py` (no AWS required) or `examples/test_agent.py` (needs Bedrock access).
+Current work is post-M6 hardening. The demo target — *score one real agent, live* — is reachable via `examples/llamaindex_rag.py` (no AWS required) or `examples/test_agent.py` (needs Bedrock access). The multi-source story (`agent-multi-001`) is reachable via `scripts/demo_seed.sh`.
 
 **`dpi_ls` package is a separate concern from the server.** They share `contract/` (the observation schema is the wire format) but the package never imports from `engine/`, `store/`, or `api/` — it talks to the server over HTTP via `dpi_ls/poster.py`.
 
@@ -391,7 +448,7 @@ Agent marketplace, subscription/billing, multi-tenant onboarding, the full "typi
 A handful of files at the repo root are **dev scratch, not part of the product**:
 
 - `how_to_run.txt` — 5-line cheatsheet from an earlier session. Redundant with the "See the demo in 3 commands" block above; leave or delete, don't refactor.
-- `changes.txt` — stale project-management notes from an earlier session (refers to "121 tests" — we're at 302; refers to an old M0–M5 plan). Not authoritative; the real spec is this file + `README.md`.
+- `changes.txt` — stale project-management notes from an earlier session (refers to "121 tests" — we're at 44 test files / 274 test functions; refers to an old M0–M5 plan). Not authoritative; the real spec is this file + `README.md`.
 - `check_db.py` — one-off SQLite inspector script for poking at `dpi_ls.db` from the command line. Not a test, not part of the API. Run with `.venv/Scripts/python.exe check_db.py` if you need to eyeball a row.
 - `cost.py` — a stray AWS Cost Explorer boto3 client that does **not** import from this project at all. Old exploration code. Don't conflate with `ingestion/sources/aws_cost.py`.
 

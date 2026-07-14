@@ -74,6 +74,8 @@ class SignalCollector:
     _outputs: list[str] = field(default_factory=list)
     _output_kinds: list[str] = field(default_factory=list)  # parallel list: "agent" | "tool"
     _outputs_lock: threading.Lock = field(default_factory=threading.Lock)
+    
+    _finalized: bool = False
 
     # E — execution. attempts = total LLM/tool calls, successful = those
     # that didn't raise, failed = those that did.
@@ -286,6 +288,16 @@ class SignalCollector:
         if self.period_end is None:
             self.period_end = _utcnow()
 
+    def finalize(self) -> None:
+        """Explicitly run the evaluation pipeline before the script exits.
+        
+        This avoids 'can't create new thread at interpreter shutdown' errors
+        that occur if external SDKs (LangSmith, DeepEval) are run in atexit.
+        """
+        from .monitor import _run_evaluations
+        _run_evaluations(self)
+        self._finalized = True
+
     # ---- accessors used by finalize() ---------------------------------
 
     def source_data_for_q(self) -> list[str]:
@@ -315,6 +327,19 @@ class SignalCollector:
                 return agent_outputs[-_MAX_OUTPUTS_FOR_Q:]
             # Fallback: no kind tagging — return last N as before.
             return list(self._outputs[-_MAX_OUTPUTS_FOR_Q:])
+
+    def input_task(self) -> str:
+        """Extract the original user question/task from the recorded source data."""
+        with self._source_data_lock:
+            for item in self._source_data:
+                if item.startswith("[INPUT]\n"):
+                    return item[8:].strip()
+        return "Unknown task"
+
+    def final_output(self) -> str:
+        """Get the final agent output for evaluation."""
+        outputs = self.outputs_for_q()
+        return outputs[-1] if outputs else ""
 
     def _capture_output(
         self,

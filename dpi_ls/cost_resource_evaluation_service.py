@@ -122,6 +122,8 @@ class CostResourceEvaluationService:
         if score_row:
             c_sub = score_row.sub_metrics.get("C", {})
         
+        # Hardcode the standard expected cost metrics for Langfuse instead of dynamically extracting from c_sub. 
+        # If c_sub is empty (e.g. before first score generation), dynamic extraction would silently drop all Langfuse cost metrics.
         langfuse_keys = ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"]
         prom_keys = ["ai_cost_per_output", "utilization"]
         grafana_keys = ["human_cost_per_output", "efficiency_ratio", "cost_score", "tco"]

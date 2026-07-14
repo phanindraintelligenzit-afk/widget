@@ -924,6 +924,157 @@
    * Renders the inline drilldown panel for the Airport Board.
    * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
    */
+  
+  function calculateExecutionMetrics(sub, settings, value) {
+    sub = sub || {};
+    settings = settings || {};
+    
+    let attempts = 0;
+    if (!isNaN(Number(sub.iterations_used))) attempts = Number(sub.iterations_used);
+    else if (!isNaN(Number(sub.attempts))) attempts = Number(sub.attempts);
+    else if (!isNaN(Number(sub.total_attempts))) attempts = Number(sub.total_attempts);
+
+    let successful = 0;
+    if (sub.execution_status === 'success' || sub.execution_success === 1 || sub.execution_success === '1' || sub.execution_success === 'true') successful = 1;
+    else if (!isNaN(Number(sub.successful))) successful = Number(sub.successful);
+    else if (!isNaN(Number(sub.successful_executions))) successful = Number(sub.successful_executions);
+    
+    let calcEScore = 0;
+    if (attempts > 0) calcEScore = successful / attempts;
+    
+    const eScoreVal = (value !== undefined && value !== null) ? value : calcEScore;
+
+    return {
+      trace_captured:     { val: sub.trace_captured    || "Unavailable", calc: sub.trace_captured    || "Unavailable", disp: sub.trace_captured    || "Unavailable", formula: "Langfuse Trace Payload",               src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
+      workflow_execution: { val: sub.workflow_execution || "Unavailable", calc: sub.workflow_execution || "Unavailable", disp: sub.workflow_execution || "Unavailable", formula: "Workflow execution status",           src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
+      Total_Attempts:     { val: attempts, calc: attempts, disp: attempts, formula: "Agent execution iterations",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 0 },
+      Successful_Attempts:{ val: successful, calc: successful, disp: successful, formula: "Successful agent executions", src: "Phoenix (runtime telemetry)", resource: "Phoenix", dec: 0 },
+      Execution_Score:    { val: eScoreVal, calc: calcEScore, disp: eScoreVal,   formula: "Successful / Total Attempts",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 4 },
+    };
+  }
+
+  function renderExecutionTableHtml(sub, settings, value, resourceFilter) {
+    const metricsMap = calculateExecutionMetrics(sub, settings, value);
+    
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined) return "Unavailable";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    const METRIC_NICE_NAMES = {
+      trace_captured: "Trace Captured",
+      workflow_execution: "Workflow Execution",
+      iterations_used: "Iterations Used",
+      Total_Attempts: "Total Attempts",
+      Successful_Attempts: "Successful Attempts",
+      Execution_Score: "Execution Score"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
+    }
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+
+    const attempts = metricsMap["Total_Attempts"] ? metricsMap["Total_Attempts"].val : 0;
+    const successful = metricsMap["Successful_Attempts"] ? metricsMap["Successful_Attempts"].val : 0;
+    
+    let eScoreVal = 0.0;
+    if (metricsMap["Execution_Score"] && metricsMap["Execution_Score"].val !== undefined) {
+      eScoreVal = metricsMap["Execution_Score"].val;
+    }
+    const finalWeightedVal = (eScoreVal * 15.0).toFixed(2);
+    
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;">${valStr}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${calcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${dispStr}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || r.resource}</td>
+        </tr>
+      `;
+    }).join("");
+
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">E</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (15%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${eScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Execution Score = Successful / Total Attempts</div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Execution Calculation</div>
+          <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+            <div>Total Attempts : ${attempts}</div>
+            <div>Successful Attempts : ${successful}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Execution Score : ${successful} / ${attempts} = ${eScoreVal.toFixed(3)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="execution-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}EXECUTION TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Execution telemetry mapped.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function metricDetailHtml(key, value, sub, settings) {
     if (key === "C") {
       return renderCostTableHtml(sub, settings, value);
@@ -933,6 +1084,9 @@
     }
     if (key === "Q") {
       return renderQualityTableHtml(sub, settings, value);
+    }
+    if (key === "E") {
+      return renderExecutionTableHtml(sub, settings, value);
     }
     if (key === "P") {
       return renderProductivityTableHtml(sub, settings, value);
@@ -1846,24 +2000,26 @@
     }
     async _tick() {
       try {
-        const [resCost, resVal, resQual, resProd, urlsCost, urlsVal, urlsQual, urlsProd] = await Promise.all([
+        const [resCost, resVal, resQual, resProd, resExec, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec] = await Promise.all([
           fetch(`${apiBase(this)}/api/cost-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
 
-        const [rC, rV, rQ, rP, uC, uV, uQ, uP] = await Promise.all([
-          resCost.json(), resVal.json(), resQual.json(), resProd.json(),
-          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json()
+        const [rC, rV, rQ, rP, rE, uC, uV, uQ, uP, uE] = await Promise.all([
+          resCost.json(), resVal.json(), resQual.json(), resProd.json(), resExec.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json()
         ]);
         
-        this._results = [...rC, ...rV, ...rQ, ...rP];
-        this._urls = { ...uC, ...uV, ...uQ, ...uP };
+        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -1872,32 +2028,40 @@
     async _runEvaluations() {
       try {
         this._render({ loading: true });
-        const [evalCost, evalVal, evalQual, evalProd, urlsCost, urlsVal, urlsQual, urlsProd] = await Promise.all([
+        const [evalCost, evalVal, evalQual, evalProd, evalExec, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec] = await Promise.all([
           fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
 
-        const [rC, rV, rQ, rP, uC, uV, uQ, uP] = await Promise.all([
-          evalCost.json(), evalVal.json(), evalQual.json(), evalProd.json(),
-          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json()
+        const [rC, rV, rQ, rP, rE, uC, uV, uQ, uP, uE] = await Promise.all([
+          evalCost.json(), evalVal.json(), evalQual.json(), evalProd.json(), evalExec.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json()
         ]);
         
-        this._results = [...rC, ...rV, ...rQ, ...rP];
-        this._urls = { ...uC, ...uV, ...uQ, ...uP };
+        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
       }
     }
-    async _verifyDashboard(resource, metric) {
+        async _verifyDashboard(resource, metric) {
       try {
-        const r = await fetch(`${apiBase(this)}/api/cost-evaluation/verify-dashboard`, {
+        let endpoint = "cost-evaluation";
+        if (["Phoenix", "Traceloop"].includes(resource)) { endpoint = "execution-evaluation"; }
+        else if (["DeepEval", "Jaeger", "Zipkin"].includes(resource)) { endpoint = "validation-evaluation"; }
+        else if (["LangSmith", "Ragas", "AgentOps"].includes(resource)) { endpoint = "quality-evaluation"; }
+        else if (["Grafana Tempo", "Apache SkyWalking"].includes(resource)) { endpoint = "productivity-evaluation"; }
+        
+        const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ resource_name: resource, metric: metric })
@@ -1955,7 +2119,7 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q
