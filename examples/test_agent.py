@@ -203,10 +203,10 @@ def _to_bedrock_tool(tool) -> FunctionTool:
 
 def _bar(value: float | None, width: int = 20) -> str:
     if value is None:
-        return f"{'n/a':>5} [" + " " * width + "]"
+        return "[" + "-" * width + "] n/a  "
     blocks = int(round((value / 100.0) * width))
-    bar = "=" * blocks + " " * (width - blocks)
-    return f"{value:>5.1f} [{bar}]"
+    bar = "#" * blocks + "-" * (width - blocks)
+    return f"[{bar}] {(value / 100.0):.3f}"
 
 def print_score_card(rating: dict) -> None:
     score    = rating.get("score", 0)
@@ -247,7 +247,11 @@ def print_score_card(rating: dict) -> None:
         val   = metrics.get(key)
         gate_flag = " <- GATE FAIL" if key in gates else ""
         bar_str = _bar(val)
-        print(f"|  {label:<18} {bar_str}{gate_flag:<13}|")
+        print(f"|  {label:<15} ({key}) {bar_str}{gate_flag:<9}|")
+    print("+" + "-" * 55 + "+")
+    print(f"|  Agent ID    : {AGENT_ID:<39}|")
+    print(f"|  Framework   : openai_agents (AWS Bedrock / LiteLLM)  |")
+    print(f"|  Model       : {BEDROCK_MODEL_ID[:37]:<39}|")
     print("+" + "-" * 55 + "+")
     print()
 
