@@ -26,9 +26,10 @@ live in [CLAUDE.md](./CLAUDE.md). This README is the runbook.
 
 ## Why DPI-LS
 
-* **One number for the whole agent.** A weighted geometric mean of
-  P, Q, E, G, R, V, C — a single score a CFO can quote, with the
-  full breakdown on the dashboard.
+* **One number for the whole agent.** A weighted arithmetic mean of
+  P, Q, E, G, R, V, C (with weight redistribution off any
+  `None` metric) — a single score a CFO can quote, with the full
+  breakdown on the dashboard.
 * **Hard safety gates.** A single PII leak drops the agent to
   "Needs Optimization" with an `unsafe` flag, regardless of how
   strong the other dimensions are. The gates don't soften, and the
@@ -175,11 +176,13 @@ builds the canonical observation, and the dashboard row for
 | **C** — Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | token counts from `response.usage` / `usage_metadata` / your `record_llm_call` | "T tokens · $X" |
 | **RAG signals** *(informational)* | `retrievals` count + total docs retrieved | RAG / LlamaIndex patchers via `record_retrieval` | "N retrievals · M docs" (under E) |
 
-**Composite — weighted geometric mean:**
+**Composite — weighted arithmetic mean × 100** (with weight redistribution off `None` metrics):
 
 ```
-DPI-LS = 100 × ( P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05 )
+DPI-LS = 100 · Σ wᵢ · mᵢ          (over present metrics; weights sum to 1.0)
 ```
+
+Default weights: `P=0.15, Q=0.20, E=0.15, G=0.20, R=0.15, V=0.10, C=0.05`. When a dimension is missing (`None`), its weight is redistributed proportionally across the present metrics, so a C-only agent with `C=0.9` raw-scores 90 (the right answer for the C slice; the completeness cap is what keeps that 90 from being mis-classified as "Strong"). The arithmetic mean expresses "score reflects performance across all 7 metrics" — a 0 in G lowers the score, but doesn't nuke it (the safety-net for a fully-failed dim is the gate force-cap below).
 
 **Bands:** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization ·
 <50 Underperforming`.
@@ -257,7 +260,7 @@ graph TB
 
     subgraph ENG["engine — PURE scoring, no I/O"]
         Met["metrics.py — 7 sub-metrics"]
-        Sc["score.py — weighted geometric mean"]
+        Sc["score.py — weighted arithmetic mean × 100"]
         Gt["gates.py — G / R / V hard floors"]
         Bd["bands.py — Exceptional / Strong / ..."]
     end
@@ -265,10 +268,11 @@ graph TB
     subgraph API["api — FastAPI"]
         Ing["/ingest — validates and scores"]
         Brd["/ratings and /agents/{id}/score — board and 7-dim card"]
+        Eval["/api/{cost,quality,validation,productivity}-evaluation — resource check"]
     end
 
     subgraph STORE["store — SQLAlchemy"]
-        DB[("observations<br/>score_history<br/>settings")]
+        DB[("observations<br/>score_history<br/>settings<br/>resource_evaluations")]
     end
 
     subgraph WIDG["widget — vanilla web components"]
@@ -286,6 +290,7 @@ graph TB
     Gt --> Bd
     Ing --> DB
     Brd --> DB
+    Eval --> DB
     WJS -->|polls every 3s| Brd
 ```
 
@@ -299,53 +304,97 @@ runtimes.
 ```
 dpi-ls/
 ├── contract/         Pydantic models — the canonical AgentObservation (the only schema)
-│   ├── models.py     AgentObservation, Quality, Cost, Policy, Validation, Executions
+│   ├── models.py     AgentObservation, Quality, Cost, Policy, Validation, Executions, Productivity
 │   ├── partial.py    PartialObservation — one dimension at a time, merged by the API
 │   ├── rating.py     Rating — the engine's output (score, band, gates, metrics)
-│   └── settings.py   Tunables (weights, gate thresholds, R_max, human cost/hr)
+│   └── settings.py   Tunables (weights, gate thresholds, R_max=3.0, human cost/hr, token prices)
 │
 ├── engine/           PURE scoring. No I/O. No framework imports. The source of truth.
 │   ├── metrics.py    compute_P, Q, E, G, R, V, C  → 7 normalized [0, 1] sub-metrics
-│   ├── score.py      composite() — weighted geometric mean × 100
+│   ├── score.py      composite() — weighted arithmetic mean × 100 (weight-redistribution off None)
 │   ├── gates.py      gate_check() — G/R/V compliance floors; cap at 69 if any fire
 │   ├── bands.py      band() — Exceptional / Strong / Needs Optimization / Underperforming
-│   └── sme_flow.py   Conversational Q-capture state machine
+│   ├── completeness.py   Coverage cap — < 4 dims or any G/R/V missing → Needs Optimization
+│   ├── rate.py       rate() — wires composite → gates → bands → completeness into Rating
+│   └── sme_flow.py   LangGraph conversational Q-capture state machine
 │
 ├── ingestion/        Adapters — the only place that knows about agent runtimes
-│   ├── base.py       Adapter interface + to_observations() contract
-│   ├── registry.py   Name → adapter lookup
-│   ├── generic/      Universal adapters (work for any agent)
+│   ├── base.py            Adapter interface (returns list[AgentObservation])
+│   ├── registry.py        Name → adapter lookup
+│   ├── generic/           Universal adapters (work for any source)
 │   │   ├── webhook.py     GenericWebhookAdapter — POST any JSON
 │   │   ├── mapping.py     YAML field-mapping for arbitrary payloads
-│   │   ├── otel.py        OpenTelemetry spans → observation
-│   │   └── jsonpath.py    JSONPath resolution for the YAML mapping
-│   └── sources/      Per-system partial-dimension adapters
-│       ├── aws_cost.py, puvi_noise.py, arize.py,
-│       │   servicenow.py, jira.py, base.py, registry.py
-│       └── stubs.py  langgraph, bedrock, ray, bmc, sap_hr (placeholders)
+│   │   ├── jsonpath.py    JSONPath-lite for the mapping engine
+│   │   └── otel.py        OTelAdapter — OTel spans → AgentObservation
+│   └── sources/           Per-system partial-dimension adapters (one dim each)
+│       ├── base.py            SourceAdapter interface (returns list[PartialObservation])
+│       ├── aws_cost.py        → C
+│       ├── puvi_noise.py      → G (policy violations)
+│       ├── bedrock.py         → C + P
+│       ├── sap_hr.py          → G
+│       ├── audit_trail.py     → G
+│       ├── ray.py             → R + E + G
+│       ├── servicenow.py      → R
+│       ├── bmc.py             → R
+│       ├── jira.py            → R
+│       ├── langgraph.py       → E
+│       ├── langsmith.py       → Q (LLM evaluation)
+│       ├── braintrust.py      → Q
+│       ├── galileo.py         → Q
+│       ├── opik.py            → Q
+│       ├── langfuse.py        → C (cost validation)
+│       ├── agentops.py        → E (execution)
+│       ├── prometheus.py      → C (cost validation)
+│       ├── stubs.py           ALL_STUBS = () — no stubs remain
+│       └── registry.py        source registry
 │
 ├── api/              FastAPI — the demo surface the widget polls
-│   ├── app.py        Route handlers (/ingest, /ratings, /agents/{id}/score, /settings, …)
-│   ├── scoring.py    score_and_persist() — the bridge between API and engine
-│   ├── bootstrap.py  Adapter registration, DB init
-│   ├── schemas.py    Request/response models
-│   └── sme_orchestration.py  Conversational Q-capture HTTP layer
+│   ├── app.py            Route handlers (/ingest, /ratings, /agents/{id}/score, /settings,
+│   │                     /api/*-evaluation, /widget/*, /metrics, /sme-flow/*, …)
+│   ├── scoring.py        score_and_persist() + rescore_from_partials() + enrich_*_sub_metrics()
+│   ├── bootstrap.py      Adapter registration, DB init, MAPPINGS_DIR scan,
+│   │                     seeds Cost/Validation resource evaluation services
+│   ├── dependencies.py   FastAPI dependency providers (db session, etc.)
+│   ├── metrics_exporter.py   Prometheus metrics export for cost/execution data
+│   ├── schemas.py        Request/response models
+│   └── sme_orchestration.py   Conversational Q-capture HTTP layer
 │
 ├── store/            SQLAlchemy persistence
-│   ├── models.py     AgentRow, ObservationRow, ScoreRow, SettingsRow, PartialRow
-│   └── repo.py       upsert_agent, save_observation, save_score, get_settings, …
+│   ├── db.py            Engine + session factory, portable across SQLite/Postgres
+│   ├── models.py        AgentRow, ObservationRow, ScoreRow, SettingsRow, PartialObservationRow,
+│   │                    CostResourceEvaluationRow, ValidationResourceEvaluationRow, …
+│   └── repo.py          upsert_agent, save_observation, save_partial, save_score, get_settings,
+│                        list_*_resource_evaluations, verify_dashboard_*_evaluation, …
 │
 ├── dpi_ls/           ⭐ The 2-line installable package
-│   ├── __init__.py   Public surface: monitor(), evaluate_quality(), SignalCollector
-│   ├── monitor.py    Entry point — framework detection, server boot, atexit finalizer
+│   ├── __init__.py   Public surface: monitor(), evaluate_quality(), SignalCollector, QResult
+│   ├── monitor.py    Entry point — framework detection, server boot, atexit finalizer,
+│   │                 deep-eval / ragas / langsmith / agentops orchestration, Jaeger/Zipkin setup
 │   ├── collector.py  SignalCollector — accumulates P/Q/E/G/R/V/C signals
 │   ├── evaluator.py  LangGraph Q evaluator (accuracy, consistency, hallucination)
 │   ├── heuristics.py Deterministic Q fallback when LLM is unreachable
 │   ├── poster.py     post_observation() — POSTs AgentObservation to /ingest
 │   ├── server.py     Background uvicorn launcher (idempotent, daemon thread)
-│   ├── policy.py     Deterministic G policy scan (PII, secrets, prompt-injection)
+│   ├── policy.py     Deterministic G policy scan (PII, secrets, prompt-injection, auth errors)
+│   ├── integrations.py  External SDK wrappers: deep_eval, ragas, langsmith, agentops, langfuse,
+│   │                    phoenix, traceloop, jaeger, zipkin — push results to /api/*-evaluation
 │   ├── _state.py     Process-wide collector singleton
-│   └── frameworks/   Framework-specific patchers
+│   ├── cost_calculator.py / cost_resource_evaluation_service.py
+│   ├── quality_resource_evaluation_service.py
+│   ├── validation_resource_evaluation_service.py
+│   ├── productivity_resource_evaluation_service.py
+│   ├── execution_resource_evaluation_service.py
+│   │     (resource evaluation services — each dimension has one for its tooling checks)
+│   ├── policies/     YAML governance policy bundles
+│   │   ├── ai_ml_governance.yaml
+│   │   ├── cloud_infrastructure.yaml
+│   │   ├── enterprise_sox_gdpr_soc2.yaml
+│   │   ├── healthcare_hipaa.yaml
+│   │   ├── it_security_iso27001.yaml
+│   │   ├── legal_contracts.yaml
+│   │   ├── pci_dss.yaml
+│   │   └── sap_hr_compliance.yaml
+│   └── frameworks/   Framework-specific patchers (11 patchers, all lazy-imported)
 │       ├── base.py             BasePatcher, _safe_text, _safe_iter_tokens
 │       ├── openai_agents.py    OpenAI Agents SDK (Runner.run* + RunHooks)
 │       ├── langchain.py        LangChain Runnable/Chain
@@ -359,12 +408,42 @@ dpi-ls/
 │       └── unknown.py          Best-effort fallback (invoke/run/call/…/query)
 │
 ├── widget/           Embeddable dashboard (no framework — drop into any host page)
-│   ├── dpi-ls.js     648 lines, vanilla web components
+│   ├── dpi-ls.js     ~650 lines, vanilla web components
 │   └── demo.html     Standalone demo page
 │
-├── fixtures/         Sample observations + a sample YAML mapping (mock-first dev)
-├── examples/         End-to-end demo agents (one per supported framework)
-└── tests/            232 tests, < 12 seconds
+├── fixtures/         Sample observations + YAML mappings (mock-first dev)
+│   ├── obs_{baseline,strong,unsafe}.json    Canonical 7-dim observations
+│   ├── raw_acme_payload.json                Non-canonical payload (mapping target)
+│   ├── mapping_acme.yaml, mapping_servicenow.yaml  YAML field-mappings
+│   └── source_*.json                        Per-source adapter payloads
+│
+├── examples/         End-to-end demo agents (one per supported framework + governance violators)
+│   ├── test_agent.py, langgraph_research.py, langchain_qa.py, crewai_research.py,
+│   │ autogen_debate.py, llamaindex_rag.py, raw_bedrock.py, run_all.py,
+│   │ orchestrator_agent.py, governance_violator.py, arize_governance_violator.py
+│
+├── tests/            44 test files, 274 test functions/classes, < 12 s
+│   ├── test_engine_reference.py      — 4 spec reference outputs (the contract)
+│   ├── test_engine_formulas.py       — edge cases for 7 metric formulas + gate/cap pipeline
+│   ├── test_engine_components.py     — band, gates, completeness individually
+│   ├── test_dpi_ls_*.py              — dpi_ls package (collector, frameworks, end-to-end, …)
+│   ├── test_api_*.py                 — FastAPI routes (one file per concern)
+│   ├── test_{webhook_adapter, source_adapters, mapping, jsonpath, partial_merge, registry}.py
+│   └── test_{arize,aws_cost,bedrock,sap_hr,langgraph,audit_trail,bmc,servicenow,ray,
+│              langfuse,new_adapters}.py   — per-adapter, with fixtures
+│
+├── scripts/
+│   └── demo_seed.sh       POSTs every fixture through the right ingest path
+├── start.sh               Railway entrypoint (uvicorn api.app:app on $PORT)
+├── Dockerfile             Multi-stage build (python:3.11-slim, non-root dpi user)
+├── docker-compose.yml     Compose for local stack (API + telemetry sidecars)
+├── railway.toml           Railway deploy config
+├── prometheus.yml         Prometheus scrape config
+├── tempo.yaml             Tempo tracing config
+├── otel-collector-config.yaml   OpenTelemetry Collector config
+├── grafana/               Grafana provisioning (dashboards, datasources)
+├── pyproject.toml         Pydantic v2, FastAPI, SQLAlchemy 2, langgraph, OpenInference, …
+└── README.md, CLAUDE.md   This file + the design rationale
 ```
 
 ### The two-line flow
@@ -492,7 +571,7 @@ flowchart LR
     V --> GM
     C --> GM
 
-    GM["composite<br/>100 × ∏ mᵢʷⁱ"] --> Raw["raw_score"]
+    GM["composite<br/>100 · Σ wᵢ mᵢ<br/>(weight-redistributed)"] --> Raw["raw_score"]
 
     Raw --> Gate{"G < 0.60?<br/>R < 0.50?<br/>V < 0.60?"}
     Gate -->|no| Final["final score<br/>(no change)"]
@@ -501,13 +580,15 @@ flowchart LR
     Cap --> Band
     Final --> Band["band()<br/>85+ Exceptional<br/>70-84 Strong<br/>50-69 Needs Opt<br/><50 Underperforming"]
 
-    Band --> Rating["Rating<br/>+ coverage check<br/>(<4 dims = band cap)"]
+    Band --> CComp["completeness check<br/>(<4 dims OR gated missing<br/>→ cap to Needs Opt)"]
+
+    CComp --> Rating["Rating<br/>(score, band, unsafe,<br/>cap_reasons, gate_failures)"]
 ```
 
-The `min_dimensions_for_full_band` setting (default 5) prevents an
+The `min_dimensions_for_full_band` setting (default 4) prevents an
 agent with only one or two reported dimensions from scoring 100 —
-the band is capped at *Needs Optimization* until at least 5 of 7
-dimensions report a signal.
+the band is capped at *Needs Optimization* until at least 4 of 7
+dimensions report a signal (and all of G/R/V are present).
 
 ### RAG signal flow
 
@@ -586,7 +667,7 @@ graph LR
     Out -->|JSON / MD / tables| Vdim
     Tok -->|human_cost_per_output / AI_cost_per_output × util| Cdim
 
-    Pdim --> GM["composite<br/>weighted geometric mean"]
+    Pdim --> GM["composite<br/>weighted arithmetic mean × 100<br/>(weight-redistributed off None)"]
     Qdim --> GM
     Edim --> GM
     Gdim --> GM
@@ -600,7 +681,11 @@ collector / engine. **Q is the exception** — it needs an LLM
 judge (the `evaluator.py` LangGraph node). When the LLM is
 unreachable, the deterministic `heuristics.py` fallback produces a
 rough but non-zero Q so the composite doesn't drop one dimension
-to "needs input".
+to "needs input". The `dpi_ls` package additionally pushes telemetry
+from external observability SDKs (LangSmith / Ragas / AgentOps for
+Q, DeepEval / Jaeger / Zipkin for V, Langfuse / Phoenix / Traceloop
+for E) into the dashboard's resource evaluation panels
+(`/api/{quality,validation,cost,productivity,execution}-evaluation`).
 
 ---
 
@@ -959,43 +1044,53 @@ Your agent code
     │
     │  dpi_ls.monitor() installs framework hooks
     │  hooks → collector.record_llm_call() / record_tool_call()
+    │  (also: external SDKs via dpi_ls.integrations →
+    │   DeepEval / Ragas / LangSmith / AgentOps / Langfuse / Phoenix / Traceloop)
     │
-    ↓  atexit: poster.post_observation()
+    ↓  atexit: poster.post_observation() + push_*_results_to_backend()
     │
     │  POST http://127.0.0.1:8000/ingest?baseline=N
     │        body: canonical AgentObservation (contract/models.py)
+    │  + POST /api/{cost,quality,validation,productivity,execution}-evaluation/{evaluate,push-*}
     ↓
 api/app.py → api/scoring.py
     │
-    ├── engine/metrics.py   compute_P, Q, E, G, R, V, C    ← project engine
-    ├── engine/score.py     rate() weighted geometric mean  ← project engine
-    ├── engine/gates.py     G/R/V compliance gates          ← project engine
-    ├── engine/bands.py     Exceptional / Strong / …        ← project engine
-    ├── contract/models.py  AgentObservation schema         ← project contract
-    └── store/repo.py       upsert_agent, save_score        ← project store
+    ├── engine/metrics.py    compute_P, Q, E, G, R, V, C    ← project engine
+    ├── engine/score.py      composite() weighted arithmetic mean × 100
+    ├── engine/gates.py      G/R/V compliance floors
+    ├── engine/bands.py      Exceptional / Strong / …
+    ├── engine/completeness.py  coverage cap (missing G/R/V OR < 4 dims → cap)
+    ├── engine/rate.py       rate() — composite → gates → bands → completeness → Rating
+    ├── contract/models.py   AgentObservation schema
+    ├── store/repo.py        upsert_agent, save_score, save_*_resource_evaluation
+    └── api/metrics_exporter.py  Prometheus gauges (one per agent per dim)
 ```
 
-**`dpi_ls` contains zero scoring math.** It is purely a signal collector
-and poster. All 7 metric computations happen in `engine/` exactly as they
-do for the REST API and the webhook adapters.
+**`dpi_ls` contains zero scoring math.** It is purely a signal collector,
+poster, and external-SDK orchestrator. All 7 metric computations happen in
+`engine/` exactly as they do for the REST API and the webhook adapters,
+and the resource evaluation panels (Langfuse / Prometheus / Grafana /
+DeepEval / Jaeger / Zipkin / LangSmith / Ragas / AgentOps) talk to the
+same store / API surface.
 
 ---
 
 ## The DPI-LS score — formula reference
 
-Each sub-metric normalises to [0, 1]. The composite is a **weighted geometric
-mean** — not a weighted sum — so a single 0.0 dimension pulls the score down
-disproportionately (and the gates handle the "stop the world" case).
+Each sub-metric normalises to [0, 1]. The composite is a **weighted arithmetic
+mean** with weight redistribution off `None` metrics — a `0.0` on any one
+dimension lowers the score by its share of the weight (the gates are the
+"stop the world" cap for fully-failed safety dimensions).
 
 ### Per-dimension formula
 
 | Dim | Formula | Vacuous default | What it captures |
 |---|---|---|---|
-| **P** — Productivity | `min(1, (AI_output_per_period / human_baseline) * normalization_factor)` | 0.0 (no baseline) | Completed agent runs vs `human_baseline` from `Settings` |
+| **P** — Productivity | `min(1, (AI_output_per_period / human_baseline) * normalization_factor)` | 0.0 (no baseline) | Completed agent runs vs `human_baseline` from `Settings` (default 1.0) |
 | **Q** — Quality | `0.70·Acc + 0.20·Con + 0.10·(1−Hal)` | n/a (always computed) | LangGraph LLM evaluator scores the last N agent prose outputs |
 | **E** — Execution | `successful_executions / total_attempts` | 0.0 (no attempts) | LLM + tool call success rate |
 | **G** — Governance | `1 − (policy_violations / total_actions)` | **1.0** (no actions = no violations) | Deterministic policy scan on every output (PII, auth errors, etc.) |
-| **R** — Risk | `1 − min(1, Σ(freq × severity) / R_max)` | **1.0** (no incidents = no risk) | Recorded exceptions and incidents |
+| **R** — Risk | `1 − min(1, Σ(freq × severity) / R_max)` | **1.0** (no incidents = no risk) | Recorded exceptions and incidents; `R_max` defaults to **3.0** |
 | **V** — Validation | `validated_components / total_required` | **1.0** (no required = nothing to validate) | Structured outputs: JSON, Markdown with `##` headers or `\| tables \|` |
 | **C** — Cost | `min(1, human_cost_per_output / AI_cost_per_output) × utilization` | 0.0 (no AI cost = no saving to credit) | Token-estimated cost vs `human_cost_per_output` |
 
@@ -1007,8 +1102,10 @@ disproportionately (and the gates handle the "stop the world" case).
 ### Composite
 
 ```
-DPI-LS = 100 · ( P^0.15 · Q^0.20 · E^0.15 · G^0.20 · R^0.15 · V^0.10 · C^0.05 )
+DPI-LS = 100 · Σ wᵢ · mᵢ          (over present metrics; weights sum to 1.0)
 ```
+
+Default weights: `P=0.15, Q=0.20, E=0.15, G=0.20, R=0.15, V=0.10, C=0.05`. A `None` metric drops out and its weight is redistributed proportionally across the present metrics — a C-only agent with `C=0.9` raw-scores 90 (the right number for the C slice, but the completeness cap is what holds the band at "Needs Optimization"). A `0.0` metric contributes zero, so a fully-failed single dim drops the score by its share of the weight, not to zero.
 
 ### Hard compliance gates
 
@@ -1016,13 +1113,15 @@ If `G < 0.60` OR `R < 0.50` OR `V < 0.60`, the score
 is capped at 69 (top of *Needs Optimization*) and flagged Unsafe — regardless
 of the raw composite. A gate firing caps the band at "Needs Optimization" and
 the Rating must distinguish capped-by-gate vs an organic 50-69 score via the
-`capped` flag and gate failure indicators.
+`unsafe`, `gate_failures`, and `capped` flags.
 
 **Completeness caps.** A rating may exceed "Needs Optimization" band ONLY IF:
-(a) none of G, R, V are missing, AND (b) `dimensions_measured >= 4`. If either
-fails, the band is capped to "Needs Optimization" with `capped=True` and
-`cap_reason="low-coverage"`. This is independent of compliance gates and
-applied after them.
+(a) none of G, R, V are missing, AND (b) `dimensions_measured >= 4`
+(`min_dimensions_for_full_band` setting). If either fails, the band is
+capped to "Needs Optimization" with `capped=True` and
+`cap_reason="low-coverage (…)"`. This is independent of compliance gates and
+applied after them — an organic Underperforming agent is left alone (the cap
+is a no-op for it).
 
 **Bands.** `85–100 Exceptional · 70–84 Strong · 50–69 Needs Optimization · <50 Underperforming`.
 
@@ -1033,7 +1132,7 @@ applied after them.
 | all metrics = 0.85 | composite = 85, band = Exceptional |
 | all metrics = 0.92 | composite = 92, band = Exceptional |
 | all metrics = 0.55 | composite = 55, band = Needs Optimization |
-| all metrics = 0.85, G = 0.25 | raw = 67, gate fires, `unsafe=True`, band = Needs Optimization |
+| all metrics = 0.85, G = 0.25 | raw = 73, gate fires, `score=69`, `unsafe=True`, band = Needs Optimization |
 
 ---
 
@@ -1042,10 +1141,14 @@ applied after them.
 All endpoints return JSON. CORS is `*` by default for the demo —
 set `WIDGET_ALLOWED_ORIGINS=https://a.com,https://b.com` to tighten.
 
+### Core scoring & board
+
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/healthz` | Liveness probe |
 | GET | `/` | Redirects to `/widget/demo.html` |
+| GET | `/index.html` | Redirects to `/widget/demo.html` |
+| GET | `/resources.html` | Redirects to `/widget/resources.html` |
 | GET | `/adapters` | Registered full-observation adapters |
 | GET | `/sources` | Registered source adapters |
 | POST | `/ingest` | Body: canonical `AgentObservation`. Optional `?baseline=N` updates the agent's human_output_per_period before scoring. |
@@ -1059,7 +1162,21 @@ set `WIDGET_ALLOWED_ORIGINS=https://a.com,https://b.com` to tighten.
 | POST | `/sme-flow/start` | Begin conversational quality capture |
 | POST | `/sme-flow/{session_id}/respond` | Next SME prompt step |
 | POST | `/agents/{id}/sme-rating` | Direct SME rating (audit-only) |
-| GET | `/widget/dpi-ls.js`, `/widget/demo.html` | Static widget bundle |
+| GET | `/widget/dpi-ls.js`, `/widget/demo.html`, `/widget/resources.html` | Static widget bundle |
+| GET | `/metrics` | Prometheus exposition (mounted `make_asgi_app()` from `prometheus_client`) |
+
+### Resource evaluation (cost / quality / validation / productivity / execution)
+
+These surface live evidence from the external observability SDKs the
+`dpi_ls` package orchestrates. Each dimension has a small CRUD-style set:
+
+| Method | Path | Notes |
+|---|---|---|
+| GET / POST | `/api/cost-evaluation/{resources,evaluate,results,urls}` | Langfuse + Prometheus + Grafana reachability |
+| GET / POST | `/api/validation-evaluation/{resources,evaluate,results,urls,push-deepeval,verify-dashboard}` | DeepEval + Jaeger + Zipkin |
+| GET / POST | `/api/quality-evaluation/{resources,evaluate,results,urls,push-langsmith,push-ragas,push-agentops,verify-dashboard}` | LangSmith + Ragas + AgentOps |
+| GET / POST | `/api/productivity-evaluation/{resources,evaluate,results}` | Apache SkyWalking + Grafana Tempo + OpenTelemetry |
+| POST | `/api/metrics/export` | Manually trigger Prometheus metrics export |
 
 OpenAPI / Swagger UI: **http://localhost:8000/docs**
 
@@ -1119,17 +1236,29 @@ Q evaluation, and posting to the dashboard.
 
 ## Configuration
 
+### Environment variables
+
 | Env var | Default | What it does |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./dpi_ls.db` | SQLAlchemy URL. Use `postgresql+psycopg2://…` in prod. |
+| `DPI_LS_DATABASE_URL` | same as `DATABASE_URL` | Override DB URL for the embedded server only. |
 | `MAPPINGS_DIR` | (unset) | Folder scanned at startup for `mapping_*.yaml`. |
 | `WIDGET_ALLOWED_ORIGINS` | `*` | Comma-separated CORS allowlist. |
+| `STATIC_CACHE_SECONDS` | `0` (no-cache) | `Cache-Control: public, max-age=` for `/widget/*` static files. |
 | `MODEL_NAME` / `BEDROCK_MODEL_ID` | `us.amazon.nova-pro-v1:0` | Bedrock model for Q LLM evaluator. |
 | `AWS_DEFAULT_REGION` / `AWS_REGION` | (boto3 default chain) | AWS region for Bedrock. |
-| `DPI_LS_DATABASE_URL` | same as `DATABASE_URL` | Override DB URL for the embedded server only. |
+| `LANGFUSE_HOST` / `LANGFUSE_PUBLIC_KEY` / `LANGFUSE_SECRET_KEY` | (unset) | If set, `scoring.py` pushes a trace + token/cost/score to Langfuse on every ingest. |
+| `PROMETHEUS_URL` | `http://localhost:9090` | Surfaced in the resource-evaluation URLs panel. Falls back to `/metrics/` on the API server itself. |
+| `GRAFANA_URL` | `http://localhost:3000` | Surfaced in the resource-evaluation URLs panel. Falls back to `/metrics/` on the API server itself. |
+| `JAEGER_ENDPOINT` | `http://127.0.0.1:14268` | Jaeger collector endpoint, used by `dpi_ls.monitor()` to set up tracing. |
+| `DEEPEVAL_URL` / `JAEGER_URL` / `ZIPKIN_URL` | (cloud / localhost) | Surfaced in the validation-evaluation URLs panel. |
+| `LANGSMITH_URL` / `RAGAS_URL` / `AGENTOPS_URL` | (cloud) | Surfaced in the quality-evaluation URLs panel. |
+| `TESTING` | (unset) | Set to disable the background Prometheus metrics export task (used by the test suite). |
 
-Per-deployment tunables (weights, gate thresholds, R_max, etc.) live in
-the `settings` DB table — fetch/write via `GET /settings` and `PUT /settings`.
+Per-deployment tunables (weights, gate thresholds, R_max, human_cost_per_output,
+utilization, normalization_factor, input_token_price, output_token_price,
+min_dimensions_for_full_band) live in the `settings` DB table — fetch/write
+via `GET /settings` and `PUT /settings`.
 
 ---
 
@@ -1139,16 +1268,31 @@ the `settings` DB table — fetch/write via `GET /settings` and `PUT /settings`.
 uv run pytest           # or: pytest
 ```
 
-**232 tests, < 12 seconds.** All pass. Key test files:
+**44 test files, 274 test functions / classes, < 12 s** on a developer
+laptop. All pass. Key test files:
 
 | File | What it covers |
 |---|---|
 | `tests/test_engine_reference.py` | 4 spec reference outputs — if these break, the engine is wrong |
+| `tests/test_engine_formulas.py` | edge cases for 7 metric formulas + gate/cap pipeline |
+| `tests/test_engine_components.py` | band, gates, completeness individually |
+| `tests/test_completeness.py` | coverage cap (gated-missing, low-coverage, G+R+V+1 = no cap, …) |
+| `tests/test_rating_coverage.py` | coverage flag backwards-compat (`coverage_capped` / `cap_reasons`) |
 | `tests/test_dpi_ls_collector.py` | SignalCollector: record_llm_call, record_agent_run, outputs_for_q, to_observation |
-| `tests/test_dpi_ls_frameworks.py` | `_safe_text`, `_safe_iter_tokens`, patcher idempotency |
-| `tests/test_dpi_ls_end_to_end.py` | Full monitor() → POST /ingest → score round-trip |
-| `tests/test_api_*.py` | FastAPI routes, ingest, settings, SME flow |
-| `tests/test_ingestion_*.py` | Webhook adapter, OTel, source adapters |
+| `tests/test_dpi_ls_heuristics.py` | `heuristics.py` Q fallback + clipping in set_quality |
+| `tests/test_dpi_ls_frameworks.py` | `_safe_text`, `_safe_iter_tokens`, patcher idempotency, OpenAIAgents runner-run hook |
+| `tests/test_dpi_ls_end_to_end.py` | Full monitor() → POST /ingest → score round-trip, multi-agent reset, local-copy fallback |
+| `tests/test_dpi_ls_rag.py` / `tests/test_dpi_ls_llama_index.py` | RAG + LlamaIndex patcher tests |
+| `tests/test_api_*.py` | FastAPI routes: agents, health, ingest, settings, sources, sme_flow, sme_rating |
+| `tests/test_webhook_adapter.py` / `test_source_adapters.py` / `test_mapping.py` / `test_jsonpath.py` | ingestion layer |
+| `tests/test_partial_merge.py` / `tests/test_registry.py` | merge + registry semantics |
+| `tests/test_{aws_cost,bedrock,sap_hr,langgraph,audit_trail,bmc,servicenow,ray,langfuse,new_adapters}.py` | per-source-adapter tests, with `fixtures/source_*.json` |
+| `tests/test_cost.py` / `tests/test_cost_resource_evaluation.py` | C-dimension math + resource-evaluation service |
+| `tests/test_productivity_feed.py` | P-dimension math (normalization_factor, baseline) |
+| `tests/test_sme_flow.py` / `tests/test_widget_m6.py` | conversational Q capture + widget rendering |
+| `tests/test_widget_serving.py` / `tests/test_widget_labels.py` | static-file serving + label correctness |
+| `tests/test_fixtures.py` | all `fixtures/obs_*.json` parse + rate as expected |
+| `tests/test_store.py` | repo + DB round-trip (settings, agents, scores, history) |
 
 ---
 
@@ -1200,15 +1344,25 @@ it silently instead of trying (and failing) to bind the same port.
 
 ## What's intentionally not done
 
-- **No auth.** Anyone who can reach the API can POST observations or PUT settings.
-- **Live source connectors** (boto3 HTTP fetch, ServiceNow REST, Jira REST) aren't wired.
-  The source adapters accept the JSON shapes those systems produce; the
-  HTTP fetch layer is the next milestone.
-- **`langgraph`, `bedrock`, `ray`, `bmc`, `sap_hr`** source adapters are stubs
-  that register and return `[]`.
-- No Dockerfile, no Alembic migrations, no rate limiting, no metrics export.
-- Agent marketplace, multi-tenant onboarding, billing — parked per the spec.
+- **No auth.** Anyone who can reach the API can POST observations or PUT
+  settings. CORS is `*` by default for the demo; lock down with
+  `WIDGET_ALLOWED_ORIGINS` in prod.
+- **Live source connectors** (boto3 HTTP fetch, ServiceNow REST, Jira REST,
+  Ray dashboard fetch, etc.) aren't wired. The 18 source adapters
+  (`ingestion/sources/`) accept the JSON shapes those systems produce and
+  parse them deterministically; the live HTTP fetch is the next milestone.
+- **Alembic migrations.** The DB schema is created in-place by
+  `store.db.init_db()`. Production deployments use a one-time `init_db`
+  against a fresh database; we haven't built a migration ladder.
+- **Live HTTP fetch for the source adapters** (the `_StubAdapter` base in
+  `ingestion/sources/stubs.py` exists but is currently empty:
+  `ALL_STUBS = ()` — no stubs remain after the real-adapter rollout).
+- **Rate limiting, request signing, agent marketplace, multi-tenant
+  onboarding, billing** — parked per the spec.
 
-The pieces that *are* done — the engine, the contract, the ingestion pattern,
-the `dpi_ls` package, the widget — were built to make any of the above
-incremental: a real AWS adapter is "fill in the fetch step," not a rewrite.
+The pieces that *are* done — the engine, the contract, the ingestion
+pattern, the `dpi_ls` package, the widget, the resource-evaluation
+services, the Prometheus exporter, the OTel / Jaeger / Zipkin /
+Prometheus / Tempo / Langfuse / DeepEval / Ragas / LangSmith / AgentOps
+pipelines — were built to make any of the above incremental. A real
+AWS adapter is "fill in the fetch step", not a rewrite.
