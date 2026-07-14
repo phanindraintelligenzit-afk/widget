@@ -707,13 +707,13 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
     jaeger_online = _cloud_or_tcp(jaeger_url)
     zipkin_online = _cloud_or_tcp(zipkin_url)
 
-    # Fallback: when Jaeger/Zipkin aren't running locally, point to our
-    # own validation results so buttons are never disabled.
+    # Fallback: when Jaeger/Zipkin aren't running locally on dedicated ports, 
+    # point to Grafana as the centralized visualization layer.
     if not jaeger_online:
-        jaeger_url = "http://localhost:8000/api/validation-evaluation/results"
+        jaeger_url = "http://localhost:3000"
         jaeger_online = True
     if not zipkin_online:
-        zipkin_url = "http://localhost:8000/api/validation-evaluation/results"
+        zipkin_url = "http://localhost:3000"
         zipkin_online = True
 
     return {
@@ -1064,13 +1064,18 @@ def get_productivity_evaluation_urls() -> dict[str, dict]:
             return False
 
     otel_url = os.environ.get("OTEL_COLLECTOR_URL", "http://localhost:4318")
+    otel_ui_url = os.environ.get("OTEL_UI_URL", "http://localhost:3000")
+    
     tempo_url = os.environ.get("TEMPO_URL", "http://localhost:3200")
+    tempo_ui_url = os.environ.get("TEMPO_UI_URL", "http://localhost:3000")
+    
     skywalking_url = os.environ.get("SKYWALKING_URL", "http://localhost:8080")
+    skywalking_ui_url = os.environ.get("SKYWALKING_UI_URL", "http://localhost:8080")
 
     return {
-        "OpenTelemetry":     {"url": otel_url,       "online": _is_reachable(otel_url)},
-        "Grafana Tempo":     {"url": tempo_url,      "online": _is_reachable(tempo_url)},
-        "Apache SkyWalking": {"url": skywalking_url, "online": _is_reachable(skywalking_url)},
+        "OpenTelemetry":     {"url": otel_ui_url,       "online": _is_reachable(otel_url)},
+        "Grafana Tempo":     {"url": tempo_ui_url,      "online": _is_reachable(tempo_url)},
+        "Apache SkyWalking": {"url": skywalking_ui_url, "online": _is_reachable(skywalking_url)},
     }
 
 

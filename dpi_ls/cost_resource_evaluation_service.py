@@ -122,14 +122,14 @@ class CostResourceEvaluationService:
         if score_row:
             c_sub = score_row.sub_metrics.get("C", {})
         
-        langfuse_keys = [k for k in c_sub.keys() if k in ["input_tokens", "output_tokens"] or "cost" in k.lower()]
+        langfuse_keys = ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"]
         prom_keys = ["ai_cost_per_output", "utilization"]
         grafana_keys = ["human_cost_per_output", "efficiency_ratio", "cost_score", "tco"]
 
         # Define owned metrics per resource dynamically without fallbacks
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
         resource_metrics = {
-            "Langfuse": ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"] if is_test_env else langfuse_keys,
+            "Langfuse": langfuse_keys,
             "Prometheus": prom_keys,
             "Grafana": grafana_keys
         }
@@ -169,7 +169,14 @@ class CostResourceEvaluationService:
                     val = None
                     # Langfuse metrics use the backend runtime score logic from c_sub (same as Agent Dashboard)
                     if resource.name == "Langfuse":
-                        val = c_sub.get(metric)
+                        if metric == "prompt_cost":
+                            val = c_sub.get("Prompt Cost (USD)")
+                        elif metric == "completion_cost":
+                            val = c_sub.get("Completion Cost (USD)")
+                        elif metric == "model_cost":
+                            val = c_sub.get("Model Cost (USD)")
+                        else:
+                            val = c_sub.get(metric)
 
                     # Prometheus / Grafana metrics still use the backend runtime score logic as before
                     elif metric == "input_tokens":

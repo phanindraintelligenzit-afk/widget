@@ -82,6 +82,17 @@ if os.getenv("LANGFUSE_PUBLIC_KEY"):
     litellm.success_callback = ["langfuse"]
     litellm.failure_callback = ["langfuse"]
 
+try:
+    from skywalking import agent, config
+    config.init(
+        agent_collector_backend_services=os.environ.get("SKYWALKING_COLLECTOR", '127.0.0.1:11800'),
+        agent_name='dpi-ls-agent',
+        agent_logging_level='DEBUG'
+    )
+    agent.start()
+except ImportError:
+    pass
+
 import dpi_ls  # line 1 — the installable package
 
 
@@ -581,6 +592,42 @@ def _setup_zipkin_tracing() -> tuple:
 
 
 
+# ===============================================================
+#  Grafana Tempo OpenTelemetry Setup
+# ===============================================================
+
+def _setup_tempo_tracing() -> tuple:
+    """
+    Set up Grafana Tempo tracing via OTLP HTTP exporter.
+    Returns (tracer, provider) or (None, None) on failure.
+    """
+    try:
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+
+        tempo_otlp_endpoint = os.environ.get("TEMPO_OTLP_HTTP_ENDPOINT", "http://localhost:4318")
+
+        import socket
+        try:
+            with socket.create_connection(("127.0.0.1", 4318), timeout=0.3):
+                pass
+        except OSError:
+            print("[Tempo] Tempo OTLP HTTP endpoint is offline — Tempo tracing skipped")
+            return None, None
+
+        tempo_exporter = OTLPSpanExporter(
+            endpoint=tempo_otlp_endpoint + "/v1/traces",
+        )
+
+        span_processor = BatchSpanProcessor(tempo_exporter)
+        _global_provider.add_span_processor(span_processor)
+
+        tracer = trace.get_tracer(__name__)
+        print(f"[Tempo] OTel tracer configured (HTTP). Endpoint: {tempo_otlp_endpoint}")
+        return tracer, _global_provider
+
+    except Exception as e:
+        print(f"[Tempo] Tracing setup failed: {e}")
+        return None, None
 
 
 # ===============================================================
@@ -656,6 +703,9 @@ async def run_agent_observation() -> None:
     
     # Set up Zipkin tracing
     zipkin_tracer, zipkin_provider = _setup_zipkin_tracing()
+
+    # Set up Grafana Tempo tracing
+    tempo_tracer, tempo_provider = _setup_tempo_tracing()
 
     fetcher = AWSCostExplorerFetcher()
 
@@ -760,6 +810,15 @@ async def run_agent_observation() -> None:
         except Exception as e:
             print(f"[Zipkin] Flush error: {e}")
 
+    # ── Tempo tracing finalization ────────────────────────────────────
+    print(f"\n[Tempo] Finalizing trace data...")
+    if tempo_tracer and tempo_provider:
+        try:
+            tempo_provider.force_flush()
+            print(f"[Tempo] Spans flushed to Grafana Tempo successfully.")
+        except Exception as e:
+            print(f"[Tempo] Flush error: {e}")
+
     # Push DeepEval results to backend
     _push_deepeval_results_to_backend(deepeval_results, DPI_LS_HOST, DPI_LS_PORT)
 
@@ -811,6 +870,22 @@ async def run_agent_observation() -> None:
         "token_depth": token_depth, 
         "throughput": throughput
     })
+    
+    try:
+        from skywalking.trace.context import get_context
+        from skywalking.trace.tags import Tag
+        
+        class CustomTag(Tag):
+            def __init__(self, key, val):
+                self.key = key
+                super().__init__(val)
+                
+        context = get_context()
+        with context.new_local_span("AgentExecution") as span:
+            span.tag(CustomTag("token_depth", str(token_depth)))
+            span.tag(CustomTag("throughput", str(throughput)))
+    except ImportError:
+        pass
 
 
     # Flush Langfuse traces before triggering resource evaluation
@@ -889,3 +964,14 @@ if __name__ == "__main__":
     info = _state.get_server_info()
     if info is not None and os.getenv("DPI_LS_NO_BLOCK") != "1":
         print(f"Dashboard is live -> open  {info.base_url}  in your browser.")
+        
+    import time
+    time.sleep(3)
+    try:
+        from skywalking import agent
+        agent.stop()
+    except Exception:
+        pass
+    
+    import os
+    os._exit(0)

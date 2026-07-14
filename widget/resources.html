@@ -821,6 +821,7 @@ function renderResourceCard(name, metrics) {
   const detectedCount = metrics.filter(m => m.detected).length;
   const lastRun = metrics[0]?.last_run ? new Date(metrics[0].last_run).toLocaleString() : '—';
   const dashVerified = metrics.some(m => m.dashboard_verified);
+  const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10);
   const statusClass = `status-${overallStatus}`;
 
   let statusCardBadge;
@@ -891,11 +892,15 @@ function renderResourceCard(name, metrics) {
       <!-- Metrics Table -->
       <div class="rc-metrics" style="margin-top: 15px;">
         <button class="toggle-table-btn" onclick="toggleResourceTable('${escHtml(name)}')" style="width:100%; text-align:left; background:rgba(255,255,255,0.05); border:1px solid var(--border); padding:8px 12px; border-radius:6px; color:var(--text); cursor:pointer; font-weight:bold; font-size:12px; display:flex; align-items:center; justify-content:space-between; outline:none; transition: background 0.2s;">
-          <span>📊 ${meta.category.includes('Validation') ? 'Validation' : (['Infrastructure Metrics', 'Metrics Visualization'].includes(meta.category) ? 'Cost' : (['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity' : 'Quality'))} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
+          <span>📊 ${meta.category.includes('Validation') ? 'Validation' : (['Infrastructure Metrics', 'Metrics Visualization', 'LLM Observability'].includes(meta.category) ? 'Cost' : (['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity' : 'Quality'))} Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
           ${renderResourceTable(metrics, name)}
+          ${hasEvidence ? `<div style="margin-top:12px; padding:10px; background:#0f172a; border:1px solid #1e293b; border-radius:6px;">
+            <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; margin-bottom:4px; font-weight:700;">Final Runtime Evidence Payload</div>
+            <code style="font-size:11px; color:#4ade80; font-family:'Courier New', monospace;">${escHtml(metrics.find(m => m.evidence && m.evidence.length > 10).evidence)}</code>
+          </div>` : ''}
         </div>
       </div>
 

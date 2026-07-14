@@ -216,22 +216,30 @@
     sub = sub || {};
     settings = settings || {};
     
-    const inputTokens = typeof sub.input_tokens === 'number' ? sub.input_tokens : null;
-    const outputTokens = typeof sub.output_tokens === 'number' ? sub.output_tokens : null;
+    const getNum = (obj, key, fallback) => {
+      if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+        const val = parseFloat(obj[key]);
+        if (!isNaN(val)) return val;
+      }
+      return fallback !== undefined ? fallback : null;
+    };
+
+    const inputTokens = getNum(sub, 'input_tokens');
+    const outputTokens = getNum(sub, 'output_tokens');
     
-    const inputTokenPrice = typeof sub.input_token_price === 'number' ? sub.input_token_price : (typeof settings.input_token_price === 'number' ? settings.input_token_price : null);
-    const outputTokenPrice = typeof sub.output_token_price === 'number' ? sub.output_token_price : (typeof settings.output_token_price === 'number' ? settings.output_token_price : null);
-    const completedOutputs = typeof sub.completed_outputs === 'number' ? sub.completed_outputs : 1;
-    const utilization = typeof sub.utilization === 'number' ? sub.utilization : (typeof settings.utilization === 'number' ? settings.utilization : null);
-    const humanCostPerOutput = typeof sub["Human Cost / Output"] === 'number' ? sub["Human Cost / Output"] : (typeof settings.human_cost_per_output === 'number' ? settings.human_cost_per_output : null);
+    const inputTokenPrice = getNum(sub, 'input_token_price', getNum(settings, 'input_token_price'));
+    const outputTokenPrice = getNum(sub, 'output_token_price', getNum(settings, 'output_token_price'));
+    const completedOutputs = getNum(sub, 'completed_outputs', 1);
+    const utilization = getNum(sub, 'utilization', getNum(settings, 'utilization'));
+    const humanCostPerOutput = getNum(sub, 'Human Cost / Output', getNum(settings, 'human_cost_per_output'));
     
-    const promptCost = typeof sub["Prompt Cost (USD)"] === 'number' ? sub["Prompt Cost (USD)"] : (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null);
-    const completionCost = typeof sub["Completion Cost (USD)"] === 'number' ? sub["Completion Cost (USD)"] : (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null);
-    const modelCost = typeof sub["Model Cost (USD)"] === 'number' ? sub["Model Cost (USD)"] : (promptCost !== null && completionCost !== null ? promptCost + completionCost : null);
-    const aiCostPerOutput = typeof sub["AI Cost Per Output"] === 'number' ? sub["AI Cost Per Output"] : (modelCost !== null && completedOutputs ? modelCost / completedOutputs : null);
-    const efficiencyRatio = typeof sub["Efficiency Ratio"] === 'number' ? sub["Efficiency Ratio"] : (humanCostPerOutput !== null && aiCostPerOutput ? humanCostPerOutput / aiCostPerOutput : null);
+    const promptCost = getNum(sub, 'Prompt Cost (USD)', (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null));
+    const completionCost = getNum(sub, 'Completion Cost (USD)', (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null));
+    const modelCost = getNum(sub, 'Model Cost (USD)', (promptCost !== null && completionCost !== null ? promptCost + completionCost : null));
+    const aiCostPerOutput = getNum(sub, 'AI Cost Per Output', (modelCost !== null && completedOutputs ? modelCost / completedOutputs : null));
+    const efficiencyRatio = getNum(sub, 'Efficiency Ratio', (humanCostPerOutput !== null && aiCostPerOutput ? humanCostPerOutput / aiCostPerOutput : null));
     const costScore = (value !== undefined && value !== null) ? (value * 5) : null;
-    const tco = typeof sub["Total Cost (USD)"] === 'number' ? sub["Total Cost (USD)"] : (humanCostPerOutput !== null && modelCost !== null ? humanCostPerOutput + modelCost : null);
+    const tco = getNum(sub, 'Total Cost (USD)', (humanCostPerOutput !== null && modelCost !== null ? humanCostPerOutput + modelCost : null));
 
     // Calculate dynamic values
     const calcPromptCost = (inputTokens !== null && inputTokenPrice !== null) ? inputTokens * inputTokenPrice : null;
@@ -785,14 +793,21 @@
     }
 
     return {
-      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Worker Concurrency", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 0 },
-      execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Execution Duration", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
-      throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Throughput", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 2 },
-      resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Resolution Velocity", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
-      human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "E[C_Human]", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
-      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
-      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
-      Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Dynamic Calculation", dec: 4 },
+      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 0 },
+      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
+      api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
+      throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 2 },
+      resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Raw Value", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      assigned_tasks: { val: sub.assigned, calc: sub.assigned, disp: sub.assigned, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
+      completed_tasks: { val: sub.completed, calc: sub.completed, disp: sub.completed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
+      failed_tasks: { val: sub.failed, calc: sub.failed, disp: sub.failed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
+      human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "Raw Value", src: "Settings Layer", resource: "Settings Layer", dec: 3 },
+      human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
+      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
+      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
+      Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Backend Engine", dec: 4 },
     };
   }
 
