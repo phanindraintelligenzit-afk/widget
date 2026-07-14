@@ -49,31 +49,52 @@ def _wrap_create(original, collector: SignalCollector):
     if is_coro:
         async def async_create(*args, **kwargs):
             collector.attempts += 1
+            # Extract user input from messages (same as raw_openai)
+            user_input = _extract_user_input_from_messages(kwargs)
             try:
                 response = await original(*args, **kwargs)
             except Exception as e:
                 collector.record_error(e, source="anthropic")
                 raise
-            _record_response(collector, response)
+            _record_response(collector, response, user_input=user_input)
             return response
         return functools.wraps(original)(async_create)
 
     def sync_create(*args, **kwargs):
         collector.attempts += 1
+        # Extract user input from messages (same as raw_openai)
+        user_input = _extract_user_input_from_messages(kwargs)
         try:
             response = original(*args, **kwargs)
         except Exception as e:
             collector.record_error(e, source="anthropic")
             raise
-        _record_response(collector, response)
+        _record_response(collector, response, user_input=user_input)
         return response
     return functools.wraps(original)(sync_create)
 
 
-def _record_response(collector: SignalCollector, response: Any) -> None:
+def _extract_user_input_from_messages(kwargs: dict[str, Any]) -> str | None:
+    """Extract the last user message from the messages list."""
+    messages = kwargs.get("messages", [])
+    if isinstance(messages, list):
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get("role") == "user":
+                content = msg.get("content")
+                if isinstance(content, str):
+                    return content
+                elif isinstance(content, list) and content:
+                    # Extract text from content blocks
+                    for block in content:
+                        if isinstance(block, dict) and block.get("type") == "text":
+                            return block.get("text")
+    return None
+
+
+def _record_response(collector: SignalCollector, response: Any, user_input: str | None = None) -> None:
     text = _safe_text(response)
     in_t, out_t = _safe_iter_tokens(response)
     if text:
-        collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True)
+        collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True, user_input=user_input)
     else:
         collector.successful += 1

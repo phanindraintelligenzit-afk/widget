@@ -140,7 +140,7 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
                 else:
                     collector.record_llm_call("", ok=False, system=input_text or runnable_name, action_name=runnable_name)
                 raise
-            _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args)
+            _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args, user_input=input_text)
             return result
         return functools.wraps(original)(async_invoke)
 
@@ -197,12 +197,12 @@ def _wrap_runnable(original, collector: SignalCollector, attr: str):
             else:
                 collector.record_llm_call("", ok=False, system=input_text or runnable_name, action_name=runnable_name)
             raise
-        _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args)
+        _capture_runnable_result(collector, result, is_tool, system=input_text or runnable_name, action_name=runnable_name, tool_args=tool_args, user_input=input_text)
         return result
     return functools.wraps(original)(sync_invoke)
 
 
-def _capture_runnable_result(collector: SignalCollector, result: Any, is_tool: bool, system: str | None = None, action_name: str | None = None, tool_args: dict | None = None) -> None:
+def _capture_runnable_result(collector: SignalCollector, result: Any, is_tool: bool, system: str | None = None, action_name: str | None = None, tool_args: dict | None = None, user_input: str | None = None) -> None:
     text = _safe_text(result)
     in_t, out_t = _safe_iter_tokens(result)
     if is_tool:
@@ -212,6 +212,6 @@ def _capture_runnable_result(collector: SignalCollector, result: Any, is_tool: b
         collector.record_tool_call(ok=ok, action_name=action_name, tool_args=tool_args)
     else:
         if text:
-            collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True, system=system, action_name=action_name)
+            collector.record_llm_call(text, tokens_in=in_t, tokens_out=out_t, ok=True, system=system, action_name=action_name, user_input=user_input)
         else:
-            collector.record_llm_call("", ok=True, system=system, action_name=action_name)
+            collector.record_llm_call("", ok=True, system=system, action_name=action_name, user_input=user_input)

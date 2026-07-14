@@ -55,7 +55,10 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
     assert out1.startswith("Echo:")
     assert collector.attempts == 2
     assert collector.successful == 2
-    assert {v["rule"] for v in collector.violations} >= {"pii.email"}
+    # Check that email PII was detected in violations (policy_name or original_entity matches)
+    policy_names = {v.get("policy_name", "") for v in collector.violations}
+    original_entities = {v.get("original_entity", "") for v in collector.violations}
+    assert "EmailAddressLeaked" in policy_names or "EMAIL_ADDRESS" in original_entities
 
     # The server is running. Finalize manually (bypassing atexit) so
     # the test can immediately assert on /agents/{id}/score.

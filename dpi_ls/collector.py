@@ -100,6 +100,9 @@ class SignalCollector:
     # G — governance. Each violation is a (rule, when) tuple.
     violations: list[dict] = field(default_factory=list)
     _pending_tool_violations: list[dict] = field(default_factory=list)
+    _llm_inputs: list[str] = field(default_factory=list)  # User inputs passed to each LLM call
+    _llm_input_violations: list[dict] = field(default_factory=list)  # Violations detected in inputs
+    _last_user_input: str = ""  # Most recent user input (for fallback when not explicitly passed)
     policy_evaluations: int = 0
 
     # R — risk. Each incident is a (severity_weight, frequency, source).
@@ -159,8 +162,16 @@ class SignalCollector:
         system: str | None = None,
         ok: bool = True,
         action_name: str | None = None,
+        user_input: str | None = None,
     ) -> None:
-        """One LLM call completed. Records tokens/cost/output for Q."""
+        """One LLM call completed. Records tokens/cost/output for Q.
+
+        Args:
+            output: LLM-generated output text.
+            user_input: The user/prompt input passed to the LLM (for governance scanning).
+        """
+        llm_call_index = self.llm_calls  # Capture index BEFORE incrementing
+
         with self._lock:
             self.attempts += 1
             self.llm_calls += 1
@@ -173,8 +184,28 @@ class SignalCollector:
             self.cloud_cost += float(cost or 0.0)
             if action_name:
                 self.execution_details.append({"name": action_name, "ok": ok})
+
+        # G: Scan user input for policy violations BEFORE the LLM sees it
+        if user_input:
+            self._llm_inputs.append(user_input)
+            self._last_user_input = user_input  # Track for fallback
+            input_violations = scan_policy_violations(user_input)
+            if input_violations:
+                now = _utcnow().isoformat()
+                for incident in input_violations:
+                    self._llm_input_violations.append({
+                        "policy_name": incident["policy_name"],
+                        "source": incident["source"],
+                        "original_entity": incident["original_entity"],
+                        "when": now,
+                        "user_input": user_input[:120],  # Truncate for storage
+                        "user_input_full": user_input,
+                        "llm_call_index": llm_call_index,
+                        "violation_source": "user_input",
+                    })
+
         if output:
-            self._capture_output(output, system=system)
+            self._capture_output(output, system=system, user_input=user_input, llm_call_index=llm_call_index)
 
     def record_source(self, text: str, *, kind: str = "input") -> None:
         """Record source data used as ground truth for hallucination detection.
@@ -368,6 +399,8 @@ class SignalCollector:
         *,
         system: str | None = None,
         kind: str = _KIND_AGENT,
+        user_input: str | None = None,
+        llm_call_index: int | None = None,
     ) -> None:
         """Record one output and run deterministic G/V checks on it.
 
@@ -376,6 +409,8 @@ class SignalCollector:
             system: Optional label (e.g. the tool name). Used for logging.
             kind:   ``'agent'`` for LLM-generated prose/answers (used by Q),
                     ``'tool'`` for raw tool results (used only for G/V).
+            user_input: The user input that produced this output (for action labeling).
+            llm_call_index: Index of the LLM call (for grouping input/output violations).
         """
         if not output:
             return
@@ -392,11 +427,25 @@ class SignalCollector:
         if kind == _KIND_AGENT:
             # G: deterministic policy scan over the output text.
             incidents = scan_policy_violations(output)
-            action_label = system if system else "LLM Generation"
+
+            # Use user input as action label if available, otherwise fall back to last user input or system label
+            if user_input:
+                action_label = user_input[:100] + ("..." if len(user_input) > 100 else "")
+            elif self._last_user_input:
+                # Fallback: use most recent user input (prompts without explicit user_input param)
+                action_label = self._last_user_input[:100] + ("..." if len(self._last_user_input) > 100 else "")
+            elif system:
+                action_label = system
+            else:
+                # Last resort: generic label (rare edge case)
+                action_label = "LLM Generation"
 
             with self._lock:
                 self.policy_evaluations += 1
                 now = _utcnow().isoformat()
+
+                # Only record REAL violations, not "safe" actions
+                # Safe actions are tracked via execution attempts, not violations
                 if incidents:
                     for incident in incidents:
                         self.violations.append({
@@ -404,15 +453,16 @@ class SignalCollector:
                             "source": incident["source"],
                             "original_entity": incident["original_entity"],
                             "when": now,
-                            "action_name": action_label
+                            "action_name": action_label,
+                            "violation_source": "agent_output",
+                            "llm_call_index": llm_call_index,
                         })
-                else:
-                    self.violations.append({"policy_name": "none", "when": now, "action_name": action_label})
-                    
+
                 # Flush pending semantic tool violations and give them the SAME timestamp
                 # so they group into this exact action in the UI.
                 for tv in self._pending_tool_violations:
                     tv["when"] = now
+                    tv["violation_source"] = "tool_action"
                     self.violations.append(tv)
                 self._pending_tool_violations.clear()
 
@@ -422,7 +472,7 @@ class SignalCollector:
                 if incidents:
                     with self._lock:
                         self.incidents.extend(incidents)
-            
+
             future = _risk_executor.submit(_scan_and_record)
             with self._lock:
                 self._risk_futures = [f for f in self._risk_futures if not f.done()]
@@ -523,7 +573,10 @@ class SignalCollector:
                     if s and s not in sources:
                         sources.append(s)
                 existing["source"] = ", ".join(sources)
-                
+
+        # Merge user input violations with regular violations for the observation
+        all_violations = list(self._llm_input_violations) + list(self.violations)
+
         obs: dict[str, Any] = {
             "agent_id": self.agent_id,
             "agent_name": self.agent_name or self.agent_id,
@@ -541,7 +594,7 @@ class SignalCollector:
             },
             "policy": {
                 "total_actions": max(self.policy_evaluations, 1),
-                "violations": self.violations,
+                "violations": all_violations,
             },
             "incidents": list(aggregated_incidents.values()),
             "validation": {

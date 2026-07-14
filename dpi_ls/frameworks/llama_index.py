@@ -157,12 +157,15 @@ def _wrap_run(original, owner: Any, attr: str):
             collector = resolve_collector(owner, fallback=None)
             if collector is None:
                 return await original(*args, **kwargs)
+            # Extract user input (first positional arg is the query string)
+            user_input = args[0] if args else kwargs.get("str_or_query_bundle") or kwargs.get("message")
+            user_input = str(user_input) if user_input else None
             try:
                 result = await original(*args, **kwargs)
             except Exception as e:
                 collector.record_error(e, source="llama_index")
                 raise
-            _capture_run_result(collector, result, attr)
+            _capture_run_result(collector, result, attr, user_input=user_input)
             return result
         return functools.wraps(original)(async_wrapper)
 
@@ -170,12 +173,15 @@ def _wrap_run(original, owner: Any, attr: str):
         collector = resolve_collector(owner, fallback=None)
         if collector is None:
             return original(*args, **kwargs)
+        # Extract user input (first positional arg is the query string)
+        user_input = args[0] if args else kwargs.get("str_or_query_bundle") or kwargs.get("message")
+        user_input = str(user_input) if user_input else None
         try:
             result = original(*args, **kwargs)
         except Exception as e:
             collector.record_error(e, source="llama_index")
             raise
-        _capture_run_result(collector, result, attr)
+        _capture_run_result(collector, result, attr, user_input=user_input)
         return result
     return functools.wraps(original)(sync_wrapper)
 
@@ -220,7 +226,7 @@ def _wrap_retrieve(original, owner: Any, attr: str):
 # Result capture
 # ---------------------------------------------------------------------------
 
-def _capture_run_result(collector: SignalCollector, result: Any, attr: str) -> None:
+def _capture_run_result(collector: SignalCollector, result: Any, attr: str, user_input: str | None = None) -> None:
     """Pull text + token usage out of a query / chat response."""
     text = _extract_response_text(result)
     in_t, out_t = _extract_response_tokens(result)
@@ -231,11 +237,12 @@ def _capture_run_result(collector: SignalCollector, result: Any, attr: str) -> N
         cost = (in_t + out_t) * 0.000001  # $0.001 per 1k tokens blended
         collector.record_llm_call(
             text or "", tokens_in=in_t, tokens_out=out_t, cost=cost, ok=True,
+            user_input=user_input,
         )
     else:
         # Query returned nothing readable — still count it as a successful
         # empty call so E reflects the work.
-        collector.record_llm_call("", ok=True)
+        collector.record_llm_call("", ok=True, user_input=user_input)
 
 
 def _capture_retrieval(collector: SignalCollector, nodes: Any) -> None:

@@ -81,9 +81,8 @@ def test_aws_key_in_output_triggers_secret_violation():
 def test_clean_output_has_no_violations():
     c = _make()
     c.record_llm_call("The sky is blue and the grass is green.")
-    # Clean output with no PII or secrets should have no violations (or only "none")
-    violations = [v for v in c.violations if v.get("policy_name") != "none"]
-    assert len(violations) == 0
+    # Clean output with no PII or secrets should have no violations recorded
+    assert len(c.violations) == 0
 
 
 def test_prompt_injection_in_output_triggers_violation():
@@ -203,7 +202,7 @@ def test_scan_returns_list_of_dicts():
     if incidents:  # Skip if Presidio not installed
         assert len(incidents) == 1
         assert incidents[0]["policy_name"] == "EmailAddressLeaked"
-        assert incidents[0]["source"].startswith("nlpPiiDetection:")
+        assert incidents[0]["source"].startswith("presidio:")
         assert incidents[0]["original_entity"] == "EMAIL_ADDRESS"
 
 

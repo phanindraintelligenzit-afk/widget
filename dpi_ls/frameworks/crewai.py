@@ -83,7 +83,7 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="crewai")
                 raise
-            _capture_crew_output(collector, result)
+            _capture_crew_output(collector, result, user_input=input_text)
             return result
         return functools.wraps(original)(async_kickoff)
 
@@ -96,22 +96,22 @@ def _wrap_kickoff(original, collector: SignalCollector, attr: str):
         except Exception as e:
             collector.record_error(e, source="crewai")
             raise
-        _capture_crew_output(collector, result)
+        _capture_crew_output(collector, result, user_input=input_text)
         return result
     return functools.wraps(original)(sync_kickoff)
 
 
-def _capture_crew_output(collector: SignalCollector, result: Any) -> None:
+def _capture_crew_output(collector: SignalCollector, result: Any, user_input: str | None = None) -> None:
     """Best-effort: take the final raw output, plus any per-task outputs."""
     if result is None:
         # The kickoff returned nothing — count as a successful empty call
         # so E is non-zero.
-        collector.record_llm_call("", ok=True)
+        collector.record_llm_call("", ok=True, user_input=user_input)
         return
 
     text = getattr(result, "raw", None) or _safe_text(result)
     if text:
-        collector.record_llm_call(text, ok=True)
+        collector.record_llm_call(text, ok=True, user_input=user_input)
 
     # Each task is one LLM call in the collector's eyes. Use the
     # ``tasks_output`` list if present.

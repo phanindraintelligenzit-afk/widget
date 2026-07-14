@@ -63,7 +63,7 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="langgraph")
                 raise
-            _capture_graph_result(collector, result)
+            _capture_graph_result(collector, result, user_input=input_text)
             return result
         return functools.wraps(original)(async_wrapper)
 
@@ -77,17 +77,17 @@ def _wrap_invoke(original, collector: SignalCollector, attr: str):
         except Exception as e:
             collector.record_error(e, source="langgraph")
             raise
-        _capture_graph_result(collector, result)
+        _capture_graph_result(collector, result, user_input=input_text)
         return result
     return functools.wraps(original)(sync_wrapper)
 
 
-def _capture_graph_result(collector: SignalCollector, result: Any) -> None:
+def _capture_graph_result(collector: SignalCollector, result: Any, user_input: str | None = None) -> None:
 
     """Extract the agent's final text from a LangGraph final state.
 
-    Instead of trying to find a specific key, we serialize the entire 
-    final state dictionary so the Q evaluator can assess the entire 
+    Instead of trying to find a specific key, we serialize the entire
+    final state dictionary so the Q evaluator can assess the entire
     agent output.
     """
     t_in, t_out = 0, 0
@@ -101,13 +101,13 @@ def _capture_graph_result(collector: SignalCollector, result: Any) -> None:
             for v in obj.values(): _crawl(v, depth + 1)
         elif isinstance(obj, list) or isinstance(obj, tuple):
             for v in obj: _crawl(v, depth + 1)
-            
+
     _crawl(result)
 
     text = _safe_text(result)
     if text:
-        collector.record_llm_call(text, ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out)
+        collector.record_llm_call(text, ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out, user_input=user_input)
     else:
         # We got an empty response but the run completed without raising.
         # Record it so the execution attempt matches the agent run.
-        collector.record_llm_call("", ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out)
+        collector.record_llm_call("", ok=True, action_name="langgraph_invoke", tokens_in=t_in, tokens_out=t_out, user_input=user_input)

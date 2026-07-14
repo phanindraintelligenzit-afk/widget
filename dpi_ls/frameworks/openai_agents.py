@@ -34,6 +34,8 @@ def _make_hooks(collector: SignalCollector):
     from agents import RunContextWrapper, RunHooks  # type: ignore
 
     class _Hooks(RunHooks):  # type: ignore[misc]
+        _llm_input: str | None = None  # Store input for the next LLM end event
+
         async def on_agent_start(self, context, agent):  # type: ignore[override]
             # Just capture the agent name — don't increment attempts here.
             # attempts is driven exclusively by record_llm_call / record_tool_call
@@ -42,8 +44,22 @@ def _make_hooks(collector: SignalCollector):
                 collector.agent_name = agent.name
 
         async def on_llm_start(self, context, agent, system_prompt, input_items):  # type: ignore[override]
-            # No-op: on_llm_end drives the attempt counter via record_llm_call.
-            pass
+            # Capture the user input from input_items for governance scanning.
+            if input_items:
+                if isinstance(input_items, str):
+                    self._llm_input = input_items
+                elif isinstance(input_items, list) and len(input_items) > 0:
+                    first = input_items[0]
+                    if isinstance(first, str):
+                        self._llm_input = first
+                    elif isinstance(first, dict) and "content" in first:
+                        self._llm_input = first["content"]
+                    else:
+                        self._llm_input = str(first)
+                elif isinstance(input_items, dict):
+                    self._llm_input = input_items.get("content") or str(input_items)
+                else:
+                    self._llm_input = str(input_items)
 
         async def on_llm_end(self, context, agent, response):  # type: ignore[override]
             text = _safe_text(response)
@@ -55,7 +71,9 @@ def _make_hooks(collector: SignalCollector):
             est_cost = total_tokens * 0.000001  # $0.001 per 1k tokens
             collector.record_llm_call(
                 text, tokens_in=in_t, tokens_out=out_t, cost=est_cost, ok=True,
+                user_input=self._llm_input,
             )
+            self._llm_input = None  # Reset for next call
 
         async def on_tool_start(self, context, agent, tool):  # type: ignore[override]
             # No-op: on_tool_end drives the counter.
@@ -97,7 +115,7 @@ def _make_hooks(collector: SignalCollector):
             text = _safe_text(output)
             if text:
                 # Final agent output captured for Q evaluation.
-                collector._capture_output(text)
+                collector._capture_output(text, user_input=self._llm_input)
 
     hooks = _Hooks()
     # Attach the collector so _wrap_runner_method can call record_agent_run

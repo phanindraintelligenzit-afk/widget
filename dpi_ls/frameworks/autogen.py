@@ -77,7 +77,7 @@ def _wrap_method(original, collector: SignalCollector, attr: str):
             except Exception as e:
                 collector.record_error(e, source="autogen")
                 raise
-            _capture_text(collector, result)
+            _capture_text(collector, result, user_input=input_text)
             return result
         return functools.wraps(original)(async_wrapper)
 
@@ -91,18 +91,18 @@ def _wrap_method(original, collector: SignalCollector, attr: str):
         except Exception as e:
             collector.record_error(e, source="autogen")
             raise
-        _capture_text(collector, result)
+        _capture_text(collector, result, user_input=input_text)
         return result
     return functools.wraps(original)(sync_wrapper)
 
 
-def _capture_text(collector: SignalCollector, result: Any) -> None:
+def _capture_text(collector: SignalCollector, result: Any, user_input: str | None = None) -> None:
     if result is None:
         collector.successful += 1
         return
     text = _safe_text(result)
     if text:
-        collector.record_llm_call(text, ok=True)
+        collector.record_llm_call(text, ok=True, user_input=user_input)
     else:
         collector.successful += 1
 
