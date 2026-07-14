@@ -201,6 +201,56 @@ def _to_bedrock_tool(tool) -> FunctionTool:
 #  Main agent run
 # ===============================================================
 
+def _bar(value: float | None, width: int = 20) -> str:
+    if value is None:
+        return f"{'n/a':>5} [" + " " * width + "]"
+    blocks = int(round((value / 100.0) * width))
+    bar = "=" * blocks + " " * (width - blocks)
+    return f"{value:>5.1f} [{bar}]"
+
+def print_score_card(rating: dict) -> None:
+    score    = rating.get("score", 0)
+    raw      = rating.get("raw_score", score)
+    band     = rating.get("band", "?")
+    unsafe   = rating.get("unsafe", False)
+    gates    = rating.get("gate_failures", [])
+    metrics  = rating.get("metrics", {})
+    capped   = rating.get("capped", False)
+
+    BAND_ICONS = {
+        "Exceptional":       "*  EXCEPTIONAL",
+        "Strong":            "^  STRONG",
+        "Needs Optimization":"v  NEEDS OPTIMIZATION",
+        "Underperforming":   "x  UNDERPERFORMING",
+    }
+    band_label = BAND_ICONS.get(band, band)
+    unsafe_tag = "  !  UNSAFE - compliance gate fired" if unsafe else ""
+
+    print()
+    print("+" + "-" * 55 + "+")
+    print(f"|  DPI-LS SCORE CARD  .  {AGENT_NAME:<32}|")
+    print("+" + "-" * 55 + "+")
+    print(f"|  Final Score : {score:>6.1f} / 100{' (capped)' if capped else '         '}    |")
+    print(f"|  Raw Score   : {raw:>6.1f}                              |")
+    print(f"|  Band        : {band_label:<39}|")
+    if unsafe_tag:
+        print(f"|  {unsafe_tag:<53}|")
+    if gates:
+        print(f"|  Gate failures: {', '.join(gates):<38}|")
+    print("+" + "-" * 55 + "+")
+    print("|  7 DIMENSIONS                                         |")
+    print("+" + "-" * 55 + "+")
+    # For now, hardcode the metric labels or use default
+    labels = {"P": "Productivity", "Q": "Quality", "E": "Execution", "G": "Governance", "R": "Risk", "V": "Validation", "C": "Cost"}
+    for key in ["P", "Q", "E", "G", "R", "V", "C"]:
+        label = labels.get(key, key)
+        val   = metrics.get(key)
+        gate_flag = " <- GATE FAIL" if key in gates else ""
+        bar_str = _bar(val)
+        print(f"|  {label:<18} {bar_str}{gate_flag:<13}|")
+    print("+" + "-" * 55 + "+")
+    print()
+
 async def run_agent_observation() -> None:
     if not BEDROCK_MODEL_ID:
         print("ERROR: BEDROCK_MODEL_ID is not set in .env")
@@ -267,7 +317,6 @@ async def run_agent_observation() -> None:
     base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
     rating = post_observation(collector, base_url)
     if rating:
-        from dpi_ls.poster import print_score_card
         print_score_card(rating)
     else:
         print("Failed to post observation to the server.")
