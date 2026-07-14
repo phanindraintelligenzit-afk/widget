@@ -204,9 +204,9 @@ def _to_bedrock_tool(tool) -> FunctionTool:
 def _bar(value: float | None, width: int = 20) -> str:
     if value is None:
         return "[" + "-" * width + "] n/a  "
-    blocks = int(round((value / 100.0) * width))
+    blocks = int(round(value * width))
     bar = "#" * blocks + "-" * (width - blocks)
-    return f"[{bar}] {(value / 100.0):.3f}"
+    return f"[{bar}] {value:.3f}"
 
 def print_score_card(rating: dict) -> None:
     score    = rating.get("score", 0)
