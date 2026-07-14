@@ -889,6 +889,7 @@ function renderResourceCard(name, metrics) {
   const detectedCount = metrics.filter(m => m.detected).length;
   const lastRun = metrics[0]?.last_run ? new Date(metrics[0].last_run).toLocaleString() : '—';
   const dashVerified = metrics.some(m => m.dashboard_verified);
+  const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10);
   const statusClass = `status-${overallStatus}`;
 
   let statusCardBadge;
@@ -972,6 +973,10 @@ function renderResourceCard(name, metrics) {
         </button>
         <div class="table-container-${escHtml(name)}" style="display:block; margin-top:12px; overflow-x:auto; width:100%;">
           ${renderResourceTable(metrics, name)}
+          ${hasEvidence ? `<div style="margin-top:12px; padding:10px; background:#0f172a; border:1px solid #1e293b; border-radius:6px;">
+            <div style="font-size:10px; color:#94a3b8; text-transform:uppercase; margin-bottom:4px; font-weight:700;">Final Runtime Evidence Payload</div>
+            <code style="font-size:11px; color:#4ade80; font-family:'Courier New', monospace;">${escHtml(metrics.find(m => m.evidence && m.evidence.length > 10).evidence)}</code>
+          </div>` : ''}
         </div>
       </div>
 

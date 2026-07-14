@@ -170,6 +170,9 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     gamma = e_c_ai / max(e_c_human, 0.0001) if e_c_ai > 0 else 1.0
     effective_output = completed_tasks * gamma
     
+    # Do not overwrite human_baseline with e_c_human. Retain existing or 0.0.
+    h_base = sub_metrics["P"].get("human_baseline") or 0.0
+    
     sub_metrics["P"].update({
         "E[C_AI]": e_c_ai,
         "E[C_Human]": e_c_human,
@@ -182,7 +185,7 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "execution_duration": safe_float(p_eval_map.get("Grafana Tempo:execution_duration"), 0.0),
         "throughput": safe_float(p_eval_map.get("Apache SkyWalking:throughput"), 0.0),
         "resolution_velocity": safe_float(p_eval_map.get("Grafana Tempo:resolution_velocity"), 0.0),
-        "human_baseline": e_c_human,
+        "human_baseline": h_base,
         "normalization_factor": gamma,
     })
     return sub_metrics
