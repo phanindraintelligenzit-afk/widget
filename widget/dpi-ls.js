@@ -238,7 +238,6 @@
     const modelCost = getNum(sub, 'Model Cost (USD)', (promptCost !== null && completionCost !== null ? promptCost + completionCost : null));
     const aiCostPerOutput = getNum(sub, 'AI Cost Per Output', (modelCost !== null && completedOutputs ? modelCost / completedOutputs : null));
     const efficiencyRatio = getNum(sub, 'Efficiency Ratio', (humanCostPerOutput !== null && aiCostPerOutput ? humanCostPerOutput / aiCostPerOutput : null));
-    const costScore = (value !== undefined && value !== null) ? (value * 5) : null;
     const tco = getNum(sub, 'Total Cost (USD)', (humanCostPerOutput !== null && modelCost !== null ? humanCostPerOutput + modelCost : null));
 
     // Calculate dynamic values
@@ -251,7 +250,7 @@
     let calcCostScore = null;
     if (humanCostPerOutput !== null && calcAiCostPerOutput !== null && utilization !== null) {
       const ratio = calcAiCostPerOutput > 0 ? Math.min(1.0, humanCostPerOutput / calcAiCostPerOutput) : 1.0;
-      calcCostScore = ratio * utilization * 5;
+      calcCostScore = ratio * utilization;
     }
     const calcTco = (humanCostPerOutput !== null && calcModelCost !== null) ? humanCostPerOutput + calcModelCost : null;
 
@@ -265,7 +264,7 @@
       human_cost_per_output: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: "Config Baseline", src: "Grafana (runtime settings)", resource: "Grafana", dec: 0 },
       utilization: { val: utilization, calc: utilization, disp: utilization, formula: "Runtime Usage", src: "Prometheus (runtime telemetry)", resource: "Prometheus", dec: 0 },
       efficiency_ratio: { val: efficiencyRatio, calc: calcEfficiencyRatio, disp: efficiencyRatio, formula: "Human ÷ AI Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 2 },
-      cost_score: { val: costScore, calc: calcCostScore, disp: costScore, formula: "min(1, Human ÷ AI) × Utilization × 5", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 },
+      cost_score: { val: calcCostScore, calc: calcCostScore, disp: calcCostScore, formula: "min(1, Human ÷ AI) × Utilization", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 },
       tco: { val: tco, calc: calcTco, disp: tco, formula: "Human Cost + Model Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 }
     };
   }
@@ -276,11 +275,11 @@
     
     const req = sub["Required Components"] !== undefined ? sub["Required Components"] : 0;
     const val = sub["Validated Components"] !== undefined ? sub["Validated Components"] : 0;
-    let calcVScore = 1.0;
+    let calcVScore = 0;
     if (req > 0) {
-      calcVScore = val / req;
+      calcVScore = Math.min(1.0, val / req);
     }
-    const vScoreVal = (value !== undefined && value !== null) ? value : calcVScore;
+    const vScoreVal = calcVScore;
 
 
     const traceId = sub.trace_id || "Unavailable";
@@ -935,21 +934,27 @@
     else if (!isNaN(Number(sub.total_attempts))) attempts = Number(sub.total_attempts);
 
     let successful = 0;
-    if (sub.execution_status === 'success' || sub.execution_success === 1 || sub.execution_success === '1' || sub.execution_success === 'true') successful = 1;
-    else if (!isNaN(Number(sub.successful))) successful = Number(sub.successful);
+    if (!isNaN(Number(sub.successful))) successful = Number(sub.successful);
     else if (!isNaN(Number(sub.successful_executions))) successful = Number(sub.successful_executions);
+    else if (sub.execution_status === 'success' || sub.execution_success === 1 || sub.execution_success === '1' || sub.execution_success === 'true') successful = attempts; // Fallback to attempts if status is success and no raw count is provided
     
     let calcEScore = 0;
     if (attempts > 0) calcEScore = successful / attempts;
     
-    const eScoreVal = (value !== undefined && value !== null) ? value : calcEScore;
+    // Remove the display override that masks mathematical inconsistencies
+    const eScoreVal = calcEScore;
 
     return {
       trace_captured:     { val: sub.trace_captured    || "Unavailable", calc: sub.trace_captured    || "Unavailable", disp: sub.trace_captured    || "Unavailable", formula: "Langfuse Trace Payload",               src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
-      workflow_execution: { val: sub.workflow_execution || "Unavailable", calc: sub.workflow_execution || "Unavailable", disp: sub.workflow_execution || "Unavailable", formula: "Workflow execution status",           src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
+      trace_id:           { val: sub.trace_id          || "Unavailable", calc: sub.trace_id          || "Unavailable", disp: sub.trace_id          || "Unavailable", formula: "Langfuse Trace ID",                    src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
+      trace_status:       { val: sub.trace_status      || "Unavailable", calc: sub.trace_status      || "Unavailable", disp: sub.trace_status      || "Unavailable", formula: "Langfuse Trace Status",                src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
       Total_Attempts:     { val: attempts, calc: attempts, disp: attempts, formula: "Agent execution iterations",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 0 },
       Successful_Attempts:{ val: successful, calc: successful, disp: successful, formula: "Successful agent executions", src: "Phoenix (runtime telemetry)", resource: "Phoenix", dec: 0 },
+      execution_status:   { val: sub.execution_status  || "Unavailable", calc: sub.execution_status  || "Unavailable", disp: sub.execution_status  || "Unavailable", formula: "Phoenix Execution Status",             src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 0 },
       Execution_Score:    { val: eScoreVal, calc: calcEScore, disp: eScoreVal,   formula: "Successful / Total Attempts",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 4 },
+      workflow_execution: { val: sub.workflow_execution || "Unavailable", calc: sub.workflow_execution || "Unavailable", disp: sub.workflow_execution || "Unavailable", formula: "Workflow execution payload",          src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
+      workflow_status:    { val: sub.workflow_status   || "Unavailable", calc: sub.workflow_status   || "Unavailable", disp: sub.workflow_status   || "Unavailable", formula: "Workflow execution status",            src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
+      root_span:          { val: sub.root_span         || "Unavailable", calc: sub.root_span         || "Unavailable", disp: sub.root_span         || "Unavailable", formula: "Workflow root span",                   src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
     };
   }
 
@@ -979,10 +984,15 @@
 
     const METRIC_NICE_NAMES = {
       trace_captured: "Trace Captured",
+      trace_id: "Trace ID",
+      trace_status: "Trace Status",
       workflow_execution: "Workflow Execution",
+      workflow_status: "Workflow Status",
+      root_span: "Root Span",
       iterations_used: "Iterations Used",
       Total_Attempts: "Total Attempts",
       Successful_Attempts: "Successful Attempts",
+      execution_status: "Execution Status",
       Execution_Score: "Execution Score"
     };
 

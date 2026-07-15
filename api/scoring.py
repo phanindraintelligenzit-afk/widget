@@ -259,9 +259,14 @@ def enrich_execution_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     # Inject metrics tracked by Execution resources (Langfuse, Phoenix, Traceloop)
     sub_metrics["E"].update({
         "trace_captured": e_eval_map.get("Langfuse:trace_captured") or sub_metrics["E"].get("trace_captured", "Unavailable"),
+        "trace_id": e_eval_map.get("Langfuse:trace_id") or sub_metrics["E"].get("trace_id", "Unavailable"),
+        "trace_status": e_eval_map.get("Langfuse:trace_status") or sub_metrics["E"].get("trace_status", "Unavailable"),
         "execution_success": e_eval_map.get("Langfuse:execution_success") or sub_metrics["E"].get("execution_success", "Unavailable"),
         "workflow_execution": e_eval_map.get("Traceloop:workflow_execution") or sub_metrics["E"].get("workflow_execution", "Unavailable"),
+        "workflow_status": e_eval_map.get("Traceloop:workflow_status") or sub_metrics["E"].get("workflow_status", "Unavailable"),
+        "root_span": e_eval_map.get("Traceloop:root_span") or sub_metrics["E"].get("root_span", "Unavailable"),
         "iterations_used": e_eval_map.get("Phoenix:iterations_used") or sub_metrics["E"].get("iterations_used", "Unavailable"),
+        "successful_executions": e_eval_map.get("Phoenix:successful_executions") or sub_metrics["E"].get("successful_executions", "Unavailable"),
         "execution_status": e_eval_map.get("Phoenix:execution_status") or sub_metrics["E"].get("execution_status", "Unavailable"),
     })
     return sub_metrics

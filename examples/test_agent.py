@@ -61,6 +61,10 @@ if os.getenv("AGENTOPS_API_KEY"):
     import agentops
     agentops.init(os.getenv("AGENTOPS_API_KEY"))
 
+if os.getenv("TRACELOOP_API_KEY"):
+    from traceloop.sdk import Traceloop
+    Traceloop.init(app_name="Chandra", disable_batch=True)
+
 os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
 import litellm
 

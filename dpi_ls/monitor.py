@@ -43,11 +43,12 @@ from .frameworks import detect_and_install
 from .poster import post_observation, write_local_copy
 from .server import start_server
 from .integrations import (
-    setup_jaeger_tracing, setup_zipkin_tracing,
+    setup_jaeger_tracing, setup_zipkin_tracing, setup_phoenix_tracing,
     run_deepeval_metrics, run_ragas, run_langsmith, run_agentops,
     push_quality_results_to_backend, push_deepeval_results_to_backend, push_prod_metrics,
     run_langfuse_metrics, run_phoenix_metrics, run_traceloop_metrics,
-    push_execution_results_to_backend
+    push_execution_results_to_backend,
+    run_jaeger_metrics, run_zipkin_metrics, push_validation_results_to_backend
 )
 
 _log = logging.getLogger("dpi_ls.monitor")
@@ -144,6 +145,7 @@ def monitor(
     # 6. Set up external tracing
     setup_jaeger_tracing(agent_id, os.environ.get("JAEGER_ENDPOINT", "http://127.0.0.1:14268"))
     setup_zipkin_tracing(agent_id)
+    setup_phoenix_tracing(agent_id)
 
     return collector
 
@@ -183,9 +185,11 @@ def _run_evaluations(collector: SignalCollector) -> None:
     ragas_res = run_ragas(question, agent_answer, context)
     langsmith_res = run_langsmith()
     agentops_res = run_agentops()
-    langfuse_res = run_langfuse_metrics()
-    phoenix_res = run_phoenix_metrics()
-    traceloop_res = run_traceloop_metrics()
+    langfuse_res = run_langfuse_metrics(collector)
+    phoenix_res = run_phoenix_metrics(collector)
+    traceloop_res = run_traceloop_metrics(collector)
+    jaeger_res = run_jaeger_metrics(collector)
+    zipkin_res = run_zipkin_metrics(collector)
 
     # Push telemetry (Productivity & Custom Q)
     if info:
@@ -194,6 +198,7 @@ def _run_evaluations(collector: SignalCollector) -> None:
         push_quality_results_to_backend(langsmith_res, ragas_res, agentops_res, host_domain, port_num)
         push_deepeval_results_to_backend(deepeval_res, host_domain, port_num)
         push_execution_results_to_backend(langfuse_res, phoenix_res, traceloop_res, host_domain, port_num)
+        push_validation_results_to_backend(jaeger_res, zipkin_res, host_domain, port_num)
         # Productivity metrics could be computed here.
         try:
             payload = {
@@ -249,8 +254,16 @@ def _finalize() -> None:
             path = write_local_copy(collector)
             _log.info("dpi_ls: local observation copy at %s", path)
 
-        # Block at the end so the dashboard stays reachable from a
-        # terminal session. Skipped in non-interactive contexts.
+        # 5. Flush any OTel traces to ensure Phoenix / Jaeger / Zipkin receive them
+        try:
+            from opentelemetry import trace
+            provider = trace.get_tracer_provider()
+            if hasattr(provider, "force_flush"):
+                provider.force_flush()
+        except Exception as e:
+            _log.debug("Failed to flush OpenTelemetry traces: %s", e)
+
+        # 6. Wait for user or exit.
         if _state.get_block_on_exit() and sys.stdin is not None and sys.stdin.isatty():
             try:
                 print(

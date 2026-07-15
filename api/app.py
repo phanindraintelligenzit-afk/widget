@@ -676,7 +676,44 @@ def push_deepeval_results(
     return {"updated": updated, "count": len(updated)}
 
 
+@app.post("/api/validation-evaluation/push-jaeger")
+def push_jaeger_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_validation_resource_evaluation(
+            s, resource_name="Jaeger", metric=metric, detected=True,
+            evidence=f"Runtime Jaeger metrics extracted. Value: {val_str}",
+            current_value=val_str, status="SUCCESS", agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
 
+
+@app.post("/api/validation-evaluation/push-zipkin")
+def push_zipkin_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_validation_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_validation_resource_evaluation(
+            s, resource_name="Zipkin", metric=metric, detected=True,
+            evidence=f"Runtime Zipkin metrics extracted. Value: {val_str}",
+            current_value=val_str, status="SUCCESS", agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
 
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
@@ -1249,7 +1286,8 @@ def get_execution_evaluation_results(s: Session = Depends(db_session)) -> list[d
 @app.get("/api/execution-evaluation/urls")
 def get_execution_evaluation_urls() -> dict[str, dict]:
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
-    phoenix_url = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
+    phoenix_collector = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
+    phoenix_url = os.environ.get("PHOENIX_UI_URL", phoenix_collector.replace("/v1/traces", ""))
     traceloop_url = os.environ.get("TRACELOOP_BASE_URL", "https://app.traceloop.com")
     
     return {

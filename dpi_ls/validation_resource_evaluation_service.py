@@ -140,32 +140,34 @@ class ValidationResourceEvaluationService:
             .limit(1)
         ).first()
 
-        # ── Read REAL DeepEval values pushed by test_agent.py ────────────────
-        # These are the values the actual DeepEval SDK produced at runtime.
-        # They live in validation_resource_evaluations (resource_name='DeepEval').
+        # ── Read REAL values pushed by test_agent.py ────────────────
         deepeval_real_values: dict[str, str] = {}
+        jaeger_real_values: dict[str, str] = {}
+        zipkin_real_values: dict[str, str] = {}
         try:
-            deepeval_rows = self.session.scalars(
-                select(ValidationResourceEvaluationRow)
-                .where(ValidationResourceEvaluationRow.resource_name == "DeepEval")
-                .order_by(ValidationResourceEvaluationRow.last_run.desc(), ValidationResourceEvaluationRow.id.desc())
-            ).all()
-            # Keep only the latest row per metric
-            seen_metrics: set[str] = set()
-            for r in deepeval_rows:
-                if r.metric not in seen_metrics:
-                    val = r.current_value or ""
-                    if val != "Unavailable":
-                        deepeval_real_values[r.metric] = val
-                    seen_metrics.add(r.metric)
+            for resource_name, target_dict in [
+                ("DeepEval", deepeval_real_values),
+                ("Jaeger", jaeger_real_values),
+                ("Zipkin", zipkin_real_values)
+            ]:
+                rows = self.session.scalars(
+                    select(ValidationResourceEvaluationRow)
+                    .where(ValidationResourceEvaluationRow.resource_name == resource_name)
+                    .order_by(ValidationResourceEvaluationRow.last_run.desc(), ValidationResourceEvaluationRow.id.desc())
+                ).all()
+                seen_metrics: set[str] = set()
+                for r in rows:
+                    if r.metric not in seen_metrics:
+                        val = r.current_value or ""
+                        if val != "Unavailable":
+                            target_dict[r.metric] = val
+                        seen_metrics.add(r.metric)
         except Exception as e:
-            print(f"[DPI-LS] Error reading DeepEval SDK metrics: {e}")
+            print(f"[DPI-LS] Error reading SDK metrics from database: {e}")
 
-        # ── Query Jaeger API directly via REST ────────────────────────────────
-        jaeger_metrics = self._collect_jaeger_runtime_metrics(liveness_cache.get("Jaeger", False))
-
-        # ── Query Zipkin API directly via REST ────────────────────────────────
-        zipkin_metrics = self._collect_zipkin_runtime_metrics(liveness_cache.get("Zipkin", False))
+        # ── Query API directly via REST ONLY IF no real values are found ───
+        jaeger_metrics = self._collect_jaeger_runtime_metrics(liveness_cache.get("Jaeger", False)) if not jaeger_real_values else jaeger_real_values
+        zipkin_metrics = self._collect_zipkin_runtime_metrics(liveness_cache.get("Zipkin", False)) if not zipkin_real_values else zipkin_real_values
 
         # Define owned metrics per resource dynamically without fallbacks
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
@@ -209,70 +211,82 @@ class ValidationResourceEvaluationService:
                             )
 
                     elif resource.name == "Jaeger":
-                        # Use live Jaeger API queries and OpenTelemetry introspection
-                        if metric == "trace_id":
-                            current_val = jaeger_metrics.get("trace_id", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = jaeger_metrics.get("trace_id_evidence", "Jaeger API query.")
-                        elif metric == "span_count":
-                            current_val = str(jaeger_metrics.get("span_count", "Unavailable"))
-                            detected = current_val not in ("Unavailable", "0", "0.0", "")
-                            evidence_text = jaeger_metrics.get("span_count_evidence", "Jaeger API query.")
-                        elif metric == "latency":
-                            current_val = jaeger_metrics.get("latency", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = jaeger_metrics.get("latency_evidence", "Jaeger API query.")
-                        elif metric == "execution_time":
-                            current_val = jaeger_metrics.get("execution_time", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = jaeger_metrics.get("execution_time_evidence", "Jaeger API query.")
-                        elif metric == "dependencies":
-                            current_val = str(jaeger_metrics.get("dependencies", "Unavailable"))
-                            detected = current_val not in ("Unavailable", "0", "0.0", "")
-                            evidence_text = jaeger_metrics.get("dependencies_evidence", "Jaeger API query.")
-                        elif metric == "request_duration":
-                            current_val = jaeger_metrics.get("request_duration", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = jaeger_metrics.get("request_duration_evidence", "Jaeger API query.")
-                        elif metric == "error_count":
-                            current_val = str(jaeger_metrics.get("error_count", "Unavailable"))
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = jaeger_metrics.get("error_count_evidence", "Jaeger API query.")
-                        elif metric == "validation_traces":
-                            current_val = str(jaeger_metrics.get("validation_traces", "Unavailable"))
-                            detected = current_val not in ("Unavailable", "0", "0.0", "")
-                            evidence_text = jaeger_metrics.get("validation_traces_evidence", "Jaeger API query.")
+                        # Use REAL Jaeger values pushed by test_agent.py, fallback to API queries
+                        real_val = jaeger_real_values.get(metric)
+                        if real_val and real_val not in ("", "Unavailable"):
+                            current_val = real_val
+                            detected = True
+                            evidence_text = f"Runtime Jaeger metrics extracted. Value: {current_val}"
+                        else:
+                            if metric == "trace_id":
+                                current_val = jaeger_metrics.get("trace_id", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = jaeger_metrics.get("trace_id_evidence", "Jaeger API query.")
+                            elif metric == "span_count":
+                                current_val = str(jaeger_metrics.get("span_count", "Unavailable"))
+                                detected = current_val not in ("Unavailable", "0", "0.0", "")
+                                evidence_text = jaeger_metrics.get("span_count_evidence", "Jaeger API query.")
+                            elif metric == "latency":
+                                current_val = jaeger_metrics.get("latency", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = jaeger_metrics.get("latency_evidence", "Jaeger API query.")
+                            elif metric == "execution_time":
+                                current_val = jaeger_metrics.get("execution_time", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = jaeger_metrics.get("execution_time_evidence", "Jaeger API query.")
+                            elif metric == "dependencies":
+                                current_val = str(jaeger_metrics.get("dependencies", "Unavailable"))
+                                detected = current_val not in ("Unavailable", "0", "0.0", "")
+                                evidence_text = jaeger_metrics.get("dependencies_evidence", "Jaeger API query.")
+                            elif metric == "request_duration":
+                                current_val = jaeger_metrics.get("request_duration", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = jaeger_metrics.get("request_duration_evidence", "Jaeger API query.")
+                            elif metric == "error_count":
+                                current_val = str(jaeger_metrics.get("error_count", "Unavailable"))
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = jaeger_metrics.get("error_count_evidence", "Jaeger API query.")
+                            elif metric == "validation_traces":
+                                current_val = str(jaeger_metrics.get("validation_traces", "Unavailable"))
+                                detected = current_val not in ("Unavailable", "0", "0.0", "")
+                                evidence_text = jaeger_metrics.get("validation_traces_evidence", "Jaeger API query.")
 
                     elif resource.name == "Zipkin":
-                        # Use live Zipkin API queries and OpenTelemetry introspection
-                        if metric == "trace_timeline":
-                            current_val = zipkin_metrics.get("trace_timeline", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("trace_timeline_evidence", "Zipkin API query.")
-                        elif metric == "span_timeline":
-                            current_val = zipkin_metrics.get("span_timeline", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("span_timeline_evidence", "Zipkin API query.")
-                        elif metric == "service_calls":
-                            current_val = str(zipkin_metrics.get("service_calls", "Unavailable"))
-                            detected = current_val not in ("Unavailable", "0", "0.0", "")
-                            evidence_text = zipkin_metrics.get("service_calls_evidence", "Zipkin API query.")
-                        elif metric == "request_path":
-                            current_val = zipkin_metrics.get("request_path", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("request_path_evidence", "Zipkin API query.")
-                        elif metric == "trace_latency":
-                            current_val = zipkin_metrics.get("trace_latency", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("trace_latency_evidence", "Zipkin API query.")
-                        elif metric == "execution_timeline":
-                            current_val = zipkin_metrics.get("execution_timeline", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("execution_timeline_evidence", "Zipkin API query.")
-                        elif metric == "error_timeline":
-                            current_val = zipkin_metrics.get("error_timeline", "Unavailable")
-                            detected = current_val not in ("Unavailable", "")
-                            evidence_text = zipkin_metrics.get("error_timeline_evidence", "Zipkin API query.")
+                        # Use REAL Zipkin values pushed by test_agent.py, fallback to API queries
+                        real_val = zipkin_real_values.get(metric)
+                        if real_val and real_val not in ("", "Unavailable"):
+                            current_val = real_val
+                            detected = True
+                            evidence_text = f"Runtime Zipkin metrics extracted. Value: {current_val}"
+                        else:
+                            if metric == "trace_timeline":
+                                current_val = zipkin_metrics.get("trace_timeline", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("trace_timeline_evidence", "Zipkin API query.")
+                            elif metric == "span_timeline":
+                                current_val = zipkin_metrics.get("span_timeline", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("span_timeline_evidence", "Zipkin API query.")
+                            elif metric == "service_calls":
+                                current_val = str(zipkin_metrics.get("service_calls", "Unavailable"))
+                                detected = current_val not in ("Unavailable", "0", "0.0", "")
+                                evidence_text = zipkin_metrics.get("service_calls_evidence", "Zipkin API query.")
+                            elif metric == "request_path":
+                                current_val = zipkin_metrics.get("request_path", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("request_path_evidence", "Zipkin API query.")
+                            elif metric == "trace_latency":
+                                current_val = zipkin_metrics.get("trace_latency", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("trace_latency_evidence", "Zipkin API query.")
+                            elif metric == "execution_timeline":
+                                current_val = zipkin_metrics.get("execution_timeline", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("execution_timeline_evidence", "Zipkin API query.")
+                            elif metric == "error_timeline":
+                                current_val = zipkin_metrics.get("error_timeline", "Unavailable")
+                                detected = current_val not in ("Unavailable", "")
+                                evidence_text = zipkin_metrics.get("error_timeline_evidence", "Zipkin API query.")
 
                 else:
                     evidence_text = "No agent run execution score found in database."

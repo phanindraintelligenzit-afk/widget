@@ -72,3 +72,11 @@ services:
     depends_on:
       - skywalking-oap
     restart: unless-stopped
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    container_name: dpi-ls-phoenix
+    ports:
+      - "6006:6006"
+
+    restart: unless-stopped
