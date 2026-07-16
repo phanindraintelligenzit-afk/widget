@@ -3,35 +3,33 @@
 Pipeline (in order)
 -------------------
 
-1. **composite** — weighted geometric mean with weight redistribution
-   off None metrics. The raw score is the unconstrained number.
-2. **gates** — compliance floors on G/R/V. A failed floor caps the
-   score at the top of "Needs Optimization" (69) and flips
+1. **composite** — weighted arithmetic mean with weight redistribution
+   off None metrics. The raw score is the unconstrained number and
+   is preserved on ``Rating.raw_score`` for full traceability.
+2. **gates** — compliance floors on G/R/V. A failed floor flips
    ``unsafe=True``. A missing metric is *deferred*, not failed — the
    engine never reports a gate violation for a dimension it hasn't
    observed.
-3. **bands** — Exceptional / Strong / Needs Optimization /
-   Underperforming, by post-gate score.
-4. **completeness** — coverage cap. An agent missing any G/R/V, or
+3. **completeness** — coverage cap. An agent missing any G/R/V, or
    with fewer than ``min_dimensions_for_full_band`` (default 4)
-   measured dimensions, is held at "Needs Optimization" regardless
-   of its post-gate score.
+   measured dimensions, is flagged ``capped=True``.
+4. **band** — Exceptional / Strong / Needs Optimization /
+   Underperforming, by the raw score. If ``unsafe`` OR ``capped``
+   would otherwise present as Strong/Exceptional, the band is
+   overridden to "Needs Optimization" — a name, not a number, so no
+   hardcoded score value leaks into the Rating. The score itself is
+   preserved.
 
-The two caps interact: a Strong / Exceptional agent with low coverage
-is held at 69; an Underperforming agent with low coverage is left
-alone (it's already at the bottom). The gate cap is the more
-restrictive of the two — a gated agent is held at 69 *and* flagged
-unsafe.
+Why band override, not score cap
+--------------------------------
 
-Why this order
---------------
-
-* Gates *before* bands: the band lookup must see the gated score,
-  not the raw score, otherwise a G=.25 agent would still be
-  classified as Strong/Exceptional before the gate fires.
-* Bands *before* completeness: a Strong/Exceptional agent with
-  missing coverage must be capped; a Needs-Optimization agent with
-  missing coverage is already in the right band.
+Older versions hardcoded a numeric cap (69, top of "Needs Optimization")
+into apply_gate / apply_completeness_cap. That approach put a magic
+number in the engine and made the score less traceable. The current
+approach overrides only the *band* (a categorical label) when a gate
+or coverage cap fires — the raw score stays exactly what the composite
+produced. Consumers who want the honest number read ``raw_score``;
+consumers who want the safety-adjusted band read ``band``.
 """
 from __future__ import annotations
 
@@ -39,7 +37,7 @@ from typing import Optional
 
 from contract import Rating
 
-from .bands import band
+from .bands import EXCEPTIONAL, NEEDS_OPTIMIZATION, STRONG, band
 from .completeness import apply_completeness_cap
 from .gates import apply_gate, gate_check
 from .score import composite
@@ -60,10 +58,10 @@ def rate(
     Returns a fully-populated ``Rating``. See module docstring for the
     pipeline order.
     """
-    # 1. Composite — DPI-LS formula geometric mean and linear weighted metrics.
+    # 1. Composite — DPI-LS formula and linear weighted metrics.
     raw, weighted_metrics, weights_used = composite(metrics, weights)
 
-    # 2. Compliance gates (G/R/V) — flag Unsafe and cap.
+    # 2. Compliance gates (G/R/V) — flag Unsafe.
     gate_fired, failed = gate_check(metrics, gate_thresholds)
     gated_score, unsafe = apply_gate(raw, gate_fired)
 
@@ -73,8 +71,10 @@ def rate(
     dimensions_measured = 7 - len(missing)
     coverage = round(dimensions_measured / 7, 3)
 
-    # 3. Band — by the post-gate score.
-    score_band = band(gated_score)
+    # 3. Band — by the (uncapped) score. Use the display-rounded value
+    #    so floating-point drift at boundaries (e.g. all-.85 → 84.9999…)
+    #    doesn't misclassify by one band.
+    score_band = band(round(gated_score, 2))
 
     # Compliance cap reason — takes precedence over the completeness
     # reason in the final ``cap_reason`` field on the Rating.
@@ -82,12 +82,31 @@ def rate(
         f"compliance gate: {','.join(failed)} below floor" if gate_fired else None
     )
 
-    # 4. Completeness cap — held at the top of "Needs Optimization"
-    #    when coverage is insufficient.
-    final_score, final_band, capped, cap_reason = apply_completeness_cap(
+    # 4. Completeness cap — evaluates whether the band should be held
+    #    at "Needs Optimization" due to insufficient coverage.
+    final_score, _completeness_band, capped, cap_reason = apply_completeness_cap(
         gated_score, score_band, metrics, dimensions_measured, unsafe,
         gate_cap_reason, min_dimensions_for_full_band,
     )
+
+    # Band override — a *categorical* cap, not a numeric one. No
+    # hardcoded score value leaks into the Rating.
+    #
+    # An unsafe agent (compliance gate failure) is *always* held at
+    # "Needs Optimization" — a gate failure is a safety signal that
+    # must not be masked as either a performance win (Strong/Exceptional)
+    # or a performance failure (Underperforming). Both readings would
+    # mis-report the actual condition.
+    #
+    # A coverage-capped agent is held at "Needs Optimization" only when
+    # its raw band would otherwise be Strong/Exceptional; a naturally
+    # low-scoring under-covered agent stays where the score puts it.
+    if unsafe:
+        final_band = NEEDS_OPTIMIZATION
+    elif capped and score_band in (STRONG, EXCEPTIONAL):
+        final_band = NEEDS_OPTIMIZATION
+    else:
+        final_band = score_band
 
     return Rating(
         score=round(final_score, 2),
