@@ -52,6 +52,8 @@ class ScoreRow(Base):
     unsafe: Mapped[bool] = mapped_column(Boolean)
     gate_failures: Mapped[list[str]] = mapped_column(JSON)
     metrics: Mapped[dict[str, Any]] = mapped_column(JSON)
+    weighted_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    weights_used: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     sub_metrics: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     missing: Mapped[list[str]] = mapped_column(JSON)
     dimensions_measured: Mapped[int] = mapped_column(Integer, default=0)
@@ -252,5 +254,104 @@ class ExecutionResourceEvaluationRow(Base):
     current_value: Mapped[str] = mapped_column(String, nullable=True)
     last_run: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     status: Mapped[str] = mapped_column(String, default="FAILED")
+    dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+class RiskResourceRegistryRow(Base):
+    """List of all evaluated risk resources."""
+    __tablename__ = "risk_resource_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    sdk_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_key_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    integration_implemented: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class RiskResourceEvaluationRow(Base):
+    """Runtime evaluation results per risk resource and metric."""
+    __tablename__ = "risk_resource_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    resource_name: Mapped[str] = mapped_column(String(128), ForeignKey("risk_resource_registry.name"), index=True)
+    metric: Mapped[str] = mapped_column(String(128))
+    current_value: Mapped[str] = mapped_column(String(256), nullable=True)
+    detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(String(512), nullable=True)
+    last_run: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(64), default="PENDING")
+    dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class RiskIncidentRow(Base):
+    """Normalized incident representation for Risk computation."""
+    __tablename__ = "risk_incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    incident_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(256))
+    category: Mapped[str] = mapped_column(String(128))
+    source_resource: Mapped[str] = mapped_column(String(128))
+    agent_id: Mapped[str] = mapped_column(String(128), index=True)
+    severity: Mapped[str] = mapped_column(String(64))
+    severity_weight: Mapped[float] = mapped_column(Float)
+    frequency: Mapped[int] = mapped_column(Integer)
+    risk_contribution: Mapped[float] = mapped_column(Float)
+    trace_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    span_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(64), default="NORMALIZED")
+
+
+class GovernanceIncidentRow(Base):
+    """Normalized incident representation for Governance computation."""
+    __tablename__ = "governance_incidents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    incident_id: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(256))
+    category: Mapped[str] = mapped_column(String(128))
+    source_resource: Mapped[str] = mapped_column(String(128))
+    agent_id: Mapped[str] = mapped_column(String(128), index=True)
+    severity: Mapped[str] = mapped_column(String(64))
+    severity_weight: Mapped[float] = mapped_column(Float)
+    frequency: Mapped[int] = mapped_column(Integer)
+    risk_contribution: Mapped[float] = mapped_column(Float)
+    trace_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    span_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    correlation_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(64), default="NORMALIZED")
+
+
+class GovernanceResourceRegistryRow(Base):
+    """List of all evaluated governance resources."""
+    __tablename__ = "governance_resource_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    sdk_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    api_key_required: Mapped[bool] = mapped_column(Boolean, default=False)
+    integration_implemented: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class GovernanceResourceEvaluationRow(Base):
+    """Runtime evaluation results per governance resource and metric."""
+    __tablename__ = "governance_resource_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    resource_name: Mapped[str] = mapped_column(String(128), ForeignKey("governance_resource_registry.name"), index=True)
+    metric: Mapped[str] = mapped_column(String(128))
+    current_value: Mapped[str] = mapped_column(String(256), nullable=True)
+    detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(String(512), nullable=True)
+    last_run: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    status: Mapped[str] = mapped_column(String(64), default="PENDING")
     dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)

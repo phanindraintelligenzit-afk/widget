@@ -40,6 +40,7 @@ dependencies = [
     "openinference-instrumentation-openai>=0.1.52",
     "psutil>=7.2.2",
     "agentops>=0.3.16",
+    "traceloop-sdk>=0.62.1",
 ]
 
 [project.optional-dependencies]

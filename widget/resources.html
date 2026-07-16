@@ -468,7 +468,7 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
-<script src="/widget/dpi-ls.js?v=15"></script>
+<script src="/widget/dpi-ls.js?v=19"></script>
 <script>
 const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
   ? window.location.origin
@@ -530,12 +530,14 @@ async function loadChandraData() {
 
 async function loadUrls() {
   try {
-    const [r1, r2, r3, r4, r5] = await Promise.all([
+    const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/urls`),
       fetch(`${API}/api/validation-evaluation/urls`),
       fetch(`${API}/api/quality-evaluation/urls`),
       fetch(`${API}/api/productivity-evaluation/urls`),
-      fetch(`${API}/api/execution-evaluation/urls`)
+      fetch(`${API}/api/execution-evaluation/urls`),
+      fetch(`${API}/api/risk-evaluation/urls`),
+      fetch(`${API}/api/governance-evaluation/urls`)
     ]);
     const processUrls = async (r) => {
       if (r.ok) {
@@ -554,7 +556,9 @@ async function loadUrls() {
       processUrls(r2),
       processUrls(r3),
       processUrls(r4),
-      processUrls(r5)
+      processUrls(r5),
+      processUrls(r6),
+      processUrls(r7)
     ]);
   } catch (e) {
     console.error("Failed to load urls", e);
@@ -562,6 +566,60 @@ async function loadUrls() {
 }
 
 const RESOURCE_META = {
+  "LLMGuard": {
+    name: 'LLMGuard',
+    icon: '🛡️', category: 'Risk & Security',
+    description: 'Comprehensive security scanner for LLM prompts and responses.',
+    tags: ['Security', 'Prompt Injection', 'Toxicity']
+  },
+  "TruLens": {
+    name: 'TruLens',
+    icon: '🔬', category: 'Risk & Security',
+    description: 'Evaluation and tracking for LLM apps, focusing on groundedness and relevance.',
+    tags: ['Evaluation', 'Relevance', 'Tracking']
+  },
+  "Rebuff": {
+    name: 'Rebuff',
+    icon: '🛡️', category: 'Risk & Security',
+    description: 'Prompt injection detection and mitigation.',
+    tags: ['Security', 'Injection', 'Defense']
+  },
+  "Open Policy Agent": {
+    name: 'Open Policy Agent',
+    icon: '📜', category: 'Governance',
+    description: 'Cloud-native policy engine that unifies policy enforcement across the stack.',
+    tags: ['Policy', 'Rules', 'Runtime']
+  },
+  "Microsoft Presidio": {
+    name: 'Microsoft Presidio',
+    icon: '🕵️', category: 'Governance',
+    description: 'Data protection and de-identification SDK for text and images.',
+    tags: ['PII', 'Anonymization', 'Data Privacy']
+  },
+  "Detect-Secrets": {
+    name: 'Detect-Secrets',
+    icon: '🔑', category: 'Governance',
+    description: 'Enterprise secrets scanning to prevent credential leakage.',
+    tags: ['Secrets', 'Scanning', 'Compliance']
+  },
+  "Open Policy Agent": {
+    name: 'Open Policy Agent',
+    icon: '📜', category: 'Governance',
+    description: 'Cloud-native policy engine that unifies policy enforcement across the stack.',
+    tags: ['Policy', 'Rules', 'Runtime']
+  },
+  "Microsoft Presidio": {
+    name: 'Microsoft Presidio',
+    icon: '🕵️', category: 'Governance',
+    description: 'Data protection and de-identification SDK for text and images.',
+    tags: ['PII', 'Anonymization', 'Data Privacy']
+  },
+  "Detect-Secrets": {
+    name: 'Detect-Secrets',
+    icon: '🔑', category: 'Governance',
+    description: 'Enterprise secrets scanning to prevent credential leakage.',
+    tags: ['Secrets', 'Scanning', 'Compliance']
+  },
   'Phoenix': {
     icon: '🔥', category: 'Execution Metrics',
     dpi_status: 'primary',
@@ -858,6 +916,17 @@ function renderResourceTable(metrics, name) {
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
+  } else if (['Open Policy Agent', 'Microsoft Presidio', 'Detect-Secrets'].includes(name)) {
+    if (typeof window.renderGovernanceTableHtml === 'function') {
+      const mergedSub = { ...chandraGovSub, ...liveMetrics };
+      return window.renderGovernanceTableHtml(mergedSub, settingsObj, chandraGovValue, name);
+    }
+    return `<div style="padding:15px;color:#64748b;">Governance rendering logic missing.</div>`;
+  } else if (['LLMGuard', 'Rebuff', 'TruLens'].includes(name)) {
+    if (typeof window.renderRiskTableHtml === 'function') {
+      const mergedSub = { ...chandraRiskSub, ...liveMetrics };
+      return window.renderRiskTableHtml(mergedSub, settingsObj, chandraRiskValue, name);
+    }
   } else {
     if (typeof window.renderValidationTableHtml === 'function') {
       const mergedSub = { ...chandraSub, ...liveMetrics };
@@ -967,6 +1036,7 @@ function renderResourceCard(name, metrics) {
             : ['Infrastructure Metrics', 'Metrics Visualization'].includes(meta.category) ? 'Cost'
             : ['Distributed Tracing', 'Application Performance Monitoring'].includes(meta.category) ? 'Productivity'
             : ['LLM Observability'].includes(meta.category) ? 'Execution'
+            : ['Risk & Security', 'Data Privacy', 'Secrets Management', 'Policy Enforcement'].includes(meta.category) ? 'Governance & Risk'
             : 'Quality'
           } Details & Traceability (${detectedCount}/${metrics.length} Detected)</span>
           <span class="arrow-${escHtml(name)}">▼</span>
@@ -1051,21 +1121,25 @@ async function runEvaluation() {
   btn.textContent = '⏳ Running…';
   showToast('Running full technical evaluation across all resources…', 'info');
   try {
-    const [r1, r2, r3, r4, r5] = await Promise.all([
+    const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/quality-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/productivity-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
-      fetch(`${API}/api/execution-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
+      fetch(`${API}/api/execution-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/risk-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
+      fetch(`${API}/api/governance-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
     ]);
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
-    const [costData, valData, qualData, prodData, execData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json()]);
+    const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
     const costResources = ["Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
     const execResources = ["Langfuse", "Phoenix", "Traceloop"];
+    const riskResources = ["LLMGuard", "Rebuff", "TruLens"];
+    const govResources = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')
@@ -1080,7 +1154,9 @@ async function runEvaluation() {
       ...prodData.filter(r => prodResources.includes(r.resource_name)),
       ...langfuseCostRows,
       ...langfuseExecRows,
-      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name))
+      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name)),
+      ...riskData.filter(r => riskResources.includes(r.resource_name)),
+      ...govData.filter(r => govResources.includes(r.resource_name))
     ];
     renderGrid();
     showToast(`✅ Evaluation complete — ${allData.length} metrics evaluated!`, 'success');
@@ -1095,19 +1171,23 @@ async function runEvaluation() {
 async function loadData() {
   try {
     await loadChandraData();
-    const [r1, r2, r3, r4, r5] = await Promise.all([
+    const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
       fetch(`${API}/api/cost-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/validation-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/quality-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/productivity-evaluation/results`, { headers: { Accept: 'application/json' } }),
-      fetch(`${API}/api/execution-evaluation/results`, { headers: { Accept: 'application/json' } })
+      fetch(`${API}/api/execution-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/risk-evaluation/results`, { headers: { Accept: 'application/json' } }),
+      fetch(`${API}/api/governance-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error loading results`);
-    const [costData, valData, qualData, prodData, execData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json()]);
+    const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
     const costResources = ["Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+    const riskResources = ["LLMGuard", "Rebuff", "TruLens"];
+    const govResources = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')
@@ -1122,7 +1202,9 @@ async function loadData() {
       ...prodData.filter(r => prodResources.includes(r.resource_name)),
       ...langfuseCostRows,
       ...langfuseExecRows,
-      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name))
+      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name)),
+      ...riskData.filter(r => riskResources.includes(r.resource_name)),
+      ...govData.filter(r => govResources.includes(r.resource_name))
     ];
     renderGrid();
   } catch (e) {

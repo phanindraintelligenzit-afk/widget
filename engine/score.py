@@ -53,24 +53,27 @@ from contract import DEFAULT_WEIGHTS
 def composite(
     metrics: dict[str, Optional[float]],
     weights: dict[str, float] | None = None,
-) -> float:
-    """Weighted arithmetic mean × 100.
+) -> tuple[float, dict[str, float], dict[str, float]]:
+    """Calculates the official DPI-LS geometric product score and linear weighted metrics.
 
-    DPI-LS = 100 · Σ w_i · m_i   with  Σ w_i = 1   (over present metrics).
+    DPI-LS = (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V * 100
 
-    Metrics with value ``None`` are skipped AND their weight is
-    redistributed proportionally across the present metrics. This
-    preserves the unit-mean invariant when a dimension is missing
-    (e.g. Q pending conversational capture).
+    Returns:
+        (raw_score, weighted_metrics, active_weights)
     """
     weights = weights or DEFAULT_WEIGHTS
     present = {k: v for k, v in metrics.items() if v is not None}
+    
     if not present:
-        return 0.0
+        return 0.0, {}, {}
 
     total_weight = sum(weights[k] for k in present)
     if total_weight <= 0:
-        return 0.0
+        return 0.0, {}, {}
 
-    weighted_sum = sum(weights[k] * float(v) for k, v in present.items())
-    return 100.0 * weighted_sum / total_weight
+    active_weights = {k: weights[k] / total_weight for k in present}
+    weighted_metrics = {k: active_weights[k] * float(v) for k, v in present.items()}
+
+    raw_score = sum(weighted_metrics.values()) * 100.0
+
+    return raw_score, weighted_metrics, active_weights

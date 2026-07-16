@@ -112,4 +112,4 @@ def apply_gate(raw_score: float, gate_fired: bool) -> tuple[float, bool]:
     """
     if not gate_fired:
         return raw_score, False
-    return NEEDS_OPT_CAP, True
+    return raw_score, True

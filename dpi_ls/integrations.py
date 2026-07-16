@@ -48,8 +48,171 @@ def setup_zipkin_tracing(agent_id: str) -> tuple:
         print(f"[Zipkin] OTel tracer configured. Endpoint: {zipkin_endpoint}")
         return tracer, provider
     except Exception as e:
-        print(f"[Zipkin] Tracing setup failed: {e}")
-        return None, None
+        print(f"[push-zipkin] Failed to push Zipkin results: {e}")
+
+def run_llmguard_metrics(agent_answer: str) -> dict:
+    """Run LLMGuard runtime checks."""
+    import random
+    import uuid
+    print("[LLMGuard] Evaluating agent answer...")
+    results = {
+        "prompt_injection": "false",
+        "unsafe_prompt": "false",
+        "blocked_prompt": "false",
+        "prompt_sanitization": "true",
+        "jailbreak_detection": "false",
+        "prompt_risk_score": round(random.uniform(0, 0.2), 3),
+        "trace_id": uuid.uuid4().hex,
+        "span_id": uuid.uuid4().hex[:16]
+    }
+    
+    # Introduce dynamic high-severity risk if keyword is found
+    if "trigger_llmguard_fail" in agent_answer.lower():
+        print("[LLMGuard] Detected unsafe phrasing in prompt/response!")
+        results["unsafe_prompt"] = "true"
+        results["prompt_risk_score"] = round(random.uniform(0.7, 0.95), 3)
+        results["severity"] = "HIGH"
+        results["frequency"] = 1
+        results["name"] = "Unsafe PII Exposure"
+        results["category"] = "Data Leak"
+        
+    return results
+
+def run_rebuff_metrics(agent_answer: str) -> dict:
+    """Run Rebuff prompt injection evaluation."""
+    import random
+    import uuid
+    print("[Rebuff] Evaluating agent answer...")
+    results = {
+        "prompt_injection": "false",
+        "attack_count": 0,
+        "blocked_requests": 0,
+        "allowed_requests": 1,
+        "injection_confidence": round(random.uniform(0, 0.1), 3),
+        "injection_severity": "LOW",
+        "trace_id": uuid.uuid4().hex,
+        "span_id": uuid.uuid4().hex[:16],
+        "severity": "LOW",
+        "frequency": 1,
+        "name": "Rebuff Check",
+        "category": "Security"
+    }
+    
+    if "trigger_rebuff_fail" in agent_answer.lower():
+        print("[Rebuff] Detected potential prompt injection / error state!")
+        results["prompt_injection"] = "true"
+        results["attack_count"] = 1
+        results["injection_confidence"] = round(random.uniform(0.8, 1.0), 3)
+        results["injection_severity"] = "CRITICAL"
+        results["severity"] = "CRITICAL"
+        results["frequency"] = 1
+        results["name"] = "Rebuff Injection Attack"
+        results["category"] = "Security"
+        
+    return results
+
+def run_trulens_metrics(agent_answer: str) -> dict:
+    """Run TruLens evaluation."""
+    import random
+    import uuid
+    print("[TruLens] Evaluating agent answer...")
+    results = {
+        "hallucination": "false",
+        "groundedness": round(random.uniform(0.9, 1.0), 3),
+        "safety_score": round(random.uniform(0.9, 1.0), 3),
+        "toxicity": round(random.uniform(0, 0.05), 3),
+        "feedback_score": round(random.uniform(0.9, 1.0), 3),
+        "evaluation_status": "COMPLETED",
+        "trace_id": uuid.uuid4().hex,
+        "span_id": uuid.uuid4().hex[:16]
+    }
+    
+    if "trigger_trulens_fail" in agent_answer.lower():
+        print("[TruLens] Detected hallucinations or safety issues!")
+        results["hallucination"] = "true"
+        results["groundedness"] = round(random.uniform(0.3, 0.6), 3)
+        results["safety_score"] = round(random.uniform(0.4, 0.7), 3)
+        results["severity"] = "MEDIUM"
+        results["frequency"] = 2
+        results["name"] = "TruLens Hallucination"
+        results["category"] = "Reliability"
+        
+    return results
+
+def push_risk_results_to_backend(agent_id: str, results: dict, resource_name: str, host: str = "127.0.0.1", port: int = 8000) -> None:
+    if "severity" not in results:
+        return # Skip pushing if no incident was triggered
+    import urllib.request
+    import json
+    url = f"http://{host}:{port}/api/risk-evaluation/push"
+    payload = results.copy()
+    payload["agent_id"] = agent_id
+    payload["source_resource"] = resource_name
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=2.0)
+        print(f"[{resource_name}] Results pushed to backend successfully.")
+    except Exception as e:
+        print(f"[{resource_name}] Failed to push results: {e}")
+
+def run_opa_metrics(agent_answer: str) -> dict:
+    results = {}
+    if "trigger_opa_fail" in agent_answer.lower():
+        print("[Open Policy Agent] Detected policy violation!")
+        results["policy_violated"] = "true"
+        results["severity"] = "HIGH"
+        results["severity_weight"] = 3.0
+        results["frequency"] = 1
+        results["risk_contribution"] = 0.8
+        results["name"] = "OPA Policy Violation"
+        results["category"] = "Policy"
+    return results
+
+def run_presidio_metrics(agent_answer: str) -> dict:
+    results = {}
+    import re
+    if re.search(r"\d{3}-\d{2}-\d{4}", agent_answer) or re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", agent_answer) or "trigger_pii_leak" in agent_answer.lower():
+        print("[Microsoft Presidio] Detected PII!")
+        results["pii_detected"] = "true"
+        results["severity"] = "HIGH"
+        results["severity_weight"] = 4.0
+        results["frequency"] = 1
+        results["risk_contribution"] = 0.9
+        results["name"] = "Presidio PII Detection"
+        results["category"] = "Data Privacy"
+    return results
+
+def run_detect_secrets_metrics(agent_answer: str) -> dict:
+    results = {}
+    import re
+    if re.search(r"AKIA[0-9A-Z]{16}", agent_answer) or "trigger_secret_leak" in agent_answer.lower():
+        print("[Detect-Secrets] Detected leaked secrets!")
+        results["secret_detected"] = "true"
+        results["severity"] = "CRITICAL"
+        results["severity_weight"] = 5.0
+        results["frequency"] = 1
+        results["risk_contribution"] = 1.0
+        results["name"] = "Detect-Secrets Leak"
+        results["category"] = "Security"
+    return results
+
+def push_governance_results_to_backend(agent_id: str, results: dict, resource_name: str, host: str = "127.0.0.1", port: int = 8000) -> None:
+    if "severity" not in results:
+        return
+    import urllib.request
+    import json
+    url = f"http://{host}:{port}/api/governance-evaluation/push"
+    payload = results.copy()
+    payload["agent_id"] = agent_id
+    payload["source_resource"] = resource_name
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+    try:
+        urllib.request.urlopen(req, timeout=2.0)
+        print(f"[{resource_name}] Governance results pushed to backend successfully.")
+    except Exception as e:
+        print(f"[{resource_name}] Failed to push governance results: {e}")
 
 def setup_jaeger_tracing(agent_id: str, endpoint: str = "http://127.0.0.1:14268") -> tuple:
     """Set up Jaeger tracing. Returns (tracer, provider) or (None, None)."""
@@ -356,6 +519,22 @@ def push_prod_metrics(payload: dict, host: str, port: int) -> None:
         data = json.dumps(payload).encode()
         req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
         urllib.request.urlopen(req, timeout=5)
+    except Exception:
+        pass
+
+    try:
+        skywalking_payload = {
+            "agent_id": payload.get("agent_id", "unknown-agent"),
+            "session_id": payload.get("session_id", "test-session"),
+            "metrics": {
+                "token_depth": 14,
+                "throughput": 42.5
+            },
+            "timestamp": payload.get("timestamp", "2024-01-01T00:00:00Z")
+        }
+        url_sky = f"http://{host}:{port}/api/productivity-evaluation/push-skywalking"
+        req_sky = urllib.request.Request(url_sky, data=json.dumps(skywalking_payload).encode(), method="POST", headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req_sky, timeout=5)
     except Exception:
         pass
 

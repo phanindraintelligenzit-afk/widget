@@ -60,8 +60,8 @@ def rate(
     Returns a fully-populated ``Rating``. See module docstring for the
     pipeline order.
     """
-    # 1. Composite — weighted geometric mean with weight redistribution.
-    raw = composite(metrics, weights)
+    # 1. Composite — DPI-LS formula geometric mean and linear weighted metrics.
+    raw, weighted_metrics, weights_used = composite(metrics, weights)
 
     # 2. Compliance gates (G/R/V) — flag Unsafe and cap.
     gate_fired, failed = gate_check(metrics, gate_thresholds)
@@ -96,6 +96,8 @@ def rate(
         unsafe=unsafe,
         gate_failures=failed,
         metrics=metrics,
+        weighted_metrics=weighted_metrics,
+        weights_used=weights_used,
         missing=missing,
         dimensions_measured=dimensions_measured,
         coverage=coverage,

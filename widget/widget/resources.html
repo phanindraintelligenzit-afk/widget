@@ -479,6 +479,8 @@ let settingsObj = {};
 let chandraQualitySub = {}; // quality sub-metrics
 let chandraCostValue = 1.0;
 let chandraValidationValue = 1.0;
+let chandraRiskValue = 0.0;
+let chandraRiskSub = {};
 let chandraQualityValue = "Pending SME Review";
 let allData = [];
 let currentFilter = 'all';
@@ -507,6 +509,8 @@ async function loadChandraData() {
       if (chandra) {
         chandraSub = chandra.sub_metrics?.V || {};
         chandraValidationValue = chandra.metrics?.V !== undefined ? chandra.metrics.V : 1.0;
+        chandraRiskValue = chandra.metrics?.R !== undefined ? chandra.metrics.R : 0.0;
+        chandraRiskSub = (chandra.sub_metrics && chandra.sub_metrics.R) ? chandra.sub_metrics.R : {};
         chandraCostSub = chandra.sub_metrics?.C || {};
         chandraCostValue = chandra.metrics?.C !== undefined ? chandra.metrics.C : 1.0;
         chandraQualitySub = chandra.sub_metrics?.Q || {};
