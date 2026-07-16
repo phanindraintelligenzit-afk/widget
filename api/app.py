@@ -440,7 +440,12 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
     ]
 
 
-from .scoring import enrich_quality_sub_metrics, enrich_productivity_sub_metrics, enrich_risk_sub_metrics
+from .scoring import (
+    enrich_governance_sub_metrics,
+    enrich_productivity_sub_metrics,
+    enrich_quality_sub_metrics,
+    enrich_risk_sub_metrics,
+)
 
 def _score_row_to_rating(s: Session, row) -> Rating:
     # Persist the typed columns straight through — the DB and the
@@ -450,16 +455,44 @@ def _score_row_to_rating(s: Session, row) -> Rating:
     cap_reasons_list = list(row.cap_reasons or [])
     cap_reason = cap_reasons_list[0] if cap_reasons_list else None
     coverage_capped = bool(row.coverage_capped)
+
+    m_dict = dict(row.metrics or {})
+    w_dict = dict(row.weighted_metrics or {})
+    active_weights = dict(row.weights_used or {})
+
+    # Enrich sub_metrics live from the DB (G + R rows change between
+    # ingests) …
+    settings = repo.get_settings(s)
+    live_sub = enrich_governance_sub_metrics(
+        s,
+        enrich_risk_sub_metrics(
+            s,
+            enrich_productivity_sub_metrics(
+                s,
+                enrich_quality_sub_metrics(s, dict(row.sub_metrics or {})),
+            ),
+            settings,
+        ),
+    )
+
+    # … then keep metrics + weighted_metrics in lock-step with those
+    # live values, so the per-agent card's row cells always match its
+    # detail panels. Same invariant as api.scoring.
+    from api.scoring import _sync_metrics_from_sub_metrics
+    _sync_metrics_from_sub_metrics(m_dict, live_sub)
+    from engine.score import composite
+    _raw, w_dict, active_weights = composite(m_dict, settings.weights)
+
     return Rating(
         score=row.score,
         raw_score=row.raw_score,
         band=row.band,
         unsafe=row.unsafe,
         gate_failures=list(row.gate_failures or []),
-        metrics=dict(row.metrics or {}),
-        weighted_metrics=dict(row.weighted_metrics or {}),
-        weights_used=dict(row.weights_used or {}),
-        sub_metrics=enrich_risk_sub_metrics(s, enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(row.sub_metrics or {})))),
+        metrics=m_dict,
+        weighted_metrics=w_dict,
+        weights_used=active_weights,
+        sub_metrics=live_sub,
         missing=list(row.missing or []),
         dimensions_measured=int(row.dimensions_measured or 0),
         coverage=float(row.coverage or 0.0),
@@ -510,7 +543,31 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
         m_dict = dict(score.metrics or {})
         w_dict = dict(score.weighted_metrics or {})
         active_weights = dict(score.weights_used or {})
-        
+
+        # Enrich sub_metrics with LIVE data (governance + risk are read from
+        # the DB at every request, not frozen at ingest time).
+        live_sub = enrich_governance_sub_metrics(
+            s,
+            enrich_risk_sub_metrics(
+                s,
+                enrich_productivity_sub_metrics(
+                    s,
+                    enrich_quality_sub_metrics(s, dict(score.sub_metrics or {})),
+                ),
+                settings,
+            ),
+        )
+
+        # Row-vs-panel sync: whenever the live sub_metrics contain a fresher
+        # G / R value than what's frozen in the persisted metrics dict,
+        # override the stored value and rebuild weighted_metrics so the row
+        # matches the panel exactly. Same one-source-of-truth invariant as
+        # api.scoring._sync_metrics_from_sub_metrics.
+        from api.scoring import _sync_metrics_from_sub_metrics
+        _sync_metrics_from_sub_metrics(m_dict, live_sub)
+        from engine.score import composite
+        _raw, w_dict, active_weights = composite(m_dict, weights)
+
         out.append(
             BoardRow(
                 agent_id=agent.id,
@@ -523,7 +580,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                 metrics=m_dict,
                 weighted_metrics=w_dict,
                 weights_used=active_weights,
-                sub_metrics=enrich_risk_sub_metrics(s, enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(score.sub_metrics or {})))),
+                sub_metrics=live_sub,
                 computed_at=score.computed_at,
             )
         )
