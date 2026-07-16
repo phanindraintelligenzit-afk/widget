@@ -116,8 +116,9 @@ def apply_completeness_cap(
         # Top of the "Needs Optimization" band. Holding the cap here
         # (not lower) keeps the agent in a recoverable position — a
         # single source coming online can lift it back above 70.
-        capped_score = 69.0
-        capped_band = NEEDS_OPTIMIZATION
+        # Remove hardcoded 69 cap based on user feedback
+        capped_score = score
+        capped_band = band
 
         # If the gate already produced a reason, surface that — it's
         # the more actionable signal.

@@ -41,6 +41,51 @@ post_data("push-langsmith", langsmith)
 post_data("push-ragas", ragas)
 post_data("push-agentops", agentops)
 
+# Simulate Apache SkyWalking
+skywalking_payload = {
+    "agent_id": "chandra-finops",
+    "session_id": "test-session-123",
+    "metrics": {
+        "token_depth": 14,
+        "throughput": 42.5
+    },
+    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ")
+}
+def post_skywalking(payload):
+    url = "http://127.0.0.1:8000/api/productivity-evaluation/push-skywalking"
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"[SkyWalking] Response: {resp.status}")
+    except Exception as e:
+        print(f"[SkyWalking] Push failed: {e}")
+
+post_skywalking(skywalking_payload)
+
+# Simulate Rebuff
+rebuff_payload = {
+    "agent_id": "chandra-finops",
+    "source_resource": "Rebuff",
+    "name": "Simulated Rebuff Prompt Injection",
+    "category": "Security",
+    "severity": "CRITICAL",
+    "frequency": 1,
+    "trace_id": "trace-1234",
+    "span_id": "span-1234"
+}
+def post_rebuff(payload):
+    url = "http://127.0.0.1:8000/api/risk-evaluation/push"
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"[Rebuff] Response: {resp.status}")
+    except Exception as e:
+        print(f"[Rebuff] Push failed: {e}")
+
+post_rebuff(rebuff_payload)
+
 print("Triggering quality evaluation pipeline...")
 try:
     url_quality = "http://127.0.0.1:8000/api/quality-evaluation/evaluate"

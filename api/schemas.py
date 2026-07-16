@@ -35,6 +35,7 @@ class BoardRow(BaseModel):
     gate_failures: list[str] = Field(default_factory=list)
     metrics: dict[str, Optional[float]] = Field(default_factory=dict)
     weighted_metrics: dict[str, Optional[float]] = Field(default_factory=dict)
+    weights_used: dict[str, float] = Field(default_factory=dict)
     sub_metrics: dict[str, Any] = Field(default_factory=dict)
     computed_at: datetime
 

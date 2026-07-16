@@ -30,6 +30,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 
 from contract import AgentObservation, Rating, Settings
@@ -133,6 +134,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse
+import traceback
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print(f"CRITICAL FASTAPI ERROR: {exc}")
+    traceback.print_exc()
+    return JSONResponse(status_code=500, content={"detail": str(exc)})
+
 # Static serving of the embeddable widget.
 # NoCacheStaticFiles overrides the response headers to prevent browsers
 # from caching the widget JS between edits — otherwise a change to
@@ -202,12 +211,19 @@ def sources() -> list[AdapterInfo]:
 # ---- ingestion -----------------------------------------------------------
 
 @app.post("/ingest", response_model=Rating)
-def ingest(
+def ingest_observation(
     obs: AgentObservation,
     baseline: Optional[float] = None,
     s: Session = Depends(db_session),
 ) -> Rating:
-    return score_and_persist(s, obs, baseline=baseline)
+    """Ingest a completed agent observation (telemetry) and return its score."""
+    try:
+        return score_and_persist(s, obs, baseline=baseline)
+    except Exception as e:
+        print(f"CRITICAL INGEST ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 @app.post("/ingest/{adapter_name}", response_model=list[Rating])
@@ -247,6 +263,169 @@ def ingest_via_source(
 
 # ---- agents + scores -----------------------------------------------------
 
+@app.post("/api/risk-evaluation/evaluate")
+def evaluate_risk(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.risk_resource_evaluation_service import RiskResourceEvaluationService
+    from store.models import RiskResourceEvaluationRow
+    from sqlalchemy import select
+    
+    # We evaluate against all agents with incidents. 
+    # For now, just trigger evaluate_all for a single agent if we had one, or a global check.
+    # In a real app, this would iterate over active agents. We'll use a hardcoded agent for demo.
+    agent_id = "chandra-finops"
+    svc = RiskResourceEvaluationService(s)
+    svc.evaluate_all(agent_id)
+    
+    rows = s.scalars(select(RiskResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+        } for r in rows
+    ]
+
+@app.get("/api/risk-evaluation/resources")
+def risk_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import RiskResourceRegistryRow
+    from sqlalchemy import select
+    rows = s.scalars(select(RiskResourceRegistryRow)).all()
+    out = []
+    for r in rows:
+        out.append({
+            "id": r.id,
+            "resource_name": r.name,
+            "category": "Security & Risk",
+            "integration_type": "SDK",
+            "status": "OK" if r.integration_implemented else "PENDING",
+            "provider": r.name,
+            "version": "1.0",
+            "last_active": r.created_at.isoformat() if r.created_at else None
+        })
+    return out
+
+@app.get("/api/risk-evaluation/urls")
+def risk_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
+    from store.models import RiskResourceRegistryRow
+    from sqlalchemy import select
+    rows = s.scalars(select(RiskResourceRegistryRow)).all()
+    out = {}
+    for r in rows:
+        if r.name == "LLMGuard":
+            url = os.environ.get("LLMGUARD_URL", "https://llm-guard.com")
+            out[r.name] = {"url": url, "online": True}
+        elif r.name == "TruLens":
+            url = os.environ.get("TRULENS_URL", "https://trulens.org")
+            out[r.name] = {"url": url, "online": True}
+        elif r.name == "Rebuff":
+            url = os.environ.get("REBUFF_URL", "https://rebuff.ai")
+            out[r.name] = {"url": url, "online": True}
+        else:
+            out[r.name] = {"url": "#", "online": False}
+    return out
+
+
+@app.get("/api/risk-evaluation/results")
+def risk_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import RiskResourceEvaluationRow
+    from sqlalchemy import select
+    rows = s.scalars(select(RiskResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+        } for r in rows
+    ]
+
+@app.post("/api/risk-evaluation/push")
+def push_risk_incident(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from dpi_ls.risk_incident_engine import normalize_incident
+    from store.models import RiskIncidentRow
+    
+    agent_id = payload.get("agent_id")
+    resource_name = payload.get("source_resource", "Unknown")
+    
+    incident_obj = normalize_incident(payload, resource_name)
+    
+    row = RiskIncidentRow(
+        incident_id=incident_obj.incident_id,
+        name=incident_obj.name,
+        category=incident_obj.category,
+        source_resource=incident_obj.source_resource,
+        agent_id=agent_id,
+        severity=incident_obj.severity,
+        severity_weight=incident_obj.severity_weight,
+        frequency=incident_obj.frequency,
+        risk_contribution=incident_obj.risk_contribution,
+        trace_id=incident_obj.trace_id,
+        span_id=incident_obj.span_id,
+        correlation_id=incident_obj.correlation_id,
+        status="NORMALIZED",
+    )
+    s.add(row)
+    s.commit()
+    return {"status": "success", "incident_id": incident_obj.incident_id}
+
+
+@app.get("/api/risk-evaluation/dashboard/{agent_id}")
+def risk_dashboard(
+    agent_id: str,
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from sqlalchemy import select
+    from store.models import RiskIncidentRow
+    from dpi_ls.risk_incident_engine import RiskFormulaEngine, RiskIncident
+    
+    incidents = s.scalars(
+        select(RiskIncidentRow).where(RiskIncidentRow.agent_id == agent_id)
+    ).all()
+    
+    incident_objs = [
+        RiskIncident(
+            name=i.name, category=i.category, source_resource=i.source_resource,
+            severity=i.severity, severity_weight=i.severity_weight,
+            frequency=i.frequency, trace_id=i.trace_id, span_id=i.span_id,
+            correlation_id=i.correlation_id
+        )
+        for i in incidents
+    ]
+    
+    engine = RiskFormulaEngine()
+    risk_results = engine.calculate_risk(incident_objs)
+    
+    return {
+        "agent_id": agent_id,
+        "calculation": risk_results,
+        "incidents": [
+            {
+                "id": i.incident_id,
+                "name": i.name,
+                "source": i.source_resource,
+                "severity": i.severity,
+                "frequency": i.frequency,
+                "contribution": i.risk_contribution,
+                "timestamp": i.timestamp
+            } for i in incidents
+        ]
+    }
+
+
 @app.get("/agents", response_model=list[AgentSummary])
 def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
     return [
@@ -261,7 +440,7 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
     ]
 
 
-from .scoring import enrich_quality_sub_metrics, enrich_productivity_sub_metrics
+from .scoring import enrich_quality_sub_metrics, enrich_productivity_sub_metrics, enrich_risk_sub_metrics
 
 def _score_row_to_rating(s: Session, row) -> Rating:
     # Persist the typed columns straight through — the DB and the
@@ -278,7 +457,9 @@ def _score_row_to_rating(s: Session, row) -> Rating:
         unsafe=row.unsafe,
         gate_failures=list(row.gate_failures or []),
         metrics=dict(row.metrics or {}),
-        sub_metrics=enrich_quality_sub_metrics(s, dict(row.sub_metrics or {})),
+        weighted_metrics=dict(row.weighted_metrics or {}),
+        weights_used=dict(row.weights_used or {}),
+        sub_metrics=enrich_risk_sub_metrics(s, enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(row.sub_metrics or {})))),
         missing=list(row.missing or []),
         dimensions_measured=int(row.dimensions_measured or 0),
         coverage=float(row.coverage or 0.0),
@@ -327,14 +508,8 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
             continue
         
         m_dict = dict(score.metrics or {})
-        w_dict = {}
-        for k, v in m_dict.items():
-            if v is not None:
-                w = weights.get(k)
-                w_val = w if w is not None else 0.0
-                w_dict[k] = v * w_val * 100
-            else:
-                w_dict[k] = None
+        w_dict = dict(score.weighted_metrics or {})
+        active_weights = dict(score.weights_used or {})
         
         out.append(
             BoardRow(
@@ -347,7 +522,8 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                 gate_failures=list(score.gate_failures or []),
                 metrics=m_dict,
                 weighted_metrics=w_dict,
-                sub_metrics=enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(score.sub_metrics or {}))),
+                weights_used=active_weights,
+                sub_metrics=enrich_risk_sub_metrics(s, enrich_productivity_sub_metrics(s, enrich_quality_sub_metrics(s, dict(score.sub_metrics or {})))),
                 computed_at=score.computed_at,
             )
         )
@@ -1379,3 +1555,150 @@ def push_traceloop_results(
     s.commit()
     return {"updated": updated, "count": len(updated)}
 
+
+
+@app.post("/api/governance-evaluation/evaluate")
+def evaluate_governance(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.governance_resource_evaluation_service import GovernanceResourceEvaluationService
+    from store.models import GovernanceResourceEvaluationRow
+    from sqlalchemy import select
+    
+    agent_id = "chandra-finops"
+    svc = GovernanceResourceEvaluationService(s)
+    svc.evaluate_all(agent_id)
+    
+    rows = s.scalars(select(GovernanceResourceEvaluationRow)).all()
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+        }
+        for r in rows
+    ]
+
+
+@app.get("/api/governance-evaluation/resources")
+def governance_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import GovernanceResourceRegistryRow
+    rows = s.scalars(select(GovernanceResourceRegistryRow)).all()
+    return [{
+        "id": r.id,
+        "name": r.name,
+        "sdk_available": r.sdk_available,
+        "api_available": r.api_available,
+        "api_key_required": r.api_key_required,
+        "integration_implemented": r.integration_implemented,
+        "created_at": r.created_at.isoformat()
+    } for r in rows]
+
+
+@app.get("/api/governance-evaluation/urls")
+def governance_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
+    from store.models import GovernanceResourceRegistryRow
+    rows = s.scalars(select(GovernanceResourceRegistryRow)).all()
+    out = {}
+    import os
+    for r in rows:
+        if r.name == "Open Policy Agent":
+            url = os.environ.get("OPA_URL", "https://www.openpolicyagent.org")
+            out[r.name] = {"url": url, "online": True}
+        elif r.name == "Microsoft Presidio":
+            url = os.environ.get("PRESIDIO_URL", "https://microsoft.github.io/presidio")
+            out[r.name] = {"url": url, "online": True}
+        elif r.name == "Detect-Secrets":
+            url = os.environ.get("DETECT_SECRETS_URL", "https://github.com/Yelp/detect-secrets")
+            out[r.name] = {"url": url, "online": True}
+        else:
+            out[r.name] = {"url": "#", "online": False}
+    return out
+
+
+@app.get("/api/governance-evaluation/results")
+def governance_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import GovernanceResourceEvaluationRow
+    rows = s.scalars(select(GovernanceResourceEvaluationRow)).all()
+    return [{
+        "id": r.id,
+        "resource_name": r.resource_name,
+        "metric": r.metric,
+        "detected": r.detected,
+        "evidence": r.evidence,
+        "current_value": r.current_value,
+        "last_run": r.last_run.isoformat(),
+        "status": r.status,
+        "dashboard_verified": r.dashboard_verified,
+        "agent_executed": r.agent_executed
+    } for r in rows]
+
+
+@app.post("/api/governance-evaluation/push")
+def push_governance_incident(
+    req: dict[str, Any],
+    s: Session = Depends(db_session)
+) -> dict[str, str]:
+    from store.models import GovernanceIncidentRow
+    from datetime import datetime
+    
+    agent_id = req.get("agent_id", "default_agent")
+    source = req.get("source_resource", "Unknown")
+    name = req.get("name", "Incident")
+    
+    row = GovernanceIncidentRow(
+        incident_id=req.get("incident_id", f"gov_{int(datetime.now().timestamp()*1000)}"),
+        name=name,
+        category=req.get("category", "Policy"),
+        source_resource=source,
+        agent_id=agent_id,
+        severity=req.get("severity", "medium"),
+        severity_weight=float(req.get("severity_weight", 1.0)),
+        frequency=int(req.get("frequency", 1)),
+        risk_contribution=float(req.get("risk_contribution", 1.0)),
+        trace_id=req.get("trace_id"),
+        span_id=req.get("span_id"),
+        correlation_id=req.get("correlation_id")
+    )
+    s.add(row)
+    s.commit()
+    return {"status": "ok", "incident_id": row.incident_id}
+
+
+@app.get("/api/governance-evaluation/dashboard/{agent_id}")
+def governance_dashboard_data(agent_id: str, s: Session = Depends(db_session)) -> dict[str, Any]:
+    from store.models import GovernanceIncidentRow, GovernanceResourceEvaluationRow
+    
+    incidents = s.scalars(
+        select(GovernanceIncidentRow).where(GovernanceIncidentRow.agent_id == agent_id)
+    ).all()
+    
+    resource_evals = s.scalars(
+        select(GovernanceResourceEvaluationRow)
+    ).all()
+    
+    return {
+        "agent_id": agent_id,
+        "incidents": [{
+            "name": i.name,
+            "category": i.category,
+            "source": i.source_resource,
+            "severity": i.severity,
+            "severity_weight": i.severity_weight,
+            "frequency": i.frequency,
+            "contribution": i.risk_contribution,
+            "trace_id": i.trace_id
+        } for i in incidents],
+        "resource_evaluations": [{
+            "resource": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "status": r.status,
+            "value": r.current_value
+        } for r in resource_evals]
+    }

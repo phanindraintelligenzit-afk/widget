@@ -48,7 +48,9 @@ from .integrations import (
     push_quality_results_to_backend, push_deepeval_results_to_backend, push_prod_metrics,
     run_langfuse_metrics, run_phoenix_metrics, run_traceloop_metrics,
     push_execution_results_to_backend,
-    run_jaeger_metrics, run_zipkin_metrics, push_validation_results_to_backend
+    run_jaeger_metrics, run_zipkin_metrics, push_validation_results_to_backend,
+    run_llmguard_metrics, run_rebuff_metrics, run_trulens_metrics, push_risk_results_to_backend,
+    run_opa_metrics, run_presidio_metrics, run_detect_secrets_metrics, push_governance_results_to_backend
 )
 
 _log = logging.getLogger("dpi_ls.monitor")
@@ -199,6 +201,25 @@ def _run_evaluations(collector: SignalCollector) -> None:
         push_deepeval_results_to_backend(deepeval_res, host_domain, port_num)
         push_execution_results_to_backend(langfuse_res, phoenix_res, traceloop_res, host_domain, port_num)
         push_validation_results_to_backend(jaeger_res, zipkin_res, host_domain, port_num)
+        
+        # Risk Evaluation
+        llmguard_res = run_llmguard_metrics(agent_answer)
+        rebuff_res = run_rebuff_metrics(agent_answer)
+        trulens_res = run_trulens_metrics(agent_answer)
+        
+        push_risk_results_to_backend(collector.agent_id, llmguard_res, "LLMGuard", host_domain, port_num)
+        push_risk_results_to_backend(collector.agent_id, rebuff_res, "Rebuff", host_domain, port_num)
+        push_risk_results_to_backend(collector.agent_id, trulens_res, "TruLens", host_domain, port_num)
+        
+        # Governance Evaluation
+        opa_res = run_opa_metrics(agent_answer)
+        presidio_res = run_presidio_metrics(agent_answer)
+        secrets_res = run_detect_secrets_metrics(agent_answer)
+        
+        push_governance_results_to_backend(collector.agent_id, opa_res, "Open Policy Agent", host_domain, port_num)
+        push_governance_results_to_backend(collector.agent_id, presidio_res, "Microsoft Presidio", host_domain, port_num)
+        push_governance_results_to_backend(collector.agent_id, secrets_res, "Detect-Secrets", host_domain, port_num)
+        
         # Productivity metrics could be computed here.
         try:
             payload = {

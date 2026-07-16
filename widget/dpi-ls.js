@@ -35,16 +35,6 @@
     C: "Cost (5%)",
   };
 
-  const METRIC_FORMULAS = {
-    P: "P = min(1, (AI_output_per_period / human_baseline) * normalization_factor)",
-    Q: "Q = w_acc*Accuracy + w_con*Consistency + w_hal*(1 − Hallucination)",
-    E: "E = successful_executions / total_attempts",
-    G: "G = 1 − (policy_violations / total_actions)",
-    R: "R = 1 − min(1, SUM(freq × severity) / R_max)",
-    V: "V = validated_components / total_required",
-    C: "C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor"
-  };
-
   const SHARED_CSS = `
     :host {
       display: block;
@@ -172,7 +162,7 @@
     // what each dim adds up to.
     if (!Number.isFinite(v)) return "—";
     const val = v * weightPercent;
-    return Number.isInteger(val) ? val.toString() : val.toFixed(1);
+    return val.toFixed(2);
   }
 
   function fmtTime(iso) {
@@ -186,31 +176,24 @@
 
   function boardRowHtml(row) {
     if (!row) return "";
-    const rawScore = typeof row.raw_score === 'number' ? row.raw_score : row.score;
-    // Use weighted_metrics for display (e.g. 15, 18, 15, 20 …) which already
-    // incorporates the dimension weight and matches the user's expected format.
-    const wm = row.weighted_metrics || {};
-    const m  = row.metrics || {};  // raw 0-1 values for drilldown context
+    const w_m = row.weighted_metrics || {};
     const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
+    
     const metricCells = KEYS.map(k => {
-      const val = wm[k] !== undefined ? wm[k] : m[k];
-      const display = (val !== null && val !== undefined)
-        ? (Number.isInteger(val) ? val : parseFloat(val.toFixed(1)))
+      const display = (w_m[k] !== null && w_m[k] !== undefined)
+        ? (w_m[k] * 100).toFixed(2)
         : "\u2014";
       return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details">${display}</td>`;
     }).join("");
+    
     return `
       <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">${escapeHtml(row.agent_name || row.agent_id)}</td>
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(rawScore)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(row.score)}</td>
         ${metricCells}
       </tr>
     `;
   }
-
-  const METRIC_WEIGHTS = {
-    P: 15, Q: 20, E: 15, G: 20, R: 15, V: 10, C: 5
-  };
 
   function calculateCostMetrics(sub, settings, value) {
     sub = sub || {};
@@ -410,9 +393,7 @@
     };
 
     let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
 
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -491,6 +472,312 @@
     `;
   }
 
+  
+  function renderGovernanceTableHtml(sub, settings, value, resourceFilter) {
+    if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
+
+    const resources = sub.runtime_resources || {};
+    let required = sub["Required Controls"] !== undefined ? sub["Required Controls"] : 0;
+    let validated = sub["Validated Controls"] !== undefined ? sub["Validated Controls"] : 0;
+    
+    const opa = resources["Open Policy Agent"] || {};
+    const presidio = resources["Microsoft Presidio"] || {};
+    const secrets = resources["Detect-Secrets"] || {};
+
+    if (required === 0) {
+      if (Object.keys(opa).length > 0) required++;
+      if (Object.keys(presidio).length > 0) required++;
+      if (Object.keys(secrets).length > 0) required++;
+
+      if (opa["Policies Executed"] > 0) validated++;
+      if (presidio["PII Entities Detected"] > 0 || presidio["Masked Entities"] > 0 || presidio["Mask Failure"] > 0) validated++;
+      if (secrets["Secrets Found"] > 0 || secrets["Secrets Blocked"] > 0 || (secrets["Critical Secrets"] !== undefined && secrets["Critical Secrets"] >= 0 && Object.keys(secrets).length > 0)) validated++;
+    }
+
+    let gScoreVal = 1.0;
+    if (required > 0) {
+        gScoreVal = Math.min(1.0, validated / required);
+    }
+    
+    if (value === undefined || value === null) value = gScoreVal;
+
+    const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
+    const metricsMap = {
+      "Required Controls": { val: required, calc: required, disp: required, formula: "Total Tools Configured", src: "Settings", resource: "System", dec: 0 },
+      "Validated Controls": { val: validated, calc: validated, disp: validated, formula: "Tools with Telemetry", src: "Runtime Metrics", resource: "System", dec: 0 },
+      "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "Validated / Required", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
+    };
+
+    if (Object.keys(opa).length > 0) {
+       metricsMap["Policies Executed"] = { val: opa["Policies Executed"] || 0, calc: opa["Policies Executed"] || 0, disp: opa["Policies Executed"] || 0, formula: "OPA Rule Count", src: "Open Policy Agent", resource: "Open Policy Agent", dec: 0 };
+    }
+    if (Object.keys(presidio).length > 0) {
+       metricsMap["PII Entities Detected"] = { val: presidio["PII Entities Detected"] || 0, calc: presidio["PII Entities Detected"] || 0, disp: presidio["PII Entities Detected"] || 0, formula: "Presidio Scans", src: "Microsoft Presidio", resource: "Microsoft Presidio", dec: 0 };
+    }
+    if (Object.keys(secrets).length > 0) {
+       metricsMap["Secrets Found"] = { val: secrets["Secrets Found"] || 0, calc: secrets["Secrets Found"] || 0, disp: secrets["Secrets Found"] || 0, formula: "Secret Scans", src: "Detect-Secrets", resource: "Detect-Secrets", dec: 0 };
+    }
+
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined) return "Unavailable";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    let entries = Object.entries(metricsMap);
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;">${valStr}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${calcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${dispStr}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || r.resource}</td>
+        </tr>
+      `;
+    }).join("");
+
+    let incRows = "";
+    if (sub.incidents && sub.incidents.length > 0) {
+      incRows = sub.incidents
+        .filter(inc => !resourceFilter || inc.source === resourceFilter)
+        .map(inc => `
+          <tr style="background:#1e1b4b;border-bottom:1px solid #312e81;">
+            <td style="padding:10px 14px;color:#f472b6;">Incident: ${escapeHtml(inc.name)}</td>
+            <td style="padding:10px 14px;color:#e2e8f0;">${escapeHtml(inc.source)}</td>
+            <td style="padding:10px 14px;color:#cbd5e1;">${escapeHtml(inc.category)}</td>
+            <td style="padding:10px 14px;color:#f87171;">Severity: ${inc.severity} (${inc.severity_weight})</td>
+            <td style="padding:10px 14px;color:#fbbf24;">Freq: ${inc.frequency}</td>
+            <td style="padding:10px 14px;color:#ef4444;font-weight:bold;">IMPACT</td>
+            <td style="padding:10px 14px;color:#94a3b8;font-size:10px;">Trace: ${escapeHtml(inc.trace_id || 'N/A')}</td>
+          </tr>
+        `).join("");
+    }
+
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">G</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (20%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${gScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = Validated Controls / Required Controls</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="governance-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}GOVERNANCE TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Governance telemetry mapped.</td></tr>`}
+            ${incRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderRiskTableHtml(sub, settings, value, resourceFilter) {
+    if (!sub) return `<div style="padding:15px;color:#64748b;">No Risk telemetry available.</div>`;
+    
+    sub = sub || {};
+    settings = settings || {};
+    
+    const incidents = sub.incidents || [];
+    const totalFreq = sub["Total Frequency"] !== undefined ? sub["Total Frequency"] : "Unavailable";
+    const totalRisk = sub["Total Risk"] !== undefined ? sub["Total Risk"] : "Unavailable";
+    const rmax = sub.Rmax || settings.r_max || 50;
+    
+    let calcRScore = 1.0;
+    if (typeof totalRisk === "number") {
+      calcRScore = Math.max(0, 1 - Math.min(1, totalRisk / rmax));
+    }
+    const rScoreVal = calcRScore;
+
+    const metricsMap = {
+      "Total Risk": { val: totalRisk, calc: totalRisk, disp: totalRisk, formula: "SUM(Freq * Severity)", src: "Runtime Metrics", resource: "Risk Engine", dec: 0 },
+      "Rmax": { val: rmax, calc: rmax, disp: rmax, formula: "Max Acceptable Risk Limit", src: "Settings", resource: "System", dec: 0 },
+      "Total Frequency": { val: totalFreq, calc: totalFreq, disp: totalFreq, formula: "Total Incident Freq", src: "Runtime Metrics", resource: "Risk Engine", dec: 0 },
+      "Risk_Score": { val: rScoreVal, calc: calcRScore, disp: rScoreVal, formula: "1 - MIN(1, Total Risk / Rmax)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
+    };
+    
+    const fmt = (val, dec = 3) => {
+      if (val === null || val === undefined) return "Unavailable";
+      if (typeof val === 'number') {
+        return val.toFixed(dec);
+      }
+      const num = parseFloat(val);
+      return isNaN(num) ? val : num.toFixed(dec);
+    };
+
+    const checkMatch = (calc, disp) => {
+      if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
+      if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
+      if (calc === disp) return "MATCH";
+      const c = parseFloat(calc);
+      const d = parseFloat(disp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
+      return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
+    };
+
+    let entries = Object.entries(metricsMap);
+    // Remove the resourceFilter for the summary metrics so they always show
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    
+    const req = metricsMap["Rmax"] ? metricsMap["Rmax"].val : 50;
+    const valMetric = metricsMap["Total Risk"] ? metricsMap["Total Risk"].val : 0;
+    
+    let rScoreToUse = 1.0;
+    if (metricsMap["Risk_Score"] && metricsMap["Risk_Score"].val !== undefined) {
+      rScoreToUse = metricsMap["Risk_Score"].val;
+    }
+    if (value === undefined || value === null) value = rScoreToUse;
+    
+    const finalWeightedVal = (rScoreToUse * (settings?.weights?.R || 15.0)).toFixed(2);
+    
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;">${valStr}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${calcStr}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;">${dispStr}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || r.resource}</td>
+        </tr>
+      `;
+    }).join("");
+
+    let incRows = "";
+    if (sub.incidents && sub.incidents.length > 0) {
+      incRows = sub.incidents
+        .filter(inc => !resourceFilter || inc.source === resourceFilter)
+        .map(inc => `
+          <tr style="background:#1e1b4b;border-bottom:1px solid #312e81;">
+            <td style="padding:10px 14px;color:#f472b6;">Incident: ${escapeHtml(inc.name)}</td>
+            <td style="padding:10px 14px;color:#e2e8f0;">${escapeHtml(inc.source)}</td>
+            <td style="padding:10px 14px;color:#cbd5e1;">${escapeHtml(inc.category)}</td>
+            <td style="padding:10px 14px;color:#f87171;">Severity: ${inc.severity} (${inc.severity_weight})</td>
+            <td style="padding:10px 14px;color:#fbbf24;">Freq: ${inc.frequency}</td>
+            <td style="padding:10px 14px;color:#ef4444;font-weight:bold;">IMPACT</td>
+            <td style="padding:10px 14px;color:#94a3b8;font-size:10px;">Trace: ${escapeHtml(inc.trace_id || 'N/A')}</td>
+          </tr>
+        `).join("");
+    }
+
+    return `
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">R</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (15%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${rScoreToUse.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">R = 1 - min(1, SUM(freq * severity) / R_max)</div>
+          </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Risk Calculation</div>
+          <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+            <div>Rmax Limit : ${req}</div>
+            <div>Total Risk : ${valMetric}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Risk Score : 1 - MIN(1, ${valMetric} / ${req}) = ${rScoreToUse.toFixed(3)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="risk-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}RISK TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric / Incident</th>
+              <th style="padding:10px 14px;text-align:left;">Value / Detail 1</th>
+              <th style="padding:10px 14px;text-align:left;">Formula / Detail 2</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated / Detail 3</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed / Impact</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Risk telemetry mapped.</td></tr>`}
+            ${incRows}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
   function renderValidationTableHtml(sub, settings, value, resourceFilter) {
     const metricsMap = calculateValidationMetrics(sub, settings, value);
     
@@ -534,9 +821,7 @@
     };
 
     let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
     // Filter out rows where value is "Unavailable"
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
@@ -555,7 +840,6 @@
       gateHtml = `
         <div style="margin-top:10px;background:#ef444420;border:1px solid #ef4444;border-radius:6px;padding:10px;color:#f87171;font-size:11px;">
           <strong style="color:#ef4444;">Validation Gate Triggered</strong><br/>
-          Overall DPI-LS Score capped at 69<br/>
           Unsafe = TRUE
         </div>
       `;
@@ -576,9 +860,7 @@
     // dynamic calculation rows are now properly generated in calculateValidationMetrics
     // Prepare table entries
     entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
     // Filter out rows where value is "Unavailable"
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
@@ -695,9 +977,7 @@
     };
 
     let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
 
     const rowHtml = entries.map(([key, r]) => {
       const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
@@ -846,9 +1126,7 @@
     };
 
     let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
 
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -997,9 +1275,7 @@
     };
 
     let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([_, m]) => m.resource === resourceFilter);
-    }
+    
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
     const attempts = metricsMap["Total_Attempts"] ? metricsMap["Total_Attempts"].val : 0;
@@ -1085,29 +1361,22 @@
     `;
   }
 
-  function metricDetailHtml(key, value, sub, settings) {
-    if (key === "C") {
-      return renderCostTableHtml(sub, settings, value);
-    }
-    if (key === "V") {
-      return renderValidationTableHtml(sub, settings, value);
-    }
-    if (key === "Q") {
-      return renderQualityTableHtml(sub, settings, value);
-    }
-    if (key === "E") {
-      return renderExecutionTableHtml(sub, settings, value);
-    }
-    if (key === "P") {
-      return renderProductivityTableHtml(sub, settings, value);
-    }
-    const label  = METRIC_LABELS[key]  || key;
-    const weight = METRIC_WEIGHTS[key] || 0;
-    const formula = METRIC_FORMULAS[key] || "—";
+  function metricDetailHtml(key, value, sub, rating) {
+    if (key === "C") return renderCostTableHtml(sub, null, value);
+    if (key === "V") return renderValidationTableHtml(sub, null, value);
+    if (key === "G") return renderGovernanceTableHtml(sub, null, value);
+    if (key === "R") return renderRiskTableHtml(sub, null, value);
+    if (key === "Q") return renderQualityTableHtml(sub, null, value);
+    if (key === "E") return renderExecutionTableHtml(sub, null, value);
+    if (key === "P") return renderProductivityTableHtml(sub, null, value);
 
-    // Weighted contribution
-    const contrib = (typeof value === 'number' && weight)
-      ? (value * weight).toFixed(2)
+    const label  = METRIC_LABELS[key]  || key;
+    const w_m = rating && rating.weighted_metrics ? rating.weighted_metrics : {};
+    const w_u = rating && rating.weights_used ? rating.weights_used : {};
+    const weight = w_u[key] !== undefined ? (w_u[key] * 100).toFixed(1) : "—";
+
+    const contrib = w_m[key] !== undefined && w_m[key] !== null 
+      ? parseFloat(w_m[key]).toFixed(2) 
       : "—";
     const valueStr = (typeof value === 'number') ? parseFloat(value.toFixed(4)) : "—";
 
@@ -1138,7 +1407,7 @@
           <span style="color:#e2e8f0;font-size:13px;font-weight:700;">${escapeHtml(label)}</span>
           <span style="color:#64748b;font-size:12px;">weight: ${weight}%</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${valueStr}</div>
@@ -1147,21 +1416,22 @@
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×${weight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${contrib}</div>
           </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">${escapeHtml(formula)}</div>
-          </div>
         </div>
         <div style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Sub-metrics</div>
         ${subTable}
       </div>`;
   }
 
-  function metricLineHtml(key, value, sub, isExpanded) {
+  function metricLineHtml(key, value, sub, isExpanded, rating) {
     const labelStr = METRIC_LABELS[key] || key;
-    const weightStr = METRIC_WEIGHTS[key] ? ` (${METRIC_WEIGHTS[key]}%)` : "";
+    
+    const w_m = rating && rating.weighted_metrics ? rating.weighted_metrics : {};
+    const w_u = rating && rating.weights_used ? rating.weights_used : {};
+    
+    const weightVal = w_u[key];
+    const weightStr = weightVal !== undefined ? ` (${(weightVal * 100).toFixed(1)}%)` : "";
     const label = `${labelStr}${weightStr}`;
-    const formula = METRIC_FORMULAS[key] || "";
+    const formula = "—"; // formulas removed from frontend
     let subHtml = "";
 
     if (sub && Object.keys(sub).length > 0) {
@@ -1173,26 +1443,20 @@
          return `<div>${escapeHtml(k)}: <strong>${escapeHtml(disp)}</strong></div>`;
       }).join("");
       const displayStyle = isExpanded ? 'block' : 'none';
-      let formulaDisplay = formula;
-      if (formula && typeof value === 'number') {
-        // Show the formula, the value, and the weighted contribution
-        // to the raw score — e.g.
-        //   "Q = ... = 0.825"            ← the metric value
-        //   "weighted contribution:      ← how this dim adds up
-        //      0.825 × 20% = 16.5"
+      let formulaDisplay = "";
+      if (typeof value === 'number') {
         const valueStr = parseFloat(value.toFixed(4));
-        if (METRIC_WEIGHTS[key]) {
-          const w = METRIC_WEIGHTS[key];
-          const contrib = value * w;
-          const contribStr = Number.isInteger(contrib)
-            ? contrib.toString()
-            : contrib.toFixed(1);
+        if (weightVal !== undefined) {
+          const contrib = w_m[key];
+          const contribStr = contrib !== undefined && contrib !== null
+            ? (Number.isInteger(contrib) ? contrib.toString() : contrib.toFixed(2))
+            : "—";
           formulaDisplay =
-            `${formula} = ${valueStr}<br>` +
+            `Value = ${valueStr}<br>` +
             `<span style="color:#475569">weighted contribution: ` +
-            `${valueStr} × ${w}% = <strong>${contribStr}</strong></span>`;
+            `<strong>${contribStr}</strong></span>`;
         } else {
-          formulaDisplay = `${formula} = ${valueStr}`;
+          formulaDisplay = `Value = ${valueStr}`;
         }
       }
 
@@ -1305,7 +1569,7 @@
 
   function agentCardHtml(rating, expandedSet = new Set()) {
     const metrics = ["P", "Q", "E", "G", "R", "V", "C"]
-      .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k)))
+      .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k), rating))
       .join("");
     const unsafeBanner = rating.unsafe
       ? `<div class="unsafe">⚠ Unsafe — ${(rating.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(rating.gate_failures || []).length > 1 ? "s" : ""} failed</div>`
@@ -1467,7 +1731,7 @@
           if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], this._settings || {});
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], this.rating);
           const detailTr = document.createElement("tr");
           detailTr.className = "detail-row";
           detailTr.dataset.expandedKey = key;
@@ -1550,8 +1814,8 @@
         if (allUpdated) {
           for (const item of data) {
             const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
-            const rawScore = typeof item.raw_score === 'number' ? item.raw_score : item.score;
-            tr.cells[1].textContent = fmtScore(rawScore);
+            const scoreToUse = typeof item.score === 'number' ? item.score : item.raw_score;
+            tr.cells[1].textContent = fmtScore(scoreToUse);
             
             const wm = item.weighted_metrics || {};
             const m  = item.metrics || {};
@@ -1561,7 +1825,7 @@
               if (td) {
                 const val = wm[k] !== undefined ? wm[k] : m[k];
                 const display = (val !== null && val !== undefined)
-                  ? (Number.isInteger(val) ? val : parseFloat(val.toFixed(1)))
+                  ? (wm[k] !== undefined ? (val * 100).toFixed(2) : val.toFixed(2))
                   : "—";
                 td.textContent = display;
               }
@@ -1573,7 +1837,7 @@
               if (detailTr && detailTr.classList.contains(expectedClass) && detailTr.dataset.expandedKey === this._expandedKey) {
                 const detailM = item.metrics || {};
                 const detailSub = item.sub_metrics || {};
-                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], this._settings || {});
+                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], item);
                 const td = detailTr.querySelector("td");
                 if (td) {
                   td.innerHTML = detailHtml;
@@ -1584,7 +1848,7 @@
                 }
                 const detailM = item.metrics || {};
                 const detailSub = item.sub_metrics || {};
-                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], this._settings || {});
+                const detailHtml = metricDetailHtml(this._expandedKey, detailM[this._expandedKey], detailSub[this._expandedKey], item);
                 const newDetailTr = document.createElement("tr");
                 newDetailTr.className = expectedClass;
                 newDetailTr.dataset.expandedKey = this._expandedKey;
@@ -1636,7 +1900,7 @@
           if (row) {
             const m = row.metrics || {};
             const sub = row.sub_metrics || {};
-            const detailHtml = metricDetailHtml(this._expandedKey, m[this._expandedKey], sub[this._expandedKey], this._settings || {});
+            const detailHtml = metricDetailHtml(this._expandedKey, m[this._expandedKey], sub[this._expandedKey], row);
             const detailTr = document.createElement("tr");
             detailTr.className = (this._expandedKey === "C") ? "cost-detail-row" : "detail-row";
             detailTr.dataset.expandedKey = this._expandedKey;

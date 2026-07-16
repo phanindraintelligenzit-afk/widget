@@ -95,6 +95,56 @@ cost_metrics = {
         'Overall DPI-LS final score',
         ['agent_id', 'agent_name']
     ),
+    'dpi_risk_score': get_or_create_gauge(
+        'dpi_risk_score',
+        'Normalized risk score (0-1)',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_total_risk': get_or_create_gauge(
+        'dpi_total_risk',
+        'Total risk before normalization',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_incident_count': get_or_create_gauge(
+        'dpi_incident_count',
+        'Total number of risk incidents',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_incident_frequency': get_or_create_gauge(
+        'dpi_incident_frequency',
+        'Cumulative frequency of risk incidents',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_incident_severity': get_or_create_gauge(
+        'dpi_incident_severity',
+        'Cumulative severity weight of risk incidents',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_formula_input': get_or_create_gauge(
+        'dpi_formula_input',
+        'Total risk as input to formula',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_formula_output': get_or_create_gauge(
+        'dpi_formula_output',
+        'Risk score output from formula',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_formula_verification': get_or_create_gauge(
+        'dpi_formula_verification',
+        'Formula verification status (1=MATCH)',
+        ['agent_id', 'agent_name']
+    ),
+    'dpi_resource_incidents': get_or_create_gauge(
+        'dpi_resource_incidents',
+        'Number of incidents by resource',
+        ['agent_id', 'agent_name', 'resource']
+    ),
+    'dpi_rmax': get_or_create_gauge(
+        'dpi_rmax',
+        'Rmax threshold',
+        ['agent_id', 'agent_name']
+    ),
 }
 
 # System info metric
@@ -214,6 +264,35 @@ def export_cost_metrics(session: Session) -> None:
                 
             if score.metrics and 'Q' in score.metrics and score.metrics['Q'] is not None:
                 cost_metrics['dpi_ls_quality_score'].labels(*labels).set(float(score.metrics['Q']))
+
+            if score.metrics and 'R' in score.metrics and score.metrics['R'] is not None:
+                cost_metrics['dpi_risk_score'].labels(*labels).set(float(score.metrics['R']))
+                
+            # Fetch Risk Incidents dynamically to populate detailed metrics
+            from store.models import RiskIncidentRow
+            from sqlalchemy import select
+            incidents = session.scalars(select(RiskIncidentRow).where(RiskIncidentRow.agent_id == agent_id)).all()
+            
+            cost_metrics['dpi_incident_count'].labels(*labels).set(len(incidents))
+            cost_metrics['dpi_incident_frequency'].labels(*labels).set(sum(i.frequency for i in incidents))
+            cost_metrics['dpi_incident_severity'].labels(*labels).set(sum(i.severity_weight for i in incidents))
+            total_risk = sum(i.risk_contribution for i in incidents)
+            cost_metrics['dpi_total_risk'].labels(*labels).set(total_risk)
+            cost_metrics['dpi_formula_input'].labels(*labels).set(total_risk)
+            cost_metrics['dpi_rmax'].labels(*labels).set(100.0)  # Default Rmax
+            
+            calculated_r = max(0.0, 1.0 - min(1.0, total_risk / 100.0))
+            cost_metrics['dpi_formula_output'].labels(*labels).set(calculated_r)
+            
+            # Verify if R metric matches calculated R
+            actual_r = float(score.metrics.get('R', 1.0) or 1.0)
+            cost_metrics['dpi_formula_verification'].labels(*labels).set(1.0 if abs(actual_r - calculated_r) < 0.001 else 0.0)
+            
+            res_counts = {}
+            for inc in incidents:
+                res_counts[inc.source_resource] = res_counts.get(inc.source_resource, 0) + 1
+            for res_name, count in res_counts.items():
+                cost_metrics['dpi_resource_incidents'].labels(agent_id, agent_name, res_name).set(count)
 
             if 'Total Cost (USD)' in cost_sub:
                 cost_metrics['dpi_ls_tco'].labels(*labels).set(

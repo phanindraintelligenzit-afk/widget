@@ -43,6 +43,8 @@ class Rating(BaseModel):
     unsafe: bool                          # any compliance gate fired (G/R/V floors)
     gate_failures: list[str] = Field(default_factory=list)
     metrics: dict[str, Optional[float]]   # the 7 normalized inputs (any may be None)
+    weighted_metrics: dict[str, Optional[float]] = Field(default_factory=dict)
+    weights_used: dict[str, float] = Field(default_factory=dict)
     sub_metrics: dict[str, Any] = Field(default_factory=dict)  # raw components for the UI
     missing: list[str] = Field(default_factory=list)  # metric keys not yet observed
 

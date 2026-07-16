@@ -164,17 +164,35 @@ def _run_server(info: ServerInfo) -> None:
     # with the main thread.
     from api.app import app  # noqa: WPS433 - intentional runtime import
 
+    logging.basicConfig(filename='uvicorn.log', level=logging.DEBUG)
     config = uvicorn.Config(
         app,
         host=info.host,
         port=info.port,
-        log_level="warning",
-        access_log=False,
-        # No reload — we're a child of the user's script.
-        reload=False,
-        # Use the default asyncio loop. ``uvicorn.Server.serve()`` is
-        # safe to run from a non-main thread.
-        loop="asyncio",
+        log_level="debug",
+        log_config={
+            "version": 1,
+            "disable_existing_loggers": False,
+            "formatters": {
+                "default": {
+                    "()": "uvicorn.logging.DefaultFormatter",
+                    "fmt": "%(levelprefix)s %(message)s",
+                    "use_colors": None,
+                },
+            },
+            "handlers": {
+                "file": {
+                    "class": "logging.FileHandler",
+                    "filename": "uvicorn.log",
+                    "formatter": "default",
+                },
+            },
+            "loggers": {
+                "uvicorn": {"handlers": ["file"], "level": "DEBUG"},
+                "uvicorn.error": {"handlers": ["file"], "level": "DEBUG"},
+                "uvicorn.access": {"handlers": ["file"], "level": "DEBUG"},
+            },
+        }
     )
     server = uvicorn.Server(config)
     try:

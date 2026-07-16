@@ -31,7 +31,14 @@ from .models import (
     ProductivityResourceEvaluationRow,
     ExecutionResourceRegistryRow,
     ExecutionResourceEvaluationRow,
+    RiskResourceRegistryRow,
+    RiskResourceEvaluationRow,
+    RiskIncidentRow,
 )
+
+def list_latest_risk_incidents(s: Session) -> list[RiskIncidentRow]:
+    return s.scalars(select(RiskIncidentRow)).all()
+
 
 
 def _utcnow() -> datetime:
@@ -137,6 +144,8 @@ def save_score(
         unsafe=rating.unsafe,
         gate_failures=list(rating.gate_failures),
         metrics=dict(rating.metrics),
+        weighted_metrics=dict(rating.weighted_metrics),
+        weights_used=dict(rating.weights_used),
         sub_metrics=dict(rating.sub_metrics),
         missing=list(rating.missing),
         dimensions_measured=int(rating.dimensions_measured),

@@ -200,7 +200,7 @@ class CostResourceEvaluationService:
                     elif metric == "efficiency_ratio":
                         val = c_sub.get("Efficiency Ratio")
                     elif metric == "cost_score":
-                        val = score_row.metrics.get("C") * 5 if score_row.metrics.get("C") is not None else None
+                        val = score_row.metrics.get("C") if score_row.metrics.get("C") is not None else None
                     elif metric == "tco":
                         val = c_sub.get("Total Cost (USD)")
 

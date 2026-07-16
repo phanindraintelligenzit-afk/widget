@@ -37,6 +37,29 @@ def score_and_persist(
         agent_id=obs.agent_id,
         human_output_per_period=agent.baseline_human_output,
     )
+    
+    # Load Risk Incidents
+    from sqlalchemy import select
+    from store.models import RiskIncidentRow
+    
+    incidents_db = s.scalars(
+        select(RiskIncidentRow).where(RiskIncidentRow.agent_id == obs.agent_id)
+    ).all()
+    
+    obs.incidents = [
+        {
+            "id": inc.incident_id,
+            "name": inc.name,
+            "source": inc.source_resource,
+            "category": inc.category,
+            "severity": inc.severity,
+            "frequency": inc.frequency,
+            "severity_weight": inc.severity_weight,
+            "contribution": inc.risk_contribution
+        }
+        for inc in incidents_db
+    ]
+    
     metrics = metrics_from_observation(obs, settings, baseline_obj)
     rating = rate(
         metrics,
@@ -224,9 +247,9 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
 
     sub_metrics["Q"].update({
         "QA Accuracy": accuracy_str,
-        "Hallucination Rate": hallucination_str,
         "Consistency": consistency_str,
-        "Quality Score": q_score if q_score is not None else "Pending SME Review",
+        "Hallucination Rate": hallucination_str,
+        "Quality Score": q_score,
         "Status": status,
         "runtime_traces": q_eval_map.get("LangSmith:runtime_traces") or sub_metrics["Q"].get("runtime_traces", "Unavailable"),
         "llm_evaluation": q_eval_map.get("LangSmith:llm_evaluation") or sub_metrics["Q"].get("llm_evaluation", "Unavailable"),
@@ -271,6 +294,168 @@ def enrich_execution_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     })
     return sub_metrics
 
+def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dict:
+    if "R" not in sub_metrics:
+        sub_metrics["R"] = {}
+        
+    incidents = []
+    if s is not None:
+        from store.repo import list_latest_risk_incidents
+        inc_rows = list_latest_risk_incidents(s)
+        for row in inc_rows:
+            freq = row.frequency or 1
+            weight = row.severity_weight or 1.0
+            contribution = float(freq) * float(weight)
+            incidents.append({
+                "name": row.name,
+                "category": row.category,
+                "source": row.source_resource,
+                "severity": row.severity,
+                "severity_weight": weight,
+                "frequency": freq,
+                "contribution": contribution,
+                "trace_id": getattr(row, "trace_id", "N/A") or "N/A",
+                "span_id": getattr(row, "span_id", "N/A") or "N/A",
+                "correlation_id": getattr(row, "correlation_id", "N/A") or "N/A",
+                "timestamp": getattr(row, "timestamp", None).isoformat() if getattr(row, "timestamp", None) else "N/A",
+            })
+            
+    total_risk = sum(i["contribution"] for i in incidents)
+    r_max = settings.r_max if hasattr(settings, "r_max") else 50.0
+    risk_score = 1.0 - min(1.0, total_risk / r_max)
+
+    total_freq = sum(i["frequency"] for i in incidents)
+    avg_severity = sum(i["severity_weight"] for i in incidents) / len(incidents) if incidents else 0.0
+
+    llmguard = {"Prompt Injection Attempts": 0, "Unsafe Prompts": 0, "Blocked Prompts": 0, "Jailbreaks": 0, "Sanitized Prompts": 0}
+    rebuff = {"Attack Count": 0, "Injection Attempts": 0, "Blocked Requests": 0, "Allowed Requests": 0, "Injection Confidence": 0}
+    trulens = {"Hallucinations": 0, "Groundedness": 0, "Toxicity": 0, "Safety Score": 0, "Feedback Score": 0}
+
+    for inc in incidents:
+        # Mock increment counters based on source/category for demonstration 
+        src = inc["source"]
+        cat = inc["category"]
+        if src == "LLMGuard":
+            if "Injection" in inc["name"]: llmguard["Prompt Injection Attempts"] += inc["frequency"]
+            elif "Unsafe" in inc["name"]: llmguard["Unsafe Prompts"] += inc["frequency"]
+            elif "Jailbreak" in inc["name"]: llmguard["Jailbreaks"] += inc["frequency"]
+            else: llmguard["Blocked Prompts"] += inc["frequency"]
+        elif src == "Rebuff":
+            if "Injection" in inc["name"]: rebuff["Injection Attempts"] += inc["frequency"]
+            elif "Attack" in inc["name"]: rebuff["Attack Count"] += inc["frequency"]
+            else: rebuff["Blocked Requests"] += inc["frequency"]
+        elif src == "TruLens":
+            if "Hallucination" in inc["name"]: trulens["Hallucinations"] += inc["frequency"]
+            elif "Toxic" in inc["name"]: trulens["Toxicity"] += inc["frequency"]
+            else: trulens["Safety Score"] += inc["frequency"]
+
+    sub_metrics["R"].update({
+        "incidents": incidents,
+        "Total Risk": total_risk,
+        "Rmax": r_max,
+        "Risk Score": risk_score,
+        "Total Frequency": total_freq,
+        "Average Severity": avg_severity,
+        "Aggregated Risk": total_risk,
+        "Normalized Risk": total_risk / r_max,
+        "Formula Output": risk_score,
+        "Critical Incidents": sum(1 for i in incidents if i.get("severity_weight", 0) >= 10.0 or i.get("severity") == "CRITICAL"),
+        "Total Active Incidents": len(incidents),
+        "Resolved Incidents": 0,
+        "Open Incidents": len(incidents),
+        "high_incidents": sum(1 for i in incidents if 5.0 <= i.get("severity_weight", 0) < 10.0 or i.get("severity") == "HIGH"),
+        "medium_incidents": sum(1 for i in incidents if 2.0 <= i.get("severity_weight", 0) < 5.0 or i.get("severity") == "MEDIUM"),
+        "low_incidents": sum(1 for i in incidents if i.get("severity_weight", 0) < 2.0 or i.get("severity") == "LOW"),
+        "runtime_resources": {
+            "LLMGuard": llmguard,
+            "Rebuff": rebuff,
+            "TruLens": trulens
+        }
+    })
+    return sub_metrics
+
+
+def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
+    if "G" not in sub_metrics:
+        sub_metrics["G"] = {}
+        
+    incidents = []
+    if s is not None:
+        from sqlalchemy import select
+        from store.models import GovernanceIncidentRow
+        inc_rows = s.scalars(select(GovernanceIncidentRow).order_by(GovernanceIncidentRow.timestamp.desc())).all()
+        for row in inc_rows:
+            freq = row.frequency or 1
+            weight = row.severity_weight or 1.0
+            contribution = float(freq) * float(weight)
+            incidents.append({
+                "name": row.name,
+                "category": row.category,
+                "source": row.source_resource,
+                "severity": row.severity,
+                "severity_weight": weight,
+                "frequency": freq,
+                "contribution": contribution,
+                "trace_id": getattr(row, "trace_id", "N/A") or "N/A",
+                "span_id": getattr(row, "span_id", "N/A") or "N/A",
+                "correlation_id": getattr(row, "correlation_id", "N/A") or "N/A",
+                "timestamp": getattr(row, "timestamp", None).isoformat() if getattr(row, "timestamp", None) else "N/A",
+            })
+
+    opa = {"Policies Executed": 0, "Policies Passed": 0, "Policies Failed": 0, "Denied Requests": 0, "Allowed Requests": 0}
+    presidio = {"PII Entities Detected": 0, "Masked Entities": 0, "Mask Success": 0, "Mask Failure": 0}
+    secrets = {"Secrets Found": 0, "Secrets Blocked": 0, "Critical Secrets": 0, "Files Scanned": 0, "Repositories Scanned": 0}
+
+    req = 0
+    val = 0
+    if s is not None:
+        from store.models import GovernanceResourceEvaluationRow
+        from sqlalchemy import select
+        evals = s.scalars(select(GovernanceResourceEvaluationRow)).all()
+        for r in evals:
+            req += 1
+            if r.status == "SUCCESS":
+                val += 1
+            
+            # Populate metrics for dashboard
+            if r.resource_name == "Open Policy Agent":
+                if r.metric in opa and r.current_value:
+                    opa[r.metric] = int(r.current_value)
+            elif r.resource_name == "Microsoft Presidio":
+                if r.metric in presidio and r.current_value:
+                    presidio[r.metric] = int(r.current_value)
+            elif r.resource_name == "Detect-Secrets":
+                if r.metric in secrets and r.current_value:
+                    secrets[r.metric] = int(r.current_value)
+            
+    for inc in incidents:
+        src = inc["source"]
+        if src == "Open Policy Agent":
+            opa["Policies Failed"] += inc["frequency"]
+            opa["Denied Requests"] += inc["frequency"]
+        elif src == "Microsoft Presidio":
+            presidio["PII Entities Detected"] += inc["frequency"]
+            presidio["Mask Failure"] += inc["frequency"]
+        elif src == "Detect-Secrets":
+            secrets["Secrets Found"] += inc["frequency"]
+
+    v_score = (val / max(req, 1)) * 100 if req > 0 else 0
+
+    sub_metrics["G"].update({
+        "incidents": incidents,
+        "Required Controls": req,
+        "Validated Controls": val,
+        "Validation Score": v_score,
+        "Formula Output": v_score,
+        "Total Active Incidents": len(incidents),
+        "runtime_resources": {
+            "Open Policy Agent": opa,
+            "Microsoft Presidio": presidio,
+            "Detect-Secrets": secrets
+        }
+    })
+    return sub_metrics
+
 def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dict[str, Any]:
     res: dict[str, Any] = {}
     prod = obs.productivity if getattr(obs, "productivity", None) else getattr(obs, "tasks", None)
@@ -307,15 +492,11 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
         res = enrich_execution_sub_metrics(s, res)
     if obs.policy:
         res["G"] = obs.policy.model_dump(mode="json")
-    if obs.incidents is not None:
-        # Incident carries a numeric ``severity_weight`` (0..1) rather
-        # than a string label — bucket it for the UI summary. Cutoffs
-        # match the R sub-metric story (R formula treats >= 0.7 as
-        # severe contribution to Σ(freq × severity)).
-        high = sum(1 for i in obs.incidents if float(i.severity_weight) >= 0.7)
-        med  = sum(1 for i in obs.incidents if 0.3 <= float(i.severity_weight) < 0.7)
-        low  = sum(1 for i in obs.incidents if float(i.severity_weight) < 0.3)
-        res["R"] = {"high_incidents": high, "medium_incidents": med, "low_incidents": low}
+    
+    # Enrich Risk with incidents from DB
+    res = enrich_risk_sub_metrics(s, res, settings)
+    res = enrich_governance_sub_metrics(s, res)
+
     if obs.validation:
         v_raw = obs.validation.model_dump(mode="json")
 
