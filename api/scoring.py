@@ -21,6 +21,57 @@ def update_prometheus_metrics(agent_id: str, rating: Rating) -> None:
     pass
 
 
+def _sync_metrics_from_sub_metrics(
+    metrics: dict[str, Optional[float]],
+    sub_metrics: dict,
+) -> None:
+    """Override metrics[G] and metrics[R] from live sub_metrics values.
+
+    Guarantees that the same normalized number feeds both:
+    - rating.weighted_metrics (via composite() → drives the agent row),
+    - rating.sub_metrics.{G,R}.* (drives the detail panel).
+
+    Only overrides when live evidence exists in the DB — a fresh install
+    with no seeded governance evaluations or risk incidents will fall
+    back to the observation-derived values, so unit tests that don't
+    seed the DB continue to pass unchanged.
+    """
+    g_sub = sub_metrics.get("G") or {}
+    # Only override metrics[G] when the observation itself already
+    # provided a G value (i.e. this agent's obs.policy was populated).
+    # A partial observation that never emitted G stays None — a
+    # bootstrap-seeded generic SUCCESS row must not fabricate a value
+    # for an agent that hasn't been observed on G. The override is
+    # only for agents where obs said "here's my G", and the DB has
+    # fresher live evidence (Validated Controls > 0) that supersedes
+    # that observation-time snapshot. 'Formula Output' is in 0–100
+    # space (v_score = val/req * 100); normalise back to 0–1.
+    if (
+        metrics.get("G") is not None
+        and (g_sub.get("Live Validated Controls") or 0) > 0
+        and "Formula Output" in g_sub
+    ):
+        try:
+            g_live = float(g_sub["Formula Output"])
+            metrics["G"] = g_live / 100.0 if g_live > 1.0 else g_live
+        except (TypeError, ValueError):
+            pass
+
+    r_sub = sub_metrics.get("R") or {}
+    # Same policy for R — only override when the observation gave us
+    # a value AND there is at least one active incident. A partial
+    # observation without incidents leaves R as None.
+    if (
+        metrics.get("R") is not None
+        and (r_sub.get("Total Active Incidents") or 0) > 0
+        and "Risk Score" in r_sub
+    ):
+        try:
+            metrics["R"] = float(r_sub["Risk Score"])
+        except (TypeError, ValueError):
+            pass
+
+
 def score_and_persist(
     s: Session,
     obs: AgentObservation,
@@ -61,6 +112,19 @@ def score_and_persist(
     ]
     
     metrics = metrics_from_observation(obs, settings, baseline_obj)
+
+    # Single source of truth: build sub_metrics first, then sync live
+    # G/R values back into `metrics` so that rating.weighted_metrics
+    # (row) and rating.sub_metrics (detail panel) can never drift.
+    #
+    # The observation payload has an initial G/R read; the DB has
+    # authoritative live values from GovernanceResourceEvaluationRow
+    # and RiskIncidentRow. When live data exists we prefer it — the
+    # dashboard's "20.00 vs 13.89" bug was caused by these two paths
+    # producing different values.
+    sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj, s)
+    _sync_metrics_from_sub_metrics(metrics, sub_metrics)
+
     rating = rate(
         metrics,
         weights=settings.weights,
@@ -70,7 +134,7 @@ def score_and_persist(
     # Surface RAG signals (informational — doesn't affect score math).
     rating.retrievals = obs.retrievals
     rating.retrieved_docs_total = obs.retrieved_docs_total
-    rating.sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj, s)
+    rating.sub_metrics = sub_metrics
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
     update_prometheus_metrics(obs.agent_id, rating)
@@ -101,13 +165,15 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         human_output_per_period=agent.baseline_human_output,
     )
     metrics = metrics_from_partial(merged, settings, baseline)
+    sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
+    _sync_metrics_from_sub_metrics(metrics, sub_metrics)
     rating = rate(
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
     )
-    rating.sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
+    rating.sub_metrics = sub_metrics
 
     # Link the score to the most recent partial — gives history a sensible
     # causal anchor even though the score is from the merged set.
@@ -408,6 +474,13 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
 
     req = 0
     val = 0
+    # Live counter — only rows recorded by an actual agent run
+    # (agent_executed=True) count as "live evidence". Bootstrap-seeded
+    # integration-readiness rows are still reported as SUCCESS in the
+    # dashboard, but they don't fabricate a Governance signal for
+    # agents that haven't been observed on it. See
+    # api.scoring._sync_metrics_from_sub_metrics for the read side.
+    live_val = 0
     if s is not None:
         from store.models import GovernanceResourceEvaluationRow
         from sqlalchemy import select
@@ -416,7 +489,9 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
             req += 1
             if r.status == "SUCCESS":
                 val += 1
-            
+                if r.agent_executed:
+                    live_val += 1
+
             # Populate metrics for dashboard
             if r.resource_name == "Open Policy Agent":
                 if r.metric in opa and r.current_value:
@@ -445,6 +520,9 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
         "incidents": incidents,
         "Required Controls": req,
         "Validated Controls": val,
+        # Live-only counter used by _sync_metrics_from_sub_metrics
+        # to decide whether to override the observation-derived G.
+        "Live Validated Controls": live_val,
         "Validation Score": v_score,
         "Formula Output": v_score,
         "Total Active Incidents": len(incidents),

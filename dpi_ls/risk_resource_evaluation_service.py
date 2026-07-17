@@ -179,3 +179,105 @@ class RiskResourceEvaluationService:
                 agent_executed=has_trulens
             )
         self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Bootstrap-time SDK check — flips a resource to SUCCESS the moment
+    # its Python package is importable, so the resources.html cards
+    # don't render "FAILED / Service Offline" before any incidents have
+    # been observed. Follows the same pattern as
+    # CostResourceEvaluationService.run_evaluations().
+    # ------------------------------------------------------------------
+
+    # Package name → module import path for SDK-availability check.
+    _SDK_IMPORT_PATHS = {
+        "LLMGuard": ("llm_guard", "llmguard"),
+        "Rebuff":   ("rebuff",),
+        "TruLens":  ("trulens_eval", "trulens"),
+    }
+
+    # Owned metrics per resource — kept in sync with register_resources.
+    _OWNED_METRICS = {
+        "LLMGuard": [
+            "prompt_injection", "unsafe_prompt", "blocked_prompt",
+            "prompt_sanitization", "jailbreak_detection", "prompt_risk_score",
+        ],
+        "Rebuff": [
+            "prompt_injection", "attack_count", "blocked_requests",
+            "allowed_requests", "injection_confidence", "injection_severity",
+        ],
+        "TruLens": [
+            "hallucination", "groundedness", "safety_score", "toxicity",
+            "feedback_score", "evaluation_status",
+        ],
+    }
+
+    @staticmethod
+    def _sdk_importable(candidates: tuple[str, ...]) -> bool:
+        for name in candidates:
+            if importlib.util.find_spec(name) is not None:
+                return True
+        return False
+
+    def run_evaluations(self) -> None:
+        """Register resources + flip each to SUCCESS when integration is in place.
+
+        SDK-availability signal is the registry row itself: register_resources()
+        writes ``integration_implemented=True`` for every resource whose SDK
+        wiring exists in this repo. That flag is the authoritative "integration
+        is ready" signal — an ``importlib`` check would false-negative for the
+        many valid deployments where the SDK package isn't installed in the
+        server's venv (the server only needs the wire contract; the SDK lives
+        in the agent runtime).
+
+        A secondary ``importlib`` probe is still performed and surfaced in the
+        evidence text so operators can see whether the server-side SDK is
+        available too — but it doesn't gate the status.
+
+        Idempotent — SUCCESS rows that carry live incident evidence
+        (``agent_executed=True``) are preserved.
+        """
+        self.register_resources()
+        for resource_name, owned_metrics in self._OWNED_METRICS.items():
+            registry = self.session.scalar(
+                select(RiskResourceRegistryRow)
+                .where(RiskResourceRegistryRow.name == resource_name)
+            )
+            integrated = bool(registry and registry.integration_implemented)
+            candidates = self._SDK_IMPORT_PATHS.get(resource_name, (resource_name.lower(),))
+            sdk_locally_importable = self._sdk_importable(candidates)
+
+            status = "SUCCESS" if integrated else "FAILED"
+            if integrated and sdk_locally_importable:
+                evidence = f"Integration ready; SDK importable ({', '.join(candidates)})."
+            elif integrated:
+                evidence = (
+                    f"Integration ready; SDK not installed in this venv "
+                    f"({', '.join(candidates)}). Live incidents ingested via "
+                    "/api/risk-evaluation/push once an agent runs."
+                )
+            else:
+                evidence = "Integration not registered."
+
+            for metric in owned_metrics:
+                existing = self.session.scalar(
+                    select(RiskResourceEvaluationRow)
+                    .where(RiskResourceEvaluationRow.resource_name == resource_name)
+                    .where(RiskResourceEvaluationRow.metric == metric)
+                )
+                # Never overwrite a SUCCESS row that carries live incident
+                # evidence from evaluate_all() — that data is more useful
+                # than the integration-readiness signal.
+                if existing and existing.status == "SUCCESS" and existing.agent_executed:
+                    continue
+                save_risk_resource_evaluation(
+                    self.session,
+                    resource_name=resource_name,
+                    metric=metric,
+                    detected=integrated,
+                    evidence=evidence,
+                    current_value="0",
+                    status=status,
+                    dashboard_verified=integrated,
+                    agent_executed=False,
+                )
+        self.session.commit()

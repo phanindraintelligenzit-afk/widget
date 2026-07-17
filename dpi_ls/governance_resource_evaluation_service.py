@@ -179,3 +179,100 @@ class GovernanceResourceEvaluationService:
                 agent_executed=has_secrets
             )
         self.session.commit()
+
+    # ------------------------------------------------------------------
+    # Bootstrap-time SDK check — flips a resource to SUCCESS the moment
+    # its Python package is importable, so the resources.html cards
+    # don't render "FAILED / Service Offline" before any policy events
+    # have been observed. Same pattern as
+    # CostResourceEvaluationService.run_evaluations() and its Risk sibling.
+    # ------------------------------------------------------------------
+
+    _SDK_IMPORT_PATHS = {
+        "Open Policy Agent": ("opa_python_client", "opa"),  # any Python OPA client
+        "Microsoft Presidio": ("presidio_analyzer",),
+        "Detect-Secrets": ("detect_secrets",),
+    }
+
+    _OWNED_METRICS = {
+        "Open Policy Agent": [
+            "Policies Executed", "Policies Passed", "Policies Failed",
+            "Denied Requests", "Allowed Requests", "Policy Compliance",
+            "Critical Violations", "Policy Evaluation Time",
+            "Policy Decision Logs", "Bundle Version", "Policy ID",
+            "Decision ID", "Trace ID", "Timestamp",
+        ],
+        "Microsoft Presidio": [
+            "PII Entities Detected", "Entity Types", "Masked Entities",
+            "Mask Success", "Mask Failure", "Detection Confidence",
+            "Recognizer Used", "Compliance Status", "Processing Time",
+            "Trace ID", "Timestamp",
+        ],
+        "Detect-Secrets": [
+            "Secrets Found", "Secrets Blocked", "Critical Secrets",
+            "Files Scanned", "Repositories Scanned", "Secret Types",
+            "Scan Duration", "Scan Result", "Compliance Status",
+            "Trace ID", "Timestamp",
+        ],
+    }
+
+    @staticmethod
+    def _sdk_importable(candidates: tuple[str, ...]) -> bool:
+        for name in candidates:
+            if importlib.util.find_spec(name) is not None:
+                return True
+        return False
+
+    def run_evaluations(self) -> None:
+        """Register resources + flip each to SUCCESS when integration is ready.
+
+        Same policy as RiskResourceEvaluationService.run_evaluations(): the
+        registry's ``integration_implemented`` flag is the authoritative
+        "integration is ready" signal; an ``importlib`` probe only decorates
+        the evidence text and does not gate status. This keeps the dashboard
+        cards accurate even in a server venv that doesn't have the agent-side
+        SDK installed (Presidio, OPA client, Detect-Secrets are typically
+        installed on the agent runtime, not the DPI-LS server).
+        """
+        self.register_resources()
+        for resource_name, owned_metrics in self._OWNED_METRICS.items():
+            registry = self.session.scalar(
+                select(GovernanceResourceRegistryRow)
+                .where(GovernanceResourceRegistryRow.name == resource_name)
+            )
+            integrated = bool(registry and registry.integration_implemented)
+            candidates = self._SDK_IMPORT_PATHS.get(resource_name, ())
+            sdk_locally_importable = self._sdk_importable(candidates) if candidates else False
+
+            status = "SUCCESS" if integrated else "FAILED"
+            if integrated and sdk_locally_importable:
+                evidence = f"Integration ready; SDK importable ({', '.join(candidates)})."
+            elif integrated:
+                evidence = (
+                    f"Integration ready; SDK not installed in this venv "
+                    f"({', '.join(candidates) or 'none configured'}). Live events "
+                    "ingested via /api/governance-evaluation/push once an agent runs."
+                )
+            else:
+                evidence = "Integration not registered."
+
+            for metric in owned_metrics:
+                existing = self.session.scalar(
+                    select(GovernanceResourceEvaluationRow)
+                    .where(GovernanceResourceEvaluationRow.resource_name == resource_name)
+                    .where(GovernanceResourceEvaluationRow.metric == metric)
+                )
+                if existing and existing.status == "SUCCESS" and existing.agent_executed:
+                    continue
+                save_governance_resource_evaluation(
+                    self.session,
+                    resource_name=resource_name,
+                    metric=metric,
+                    detected=integrated,
+                    evidence=evidence,
+                    current_value="0",
+                    status=status,
+                    dashboard_verified=integrated,
+                    agent_executed=False,
+                )
+        self.session.commit()
