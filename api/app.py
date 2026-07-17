@@ -268,14 +268,16 @@ def evaluate_risk(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     from dpi_ls.risk_resource_evaluation_service import RiskResourceEvaluationService
     from store.models import RiskResourceEvaluationRow
     from sqlalchemy import select
-    
-    # We evaluate against all agents with incidents. 
-    # For now, just trigger evaluate_all for a single agent if we had one, or a global check.
-    # In a real app, this would iterate over active agents. We'll use a hardcoded agent for demo.
-    agent_id = "chandra-finops"
+
+    # Integration-readiness check (SDK + registry). Flips a metric to
+    # SUCCESS whenever the SDK wiring exists in this repo — a clean
+    # agent (no incidents) is not a broken resource, so we don't call
+    # the legacy evaluate_all() here which would clobber SUCCESS with
+    # FAILED on absence-of-incidents. Live incident evidence still
+    # surfaces on the dashboard via enrich_risk_sub_metrics().
     svc = RiskResourceEvaluationService(s)
-    svc.evaluate_all(agent_id)
-    
+    svc.run_evaluations()
+
     rows = s.scalars(select(RiskResourceEvaluationRow)).all()
     return [
         {
@@ -1619,11 +1621,13 @@ def evaluate_governance(s: Session = Depends(db_session)) -> list[dict[str, Any]
     from dpi_ls.governance_resource_evaluation_service import GovernanceResourceEvaluationService
     from store.models import GovernanceResourceEvaluationRow
     from sqlalchemy import select
-    
-    agent_id = "chandra-finops"
+
+    # See evaluate_risk() for rationale — integration-readiness only,
+    # no absence-flips-to-FAILED clobber. Live governance events still
+    # surface via enrich_governance_sub_metrics().
     svc = GovernanceResourceEvaluationService(s)
-    svc.evaluate_all(agent_id)
-    
+    svc.run_evaluations()
+
     rows = s.scalars(select(GovernanceResourceEvaluationRow)).all()
     return [
         {

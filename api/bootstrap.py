@@ -63,6 +63,23 @@ def bootstrap() -> None:
             val_service.register_resources()
             val_service.run_evaluations()
 
+            # Seeding risk resources (LLMGuard / Rebuff / TruLens).
+            # Flips a card from "FAILED / Service Offline" to SUCCESS as
+            # soon as the Python SDK is importable — before any incidents
+            # have been observed by an agent run.
+            try:
+                from dpi_ls.risk_resource_evaluation_service import RiskResourceEvaluationService
+                RiskResourceEvaluationService(session).run_evaluations()
+            except Exception as risk_e:
+                print(f"[bootstrap] risk resource seeding failed: {risk_e}")
+
+            # Seeding governance resources (OPA / Presidio / Detect-Secrets)
+            try:
+                from dpi_ls.governance_resource_evaluation_service import GovernanceResourceEvaluationService
+                GovernanceResourceEvaluationService(session).run_evaluations()
+            except Exception as gov_e:
+                print(f"[bootstrap] governance resource seeding failed: {gov_e}")
+
             session.commit()
 
             # Pre-populate Prometheus Gauges with the latest scores from DB on startup

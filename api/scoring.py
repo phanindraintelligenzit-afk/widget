@@ -37,11 +37,20 @@ def _sync_metrics_from_sub_metrics(
     seed the DB continue to pass unchanged.
     """
     g_sub = sub_metrics.get("G") or {}
-    # Governance is authoritative when at least one control evaluation
-    # has been recorded (Required Controls > 0). The stored 'Formula
-    # Output' is in 0–100 space (v_score = val/req * 100); normalize
-    # back to 0–1 for the engine.
-    if (g_sub.get("Required Controls") or 0) > 0 and "Formula Output" in g_sub:
+    # Only override metrics[G] when the observation itself already
+    # provided a G value (i.e. this agent's obs.policy was populated).
+    # A partial observation that never emitted G stays None — a
+    # bootstrap-seeded generic SUCCESS row must not fabricate a value
+    # for an agent that hasn't been observed on G. The override is
+    # only for agents where obs said "here's my G", and the DB has
+    # fresher live evidence (Validated Controls > 0) that supersedes
+    # that observation-time snapshot. 'Formula Output' is in 0–100
+    # space (v_score = val/req * 100); normalise back to 0–1.
+    if (
+        metrics.get("G") is not None
+        and (g_sub.get("Live Validated Controls") or 0) > 0
+        and "Formula Output" in g_sub
+    ):
         try:
             g_live = float(g_sub["Formula Output"])
             metrics["G"] = g_live / 100.0 if g_live > 1.0 else g_live
@@ -49,10 +58,14 @@ def _sync_metrics_from_sub_metrics(
             pass
 
     r_sub = sub_metrics.get("R") or {}
-    # Risk is authoritative when there is at least one active incident
-    # (or an empty run has already computed a Risk Score). 'Risk Score'
-    # is already in 0–1 space per enrich_risk_sub_metrics().
-    if (r_sub.get("Total Active Incidents") or 0) > 0 and "Risk Score" in r_sub:
+    # Same policy for R — only override when the observation gave us
+    # a value AND there is at least one active incident. A partial
+    # observation without incidents leaves R as None.
+    if (
+        metrics.get("R") is not None
+        and (r_sub.get("Total Active Incidents") or 0) > 0
+        and "Risk Score" in r_sub
+    ):
         try:
             metrics["R"] = float(r_sub["Risk Score"])
         except (TypeError, ValueError):
@@ -461,6 +474,13 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
 
     req = 0
     val = 0
+    # Live counter — only rows recorded by an actual agent run
+    # (agent_executed=True) count as "live evidence". Bootstrap-seeded
+    # integration-readiness rows are still reported as SUCCESS in the
+    # dashboard, but they don't fabricate a Governance signal for
+    # agents that haven't been observed on it. See
+    # api.scoring._sync_metrics_from_sub_metrics for the read side.
+    live_val = 0
     if s is not None:
         from store.models import GovernanceResourceEvaluationRow
         from sqlalchemy import select
@@ -469,7 +489,9 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
             req += 1
             if r.status == "SUCCESS":
                 val += 1
-            
+                if r.agent_executed:
+                    live_val += 1
+
             # Populate metrics for dashboard
             if r.resource_name == "Open Policy Agent":
                 if r.metric in opa and r.current_value:
@@ -498,6 +520,9 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
         "incidents": incidents,
         "Required Controls": req,
         "Validated Controls": val,
+        # Live-only counter used by _sync_metrics_from_sub_metrics
+        # to decide whether to override the observation-derived G.
+        "Live Validated Controls": live_val,
         "Validation Score": v_score,
         "Formula Output": v_score,
         "Total Active Incidents": len(incidents),
