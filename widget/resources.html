@@ -1219,10 +1219,15 @@ async function loadData() {
 }
 
 function renderGrid() {
-  const grouped = groupByResource(allData);
+const grouped = groupByResource(allData);
 
-  // Sort by dpi_status priority then by name
-  const sortedNames = Object.keys(grouped).sort((a, b) => {
+// Always render ALL 20 registered resources — even when the API has not
+// returned telemetry for them yet (e.g. Governance before a live agent run).
+// Union the canonical RESOURCE_META keys with whatever the API returned.
+const allNames = Array.from(new Set([...Object.keys(RESOURCE_META), ...Object.keys(grouped)]));
+
+// Sort by dpi_status priority then by name
+const sortedNames = allNames.sort((a, b) => {
     const ma = RESOURCE_META[a]?.dpi_status || 'optional';
     const mb = RESOURCE_META[b]?.dpi_status || 'optional';
     const oa = STATUS_ORDER[ma] ?? 99;
@@ -1248,7 +1253,7 @@ function renderGrid() {
       <div class="empty-wrap" style="grid-column:1/-1">
         <div class="empty-icon">🔬</div>
         <div class="empty-title">No evaluations run yet</div>
-        <div class="empty-sub">Click "Run Evaluation" to execute the Technical Evaluation Workflow across all 15 resources.</div>
+        <div class="empty-sub">Click "Run Evaluation" to execute the Technical Evaluation Workflow across all 20 resources.</div>
         <button class="run-btn" onclick="runEvaluation()" style="margin-top:16px">▶ Run Evaluation</button>
       </div>`;
     return;
