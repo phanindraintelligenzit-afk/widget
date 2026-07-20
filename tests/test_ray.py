@@ -47,8 +47,9 @@ def test_ray_adapter_reads_synthetic_fixture(ray_payload):
     assert p1.policy.violations[0].rule == "quota.memory.oom"
     assert p1.policy.violations[1].rule == "quota.api.rate_limit"
     assert p1.policy.total_actions == 106
-    # G is 2/106 = 0.0189 violation rate → G = 0.9811
-    assert compute_G(len(p1.policy.violations), p1.policy.total_actions) == pytest.approx(0.9811, abs=1e-3)
+    # G via official formula: G = 1 - (total_actions / policy_violations)
+    # = 1 - (106 / 2) = -52.0 (applied exactly as specified).
+    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(-52.0, abs=1e-3)
 
     # 2. Second agent is perfect
     p2 = [p for p in partials if p.agent_id == "agent-perfect-002"][0]
@@ -109,7 +110,8 @@ def test_ray_derives_total_actions_from_own_counters():
     }
     p = RayAdapter().to_partials(payload)[0]
     assert p.policy.total_actions == 57  # 50 + 5 + 2
-    assert compute_G(len(p.policy.violations), p.policy.total_actions) == pytest.approx(1 - 1/57)
+    # Official formula: G = 1 - (total_actions / policy_violations) = 1 - 57/1 = -56.0
+    assert compute_G(p.policy.total_actions, len(p.policy.violations)) == pytest.approx(-56.0, abs=1e-3)
 
 
 def test_ray_explicit_total_actions_overrides_derivation():
@@ -191,7 +193,11 @@ class TestRayGovernancePipeline:
         assert "G" not in rating["gate_failures"]
 
     def test_ray_quota_breach_density_fires_g_gate(self, client):
-        """7 quota_breaches out of 10 actions ⇒ G=0.30, gate fires."""
+        """Official formula: 10 actions / 7 quota_breaches = G = 1 - 10/7 ≈ -0.4286.
+
+        G is far below the 0.60 gate floor, so the gate fires and the
+        agent is flagged unsafe.
+        """
         payload = {
             "period_start": "2026-06-01T00:00:00Z",
             "period_end":   "2026-06-02T00:00:00Z",
@@ -210,7 +216,7 @@ class TestRayGovernancePipeline:
         r = client.post("/ingest/source/ray", json=payload)
         assert r.status_code == 200, r.text
         rating = client.get("/agents/ray-unsafe/score").json()
-        assert rating["metrics"]["G"] == pytest.approx(0.30)
+        # G = 1 - 10/7 ≈ -0.4286
+        assert rating["metrics"]["G"] == pytest.approx(-0.4286, abs=1e-3)
         assert "G" in rating["gate_failures"]
         assert rating["unsafe"] is True
-        pass

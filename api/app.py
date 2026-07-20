@@ -39,6 +39,7 @@ from ingestion import list_adapters
 from ingestion.sources import get as get_source
 from ingestion.sources import list_sources
 from store import repo
+import store.models
 
 from engine import sme_flow
 
@@ -440,6 +441,49 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
         )
         for row in repo.list_agents(s)
     ]
+
+
+@app.post("/api/agents", response_model=AgentSummary)
+def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSummary:
+    row = repo.upsert_agent(s, body.agent_id, body.agent_name, baseline=body.baseline_human_output)
+    s.commit()
+    return AgentSummary(
+        agent_id=row.id,
+        agent_name=row.name,
+        baseline_human_output=row.baseline_human_output,
+        first_seen=row.first_seen,
+        last_seen=row.last_seen,
+    )
+
+
+@app.put("/api/agents/{agent_id}", response_model=AgentSummary)
+def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_session)) -> AgentSummary:
+    row = s.get(store.models.AgentRow, agent_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if body.agent_name:
+        row.name = body.agent_name
+    if body.baseline_human_output is not None:
+        row.baseline_human_output = body.baseline_human_output
+    s.commit()
+    return AgentSummary(
+        agent_id=row.id,
+        agent_name=row.name,
+        baseline_human_output=row.baseline_human_output,
+        first_seen=row.first_seen,
+        last_seen=row.last_seen,
+    )
+
+
+@app.delete("/api/agents/{agent_id}")
+def delete_agent(agent_id: str, s: Session = Depends(db_session)) -> dict[str, str]:
+    from store.models import AgentRow
+    row = s.get(AgentRow, agent_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    s.delete(row)
+    s.commit()
+    return {"message": "Agent deleted"}
 
 
 from .scoring import (

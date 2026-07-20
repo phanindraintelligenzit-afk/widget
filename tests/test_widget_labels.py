@@ -22,18 +22,17 @@ def test_widget_renders_coverage_badge(client):
 
 
 def test_widget_renders_governance_violation_list(client):
-    """The G panel must show the operator which rules fired, not just
-    the score. The expanded panel groups violations by rule name and
-    shows the count + most recent timestamp.
+    """The G panel must show the official formula and the
+    Action → Incident breakdown, not just the score.
     """
     body = client.get("/widget/dpi-ls.js").text
-    # The widget's G panel walks ``sub_metrics.G.violations`` and groups
-    # by rule name. The widget code itself is rule-agnostic — rule
-    # names come from the API response. The presence of the
-    # grouping/render code is what we pin here.
-    assert "byAction" in body
-    assert "violation rate" in body
-    # The panel must be gated on the G key and on the array of
-    # violation objects the API emits.
+    # Official DPI-LS governance formula, rendered on the dashboard.
+    assert "Governance = 1" in body and "(Total Actions / Policy Violations)" in body
+    # The incident rows render "Action Name → Incident Name".
+    assert "action_name" in body
+    assert "rarr;" in body
+    # The panel is gated on the G key.
     assert 'key === "G"' in body
-    assert "sub.violations" in body
+    # The new telemetry fields drive the calculation.
+    assert '"Total Actions"' in body
+    assert '"Policy Violations"' in body

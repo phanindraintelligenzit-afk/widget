@@ -73,6 +73,17 @@ class SMEFlowStatus(BaseModel):
     rating: Optional["Rating"] = None      # set when commit happens
 
 
+class AgentCreate(BaseModel):
+    agent_id: str
+    agent_name: str
+    baseline_human_output: float = 1.0
+
+
+class AgentUpdate(BaseModel):
+    agent_name: Optional[str] = None
+    baseline_human_output: Optional[float] = None
+
+
 # Forward ref import avoids circular load.
 from contract import Rating  # noqa: E402
 SMEFlowStatus.model_rebuild()

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DPI-LS — Agent Scores</title>
+  <style>
+    :root { --bg: #0f1117; --surface: #1a1d27; --text: #f1f5f9; --border: #2d3148; --accent: #6366f1; }
+    body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
+    .nav { background: var(--surface); padding: 15px; display: flex; gap: 20px; margin-bottom: 20px; border-radius: 8px;}
+    .nav a { color: var(--text); text-decoration: none; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--surface); }
+    th, td { padding: 12px; border: 1px solid var(--border); text-align: left; }
+    button { padding: 5px 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/widget/demo.html">Dashboard</a>
+    <a href="/widget/resources.html">Resources</a>
+    <a href="/widget/score.html" style="font-weight:bold; color:var(--accent);">DPI-LS Score</a>
+  </nav>
+  
+  <h1>Agent Scores (Raw Values)</h1>
+  <button onclick="addAgent()">Add Agent</button>
+  
+  <table id="agent-table">
+    <thead>
+      <tr>
+        <th>Agent</th>
+        <th>Score</th>
+        <th>P</th><th>Q</th><th>E</th><th>G</th><th>R</th><th>V</th><th>C</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="agent-body"></tbody>
+  </table>
+
+  <script>
+    async function fetchAgents() {
+      const res = await fetch('/ratings?all=true');
+      const agents = await res.json();
+      const body = document.getElementById('agent-body');
+      body.innerHTML = '';
+      agents.forEach(a => {
+        const row = `<tr>
+          <td>${a.agent_name}</td>
+          <td>${a.score.toFixed(2)}</td>
+          <td>${a.metrics.P?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.Q?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.E?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.G?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.R?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.V?.toFixed(2) || '0'}</td>
+          <td>${a.metrics.C?.toFixed(2) || '0'}</td>
+          <td>
+            <button onclick="editAgent('${a.agent_id}')">Edit</button>
+            <button onclick="deleteAgent('${a.agent_id}')">Delete</button>
+          </td>
+        </tr>`;
+        body.innerHTML += row;
+      });
+    }
+    
+    async function deleteAgent(id) {
+        if(confirm('Delete agent?')) {
+            await fetch('/api/agents/' + id, {method: 'DELETE'});
+            fetchAgents();
+        }
+    }
+    
+    function addAgent() { alert('Not implemented'); }
+    function editAgent(id) { alert('Not implemented'); }
+    
+    fetchAgents();
+  </script>
+</body>
+</html>

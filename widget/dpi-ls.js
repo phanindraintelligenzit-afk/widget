@@ -477,35 +477,33 @@
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
 
     const resources = sub.runtime_resources || {};
-    let required = sub["Required Controls"] !== undefined ? sub["Required Controls"] : 0;
-    let validated = sub["Validated Controls"] !== undefined ? sub["Validated Controls"] : 0;
-    
     const opa = resources["Open Policy Agent"] || {};
     const presidio = resources["Microsoft Presidio"] || {};
     const secrets = resources["Detect-Secrets"] || {};
 
-    if (required === 0) {
-      if (Object.keys(opa).length > 0) required++;
-      if (Object.keys(presidio).length > 0) required++;
-      if (Object.keys(secrets).length > 0) required++;
+    // Official DPI-LS formula: G = 1 - (Total Actions / Policy Violations).
+    // Both figures come exclusively from runtime telemetry.
+    const totalActions = sub["Total Actions"] !== undefined ? Number(sub["Total Actions"]) : 0;
+    const policyViolations = sub["Policy Violations"] !== undefined ? Number(sub["Policy Violations"]) : 0;
 
-      if (opa["Policies Executed"] > 0) validated++;
-      if (presidio["PII Entities Detected"] > 0 || presidio["Masked Entities"] > 0 || presidio["Mask Failure"] > 0) validated++;
-      if (secrets["Secrets Found"] > 0 || secrets["Secrets Blocked"] > 0 || (secrets["Critical Secrets"] !== undefined && secrets["Critical Secrets"] >= 0 && Object.keys(secrets).length > 0)) validated++;
+    // Raw Governance value from the official formula (telemetry only).
+    let gScoreVal;
+    if (policyViolations <= 0) {
+      gScoreVal = 1.0;
+    } else {
+      gScoreVal = 1.0 - (totalActions / policyViolations);
     }
 
-    let gScoreVal = 1.0;
-    if (required > 0) {
-        gScoreVal = Math.min(1.0, validated / required);
-    }
-    
+    // The engine-derived value (when supplied) is authoritative for the
+    // displayed Raw / Weighted numbers; fall back to the formula calc.
     if (value === undefined || value === null) value = gScoreVal;
+    else gScoreVal = value;
 
     const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
     const metricsMap = {
-      "Required Controls": { val: required, calc: required, disp: required, formula: "Total Tools Configured", src: "Settings", resource: "System", dec: 0 },
-      "Validated Controls": { val: validated, calc: validated, disp: validated, formula: "Tools with Telemetry", src: "Runtime Metrics", resource: "System", dec: 0 },
-      "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "Validated / Required", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
+      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets", dec: 0 },
+      "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
+      "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "1 - (Total Actions / Policy Violations)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
     };
 
     if (Object.keys(opa).length > 0) {
@@ -567,7 +565,7 @@
         .filter(inc => !resourceFilter || inc.source === resourceFilter)
         .map(inc => `
           <tr style="background:#1e1b4b;border-bottom:1px solid #312e81;">
-            <td style="padding:10px 14px;color:#f472b6;">Incident: ${escapeHtml(inc.name)}</td>
+            <td style="padding:10px 14px;color:#f472b6;">${escapeHtml(inc.action_name || inc.category)} &rarr; ${escapeHtml(inc.name)}</td>
             <td style="padding:10px 14px;color:#e2e8f0;">${escapeHtml(inc.source)}</td>
             <td style="padding:10px 14px;color:#cbd5e1;">${escapeHtml(inc.category)}</td>
             <td style="padding:10px 14px;color:#f87171;">Severity: ${inc.severity} (${inc.severity_weight})</td>
@@ -596,7 +594,7 @@
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = Validated Controls / Required Controls</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 − (Total Actions / Policy Violations)</div>
           </div>
         </div>
       </div>
@@ -623,6 +621,53 @@
           </tbody>
         </table>
       </div>
+
+      ${resourceFilter ? `
+      <div style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:8px;margin-top:12px;">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">▶ ${resourceFilter.toUpperCase()} RESOURCE CONTRIBUTION</div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Contribution</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Runtime Telemetry</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">${JSON.stringify(resources[resourceFilter] || {}).replace(/</g, '&lt;')}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Total Actions (telemetry sum)</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">${totalActions}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Policy Violations (incident freq sum)</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">${policyViolations}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Formula Contribution</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">1 − (${totalActions} / ${policyViolations})</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Raw Contribution</td>
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:800;">${gScoreVal.toFixed(4)}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Weighted Contribution (×${settings?.weights?.G || 20.0}%)</td>
+              <td style="padding:8px 14px;color:#4ade80;font-weight:800;">${finalWeightedVal}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Trace IDs</td>
+              <td style="padding:8px 14px;color:#94a3b8;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml(inc.trace_id || 'N/A')).join(', ') || 'N/A'}</td>
+            </tr>
+            <tr style="border-bottom:1px solid #1e293b;">
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Policy / Incident Logs</td>
+              <td style="padding:8px 14px;color:#cbd5e1;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml((inc.action_name || inc.category) + ' → ' + inc.name + ' (freq ' + inc.frequency + ')')).join('; ') || 'No incidents logged'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>` : ''}
     `;
   }
 
@@ -1467,46 +1512,25 @@
       // reason behind a low G; without it the score alone doesn't
       // tell you whether to look at PII, secrets, authz, or audit.
       let violationsHtml = "";
-      if (key === "G" && Array.isArray(sub.violations) && sub.violations.length) {
-        const byAction = new Map();
-        for (const v of sub.violations) {
-          const entry = byAction.get(v.when) || { actionName: v.action_name, rules: [] };
-          entry.rules.push(v.rule);
-          byAction.set(v.when, entry);
-        }
-        
-        let actionNum = 1;
-        let violatingActions = 0;
-        const rows = Array.from(byAction.entries())
-          .sort((a, b) => (a[0] > b[0] ? 1 : (a[0] < b[0] ? -1 : 0)))
-          .map(([when, data]) => {
-            const rules = data.rules;
-            if (rules.length > 0) violatingActions++;
-            const ts = when ? escapeHtml(String(when).replace("T", " ").replace("Z", "")) : "Unknown";
-            const rulesHtml = rules.length > 0 
-                ? rules.map(r => `<code style="background:#fee2e2;color:#991b1b;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(r)}</code>`).join("")
-                : `<span style="color:#10b981;font-size:10px;font-weight:600;">Safe</span>`;
-            
-            let actionNameStr = data.actionName || "";
-            if (actionNameStr.length > 60) {
-                actionNameStr = actionNameStr.substring(0, 57) + "...";
-            }
-            const actionLabel = actionNameStr ? ` - <span title="${escapeHtml(data.actionName)}">${escapeHtml(actionNameStr)}</span>` : "";
-            const vLabel = rules.length === 1 ? 'violation' : 'violations';
-            return `<div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
-              <span style="color:#64748b;font-weight:600;">Action ${actionNum++}${actionLabel} <span style="font-weight:normal;color:#94a3b8">(${ts})</span> <span style="float:right">${rules.length} ${vLabel}</span></span>
-              <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:2px;">${rulesHtml}</div>
-            </div>`;
-          })
+      if (key === "G") {
+        const totalActions = sub["Total Actions"] !== undefined ? Number(sub["Total Actions"]) : 0;
+        const policyViolations = sub["Policy Violations"] !== undefined ? Number(sub["Policy Violations"]) : 0;
+        const gIncidents = Array.isArray(sub.incidents) ? sub.incidents : [];
+
+        const rateStr = policyViolations <= 0
+          ? `No policy violations recorded &mdash; G = 1.0`
+          : `G = 1 &minus; (${totalActions} / ${policyViolations}) = ${parseFloat((1 - totalActions / policyViolations).toFixed(4))}`;
+
+        const rows = gIncidents
+          .map((inc, i) => `
+            <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+              <span style="color:#64748b;font-weight:600;">Incident ${i + 1} &mdash; ${escapeHtml(inc.action_name || inc.category)} &rarr; ${escapeHtml(inc.name)} <span style="font-weight:normal;color:#94a3b8">(${escapeHtml(inc.source)})</span> <span style="float:right">freq ${inc.frequency}</span></span>
+            </div>`)
           .join("");
 
-        const denom = sub.total_actions;
-        const rateStr = Number.isFinite(denom) && denom > 0
-          ? `${violatingActions} / ${denom} = ${parseFloat((violatingActions / denom).toFixed(4))} violation rate`
-          : `${violatingActions} violating action${violatingActions === 1 ? "" : "s"}`;
         violationsHtml = `<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #e2e8f0">
           <div style="font-weight:600;color:#991b1b;margin-bottom:4px">${rateStr}</div>
-          <div style="font-size:10px;line-height:1.4">${rows}</div>
+          <div style="font-size:10px;line-height:1.4">${rows || '<span style="color:#64748b">No governance incidents recorded.</span>'}</div>
         </div>`;
       }
 
