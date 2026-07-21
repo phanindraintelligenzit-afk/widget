@@ -482,6 +482,12 @@ let chandraValidationValue = 1.0;
 let chandraQualityValue = "Pending SME Review";
 let chandraProductivitySub = {};
 let chandraProductivityValue = 1.0;
+let chandraExecutionSub = {};
+let chandraExecutionValue = 1.0;
+let chandraGovSub = {};
+let chandraGovValue = 1.0;
+let chandraRiskSub = {};
+let chandraRiskValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
@@ -498,6 +504,14 @@ let dashboardUrls = {
   'OpenTelemetry': { url: 'http://localhost:16686', online: false },
   'Grafana Tempo': { url: 'http://localhost:3200', online: false },
   'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
+  'LLMGuard':        { url: 'https://llmguard.com', online: false },
+  'Rebuff':          { url: 'https://rebuff.ai', online: false },
+  'TruLens':         { url: 'https://trulens.org', online: false },
+  'Open Policy Agent':   { url: 'https://www.openpolicyagent.org', online: false },
+  'Microsoft Presidio':  { url: 'https://microsoft.github.io/presidio', online: false },
+  'Detect-Secrets':      { url: 'https://github.com/Yelp/detect-secrets', online: false },
+  'Phoenix':         { url: 'http://localhost:6006', online: false },
+  'Traceloop':       { url: 'https://app.traceloop.com', online: false },
 };
 
 async function loadChandraData() {
@@ -518,6 +532,12 @@ async function loadChandraData() {
         chandraQualityValue = chandra.metrics?.Q !== undefined ? chandra.metrics.Q : "Pending SME Review";
         chandraProductivitySub = chandra.sub_metrics?.P || {};
         chandraProductivityValue = chandra.metrics?.P !== undefined ? chandra.metrics.P : 1.0;
+        chandraExecutionSub = chandra.sub_metrics?.E || {};
+        chandraExecutionValue = chandra.metrics?.E !== undefined ? chandra.metrics.E : 1.0;
+        chandraGovSub = chandra.sub_metrics?.G || {};
+        chandraGovValue = chandra.metrics?.G !== undefined ? chandra.metrics.G : 1.0;
+        chandraRiskSub = chandra.sub_metrics?.R || {};
+        chandraRiskValue = chandra.metrics?.R !== undefined ? chandra.metrics.R : 1.0;
       }
     }
     if (r2.ok) {
@@ -1094,12 +1114,16 @@ async function verifyDashboard(resourceName) {
     const isQual = ['LangSmith', 'Ragas', 'AgentOps'].includes(resourceName);
     const isProd = ['OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(resourceName);
     const isExec = ['Langfuse', 'Phoenix', 'Traceloop'].includes(resourceName);
+    const isRisk = ['LLMGuard', 'Rebuff', 'TruLens'].includes(resourceName);
+    const isGov  = ['Open Policy Agent', 'Microsoft Presidio', 'Detect-Secrets'].includes(resourceName);
     
     let endpoint = '/api/validation-evaluation/verify-dashboard';
     if (isCost) endpoint = '/api/cost-evaluation/verify-dashboard';
     if (isQual) endpoint = '/api/quality-evaluation/verify-dashboard';
     if (isProd) endpoint = '/api/productivity-evaluation/verify-dashboard';
     if (isExec) endpoint = '/api/execution-evaluation/verify-dashboard';
+    if (isRisk) endpoint = '/api/risk-evaluation/verify-dashboard';
+    if (isGov)  endpoint = '/api/governance-evaluation/verify-dashboard';
     
     const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
     const r = await fetch(`${API}${endpoint}`, {
@@ -1130,7 +1154,7 @@ async function runEvaluation() {
       fetch(`${API}/api/risk-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } }),
       fetch(`${API}/api/governance-evaluation/evaluate`, { method: 'POST', headers: { 'Accept': 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error during evaluation`);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok || !r7.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
     const costResources = ["Prometheus", "Grafana"];
@@ -1180,7 +1204,7 @@ async function loadData() {
       fetch(`${API}/api/risk-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/governance-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error loading results`);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok || !r7.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
     const costResources = ["Prometheus", "Grafana"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];

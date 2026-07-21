@@ -34,6 +34,8 @@ from .models import (
     RiskResourceRegistryRow,
     RiskResourceEvaluationRow,
     RiskIncidentRow,
+    GovernanceResourceRegistryRow,
+    GovernanceResourceEvaluationRow,
 )
 
 def list_latest_risk_incidents(s: Session) -> list[RiskIncidentRow]:
@@ -792,3 +794,27 @@ def verify_dashboard_execution_resource_evaluation(session: Session, resource_na
         row.dashboard_verified = True
         return True
     return False
+
+def verify_dashboard_risk_resource_evaluation(s: Session, resource_name: str, metric: Optional[str] = None) -> bool:
+    q = select(RiskResourceEvaluationRow).where(RiskResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        q = q.where(RiskResourceEvaluationRow.metric == metric)
+    rows = list(s.scalars(q))
+    if not rows:
+        return False
+    for r in rows:
+        r.dashboard_verified = True
+    s.flush()
+    return True
+
+def verify_dashboard_governance_resource_evaluation(s: Session, resource_name: str, metric: Optional[str] = None) -> bool:
+    q = select(GovernanceResourceEvaluationRow).where(GovernanceResourceEvaluationRow.resource_name == resource_name)
+    if metric:
+        q = q.where(GovernanceResourceEvaluationRow.metric == metric)
+    rows = list(s.scalars(q))
+    if not rows:
+        return False
+    for r in rows:
+        r.dashboard_verified = True
+    s.flush()
+    return True

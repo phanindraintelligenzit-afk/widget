@@ -1586,6 +1586,28 @@ def verify_execution_dashboard_result(
     s.commit()
     return {"success": ok}
 
+@app.post("/api/risk-evaluation/verify-dashboard")
+def verify_risk_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    from store.repo import verify_dashboard_risk_resource_evaluation
+    ok = verify_dashboard_risk_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
+
+@app.post("/api/governance-evaluation/verify-dashboard")
+def verify_governance_dashboard_result(
+    resource_name: str = Body(..., embed=True),
+    metric: Optional[str] = Body(None, embed=True),
+    s: Session = Depends(db_session),
+) -> dict[str, bool]:
+    from store.repo import verify_dashboard_governance_resource_evaluation
+    ok = verify_dashboard_governance_resource_evaluation(s, resource_name, metric)
+    s.commit()
+    return {"success": ok}
+
 @app.post("/api/execution-evaluation/push-langfuse")
 def push_langfuse_results(
     payload: dict = Body(...),
