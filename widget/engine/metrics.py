@@ -11,7 +11,7 @@ Formulae (per the spec)
     P = min(1, AI_output_per_period / human_baseline)              (baseline from settings)
     Q = 0.7·Accuracy + 0.2·Consistency + 0.1·(1 − Hallucination)   (inputs 0–1; null → conversational)
     E = successful_executions / total_attempts
-    G = 1 − (policy_violations / total_actions)
+    G = 1 − (total_actions / policy_violations)
     R = 1 − min(1, Σ(freq × severity) / R_max)                     (R_max from settings)
     V = validated_components / total_required
     C = min(1, human_cost_per_output / AI_cost_per_output) × utilization
@@ -91,22 +91,21 @@ def compute_E(successful: int, attempts: int) -> float:
     return min(1.0, successful / attempts)
 
 
-def compute_G(violations: int, total_actions: int) -> float:
-    """G = 1 − (policy_violations / total_actions).
+def compute_G(total_actions: int, policy_violations: int) -> float:
+    """G = 1 − (total_actions / policy_violations).
 
-    Vacuously safe (``1.0``) when no actions were taken — the engine
-    still scores it, and the gate floor of 0.60 is therefore met
-    automatically. This is the right answer: a brand-new agent that
-    has not yet taken any policy-gated action has not violated
-    anything.
-
-    Output is clamped to [0, 1] (negative violations are clipped).
+    Official DPI-LS governance formula (per project specification):
+    governance strength is one minus the ratio of total policy-gated
+    actions to the number of policy violations observed. When no
+    violations have been recorded the agent is fully compliant → 1.0.
+    The formula is evaluated exactly as written and is not clamped to
+    [0, 1]: with more actions than violations the ratio exceeds 1 and
+    the score goes negative, which surfaces a genuine governance
+    failure rather than hiding it.
     """
-    if total_actions <= 0:
+    if policy_violations <= 0:
         return 1.0
-    if violations <= 0:
-        return 1.0
-    return max(0.0, 1.0 - (violations / total_actions))
+    return 1.0 - (total_actions / policy_violations)
 
 
 def compute_R(incidents: list | None, r_max: float) -> float:

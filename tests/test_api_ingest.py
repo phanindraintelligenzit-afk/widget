@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from fixtures import load_raw
 
 
@@ -27,7 +29,15 @@ def test_ingest_via_webhook_adapter_acme(client):
     assert r.status_code == 200, r.text
     out = r.json()
     assert len(out) == 1
-    assert 0 < out[0]["score"] <= 100
+    rating = out[0]
+    # Official DPI-LS governance formula: G = 1 - (total_actions / policy_violations).
+    # Acme: 200 actions, 2 policy breaches → G = 1 - 200/2 = -99.0. The
+    # negative G correctly fails the 0.60 compliance floor, flags the
+    # agent unsafe, and drags the weighted composite negative.
+    assert rating["metrics"]["G"] == pytest.approx(-99.0, abs=1e-3)
+    assert "G" in rating["gate_failures"]
+    assert rating["unsafe"] is True
+    assert rating["score"] < 0
 
 
 def test_ingest_unknown_adapter_returns_404(client):

@@ -6,6 +6,8 @@ The engine never sees the adapter; the adapter never sees the engine.
 """
 from __future__ import annotations
 
+import pytest
+
 from contract import AgentBaseline, Settings
 from engine import metrics_from_observation, rate
 from ingestion import FieldMapping, GenericWebhookAdapter
@@ -26,11 +28,16 @@ def test_generic_webhook_end_to_end():
     [obs] = adapter.to_observations(payload)
     r = _rate_observation(obs)
 
-    assert r.unsafe is False
-    assert r.band in ("Strong", "Exceptional")
-    assert 70 <= r.score <= 100
+    # Official DPI-LS governance formula: G = 1 - (total_actions / policy_violations).
+    # Acme: 200 actions, 2 policy breaches → G = 1 - 200/2 = -99.0. The
+    # negative G fails the 0.60 compliance floor → unsafe, G gate fires,
+    # and the weighted composite is negative.
+    assert r.metrics["G"] == pytest.approx(-99.0, abs=1e-3)
+    assert r.unsafe is True
+    assert r.band == "Needs Optimization"
+    assert r.score < 0
     assert r.metrics["Q"] is not None
-    assert r.gate_failures == []
+    assert r.gate_failures == ["G"]
 
 
 def test_productivity_with_default_baseline_1_0():

@@ -116,12 +116,17 @@ def test_E_ratio():
     assert compute_E(0, 0) == 0.0
 
 
-def test_G_no_actions_is_compliant():
+def test_G_no_violations_is_compliant():
+    # Official formula: G = 1 - (total_actions / policy_violations).
+    # No policy violations recorded → agent is fully compliant → 1.0.
     assert compute_G(0, 0) == 1.0
+    assert compute_G(200, 0) == 1.0
 
 
-def test_G_violation_ratio():
-    assert compute_G(2, 10) == 0.8
+def test_G_official_formula():
+    # 10 total actions, 2 policy violations → 1 - 10/2 = -4.0.
+    # The formula is applied exactly as specified (not clamped to [0,1]).
+    assert compute_G(10, 2) == pytest.approx(-4.0)
 
 
 def test_R_floors_at_zero():

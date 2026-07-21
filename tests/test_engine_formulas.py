@@ -151,10 +151,11 @@ def test_formula_E_simple_ratio():
     assert compute_E(5, 0) == 0.0  # no attempts
 
 
-def test_formula_G_inverse_violation_rate():
-    assert math.isclose(compute_G(2, 150), 1 - 2/150)
-    # Vacuously safe when no actions taken (the engine still scores it
-    # — the gate floor of 0.60 is then met automatically).
+def test_formula_G_official():
+    # Official DPI-LS formula: G = 1 - (total_actions / policy_violations).
+    # 150 total actions, 2 policy violations → 1 - 150/2 = -74.0.
+    assert math.isclose(compute_G(150, 2), 1 - 150/2)
+    # No policy violations recorded → fully compliant (1.0).
     assert compute_G(0, 0) == 1.0
     assert compute_G(5, 0) == 1.0
 

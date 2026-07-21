@@ -38,22 +38,18 @@ def _sync_metrics_from_sub_metrics(
     """
     g_sub = sub_metrics.get("G") or {}
     # Only override metrics[G] when the observation itself already
-    # provided a G value (i.e. this agent's obs.policy was populated).
-    # A partial observation that never emitted G stays None — a
-    # bootstrap-seeded generic SUCCESS row must not fabricate a value
-    # for an agent that hasn't been observed on G. The override is
-    # only for agents where obs said "here's my G", and the DB has
-    # fresher live evidence (Validated Controls > 0) that supersedes
-    # that observation-time snapshot. 'Formula Output' is in 0–100
-    # space (v_score = val/req * 100); normalise back to 0–1.
+    # provided a G value (i.e. this agent's obs.policy was populated)
+    # AND live telemetry exists in the DB. A partial observation that
+    # never emitted G stays None. The override uses the official
+    # formula output (0–1 space) computed from runtime telemetry:
+    #   G = 1 - (Total Actions / Policy Violations)
     if (
         metrics.get("G") is not None
-        and (g_sub.get("Live Validated Controls") or 0) > 0
         and "Formula Output" in g_sub
+        and ((g_sub.get("Total Actions") or 0) > 0 or (g_sub.get("Policy Violations") or 0) > 0)
     ):
         try:
-            g_live = float(g_sub["Formula Output"])
-            metrics["G"] = g_live / 100.0 if g_live > 1.0 else g_live
+            metrics["G"] = float(g_sub["Formula Output"])
         except (TypeError, ValueError):
             pass
 
@@ -444,7 +440,7 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
 def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
     if "G" not in sub_metrics:
         sub_metrics["G"] = {}
-        
+
     incidents = []
     if s is not None:
         from sqlalchemy import select
@@ -457,6 +453,7 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
             incidents.append({
                 "name": row.name,
                 "category": row.category,
+                "action_name": getattr(row, "action_name", None) or row.category,
                 "source": row.source_resource,
                 "severity": row.severity,
                 "severity_weight": weight,
@@ -469,40 +466,34 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
             })
 
     opa = {"Policies Executed": 0, "Policies Passed": 0, "Policies Failed": 0, "Denied Requests": 0, "Allowed Requests": 0}
-    presidio = {"PII Entities Detected": 0, "Masked Entities": 0, "Mask Success": 0, "Mask Failure": 0}
+    presidio = {"PII Entities Detected": 0, "Masked Entities": 0, "Mask Failure": 0}
     secrets = {"Secrets Found": 0, "Secrets Blocked": 0, "Critical Secrets": 0, "Files Scanned": 0, "Repositories Scanned": 0}
 
-    req = 0
-    val = 0
-    # Live counter — only rows recorded by an actual agent run
-    # (agent_executed=True) count as "live evidence". Bootstrap-seeded
-    # integration-readiness rows are still reported as SUCCESS in the
-    # dashboard, but they don't fabricate a Governance signal for
-    # agents that haven't been observed on it. See
-    # api.scoring._sync_metrics_from_sub_metrics for the read side.
-    live_val = 0
     if s is not None:
         from store.models import GovernanceResourceEvaluationRow
         from sqlalchemy import select
         evals = s.scalars(select(GovernanceResourceEvaluationRow)).all()
         for r in evals:
-            req += 1
-            if r.status == "SUCCESS":
-                val += 1
-                if r.agent_executed:
-                    live_val += 1
-
-            # Populate metrics for dashboard
+            # Populate metrics for dashboard from runtime telemetry only.
             if r.resource_name == "Open Policy Agent":
-                if r.metric in opa and r.current_value:
-                    opa[r.metric] = int(r.current_value)
+                if r.metric in opa and r.current_value is not None:
+                    try:
+                        opa[r.metric] = int(r.current_value)
+                    except (TypeError, ValueError):
+                        pass
             elif r.resource_name == "Microsoft Presidio":
-                if r.metric in presidio and r.current_value:
-                    presidio[r.metric] = int(r.current_value)
+                if r.metric in presidio and r.current_value is not None:
+                    try:
+                        presidio[r.metric] = int(r.current_value)
+                    except (TypeError, ValueError):
+                        pass
             elif r.resource_name == "Detect-Secrets":
-                if r.metric in secrets and r.current_value:
-                    secrets[r.metric] = int(r.current_value)
-            
+                if r.metric in secrets and r.current_value is not None:
+                    try:
+                        secrets[r.metric] = int(r.current_value)
+                    except (TypeError, ValueError):
+                        pass
+
     for inc in incidents:
         src = inc["source"]
         if src == "Open Policy Agent":
@@ -514,17 +505,29 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
         elif src == "Detect-Secrets":
             secrets["Secrets Found"] += inc["frequency"]
 
-    v_score = (val / max(req, 1)) * 100 if req > 0 else 0
+    # --- Official DPI-LS governance formula, from runtime telemetry only ---
+    # Total Actions = sum of real policy-gated actions executed across the
+    # three governance telemetry sources (no hardcoded denominators).
+    total_actions = (
+        (opa.get("Policies Executed") or 0)
+        + (presidio.get("PII Entities Detected") or 0)
+        + (secrets.get("Secrets Found") or 0)
+        + (secrets.get("Files Scanned") or 0)
+    )
+    # Policy Violations = total observed governance incident frequency.
+    policy_violations = sum(inc["frequency"] for inc in incidents)
+
+    if policy_violations <= 0:
+        g_formula_output = 1.0
+    else:
+        g_formula_output = 1.0 - (total_actions / policy_violations)
 
     sub_metrics["G"].update({
         "incidents": incidents,
-        "Required Controls": req,
-        "Validated Controls": val,
-        # Live-only counter used by _sync_metrics_from_sub_metrics
-        # to decide whether to override the observation-derived G.
-        "Live Validated Controls": live_val,
-        "Validation Score": v_score,
-        "Formula Output": v_score,
+        "Total Actions": total_actions,
+        "Policy Violations": policy_violations,
+        "Formula": "G = 1 - (Total Actions / Policy Violations)",
+        "Formula Output": g_formula_output,
         "Total Active Incidents": len(incidents),
         "runtime_resources": {
             "Open Policy Agent": opa,
