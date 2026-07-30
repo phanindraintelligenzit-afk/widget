@@ -393,8 +393,9 @@
     };
 
     let entries = Object.entries(metricsMap);
-    
-
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
       const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
@@ -538,6 +539,9 @@
     };
 
     let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
     const rowHtml = entries.map(([key, r]) => {
@@ -717,7 +721,9 @@
     };
 
     let entries = Object.entries(metricsMap);
-    // Remove the resourceFilter for the summary metrics so they always show
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
     
     const req = metricsMap["Rmax"] ? metricsMap["Rmax"].val : 50;
@@ -866,7 +872,9 @@
     };
 
     let entries = Object.entries(metricsMap);
-    
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
     // Filter out rows where value is "Unavailable"
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
@@ -1022,8 +1030,10 @@
     };
 
     let entries = Object.entries(metricsMap);
-    
-
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
     const rowHtml = entries.map(([key, r]) => {
       const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
       const prefix = isDollarMetric ? "$" : "";
@@ -1171,8 +1181,10 @@
     };
 
     let entries = Object.entries(metricsMap);
-    
-
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
+    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
       const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
@@ -1320,7 +1332,9 @@
     };
 
     let entries = Object.entries(metricsMap);
-    
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
+    }
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
 
     const attempts = metricsMap["Total_Attempts"] ? metricsMap["Total_Attempts"].val : 0;
@@ -2298,26 +2312,30 @@
     }
     async _tick() {
       try {
-        const [resCost, resVal, resQual, resProd, resExec, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec] = await Promise.all([
+        const [resCost, resVal, resQual, resProd, resExec, resRisk, resGov, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec, urlsRisk, urlsGov] = await Promise.all([
           fetch(`${apiBase(this)}/api/cost-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/execution-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/results`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/results`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
 
-        const [rC, rV, rQ, rP, rE, uC, uV, uQ, uP, uE] = await Promise.all([
-          resCost.json(), resVal.json(), resQual.json(), resProd.json(), resExec.json(),
-          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json()
+        const [rC, rV, rQ, rP, rE, rR, rG, uC, uV, uQ, uP, uE, uR, uG] = await Promise.all([
+          resCost.json(), resVal.json(), resQual.json(), resProd.json(), resExec.json(), resRisk.json(), resGov.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json(), urlsRisk.json(), urlsGov.json()
         ]);
         
-        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE];
-        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE };
+        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE, ...rR, ...rG];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE, ...uR, ...uG };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -2326,26 +2344,30 @@
     async _runEvaluations() {
       try {
         this._render({ loading: true });
-        const [evalCost, evalVal, evalQual, evalProd, evalExec, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec] = await Promise.all([
+        const [evalCost, evalVal, evalQual, evalProd, evalExec, evalRisk, evalGov, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec, urlsRisk, urlsGov] = await Promise.all([
           fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/execution-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
           fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Accept": "application/json" } })
         ]);
 
-        const [rC, rV, rQ, rP, rE, uC, uV, uQ, uP, uE] = await Promise.all([
-          evalCost.json(), evalVal.json(), evalQual.json(), evalProd.json(), evalExec.json(),
-          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json()
+        const [rC, rV, rQ, rP, rE, rR, rG, uC, uV, uQ, uP, uE, uR, uG] = await Promise.all([
+          evalCost.json(), evalVal.json(), evalQual.json(), evalProd.json(), evalExec.json(), evalRisk.json(), evalGov.json(),
+          urlsCost.json(), urlsVal.json(), urlsQual.json(), urlsProd.json(), urlsExec.json(), urlsRisk.json(), urlsGov.json()
         ]);
         
-        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE];
-        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE };
+        this._results = [...rC, ...rV, ...rQ, ...rP, ...rE, ...rR, ...rG];
+        this._urls = { ...uC, ...uV, ...uQ, ...uP, ...uE, ...uR, ...uG };
         this._render({});
       } catch (e) {
         this._render({ error: e.message });
@@ -2358,6 +2380,8 @@
         else if (["DeepEval", "Jaeger", "Zipkin"].includes(resource)) { endpoint = "validation-evaluation"; }
         else if (["LangSmith", "Ragas", "AgentOps"].includes(resource)) { endpoint = "quality-evaluation"; }
         else if (["Grafana Tempo", "Apache SkyWalking"].includes(resource)) { endpoint = "productivity-evaluation"; }
+        else if (["Rebuff", "LLMGuard", "TruLens"].includes(resource)) { endpoint = "risk-evaluation"; }
+        else if (["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"].includes(resource)) { endpoint = "governance-evaluation"; }
         
         const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
           method: "POST",
@@ -2409,18 +2433,23 @@
       const QUALITY_M  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
       const PROD_M     = ['worker_concurrency', 'execution_duration', 'throughput', 'resolution_velocity', 'human_complexity', 'decision_branches', 'api_calls', 'token_depth'];
 
+      const RISK_M = ['prompt_injection', 'jailbreak_detection', 'unsafe_prompt', 'safety_validation', 'toxicity_score'];
+      const GOV_M = ['secrets_found', 'secrets_blocked', 'files_scanned', 'pii_detection', 'entity_count', 'masking', 'policies_executed', 'policies_passed', 'policies_failed'];
+
       function metricGroup(m) {
         if (COST_M.includes(m))    return 'C';
         if (VALID_M.includes(m))   return 'V';
         if (QUALITY_M.includes(m)) return 'Q';
         if (PROD_M.includes(m))    return 'P';
+        if (RISK_M.includes(m))    return 'R';
+        if (GOV_M.includes(m))     return 'G';
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
-      // Group by resource → then by C/V/Q
+      // Group by resource → then by C/V/Q/P/R/G
       const byResource = {};
       for (const r of filteredResults) {
         if (!byResource[r.resource_name]) byResource[r.resource_name] = [];
@@ -2433,14 +2462,13 @@
         C: { label: '💰 Cost (C)',       color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
         V: { label: '✅ Validation (V)', color: '#22c55e', bg: 'rgba(34,197,94,0.08)'  },
         Q: { label: '🧬 Quality (Q)',    color: '#a78bfa', bg: 'rgba(167,139,250,0.08)'},
+        R: { label: '🛡 Risk (R)',       color: '#f43f5e', bg: 'rgba(244,63,94,0.08)'  },
+        G: { label: '⚖ Governance (G)', color: '#facc15', bg: 'rgba(250,204,21,0.08)'  },
       };
 
       for (const resourceName of activeResources) {
         const metrics = byResource[resourceName] || [];
-        if (metrics.length === 0) continue;
-
         const detectedCount = metrics.filter(m => m.detected).length;
-        const RESOURCE_URLS = this._urls || {};
         const dashUrlData = RESOURCE_URLS[resourceName];
         const baseUrl = dashUrlData?.url;
         const isOnline = dashUrlData?.online !== false;
@@ -2478,6 +2506,13 @@
             </div>
           </td>
         </tr>`;
+
+        if (metrics.length === 0) {
+          rows += `<tr style="border-bottom:1px solid rgba(255,255,255,0.04)">
+            <td colspan="8" style="padding:16px 12px;text-align:center;font-size:12px;color:#f87171;font-weight:600;font-style:italic">No Runtime Metrics Detected</td>
+          </tr>`;
+          continue;
+        }
 
         // Render each group
         for (const [grpKey, grpInfo] of Object.entries(GROUP_LABELS)) {
@@ -2564,6 +2599,9 @@
   window.renderQualityTableHtml = renderQualityTableHtml;
   window.calculateProductivityMetrics = calculateProductivityMetrics;
   window.renderProductivityTableHtml = renderProductivityTableHtml;
+  window.renderGovernanceTableHtml = renderGovernanceTableHtml;
+  window.renderRiskTableHtml = renderRiskTableHtml;
+  window.renderExecutionTableHtml = renderExecutionTableHtml;
 
   if (!customElements.get("dpi-ls-board")) {
     customElements.define("dpi-ls-board", DpiLsBoard);

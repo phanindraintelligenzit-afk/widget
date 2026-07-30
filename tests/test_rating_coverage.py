@@ -17,32 +17,8 @@ def _all(value: float) -> dict[str, float]:
     return {k: value for k in DEFAULT_WEIGHTS}
 
 
-# Legacy tests - disabled because min_dimensions_for_full_band parameter removed
+# Legacy tests were removed as min_dimensions_for_full_band parameter was removed.
 # New completeness tests are in test_completeness.py
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_full_coverage_unchanged_with_default_floor():
-    pass
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_just_at_floor_does_not_cap():
-    pass
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_below_floor_caps_band_and_records_reason():
-    pass
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_coverage_disabled_when_setting_is_none():
-    pass
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_coverage_cap_compounds_with_compliance_gate():
-    pass
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band parameter removed - see test_completeness.py")
-def test_coverage_cap_pulls_high_raw_down():
-    pass
 
 # ---- end-to-end through the full API ------------------------------------
 
@@ -63,7 +39,4 @@ def test_partial_coverage_agent_through_full_engine(client):
     assert r["capped"] is True      # Completeness cap fires
     pass       # Capped to "Needs Optimization"
     assert r["band"] == "Needs Optimization"
-
-@pytest.mark.skip(reason="min_dimensions_for_full_band setting removed")
-def test_settings_expose_min_dimensions_for_full_band():
-    pass
+

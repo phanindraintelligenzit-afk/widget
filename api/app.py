@@ -121,6 +121,21 @@ async def lifespan(_: FastAPI):
             logger.info("Stopped Prometheus metrics export task")
 
 
+import socket as _socket
+from urllib.parse import urlparse as _urlparse
+
+def _is_reachable_global(url: str) -> bool:
+    if not url or url.strip() == "":
+        return False
+    try:
+        parsed = _urlparse(url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        with _socket.create_connection((host, port), timeout=0.3):
+            return True
+    except Exception:
+        return False
+
 app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
 
 # CORS so the widget can be embedded cross-origin. WIDGET_ALLOWED_ORIGINS
@@ -322,13 +337,13 @@ def risk_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     for r in rows:
         if r.name == "LLMGuard":
             url = os.environ.get("LLMGUARD_URL", "https://llm-guard.com")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "TruLens":
             url = os.environ.get("TRULENS_URL", "https://trulens.org")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Rebuff":
             url = os.environ.get("REBUFF_URL", "https://rebuff.ai")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         else:
             out[r.name] = {"url": "#", "online": False}
     return out
@@ -781,66 +796,14 @@ def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[s
 @app.get("/api/cost-evaluation/urls")
 def get_cost_evaluation_urls() -> dict[str, dict]:
     """Return dashboard URLs with live reachability status for each resource."""
-    import socket as _socket
-    from urllib.parse import urlparse as _urlparse
-
-    def _is_reachable(url: str) -> bool:
-        """Return True if the host:port in url responds within 0.3 s."""
-        try:
-            parsed = _urlparse(url)
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or (443 if parsed.scheme == "https" else 80)
-            with _socket.create_connection((host, port), timeout=0.3):
-                return True
-        except Exception:
-            return False
-
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
     prometheus_url = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
     grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
 
-    def _cloud_or_tcp(url: str, extra_check: bool = True) -> bool:
-        """Cloud (https://) URLs are considered online when configured.
-        Local (http://localhost) URLs are TCP-checked."""
-        if not url or url.strip() == "":
-            return False
-        parsed = _urlparse(url)
-        host = parsed.hostname or ""
-        # If it's a proper cloud URL (not localhost / 127.0.0.1), treat as online
-        if parsed.scheme == "https" and host not in ("localhost", "127.0.0.1", ""):
-            return extra_check
-        # If it's pointing at our own server (port 8000), always reachable
-        if host in ("localhost", "127.0.0.1") and parsed.port == 8000:
-            return True
-        return _is_reachable(url)
-
-    # For cloud Langfuse, consider it online when keys are configured
-    langfuse_online = _cloud_or_tcp(
-        langfuse_url,
-        extra_check=bool(os.environ.get("LANGFUSE_PUBLIC_KEY") and os.environ.get("LANGFUSE_SECRET_KEY"))
-    )
-
-    # Grafana: cloud URL → online if configured; localhost → TCP check
-    grafana_online = _cloud_or_tcp(grafana_url)
-
-    # Prometheus: Our backend always serves /metrics/ on port 8000.
-    # If external Prometheus (port 9090) is down, fall back to our own
-    # metrics endpoint so the dashboard button always works.
-    prometheus_online = _cloud_or_tcp(prometheus_url)
-    if not prometheus_online:
-        prometheus_url = "http://localhost:8000/metrics/"
-        prometheus_online = True
-
-    # Grafana fallback: if external Grafana is down, point to our own
-    # metrics endpoint so the button is never greyed-out / disabled.
-    if not grafana_online:
-        grafana_url = "http://localhost:8000/metrics/"
-        grafana_online = True
-
     return {
-        "Langfuse":    {"url": langfuse_url,    "online": langfuse_online},
-        "Prometheus":  {"url": prometheus_url,  "online": prometheus_online},
-        "Grafana":     {"url": grafana_url,     "online": grafana_online},
+        "Langfuse":   {"url": langfuse_url,   "online": _is_reachable_global(langfuse_url)},
+        "Prometheus": {"url": prometheus_url, "online": _is_reachable_global(prometheus_url)},
+        "Grafana":    {"url": grafana_url,    "online": _is_reachable_global(grafana_url)},
     }
 
 
@@ -997,45 +960,14 @@ def push_zipkin_results(
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
     """Return validation dashboard URLs with live reachability status."""
-    import socket as _socket
-    from urllib.parse import urlparse as _urlparse
-
-    def _is_reachable(url: str) -> bool:
-        try:
-            parsed = _urlparse(url)
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or 80
-            with _socket.create_connection((host, port), timeout=0.3):
-                return True
-        except Exception:
-            return False
-
     deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
     jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
     zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
 
-    def _cloud_or_tcp(url: str) -> bool:
-        if not url or url.strip() == "":
-            return False
-        return _is_reachable(url)
-
-    deepeval_online = True  # DeepEval is a library and runs in-process
-    jaeger_online = _cloud_or_tcp(jaeger_url)
-    zipkin_online = _cloud_or_tcp(zipkin_url)
-
-    # Fallback: when Jaeger/Zipkin aren't running locally on dedicated ports, 
-    # point to Grafana as the centralized visualization layer.
-    if not jaeger_online:
-        jaeger_url = "http://localhost:3000"
-        jaeger_online = True
-    if not zipkin_online:
-        zipkin_url = "http://localhost:3000"
-        zipkin_online = True
-
     return {
-        "DeepEval": {"url": deepeval_url, "online": deepeval_online},
-        "Jaeger":   {"url": jaeger_url,    "online": jaeger_online},
-        "Zipkin":   {"url": zipkin_url,    "online": zipkin_online},
+        "DeepEval": {"url": deepeval_url, "online": _is_reachable_global(deepeval_url)},
+        "Jaeger":   {"url": jaeger_url,   "online": _is_reachable_global(jaeger_url)},
+        "Zipkin":   {"url": zipkin_url,   "online": _is_reachable_global(zipkin_url)},
     }
 
 
@@ -1129,37 +1061,14 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
 @app.get("/api/quality-evaluation/urls")
 def get_quality_evaluation_urls() -> dict[str, dict]:
     """Return quality dashboard URLs with live reachability status."""
-    import socket as _socket
-    from urllib.parse import urlparse as _urlparse
-
-    def _is_reachable(url: str) -> bool:
-        try:
-            parsed = _urlparse(url)
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or 80
-            with _socket.create_connection((host, port), timeout=0.3):
-                return True
-        except Exception:
-            return False
-
     langsmith_url = os.environ.get("LANGSMITH_URL", "https://smith.langchain.com")
     ragas_url = os.environ.get("RAGAS_URL", "https://ragas.io")
     agentops_url = os.environ.get("AGENTOPS_URL", "https://app.agentops.ai")
 
-    def _cloud_or_tcp(url: str) -> bool:
-        if not url or url.strip() == "":
-            return False
-        return _is_reachable(url)
-
-    # Cloud SaaS services — always treat as online so buttons always work
-    langsmith_online = True
-    ragas_online = True  # Ragas is a library, always available in-process
-    agentops_online = True
-
     return {
-        "LangSmith": {"url": langsmith_url, "online": langsmith_online},
-        "Ragas":     {"url": ragas_url,     "online": ragas_online},
-        "AgentOps":  {"url": agentops_url,  "online": agentops_online},
+        "LangSmith": {"url": langsmith_url, "online": _is_reachable_global(langsmith_url)},
+        "Ragas":     {"url": ragas_url,     "online": _is_reachable_global(ragas_url)},
+        "AgentOps":  {"url": agentops_url,  "online": _is_reachable_global(agentops_url)},
     }
 
 
@@ -1366,19 +1275,6 @@ def get_productivity_evaluation_results(s: Session = Depends(db_session)) -> lis
 @app.get("/api/productivity-evaluation/urls")
 def get_productivity_evaluation_urls() -> dict[str, dict]:
     """Return productivity dashboard URLs with live reachability status."""
-    import socket as _socket
-    from urllib.parse import urlparse as _urlparse
-
-    def _is_reachable(url: str) -> bool:
-        try:
-            parsed = _urlparse(url)
-            host = parsed.hostname or "127.0.0.1"
-            port = parsed.port or 80
-            with _socket.create_connection((host, port), timeout=0.3):
-                return True
-        except Exception:
-            return False
-
     otel_url = os.environ.get("OTEL_COLLECTOR_URL", "http://localhost:4318")
     otel_ui_url = os.environ.get("OTEL_UI_URL", "http://localhost:3000")
     
@@ -1389,9 +1285,9 @@ def get_productivity_evaluation_urls() -> dict[str, dict]:
     skywalking_ui_url = os.environ.get("SKYWALKING_UI_URL", "http://localhost:8080")
 
     return {
-        "OpenTelemetry":     {"url": otel_ui_url,       "online": _is_reachable(otel_url)},
-        "Grafana Tempo":     {"url": tempo_ui_url,      "online": _is_reachable(tempo_url)},
-        "Apache SkyWalking": {"url": skywalking_ui_url, "online": _is_reachable(skywalking_url)},
+        "OpenTelemetry":     {"url": otel_ui_url,       "online": _is_reachable_global(otel_url)},
+        "Grafana Tempo":     {"url": tempo_ui_url,      "online": _is_reachable_global(tempo_url)},
+        "Apache SkyWalking": {"url": skywalking_ui_url, "online": _is_reachable_global(skywalking_url)},
     }
 
 
@@ -1468,8 +1364,9 @@ def push_skywalking_results(
     from store.repo import save_productivity_resource_evaluation
     updated = []
     skywalking_metrics = ["token_depth", "throughput"]
+    metrics_payload = payload.get("metrics", payload)
     for metric in skywalking_metrics:
-        val = payload.get(metric)
+        val = metrics_payload.get(metric)
         if val is not None:
             val_str = str(val)
             save_productivity_resource_evaluation(
@@ -1570,9 +1467,9 @@ def get_execution_evaluation_urls() -> dict[str, dict]:
     traceloop_url = os.environ.get("TRACELOOP_BASE_URL", "https://app.traceloop.com")
     
     return {
-        "Langfuse": {"url": langfuse_url, "online": True},
-        "Phoenix": {"url": phoenix_url, "online": True},
-        "Traceloop": {"url": traceloop_url, "online": True}
+        "Langfuse": {"url": langfuse_url, "online": _is_reachable_global(langfuse_url)},
+        "Phoenix": {"url": phoenix_url, "online": _is_reachable_global(phoenix_url)},
+        "Traceloop": {"url": traceloop_url, "online": _is_reachable_global(traceloop_url)}
     }
 
 @app.post("/api/execution-evaluation/verify-dashboard")
@@ -1714,13 +1611,13 @@ def governance_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     for r in rows:
         if r.name == "Open Policy Agent":
             url = os.environ.get("OPA_URL", "https://www.openpolicyagent.org")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Microsoft Presidio":
             url = os.environ.get("PRESIDIO_URL", "https://microsoft.github.io/presidio")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Detect-Secrets":
             url = os.environ.get("DETECT_SECRETS_URL", "https://github.com/Yelp/detect-secrets")
-            out[r.name] = {"url": url, "online": True}
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         else:
             out[r.name] = {"url": "#", "online": False}
     return out

@@ -771,7 +771,10 @@ function groupByResource(data) {
 }
 
 // Determine overall status per resource
-function resourceStatus(metrics) {
+function resourceStatus(name, metrics = []) {
+  const dashInfo = dashboardUrls[name] || { url: '', online: true };
+  if (!dashInfo.online) return 'failed';
+  
   if (metrics.some(m => m.status === 'CREDENTIALS_MISSING')) return 'failed';
   const ok = metrics.filter(m => m.status === 'SUCCESS').length;
   if (ok > 0) return 'success';
@@ -850,6 +853,10 @@ function formatMetricValue(metric, current_value) {
 }
 
 function renderResourceTable(metrics, name) {
+  if (!metrics || metrics.length === 0) {
+    return `<div style="padding:16px 12px;text-align:center;font-size:12px;color:#f87171;font-weight:600;font-style:italic">No Runtime Metrics Detected</div>`;
+  }
+
   const liveMetrics = {};
   metrics.forEach(m => {
     liveMetrics[m.metric] = m.current_value;
@@ -952,7 +959,7 @@ function toggleResourceTable(name) {
 
 function renderResourceCard(name, metrics) {
   const meta = RESOURCE_META[name] || { icon:'📦', category:'Unknown', dpi_status:'optional', description:'', dashboard_url:null, dashboard_label:name, color:'#6366f1' };
-  const overallStatus = resourceStatus(metrics);
+  const overallStatus = resourceStatus(name, metrics);
   const steps = computeSteps(metrics);
   const stepsCompleted = steps.filter(Boolean).length;
   const detectedCount = metrics.filter(m => m.detected).length;
@@ -1077,7 +1084,17 @@ function applyFilter() {
     else if (currentFilter === 'failed') show = card.dataset.status === 'failed';
     else if (currentFilter === 'primary')      show = ['primary','foundational'].includes(card.dataset.dpiStatus);
     else if (currentFilter === 'recommended')  show = card.dataset.dpiStatus === 'recommended';
+    
     card.style.display = show ? '' : 'none';
+    const nextEl = card.nextElementSibling;
+    if (nextEl && nextEl.classList.contains('table-container-' + card.dataset.resource)) {
+      if (!show) {
+        nextEl.style.display = 'none';
+        // Also reset the arrow
+        const arrow = card.querySelector('.arrow-' + card.dataset.resource);
+        if (arrow) arrow.textContent = '▶';
+      }
+    }
   });
 }
 
@@ -1239,8 +1256,8 @@ const sortedNames = allNames.sort((a, b) => {
   // Stats
   const totalEvals = allData.length;
   const totalDetected = allData.filter(m => m.detected).length;
-  const successCount = sortedNames.filter(n => resourceStatus(grouped[n]) === 'success').length;
-  const failedCount  = sortedNames.filter(n => resourceStatus(grouped[n]) === 'failed').length;
+  const successCount = sortedNames.filter(n => resourceStatus(n, grouped[n] || []) === 'success').length;
+  const failedCount  = sortedNames.filter(n => resourceStatus(n, grouped[n] || []) === 'failed').length;
 
   document.getElementById('count-all').textContent = sortedNames.length;
   document.getElementById('count-success').textContent = successCount;

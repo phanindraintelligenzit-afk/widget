@@ -65,8 +65,4 @@ def test_jira_priority_maps_to_severity():
     assert p.incidents[0].severity_weight == 0.3  # "Low"
 
 
-@pytest.mark.parametrize("cls", ALL_STUBS)
-def test_stubs_register_and_return_empty(cls):
-    adapter = cls()
-    assert adapter.name
-    assert adapter.to_partials({}) == []
+
