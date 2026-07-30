@@ -791,7 +791,7 @@ function groupByResource(data) {
 }
 
 // Determine overall status per resource
-function resourceStatus(metrics) {
+function resourceStatus(metrics = []) {
   if (metrics.some(m => m.status === 'CREDENTIALS_MISSING')) return 'failed';
   const ok = metrics.filter(m => m.status === 'SUCCESS').length;
   if (ok > 0) return 'success';
@@ -799,7 +799,7 @@ function resourceStatus(metrics) {
 }
 
 // Which evaluation step is complete for a resource
-function computeSteps(metrics) {
+function computeSteps(metrics = []) {
   const detected = metrics.some(m => m.detected);
   const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10);
   const dashVerified = metrics.some(m => m.dashboard_verified);
@@ -970,7 +970,7 @@ function toggleResourceTable(name) {
   }
 }
 
-function renderResourceCard(name, metrics) {
+function renderResourceCard(name, metrics = []) {
   const meta = RESOURCE_META[name] || { icon:'📦', category:'Unknown', dpi_status:'optional', description:'', dashboard_url:null, dashboard_label:name, color:'#6366f1' };
   const overallStatus = resourceStatus(metrics);
   const steps = computeSteps(metrics);
@@ -1262,8 +1262,8 @@ const sortedNames = allNames.sort((a, b) => {
   // Stats
   const totalEvals = allData.length;
   const totalDetected = allData.filter(m => m.detected).length;
-  const successCount = sortedNames.filter(n => resourceStatus(grouped[n]) === 'success').length;
-  const failedCount  = sortedNames.filter(n => resourceStatus(grouped[n]) === 'failed').length;
+  const successCount = sortedNames.filter(n => resourceStatus(grouped[n] || []) === 'success').length;
+  const failedCount  = sortedNames.filter(n => resourceStatus(grouped[n] || []) === 'failed').length;
 
   document.getElementById('count-all').textContent = sortedNames.length;
   document.getElementById('count-success').textContent = successCount;
@@ -1282,7 +1282,7 @@ const sortedNames = allNames.sort((a, b) => {
     return;
   }
 
-  const html = sortedNames.map(name => renderResourceCard(name, grouped[name])).join('');
+  const html = sortedNames.map(name => renderResourceCard(name, grouped[name] || [])).join('');
   document.getElementById('resources-grid').innerHTML = html;
   applyFilter();
 }
