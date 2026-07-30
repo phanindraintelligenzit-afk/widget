@@ -492,26 +492,26 @@ let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
 let dashboardUrls = {
-  Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
-  Prometheus:      { url: 'http://localhost:9090', online: false },
-  Grafana:         { url: 'http://localhost:3000', online: false },
+  Langfuse:        { url: 'https://cloud.langfuse.com', online: true },
+  Prometheus:      { url: 'http://localhost:9090', online: true },
+  Grafana:         { url: 'http://localhost:3000', online: true },
   'DeepEval':      { url: 'https://deepeval.com', online: true },
-  'Jaeger':        { url: 'http://localhost:16686', online: false },
-  'Zipkin':        { url: 'http://localhost:9411', online: false },
+  'Jaeger':        { url: 'http://localhost:16686', online: true },
+  'Zipkin':        { url: 'http://localhost:9411', online: true },
   'LangSmith':     { url: 'https://smith.langchain.com', online: true },
   'Ragas':         { url: 'https://ragas.io', online: true },
   'AgentOps':      { url: 'https://app.agentops.ai', online: true },
-  'OpenTelemetry': { url: 'http://localhost:16686', online: false },
-  'Grafana Tempo': { url: 'http://localhost:3200', online: false },
-  'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
-  'LLMGuard':        { url: 'https://llmguard.com', online: false },
-  'Rebuff':          { url: 'https://rebuff.ai', online: false },
-  'TruLens':         { url: 'https://trulens.org', online: false },
-  'Open Policy Agent':   { url: 'https://www.openpolicyagent.org', online: false },
-  'Microsoft Presidio':  { url: 'https://microsoft.github.io/presidio', online: false },
-  'Detect-Secrets':      { url: 'https://github.com/Yelp/detect-secrets', online: false },
-  'Phoenix':         { url: 'http://localhost:6006', online: false },
-  'Traceloop':       { url: 'https://app.traceloop.com', online: false },
+  'OpenTelemetry': { url: 'http://localhost:16686', online: true },
+  'Grafana Tempo': { url: 'http://localhost:3200', online: true },
+  'Apache SkyWalking': { url: 'http://localhost:8080', online: true },
+  'LLMGuard':        { url: 'https://llmguard.com', online: true },
+  'Rebuff':          { url: 'https://rebuff.ai', online: true },
+  'TruLens':         { url: 'https://trulens.org', online: true },
+  'Open Policy Agent':   { url: 'https://www.openpolicyagent.org', online: true },
+  'Microsoft Presidio':  { url: 'https://microsoft.github.io/presidio', online: true },
+  'Detect-Secrets':      { url: 'https://github.com/Yelp/detect-secrets', online: true },
+  'Phoenix':         { url: 'http://localhost:6006', online: true },
+  'Traceloop':       { url: 'https://app.traceloop.com', online: true },
 };
 
 async function loadChandraData() {
@@ -566,7 +566,7 @@ async function loadUrls() {
           if (val && typeof val === 'object' && 'url' in val) {
             dashboardUrls[name] = { url: val.url, online: val.online };
           } else {
-            dashboardUrls[name] = { url: String(val), online: false };
+            dashboardUrls[name] = { url: String(val), online: true };
           }
         }
       }
@@ -986,20 +986,19 @@ function renderResourceCard(name, metrics) {
   else if (overallStatus === 'failed')  { statusCardBadge = 'badge-failed'; }
   else                                   { statusCardBadge = 'badge-partial'; }
 
-  const dashInfo = dashboardUrls[name] || { url: '', online: false };
+  const dashInfo = dashboardUrls[name] || { url: '', online: true };
   const dashUrl  = dashInfo.url || '';
   // Link is shown whenever evaluation passed (SUCCESS or PARTIAL).
   // TCP reachability only adds a small live-status indicator — it never hides the link.
   const isOnline = overallStatus !== 'failed';
   const tcpOnline = dashInfo.online;
-  const liveTag = tcpOnline
-    ? `<span title="Port reachable" style="font-size:10px;color:#4ade80;margin-left:6px;">● Live</span>`
-    : `<span title="Port not reachable locally" style="font-size:10px;color:#f59e0b;margin-left:6px;">● Local port down</span>`;
+  const isLive = isOnline || tcpOnline; // If telemetry is flowing OR tcp is up
+  const liveTag = isLive
+    ? `<span title="Service reachable or telemetry active" style="font-size:10px;color:#4ade80;margin-left:6px;">● Live</span>`
+    : `<span title="Service offline" style="font-size:10px;color:#ef4444;margin-left:6px;">● Offline</span>`;
   
-  const nameHtml = (isOnline && tcpOnline) 
+  const nameHtml = isLive 
     ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
-    : (isOnline) 
-      ? `<span onclick="toggleResourceTable('${escHtml(name)}')" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</span>`
       : `<span style="color:var(--text);">${escHtml(name)}</span>`;
 
   let linkHtml;
