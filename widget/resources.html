@@ -482,6 +482,12 @@ let chandraValidationValue = 1.0;
 let chandraQualityValue = "Pending SME Review";
 let chandraProductivitySub = {};
 let chandraProductivityValue = 1.0;
+let chandraExecutionSub = {};
+let chandraExecutionValue = 1.0;
+let chandraRiskSub = {};
+let chandraRiskValue = 1.0;
+let chandraGovSub = {};
+let chandraGovValue = 1.0;
 let allData = [];
 let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
@@ -518,6 +524,12 @@ async function loadChandraData() {
         chandraQualityValue = chandra.metrics?.Q !== undefined ? chandra.metrics.Q : "Pending SME Review";
         chandraProductivitySub = chandra.sub_metrics?.P || {};
         chandraProductivityValue = chandra.metrics?.P !== undefined ? chandra.metrics.P : 1.0;
+        chandraExecutionSub = chandra.sub_metrics?.E || {};
+        chandraExecutionValue = chandra.metrics?.E !== undefined ? chandra.metrics.E : 1.0;
+        chandraRiskSub = chandra.sub_metrics?.R || {};
+        chandraRiskValue = chandra.metrics?.R !== undefined ? chandra.metrics.R : 1.0;
+        chandraGovSub = chandra.sub_metrics?.G || {};
+        chandraGovValue = chandra.metrics?.G !== undefined ? chandra.metrics.G : 1.0;
       }
     }
     if (r2.ok) {
@@ -783,19 +795,20 @@ function resourceStatus(name, metrics = []) {
 
 // Which evaluation step is complete for a resource
 function computeSteps(metrics) {
-  const detected = metrics.some(m => m.detected);
-  const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10);
-  const dashVerified = metrics.some(m => m.dashboard_verified);
   const agentRan = metrics.some(m => m.agent_executed);
-  // Step 5 (Document): green if dashboard_verified OR if agent ran + metrics detected
-  const documented = dashVerified || (agentRan && detected);
-  return [
-    true,         // Step 1: Setup (SDK registered = always done if we have results)
-    agentRan,     // Step 2: Instrument (agent code ran)
-    hasEvidence,  // Step 3: Execute (telemetry evidence received)
-    detected,     // Step 4: Validate (metric detected = True)
-    documented,   // Step 5: Document (verified or auto-documented)
-  ];
+  
+  // Real evidence excludes the bootstrap placeholder messages
+  const hasEvidence = metrics.some(m => m.evidence && m.evidence.length > 10 && !m.evidence.includes('Integration ready'));
+  const detected = metrics.some(m => m.detected);
+  const dashVerified = metrics.some(m => m.dashboard_verified);
+  
+  const step1 = true;
+  const step2 = agentRan;
+  const step3 = step2 && hasEvidence;
+  const step4 = step3 && detected;
+  const step5 = (step4 || dashVerified);
+  
+  return [step1, step2, step3, step4, step5];
 }
 
 function escHtml(str) {
@@ -862,7 +875,7 @@ function renderResourceTable(metrics, name) {
     liveMetrics[m.metric] = m.current_value;
   });
 
-  if (['Prometheus', 'Grafana'].includes(name)) {
+  if (['Prometheus', 'Grafana', 'OpenCost', 'OpenLIT'].includes(name)) {
     if (typeof window.renderCostTableHtml === 'function') {
       const mergedSub = { ...chandraCostSub, ...liveMetrics };
       return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
@@ -923,6 +936,12 @@ function renderResourceTable(metrics, name) {
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
+  } else if (['DeepEval', 'Jaeger', 'Zipkin'].includes(name)) {
+    if (typeof window.renderValidationTableHtml === 'function') {
+      const mergedSub = { ...chandraSub, ...liveMetrics };
+      return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);
+    }
+    return `<div style="padding:15px;color:#64748b;">Validation rendering logic missing.</div>`;
   } else if (['Open Policy Agent', 'Microsoft Presidio', 'Detect-Secrets'].includes(name)) {
     if (typeof window.renderGovernanceTableHtml === 'function') {
       const mergedSub = { ...chandraGovSub, ...liveMetrics };
@@ -935,10 +954,19 @@ function renderResourceTable(metrics, name) {
       return window.renderRiskTableHtml(mergedSub, settingsObj, chandraRiskValue, name);
     }
   } else {
-    if (typeof window.renderValidationTableHtml === 'function') {
-      const mergedSub = { ...chandraSub, ...liveMetrics };
-      return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);
-    }
+    const rows = metrics.map(m => `
+      <tr>
+        <td style="padding:6px 8px;color:var(--text);font-size:12px;">${escHtml(m.metric)}</td>
+        <td style="padding:6px 8px;color:var(--accent);font-size:12px;">${escHtml(String(m.current_value))}</td>
+        <td style="padding:6px 8px;color:var(--muted);font-size:11px;">${escHtml(m.evidence || '')}</td>
+      </tr>`).join('');
+    return `<div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">✅ ${name} Metrics</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Metric</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
+        <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
+      </tr></thead><tbody>${rows || `<tr><td colspan="3" style="padding:6px 8px;color:var(--muted);text-align:center;">No metrics captured yet.</td></tr>`}</tbody></table></div>`;
   }
   return `<div style="padding:10px;color:var(--muted);">Rendering table…</div>`;
 }
@@ -957,7 +985,7 @@ function toggleResourceTable(name) {
   }
 }
 
-function renderResourceCard(name, metrics) {
+function renderResourceCard(name, metrics = []) {
   const meta = RESOURCE_META[name] || { icon:'📦', category:'Unknown', dpi_status:'optional', description:'', dashboard_url:null, dashboard_label:name, color:'#6366f1' };
   const overallStatus = resourceStatus(name, metrics);
   const steps = computeSteps(metrics);
@@ -983,11 +1011,7 @@ function renderResourceCard(name, metrics) {
     ? `<span title="Port reachable" style="font-size:10px;color:#4ade80;margin-left:6px;">● Live</span>`
     : `<span title="Port not reachable locally" style="font-size:10px;color:#f59e0b;margin-left:6px;">● Local port down</span>`;
   
-  const nameHtml = (isOnline && tcpOnline) 
-    ? `<a href="${dashUrl}" target="_blank" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</a>`
-    : (isOnline) 
-      ? `<span onclick="toggleResourceTable('${escHtml(name)}')" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</span>`
-      : `<span style="color:var(--text);">${escHtml(name)}</span>`;
+  const nameHtml = `<span onclick="toggleResourceTable('${escHtml(name)}')" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</span>`;
 
   let linkHtml;
   if (name === 'DeepEval') {
@@ -1197,9 +1221,9 @@ async function loadData() {
       fetch(`${API}/api/risk-evaluation/results`, { headers: { Accept: 'application/json' } }),
       fetch(`${API}/api/governance-evaluation/results`, { headers: { Accept: 'application/json' } })
     ]);
-    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error loading results`);
+    if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok || !r7.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
-    const costResources = ["Prometheus", "Grafana"];
+    const costResources = ["Prometheus", "Grafana", "OpenCost", "OpenLIT"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps"];
     const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];

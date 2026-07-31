@@ -309,6 +309,9 @@ async def run_agent_observation() -> None:
 
     collector.cpu_utilization = psutil.cpu_percent() / 100.0
     
+    # Capture the output so that the quality evaluator has something to score
+    collector._capture_output(result.final_output)
+    
     # Run the SDK evaluations synchronously before script exit to avoid ThreadPool errors in atexit
     collector.finalize()
 

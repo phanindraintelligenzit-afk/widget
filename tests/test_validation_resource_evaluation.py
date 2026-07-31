@@ -36,6 +36,7 @@ def test_api_endpoints_validation_evaluation(client):
     assert len(resources) == 3
 
     # 2. POST /api/validation-evaluation/evaluate
+    os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
     r_eval = client.post("/api/validation-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()

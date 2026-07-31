@@ -10,7 +10,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from contract import AgentBaseline, AgentObservation, PartialObservation, Rating, merge_partials
+from contract import AgentBaseline, AgentObservation, PartialObservation, Rating, merge_partials, Incident
 from engine import metrics_from_observation, metrics_from_partial, rate
 from store import repo
 
@@ -94,16 +94,16 @@ def score_and_persist(
     ).all()
     
     obs.incidents = [
-        {
-            "id": inc.incident_id,
-            "name": inc.name,
-            "source": inc.source_resource,
-            "category": inc.category,
-            "severity": inc.severity,
-            "frequency": inc.frequency,
-            "severity_weight": inc.severity_weight,
-            "contribution": inc.risk_contribution
-        }
+        Incident(
+            id=inc.incident_id,
+            name=inc.name,
+            source=inc.source_resource,
+            category=inc.category,
+            severity=inc.severity,
+            frequency=inc.frequency,
+            severity_weight=inc.severity_weight,
+            contribution=inc.risk_contribution
+        )
         for inc in incidents_db
     ]
     
@@ -517,16 +517,16 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
     # Policy Violations = total observed governance incident frequency.
     policy_violations = sum(inc["frequency"] for inc in incidents)
 
-    if policy_violations <= 0:
+    if total_actions <= 0:
         g_formula_output = 1.0
     else:
-        g_formula_output = 1.0 - (total_actions / policy_violations)
+        g_formula_output = 1.0 - (policy_violations / total_actions)
 
     sub_metrics["G"].update({
         "incidents": incidents,
         "Total Actions": total_actions,
         "Policy Violations": policy_violations,
-        "Formula": "G = 1 - (Total Actions / Policy Violations)",
+        "Formula": "G = 1 - (Policy Violations / Total Actions)",
         "Formula Output": g_formula_output,
         "Total Active Incidents": len(incidents),
         "runtime_resources": {
@@ -604,34 +604,6 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
             "Required Components": req,
             "Validated Components": val,
             "Validation Score": v_score,
-            
-            # DeepEval
-            "answer_relevancy": eval_map.get("DeepEval:answer_relevancy") or (f"{obs.quality.accuracy:.3f}" if obs.quality else "Unavailable"),
-            "faithfulness": eval_map.get("DeepEval:faithfulness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
-            "hallucination": eval_map.get("DeepEval:hallucination") or (f"{obs.quality.hallucination_rate:.3f}" if obs.quality else "Unavailable"),
-            # correctness: distinct fallback — use consistency (not accuracy, to avoid dup with answer_relevancy)
-            "correctness": eval_map.get("DeepEval:correctness") or (f"{obs.quality.consistency:.3f}" if obs.quality else "Unavailable"),
-            "evaluation_status": eval_map.get("DeepEval:evaluation_status") or ("COMPLETED" if obs.quality else "Unavailable"),
-            "evaluation_count": eval_map.get("DeepEval:evaluation_count") or "Unavailable",
-
-            # Jaeger
-            "trace_id": eval_map.get("Jaeger:trace_id") or "Unavailable",
-            "runtime_trace_count": eval_map.get("Jaeger:validation_traces") or "Unavailable",
-            "span_count": eval_map.get("Jaeger:span_count") or "Unavailable",
-            "latency": eval_map.get("Jaeger:latency") or "Unavailable",
-            "execution_time": eval_map.get("Jaeger:execution_time") or "Unavailable",
-            "dependency_graph": eval_map.get("Jaeger:dependencies") or "Unavailable",
-            "request_duration": eval_map.get("Jaeger:request_duration") or "Unavailable",
-            "error_count": eval_map.get("Jaeger:error_count") or "Unavailable",
-
-            # Zipkin
-            "trace_timeline": eval_map.get("Zipkin:trace_timeline") or "Unavailable",
-            "span_timeline": eval_map.get("Zipkin:span_timeline") or "Unavailable",
-            "service_calls": eval_map.get("Zipkin:service_calls") or "Unavailable",
-            "request_path": eval_map.get("Zipkin:request_path") or "Unavailable",
-            "trace_latency": eval_map.get("Zipkin:trace_latency") or "Unavailable",
-            "execution_timeline": eval_map.get("Zipkin:execution_timeline") or "Unavailable",
-            "error_timeline": eval_map.get("Zipkin:error_timeline") or "Unavailable",
         }
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")
@@ -658,6 +630,14 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
         c_raw["Total Cost (USD)"] = tco
         c_raw["Efficiency Ratio"] = hc / max(c_raw["AI Cost Per Output"], 0.000001)
         c_raw["utilization"] = settings.utilization
+        
+        # Add dynamic OpenLIT and OpenCost metrics
+        if s is not None:
+            c_evals = repo.list_latest_cost_resource_evaluations(s)
+            for r in c_evals:
+                if r.resource_name in ["OpenLIT", "OpenCost"]:
+                    if r.status == "SUCCESS" and r.current_value is not None:
+                        c_raw[f"{r.resource_name}:{r.metric}"] = r.current_value
         
         c_raw.pop("Human_cost", None)
         c_raw.pop("number_of_llm_calls", None)

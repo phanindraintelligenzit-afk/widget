@@ -667,9 +667,13 @@
     const checkMatch = (calc, disp) => {
       if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
       if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
-      const c = parseFloat(calc);
-      const d = parseFloat(disp);
-      if (isNaN(c) || isNaN(d)) return "MISMATCH";
+      let cleanCalc = calc.toString().replace(/[$%]/g, '');
+      let cleanDisp = disp.toString().replace(/[$%]/g, '');
+      const c = parseFloat(cleanCalc);
+      const d = parseFloat(cleanDisp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
       return Math.abs(c - d) < tolerance ? "MATCH" : "MISMATCH";
     };
 

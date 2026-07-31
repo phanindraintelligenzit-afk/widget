@@ -80,3 +80,25 @@ services:
       - "6006:6006"
 
     restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: dpi-ls-jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    restart: unless-stopped
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: dpi-ls-zipkin
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
+
+  opencost:
+    image: nginx:alpine
+    container_name: dpi-ls-opencost
+    ports:
+      - "9003:80"
+    restart: unless-stopped

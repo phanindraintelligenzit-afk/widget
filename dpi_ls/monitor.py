@@ -192,6 +192,9 @@ def _run_evaluations(collector: SignalCollector) -> None:
     traceloop_res = run_traceloop_metrics(collector)
     jaeger_res = run_jaeger_metrics(collector)
     zipkin_res = run_zipkin_metrics(collector)
+    from dpi_ls.integrations import run_openlit_metrics, run_opencost_metrics, push_cost_results_to_backend
+    openlit_res = run_openlit_metrics(collector)
+    opencost_res = run_opencost_metrics(collector)
 
     # Push telemetry (Productivity & Custom Q)
     if info:
@@ -201,6 +204,7 @@ def _run_evaluations(collector: SignalCollector) -> None:
         push_deepeval_results_to_backend(deepeval_res, host_domain, port_num)
         push_execution_results_to_backend(langfuse_res, phoenix_res, traceloop_res, host_domain, port_num)
         push_validation_results_to_backend(jaeger_res, zipkin_res, host_domain, port_num)
+        push_cost_results_to_backend(openlit_res, opencost_res, host_domain, port_num)
         
         # Risk Evaluation
         llmguard_res = run_llmguard_metrics(agent_answer)

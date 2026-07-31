@@ -237,7 +237,7 @@
     }
     const calcTco = (humanCostPerOutput !== null && calcModelCost !== null) ? humanCostPerOutput + calcModelCost : null;
 
-    return {
+    let metricsMap = {
       input_tokens: { val: inputTokens, calc: inputTokens, disp: inputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
       output_tokens: { val: outputTokens, calc: outputTokens, disp: outputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
       prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens × Price", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
@@ -250,6 +250,35 @@
       cost_score: { val: calcCostScore, calc: calcCostScore, disp: calcCostScore, formula: "min(1, Human ÷ AI) × Utilization", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 },
       tco: { val: tco, calc: calcTco, disp: tco, formula: "Human Cost + Model Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 }
     };
+
+    // Dynamically append OpenLIT and OpenCost metrics
+    for (const [key, val] of Object.entries(sub)) {
+      if (key.startsWith("OpenLIT:") || key.startsWith("OpenCost:")) {
+        const parts = key.split(":");
+        const resourceName = parts[0];
+        const metricName = parts[1];
+        
+        let numericVal = parseFloat(val);
+        let finalVal = isNaN(numericVal) ? val : numericVal;
+        
+        // Ensure dollar signs are preserved if it's a string
+        if (typeof val === "string" && val.startsWith("$")) {
+          finalVal = val;
+        }
+
+        metricsMap[metricName] = {
+          val: finalVal,
+          calc: finalVal,
+          disp: finalVal,
+          formula: "Runtime Ingestion",
+          src: `${resourceName} (runtime telemetry)`,
+          resource: resourceName,
+          dec: (typeof finalVal === "number") ? 4 : 0
+        };
+      }
+    }
+    
+    return metricsMap;
   }
 
   function calculateValidationMetrics(sub, settings, value) {
@@ -699,6 +728,23 @@
       "Risk_Score": { val: rScoreVal, calc: calcRScore, disp: rScoreVal, formula: "1 - MIN(1, Total Risk / Rmax)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
     };
     
+    const resources = sub.runtime_resources || {};
+    const llmguard = resources["LLMGuard"] || {};
+    const trulens = resources["TruLens"] || {};
+    const rebuff = resources["Rebuff"] || {};
+
+    if (Object.keys(llmguard).length > 0) {
+       metricsMap["LLMGuard Prompts Blocked"] = { val: llmguard["Blocked Prompts"] || 0, calc: llmguard["Blocked Prompts"] || 0, disp: llmguard["Blocked Prompts"] || 0, formula: "LLMGuard Telemetry", src: "LLMGuard", resource: "LLMGuard", dec: 0 };
+       metricsMap["LLMGuard Injection Attempts"] = { val: llmguard["Prompt Injection Attempts"] || 0, calc: llmguard["Prompt Injection Attempts"] || 0, disp: llmguard["Prompt Injection Attempts"] || 0, formula: "LLMGuard Telemetry", src: "LLMGuard", resource: "LLMGuard", dec: 0 };
+    }
+    if (Object.keys(trulens).length > 0) {
+       metricsMap["TruLens Hallucinations"] = { val: trulens["Hallucinations"] || 0, calc: trulens["Hallucinations"] || 0, disp: trulens["Hallucinations"] || 0, formula: "TruLens Telemetry", src: "TruLens", resource: "TruLens", dec: 0 };
+       metricsMap["TruLens Toxicity"] = { val: trulens["Toxicity"] || 0, calc: trulens["Toxicity"] || 0, disp: trulens["Toxicity"] || 0, formula: "TruLens Telemetry", src: "TruLens", resource: "TruLens", dec: 0 };
+    }
+    if (Object.keys(rebuff).length > 0) {
+       metricsMap["Rebuff Attack Count"] = { val: rebuff["Attack Count"] || 0, calc: rebuff["Attack Count"] || 0, disp: rebuff["Attack Count"] || 0, formula: "Rebuff Telemetry", src: "Rebuff", resource: "Rebuff", dec: 0 };
+    }
+    
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined) return "Unavailable";
       if (typeof val === 'number') {
@@ -937,6 +983,7 @@
     }).join("");
 
     return `
+      ${resourceFilter ? '' : `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
@@ -968,6 +1015,7 @@
           ${gateHtml}
         </div>
       </div>
+      `}
 
       <div class="validation-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
@@ -1009,9 +1057,13 @@
     const checkMatch = (calc, disp) => {
       if (calc === "Unavailable" || disp === "Unavailable") return "Unavailable";
       if (calc === "N/A" || disp === "N/A" || calc === null || disp === null) return "MISMATCH";
-      const c = parseFloat(calc);
-      const d = parseFloat(disp);
-      if (isNaN(c) || isNaN(d)) return "MISMATCH";
+      let cleanCalc = calc.toString().replace(/[$%]/g, '');
+      let cleanDisp = disp.toString().replace(/[$%]/g, '');
+      const c = parseFloat(cleanCalc);
+      const d = parseFloat(cleanDisp);
+      if (isNaN(c) || isNaN(d)) {
+        return calc.toString().trim() === disp.toString().trim() ? "MATCH" : "MISMATCH";
+      }
       return Math.abs(c - d) < tolerance ? "MATCH" : "MISMATCH";
     };
 
@@ -1026,7 +1078,29 @@
       utilization: "Utilization",
       efficiency_ratio: "Efficiency Ratio",
       cost_score: "Cost Score",
-      tco: "TCO"
+      tco: "TCO",
+      // OpenLIT
+      "Input Tokens": "Input Tokens",
+      "Output Tokens": "Output Tokens",
+      "Total Tokens": "Total Tokens",
+      "Prompt Cost": "Prompt Cost",
+      "Completion Cost": "Completion Cost",
+      "Total LLM Cost": "Total LLM Cost",
+      "Request Count": "Request Count",
+      "Model Name": "Model Name",
+      "Provider": "Provider",
+      "Latency": "Latency",
+      "Time To First Token": "Time To First Token",
+      "Error Count": "Error Count",
+      // OpenCost
+      "CPU Cost": "CPU Cost",
+      "Memory Cost": "Memory Cost",
+      "GPU Cost": "GPU Cost",
+      "Storage Cost": "Storage Cost",
+      "Network Cost": "Network Cost",
+      "Idle Cost": "Idle Cost",
+      "Total Infrastructure Cost": "Total Infrastructure Cost",
+      "Cluster Cost": "Cluster Cost"
     };
 
     let entries = Object.entries(metricsMap);
@@ -1036,7 +1110,9 @@
     entries = entries.filter(([_, m]) => m.val !== "Unavailable");
     const rowHtml = entries.map(([key, r]) => {
       const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
-      const prefix = isDollarMetric ? "$" : "";
+      // Also detect dollar-prefixed values from OpenLIT/OpenCost (e.g. "$1.20")
+      const hasDollarValue = typeof r.val === 'string' && r.val.startsWith('$');
+      const prefix = (isDollarMetric && !hasDollarValue) ? "$" : "";
       
       const calcStr = r.calc !== null && r.calc !== undefined ? prefix + fmt(r.calc, r.dec).replace("Unavailable", "") : "Unavailable";
       const dispStr = r.disp !== null && r.disp !== undefined ? prefix + fmt(r.disp, r.dec).replace("Unavailable", "") : "Unavailable";
@@ -2427,6 +2503,19 @@
         hallucination_score: 'Hallucination Score', relevance_score: 'Relevance Score',
         consistency: 'Consistency', user_feedback_score: 'User Feedback Score',
         model_correctness: 'Model Correctness',
+        // OpenLIT
+        'Total LLM Cost': 'Total LLM Cost', 'Request Count': 'Request Count',
+        'Total Tokens': 'Total Tokens', 'Input Tokens': 'Input Tokens',
+        'Output Tokens': 'Output Tokens', 'Prompt Cost': 'Prompt Cost',
+        'Completion Cost': 'Completion Cost', 'Latency': 'Latency',
+        'Time To First Token': 'Time To First Token', 'Error Count': 'Error Count',
+        'Model Name': 'Model Name', 'Provider': 'Provider',
+        // OpenCost
+        'CPU Cost': 'CPU Cost', 'Memory Cost': 'Memory Cost',
+        'GPU Cost': 'GPU Cost', 'Storage Cost': 'Storage Cost',
+        'Network Cost': 'Network Cost', 'Idle Cost': 'Idle Cost',
+        'Total Infrastructure Cost': 'Total Infrastructure Cost',
+        'Cluster Cost': 'Cluster Cost',
       };
       const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
       const VALID_M    = ['validated_components','required_components','validation_score'];
@@ -2436,7 +2525,8 @@
       const RISK_M = ['prompt_injection', 'jailbreak_detection', 'unsafe_prompt', 'safety_validation', 'toxicity_score'];
       const GOV_M = ['secrets_found', 'secrets_blocked', 'files_scanned', 'pii_detection', 'entity_count', 'masking', 'policies_executed', 'policies_passed', 'policies_failed'];
 
-      function metricGroup(m) {
+      function metricGroup(m, r) {
+        if (r && ['OpenLIT', 'OpenCost'].includes(r.resource_name)) return 'C';
         if (COST_M.includes(m))    return 'C';
         if (VALID_M.includes(m))   return 'V';
         if (QUALITY_M.includes(m)) return 'Q';
@@ -2446,7 +2536,7 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
+      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "OpenLIT", "OpenCost"];
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q/P/R/G
@@ -2516,7 +2606,7 @@
 
         // Render each group
         for (const [grpKey, grpInfo] of Object.entries(GROUP_LABELS)) {
-          const grpMetrics = metrics.filter(m => metricGroup(m.metric) === grpKey);
+          const grpMetrics = metrics.filter(m => metricGroup(m.metric, m) === grpKey);
           if (grpMetrics.length === 0) continue;
 
           // Group sub-header

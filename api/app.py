@@ -379,26 +379,56 @@ def push_risk_incident(
     agent_id = payload.get("agent_id")
     resource_name = payload.get("source_resource", "Unknown")
     
-    incident_obj = normalize_incident(payload, resource_name)
+    has_incident = "severity" in payload
+    incident_id = None
     
-    row = RiskIncidentRow(
-        incident_id=incident_obj.incident_id,
-        name=incident_obj.name,
-        category=incident_obj.category,
-        source_resource=incident_obj.source_resource,
-        agent_id=agent_id,
-        severity=incident_obj.severity,
-        severity_weight=incident_obj.severity_weight,
-        frequency=incident_obj.frequency,
-        risk_contribution=incident_obj.risk_contribution,
-        trace_id=incident_obj.trace_id,
-        span_id=incident_obj.span_id,
-        correlation_id=incident_obj.correlation_id,
-        status="NORMALIZED",
+    if has_incident:
+        incident_obj = normalize_incident(payload, resource_name)
+        
+        row = RiskIncidentRow(
+            incident_id=incident_obj.incident_id,
+            name=incident_obj.name,
+            category=incident_obj.category,
+            source_resource=incident_obj.source_resource,
+            agent_id=agent_id,
+            severity=incident_obj.severity,
+            severity_weight=incident_obj.severity_weight,
+            frequency=incident_obj.frequency,
+            risk_contribution=incident_obj.risk_contribution,
+            trace_id=incident_obj.trace_id,
+            span_id=incident_obj.span_id,
+            correlation_id=incident_obj.correlation_id,
+            status="NORMALIZED",
+        )
+        s.add(row)
+        incident_id = incident_obj.incident_id
+    
+    # Update the corresponding evaluation row so the dashboard reflects the real telemetry
+    from store.models import RiskResourceEvaluationRow
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+    
+    eval_row = s.scalar(
+        select(RiskResourceEvaluationRow)
+        .where(RiskResourceEvaluationRow.resource_name == resource_name)
+        .limit(1)
     )
-    s.add(row)
+    if eval_row:
+        eval_row.status = "SUCCESS"
+        eval_row.agent_executed = True
+        eval_row.detected = True
+        if has_incident:
+            eval_row.evidence = f"1 incident detected in runtime for {incident_obj.name}"
+            eval_row.current_value = "1"
+        else:
+            eval_row.detected = True
+            eval_row.evidence = "0 incidents detected during runtime check."
+            eval_row.current_value = "0"
+        eval_row.last_run = datetime.now(timezone.utc)
+        
     s.commit()
-    return {"status": "success", "incident_id": incident_obj.incident_id}
+        
+    return {"status": "success", "incident_id": incident_id}
 
 
 @app.get("/api/risk-evaluation/dashboard/{agent_id}")
@@ -754,7 +784,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
     service = CostResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Langfuse", "Prometheus", "Grafana"}
+    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenLIT", "OpenCost"}
     return [
         {
             "id": r.id,
@@ -775,7 +805,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
 @app.get("/api/cost-evaluation/results")
 def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     eval_rows = repo.list_latest_cost_resource_evaluations(s)
-    active_resources = {"Langfuse", "Prometheus", "Grafana"}
+    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenLIT", "OpenCost"}
     return [
         {
             "id": r.id,
@@ -799,12 +829,58 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
     prometheus_url = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
     grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
+    openlit_url = os.environ.get("OPENLIT_URL", "http://localhost:3000")
+    opencost_url = os.environ.get("OPENCOST_URL", "http://localhost:9003")
 
     return {
         "Langfuse":   {"url": langfuse_url,   "online": _is_reachable_global(langfuse_url)},
         "Prometheus": {"url": prometheus_url, "online": _is_reachable_global(prometheus_url)},
         "Grafana":    {"url": grafana_url,    "online": _is_reachable_global(grafana_url)},
+        "OpenLIT":    {"url": openlit_url,    "online": _is_reachable_global(openlit_url)},
+        "OpenCost":   {"url": opencost_url,   "online": _is_reachable_global(opencost_url)},
     }
+
+
+# ---- Cost Push Endpoints -------------------------------------------------
+
+@app.post("/api/cost-evaluation/push-openlit")
+def push_openlit_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_cost_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_cost_resource_evaluation(
+            s, resource_name="OpenLIT", metric=metric, detected=True,
+            evidence=f"Runtime OpenLIT metrics extracted. Value: {val_str}",
+            current_value=val_str, status="SUCCESS", agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+
+@app.post("/api/cost-evaluation/push-opencost")
+def push_opencost_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_cost_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_cost_resource_evaluation(
+            s, resource_name="OpenCost", metric=metric, detected=True,
+            evidence=f"Runtime OpenCost metrics extracted. Value: {val_str}",
+            current_value=val_str, status="SUCCESS", agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
 
 
 # ---- Validation Resource Technical Evaluation API Endpoints ------------
@@ -1645,7 +1721,7 @@ def governance_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]
 def push_governance_incident(
     req: dict[str, Any],
     s: Session = Depends(db_session)
-) -> dict[str, str]:
+) -> dict[str, Any]:
     from store.models import GovernanceIncidentRow
     from datetime import datetime
     
@@ -1653,23 +1729,52 @@ def push_governance_incident(
     source = req.get("source_resource", "Unknown")
     name = req.get("name", "Incident")
     
-    row = GovernanceIncidentRow(
-        incident_id=req.get("incident_id", f"gov_{int(datetime.now().timestamp()*1000)}"),
-        name=name,
-        category=req.get("category", "Policy"),
-        source_resource=source,
-        agent_id=agent_id,
-        severity=req.get("severity", "medium"),
-        severity_weight=float(req.get("severity_weight", 1.0)),
-        frequency=int(req.get("frequency", 1)),
-        risk_contribution=float(req.get("risk_contribution", 1.0)),
-        trace_id=req.get("trace_id"),
-        span_id=req.get("span_id"),
-        correlation_id=req.get("correlation_id")
+    has_incident = "severity" in req
+    incident_id = None
+    
+    if has_incident:
+        row = GovernanceIncidentRow(
+            incident_id=req.get("incident_id", f"gov_{int(datetime.now().timestamp()*1000)}"),
+            name=name,
+            category=req.get("category", "Policy"),
+            source_resource=source,
+            agent_id=agent_id,
+            severity=req.get("severity", "medium"),
+            severity_weight=float(req.get("severity_weight", 1.0)),
+            frequency=int(req.get("frequency", 1)),
+            risk_contribution=float(req.get("risk_contribution", 1.0)),
+            trace_id=req.get("trace_id"),
+            span_id=req.get("span_id"),
+            correlation_id=req.get("correlation_id")
+        )
+        s.add(row)
+        incident_id = row.incident_id
+    
+    from store.models import GovernanceResourceEvaluationRow
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+    
+    eval_row = s.scalar(
+        select(GovernanceResourceEvaluationRow)
+        .where(GovernanceResourceEvaluationRow.resource_name == source)
+        .limit(1)
     )
-    s.add(row)
+    if eval_row:
+        eval_row.status = "SUCCESS"
+        eval_row.agent_executed = True
+        eval_row.detected = True
+        if has_incident:
+            eval_row.evidence = f"1 incident detected in runtime for {name}"
+            eval_row.current_value = "1"
+        else:
+            eval_row.detected = True
+            eval_row.evidence = "0 incidents detected during runtime check."
+            eval_row.current_value = "0"
+        eval_row.last_run = datetime.now(timezone.utc)
+        
     s.commit()
-    return {"status": "ok", "incident_id": row.incident_id}
+        
+    return {"status": "ok", "incident_id": incident_id}
 
 
 @app.get("/api/governance-evaluation/dashboard/{agent_id}")

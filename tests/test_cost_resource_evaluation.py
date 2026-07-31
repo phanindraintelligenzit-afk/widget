@@ -13,13 +13,15 @@ def test_seeding_and_evaluation(client):
         # Check resources in DB (should have been seeded on startup by bootstrap)
         stmt = select(CostResourceRegistryRow)
         resources = list(session.scalars(stmt))
-        assert len(resources) == 3
+        assert len(resources) == 5
 
         resource_names = {r.name for r in resources}
         expected_names = {
             "Langfuse",
             "Prometheus",
             "Grafana",
+            "OpenLIT",
+            "OpenCost",
         }
         assert expected_names.issubset(resource_names)
 
@@ -30,21 +32,21 @@ def test_api_endpoints_cost_evaluation(client):
     r_res = client.get("/api/cost-evaluation/resources")
     assert r_res.status_code == 200
     resources = r_res.json()
-    assert len(resources) == 3
+    assert len(resources) == 5
 
     # 2. POST /api/cost-evaluation/evaluate
     os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
     r_eval = client.post("/api/cost-evaluation/evaluate")
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
-    # 3 resources: Langfuse (5 metrics), Prometheus (2 metrics), Grafana (4 metrics) = 11 total results
-    assert len(eval_results) == 11
+    # 5 resources: Langfuse (5 metrics), Prometheus (2 metrics), Grafana (4 metrics), OpenLIT (12 metrics), OpenCost (8 metrics) = 31 total results
+    assert len(eval_results) == 31
 
     # 3. GET /api/cost-evaluation/results
     r_results = client.get("/api/cost-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 11
+    assert len(latest_results) == 31
 
     # Check that Langfuse got model_cost detected as True in mock test environment
     langfuse_model_cost = [
