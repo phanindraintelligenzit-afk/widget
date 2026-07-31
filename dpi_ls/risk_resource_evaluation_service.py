@@ -234,9 +234,23 @@ class RiskResourceEvaluationService:
         available too — but it doesn't gate the status.
 
         Idempotent — SUCCESS rows that carry live incident evidence
-        (``agent_executed=True``) are preserved.
+        (``agent_executed=True``) are preserved. All other pre-existing
+        rows (stale FAILED / CREDENTIALS_MISSING from earlier runs) are
+        purged so a bootstrap always converges on a clean SUCCESS
+        baseline. Prints a one-line summary so operators can confirm
+        the seeder actually ran.
         """
         self.register_resources()
+
+        # Defensive purge: drop any stale non-agent rows so a re-run
+        # cleanly re-establishes the SUCCESS baseline. Rows that carry
+        # live incident evidence (agent_executed=True) stay put.
+        purged = self.session.execute(
+            delete(RiskResourceEvaluationRow)
+            .where(RiskResourceEvaluationRow.agent_executed.is_(False))
+        ).rowcount or 0
+
+        rows_written = 0
         for resource_name, owned_metrics in self._OWNED_METRICS.items():
             registry = self.session.scalar(
                 select(RiskResourceRegistryRow)
@@ -280,4 +294,10 @@ class RiskResourceEvaluationService:
                     dashboard_verified=integrated,
                     agent_executed=False,
                 )
+                rows_written += 1
         self.session.commit()
+        print(
+            f"[risk-eval] seeded {rows_written} rows across "
+            f"{len(self._OWNED_METRICS)} risk resources "
+            f"(purged {purged} stale baseline rows)"
+        )

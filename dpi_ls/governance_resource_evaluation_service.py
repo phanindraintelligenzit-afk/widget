@@ -233,8 +233,18 @@ class GovernanceResourceEvaluationService:
         cards accurate even in a server venv that doesn't have the agent-side
         SDK installed (Presidio, OPA client, Detect-Secrets are typically
         installed on the agent runtime, not the DPI-LS server).
+
+        Defensive purge + summary log — same policy as
+        RiskResourceEvaluationService.run_evaluations().
         """
         self.register_resources()
+
+        purged = self.session.execute(
+            delete(GovernanceResourceEvaluationRow)
+            .where(GovernanceResourceEvaluationRow.agent_executed.is_(False))
+        ).rowcount or 0
+
+        rows_written = 0
         for resource_name, owned_metrics in self._OWNED_METRICS.items():
             registry = self.session.scalar(
                 select(GovernanceResourceRegistryRow)
@@ -275,4 +285,10 @@ class GovernanceResourceEvaluationService:
                     dashboard_verified=integrated,
                     agent_executed=False,
                 )
+                rows_written += 1
         self.session.commit()
+        print(
+            f"[governance-eval] seeded {rows_written} rows across "
+            f"{len(self._OWNED_METRICS)} governance resources "
+            f"(purged {purged} stale baseline rows)"
+        )
