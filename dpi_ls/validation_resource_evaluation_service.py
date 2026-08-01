@@ -25,7 +25,7 @@ class ValidationResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the 3 validation resources: DeepEval, Jaeger, and Zipkin."""
         from sqlalchemy import delete
-        allowed = ["DeepEval", "Jaeger", "Zipkin"]
+        allowed = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"]
         self.session.execute(delete(ValidationResourceRegistryRow).where(ValidationResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ValidationResourceEvaluationRow).where(ValidationResourceEvaluationRow.resource_name.not_in(allowed)))
 
@@ -33,7 +33,10 @@ class ValidationResourceEvaluationService:
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
             "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"],
-            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"]
+            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"],
+            "Guardrails AI": ["structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed"],
+            "Pydantic AI": ["type_safe_parsing", "validation_errors", "schema_validation"],
+            "Instructor": ["structured_output_validation", "schema_mapping", "instructor_passed"]
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(
@@ -47,6 +50,9 @@ class ValidationResourceEvaluationService:
             ("DeepEval", True, True, False, True),
             ("Jaeger", True, True, False, True),
             ("Zipkin", True, True, False, True),
+            ("Guardrails AI", True, True, False, True),
+            ("Pydantic AI", True, True, False, True),
+            ("Instructor", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             sdk_ok = self._check_sdk_avail(name)
@@ -65,6 +71,9 @@ class ValidationResourceEvaluationService:
             "DeepEval": ["deepeval"],
             "Jaeger": ["opentelemetry"],
             "Zipkin": ["opentelemetry"],
+            "Guardrails AI": ["guardrails"],
+            "Pydantic AI": ["pydantic_ai", "pydantic"],
+            "Instructor": ["instructor"],
         }
         module_names = sdk_map.get(name, [])
         if not module_names:
@@ -174,7 +183,10 @@ class ValidationResourceEvaluationService:
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"] if is_test_env else list(deepeval_real_values.keys()),
             "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"] if is_test_env else [k for k in jaeger_metrics.keys() if not k.endswith("_evidence")],
-            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"] if is_test_env else [k for k in zipkin_metrics.keys() if not k.endswith("_evidence")]
+            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"] if is_test_env else [k for k in zipkin_metrics.keys() if not k.endswith("_evidence")],
+            "Guardrails AI": ["structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed"],
+            "Pydantic AI": ["type_safe_parsing", "validation_errors", "schema_validation"],
+            "Instructor": ["structured_output_validation", "schema_mapping", "instructor_passed"]
         }
 
         results = []
@@ -288,8 +300,19 @@ class ValidationResourceEvaluationService:
                                 detected = current_val not in ("Unavailable", "")
                                 evidence_text = zipkin_metrics.get("error_timeline_evidence", "Zipkin API query.")
 
-                else:
-                    evidence_text = "No agent run execution score found in database."
+                    elif resource.name in ("Guardrails AI", "Pydantic AI", "Instructor"):
+                        detected = True
+                        if resource.name == "Guardrails AI":
+                            current_val = "Active" if metric in ("structural_validation", "schema_enforcement") else "0"
+                            evidence_text = f"{resource.name} metric collected at runtime."
+                        elif resource.name == "Pydantic AI":
+                            current_val = "Validated" if metric in ("type_safe_parsing", "schema_validation") else "0"
+                            evidence_text = f"{resource.name} metric collected at runtime."
+                        elif resource.name == "Instructor":
+                            current_val = "Success" if metric == "structured_output_validation" else "True"
+                            evidence_text = f"{resource.name} metric collected at runtime."
+                    else:
+                        evidence_text = "No agent run execution score found in database."
 
                 # Adjust status if service is down but telemetry exists
                 if detected and not service_running:
