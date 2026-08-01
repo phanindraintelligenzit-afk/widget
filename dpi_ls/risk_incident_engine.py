@@ -33,7 +33,7 @@ class RiskIncident:
         self.trace_id = trace_id
         self.span_id = span_id
         self.correlation_id = correlation_id
-        self.timestamp = datetime.datetime.utcnow().isoformat()
+        self.timestamp = datetime.datetime.now(datetime.UTC).isoformat()
         self.status = "NORMALIZED"
 
     def to_dict(self) -> Dict[str, Any]:

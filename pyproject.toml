@@ -79,5 +79,7 @@ testpaths = ["tests"]
 addopts = "-ra"
 filterwarnings = [
     "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
-    "ignore:There is no current event loop:DeprecationWarning"
+    "ignore:There is no current event loop:DeprecationWarning",
+    "ignore:websockets.legacy is deprecated:DeprecationWarning",
+    "ignore:websockets.server.WebSocketServerProtocol is deprecated:DeprecationWarning"
 ]
