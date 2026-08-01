@@ -39,7 +39,7 @@ from typing import Optional
 
 from contract import Rating
 
-from .bands import band
+from .bands import EXCEPTIONAL, NEEDS_OPTIMIZATION, STRONG, band
 from .completeness import apply_completeness_cap
 from .gates import apply_gate, gate_check
 from .score import composite
@@ -60,10 +60,11 @@ def rate(
     Returns a fully-populated ``Rating``. See module docstring for the
     pipeline order.
     """
-    # 1. Composite — DPI-LS formula geometric mean and linear weighted metrics.
+    # 1. Composite — DPI-LS formula and linear weighted metrics.
     raw, weighted_metrics, weights_used = composite(metrics, weights)
 
-    # 2. Compliance gates (G/R/V) — flag Unsafe and cap.
+    # 2. Compliance gates (G/R/V) — flag Unsafe. Score is preserved
+    #    (categorical band override below, no hardcoded numeric cap).
     gate_fired, failed = gate_check(metrics, gate_thresholds)
     gated_score, unsafe = apply_gate(raw, gate_fired)
 
@@ -73,8 +74,10 @@ def rate(
     dimensions_measured = 7 - len(missing)
     coverage = round(dimensions_measured / 7, 3)
 
-    # 3. Band — by the post-gate score.
-    score_band = band(gated_score)
+    # 3. Band — by the (uncapped) score. Use display-rounded value to
+    #    avoid floating-point misclassification at boundaries
+    #    (all-.85 → 84.9999… loses Exceptional otherwise).
+    score_band = band(round(gated_score, 2))
 
     # Compliance cap reason — takes precedence over the completeness
     # reason in the final ``cap_reason`` field on the Rating.
@@ -82,12 +85,24 @@ def rate(
         f"compliance gate: {','.join(failed)} below floor" if gate_fired else None
     )
 
-    # 4. Completeness cap — held at the top of "Needs Optimization"
-    #    when coverage is insufficient.
-    final_score, final_band, capped, cap_reason = apply_completeness_cap(
+    # 4. Completeness cap — evaluates whether the band should be
+    #    held at "Needs Optimization" due to insufficient coverage.
+    final_score, _completeness_band, capped, cap_reason = apply_completeness_cap(
         gated_score, score_band, metrics, dimensions_measured, unsafe,
         gate_cap_reason, min_dimensions_for_full_band,
     )
+
+    # Band override — a *categorical* cap, not a numeric one. Unsafe
+    # agents are always held at "Needs Optimization" (a gate failure
+    # is not a performance failure — it must not be masked as either
+    # Strong/Exceptional or Underperforming). Coverage-capped Strong/
+    # Exceptional agents likewise get held at NEEDS_OPTIMIZATION.
+    if unsafe:
+        final_band = NEEDS_OPTIMIZATION
+    elif capped and score_band in (STRONG, EXCEPTIONAL):
+        final_band = NEEDS_OPTIMIZATION
+    else:
+        final_band = score_band
 
     return Rating(
         score=round(final_score, 2),

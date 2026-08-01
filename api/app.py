@@ -1702,3 +1702,225 @@ def governance_dashboard_data(agent_id: str, s: Session = Depends(db_session)) -
             "value": r.current_value
         } for r in resource_evals]
     }
+
+
+# =====================================================================
+# Enterprise Validation (V) — Guardrails AI / Pydantic AI / Instructor
+# =====================================================================
+# Additive: parallel API namespace ``/api/enterprise-validation/*``.
+# The classic Validation dimension endpoints stay untouched.
+
+@app.get("/api/enterprise-validation/urls")
+def enterprise_validation_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
+    """Documentation + runtime status per enterprise validation resource."""
+    from store.models import EnterpriseValidationResourceRegistryRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseValidationResourceRegistryRow)).all()
+    out: dict[str, dict] = {}
+    for r in rows:
+        out[r.name] = {
+            "url": r.documentation_url or "#",
+            "online": True,  # Python libraries — no TCP dependency
+            "sdk_available": bool(r.sdk_available),
+        }
+    return out
+
+
+@app.get("/api/enterprise-validation/resources")
+def enterprise_validation_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import EnterpriseValidationResourceRegistryRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseValidationResourceRegistryRow)).all()
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.name,
+            "category": "Validation",
+            "sdk_available": r.sdk_available,
+            "documentation_url": r.documentation_url,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.get("/api/enterprise-validation/results")
+def enterprise_validation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import EnterpriseValidationResourceEvaluationRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseValidationResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/enterprise-validation/evaluate")
+def enterprise_validation_evaluate(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    """Baseline SDK-integration + live-events overlay. Never mocks."""
+    from dpi_ls.enterprise_validation_evaluation_service import (
+        EnterpriseValidationEvaluationService,
+    )
+    from store.models import EnterpriseValidationResourceEvaluationRow
+    from sqlalchemy import select as _select
+
+    EnterpriseValidationEvaluationService(s).run_evaluations()
+    rows = s.scalars(_select(EnterpriseValidationResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "agent_executed": r.agent_executed,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/enterprise-validation/push")
+def enterprise_validation_push(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """Adapter-side push: record one runtime validation event.
+
+    Body::
+        {
+          "adapter":  "Guardrails AI" | "Pydantic AI" | "Instructor",
+          "kind":     "json" | "schema" | "type" | "regex" | …,
+          "expected": <any>,
+          "actual":   <any>,
+          "passed":   true | false,
+          "retries":  int,
+          "latency_ms": float,
+          "error_message": str | null,
+          "correlation_id": str | null
+        }
+
+    Real runtime telemetry — never fabricated.
+    """
+    from dpi_ls.enterprise_validation_evaluation_service import (
+        ValidationEvent,
+        get_enterprise_validation_collector,
+        EnterpriseValidationEvaluationService,
+    )
+    adapter = payload.get("adapter")
+    kind = payload.get("kind")
+    if not adapter or not kind:
+        raise HTTPException(400, "adapter and kind are required")
+    event = ValidationEvent(
+        adapter=str(adapter),
+        kind=str(kind),
+        expected=payload.get("expected"),
+        actual=payload.get("actual"),
+        passed=bool(payload.get("passed", False)),
+        retries=int(payload.get("retries", 0)),
+        latency_ms=float(payload.get("latency_ms", 0.0)),
+        error_message=payload.get("error_message"),
+        correlation_id=payload.get("correlation_id"),
+    )
+    get_enterprise_validation_collector().record(event)
+    # Reflect the event immediately in the persisted evaluation table
+    # so the resource dashboard sees the update on the next refresh.
+    EnterpriseValidationEvaluationService(s).run_evaluations()
+    return {"recorded": True, "adapter": adapter, "kind": kind, "passed": event.passed}
+
+
+@app.get("/api/enterprise-validation/agent-dashboard")
+def enterprise_validation_agent_dashboard(
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    """Normalized DPI-LS Validation view — canonical metrics + formula + gate.
+
+    Reads the live in-process collector (never fabricated); computes
+    ``V = Validated / Required`` per the DPI-LS spec; surfaces the
+    hard compliance gate (V < 0.60 → unsafe, DPI capped at 69).
+    """
+    from dpi_ls.enterprise_validation_evaluation_service import (
+        CANONICAL_MAP,
+        get_enterprise_validation_collector,
+    )
+    collector = get_enterprise_validation_collector()
+    dpi = collector.dpi_ls_metrics()
+    canonical = collector.canonical()
+    events = collector.events()
+
+    # Expected vs Actual roll-up: one row per (kind, correlation_id).
+    match_rows: list[dict[str, Any]] = []
+    for ev in events:
+        match_rows.append({
+            "adapter": ev.adapter,
+            "kind": ev.kind,
+            "expected": _stringify(ev.expected),
+            "actual": _stringify(ev.actual),
+            "matched": ev.passed,
+            "status": "MATCH" if ev.passed else "MISMATCH",
+            "correlation_id": ev.correlation_id,
+            "timestamp": ev.timestamp.isoformat(),
+        })
+
+    settings = repo.get_settings(s)
+    v_weight = float(settings.weights.get("V", 0.10))
+
+    return {
+        "required_components": dpi["required_components"],
+        "validated_components": dpi["validated_components"],
+        "validation_score": dpi["validation_score"],
+        "weight": v_weight,
+        "weighted_contribution": round(dpi["validation_score"] * v_weight, 4),
+        "formula": "V = Validated Components / Required Components",
+        "compliance_gate": {
+            "threshold": 0.60,
+            "current": dpi["validation_score"],
+            "triggered": dpi["unsafe"],
+            "unsafe": dpi["unsafe"],
+            "capped_score": 69 if dpi["unsafe"] else None,
+        },
+        "canonical_metrics": canonical,
+        "match_analysis": match_rows,
+        "adapters": [
+            {
+                "name": a.name,
+                "sdk_installed": a.sdk_installed(),
+                "documentation_url": a.documentation_url,
+                "metrics_supported": list(a.metrics_supported),
+            }
+            for a in _enterprise_validation_adapters()
+        ],
+    }
+
+
+def _stringify(value: Any) -> str:
+    """Compact display of an Expected/Actual value for the dashboard."""
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        import json as _json
+        try:
+            return _json.dumps(value, default=str)[:200]
+        except Exception:
+            return str(value)[:200]
+    return str(value)[:200]
+
+
+def _enterprise_validation_adapters():
+    """Late import so top-of-module load doesn't require the DB."""
+    from dpi_ls.enterprise_validation_evaluation_service import ADAPTERS
+    return ADAPTERS

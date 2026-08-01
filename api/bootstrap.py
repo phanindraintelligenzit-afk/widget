@@ -63,6 +63,17 @@ def bootstrap() -> None:
             val_service.register_resources()
             val_service.run_evaluations()
 
+            # Seeding ENTERPRISE Validation dimension — Guardrails AI,
+            # Pydantic AI, Instructor. Additive; the classic Validation
+            # dimension above stays untouched.
+            try:
+                from dpi_ls.enterprise_validation_evaluation_service import (
+                    EnterpriseValidationEvaluationService,
+                )
+                EnterpriseValidationEvaluationService(session).run_evaluations()
+            except Exception as ev_e:
+                print(f"[bootstrap] enterprise validation seeding failed: {ev_e}")
+
             session.commit()
 
             # Pre-populate Prometheus Gauges with the latest scores from DB on startup
