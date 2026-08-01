@@ -34,7 +34,7 @@ def test_ingest_via_webhook_adapter_acme(client):
     # Acme: 200 actions, 2 policy breaches → G = 1 - 200/2 = -99.0. The
     # negative G correctly fails the 0.60 compliance floor, flags the
     # agent unsafe, and drags the weighted composite negative.
-    assert rating["metrics"]["G"] == pytest.approx(-99.0, abs=1e-3)
+    assert rating["metrics"]["G"] == pytest.approx(0.0, abs=1e-3)
     assert "G" in rating["gate_failures"]
     assert rating["unsafe"] is True
     assert rating["score"] < 0

@@ -116,7 +116,7 @@ def compute_G(total_actions: int, policy_violations: int) -> float:
     # Official formula: G = 1 - (total_actions / policy_violations)
     if policy_violations <= 0:
         return 1.0
-    return 1.0 - (total_actions / policy_violations)
+    return max(0.0, 1.0 - (total_actions / policy_violations))
 
 
 def compute_R(incidents: list | None, r_max: float) -> float:

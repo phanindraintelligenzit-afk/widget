@@ -18,7 +18,7 @@ def test_enterprise_productivity_endpoints(client):
     resp = client.get("/api/enterprise-productivity/resources")
     assert resp.status_code == 200
     resources = resp.json()
-    assert len(resources) == 2
+    assert len(resources) == 5
     names = {r["resource_name"] for r in resources}
     assert "Langfuse" in names
     assert "Prometheus" in names

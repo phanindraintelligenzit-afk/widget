@@ -977,13 +977,6 @@
       </div>
     ` : "";
 
-    // dynamic calculation rows are now properly generated in calculateValidationMetrics
-    // Prepare table entries
-    entries = Object.entries(metricsMap);
-    
-    // Filter out rows where value is "Unavailable"
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
-
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
       const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
@@ -1252,10 +1245,8 @@
     const metricsMap = calculateProductivityMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
-      if (val === null || val === undefined) return "Unavailable";
-      if (typeof val === 'number') {
-        return val.toFixed(dec);
-      }
+      if (val === null || val === undefined || val === "Unavailable") return val;
+      if (typeof val === 'number') return val.toFixed(dec);
       const num = parseFloat(val);
       return isNaN(num) ? val : num.toFixed(dec);
     };
@@ -1272,143 +1263,116 @@
       return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
     };
 
-    const pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    
-    // Compute Threshold Bands
-    let band = "Excellent";
-    let action = "Matches/Exceeds Human Baseline";
-    let bandColor = "#4ade80";
-    if (pScoreVal < 0.50) {
-      band = "Critical Failure";
-      action = "Circuit Breaker Triggered (DevOps Alert)";
-      bandColor = "#ef4444";
-    } else if (pScoreVal < 0.90) {
-      band = "Acceptable";
-      action = "Prompt/Compute Optimization Required";
-      bandColor = "#facc15";
+    const METRIC_NICE_NAMES = {
+      worker_concurrency: "Worker Concurrency",
+      decision_branches: "Decision Branches",
+      api_calls: "API Calls",
+      execution_duration: "Execution Duration",
+      token_depth: "Token Depth",
+      throughput: "Throughput",
+      cpu_usage: "CPU Usage",
+      memory_usage: "Memory Usage",
+      infrastructure_health: "Infrastructure Health",
+      success_rate: "Success Rate",
+      failure_rate: "Failure Rate",
+      resolution_velocity: "Resolution Velocity",
+      assigned_tasks: "Assigned Tasks",
+      completed_tasks: "Completed Tasks",
+      failed_tasks: "Failed Tasks",
+      human_baseline: "Human Baseline",
+      human_complexity: "Human Complexity",
+      normalization_factor: "Normalization Factor (γ)",
+      effective_output: "Effective Output",
+      Productivity_Score: "Productivity Score",
+      AI_Complexity: "AI Complexity"
+    };
+
+    let entries = Object.entries(metricsMap);
+    if (resourceFilter) {
+      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
+    const rowHtml = entries.map(([key, r]) => {
+      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
+      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
+      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
+      const matchStatus = checkMatch(calcStr, dispStr);
+      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
+      return `
+        <tr style="border-bottom:1px solid #1e293b;">
+          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
+          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(valStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(calcStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(dispStr, r.dec)}</td>
+          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
+          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || ''}</td>
+        </tr>
+      `;
+    }).join("");
 
+    let pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
+    const finalWeightedVal = (pScoreVal * 15.0).toFixed(2);
+    
     return `
-      <div style="padding:20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b; color:#cbd5e1;">
-        <h2 style="color:#facc15;font-weight:800;margin-bottom:20px;text-transform:uppercase;">Productivity Dimension (P) Dashboard</h2>
+      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (15%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+        </div>
         
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-          
-          <!-- 1. Formula Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">1. Formula Dashboard</div>
-            <div style="color:#38bdf8;font-size:14px;margin-bottom:8px;font-weight:800;">P = min ( 1, (AI Output × γ) / Human Baseline )</div>
-            <div style="font-size:12px;">AI Output: ${fmt(metricsMap.completed_tasks.val, 0)} × Normalization (γ): ${fmt(metricsMap.normalization_factor.val)}</div>
-            <div style="color:#64748b;margin:4px 0;">&darr;</div>
-            <div style="font-size:12px;">Effective Output: ${fmt(metricsMap.effective_output.val)}</div>
-            <div style="color:#64748b;margin:4px 0;">&darr;</div>
-            <div style="font-size:12px;">Bounding: min(1, ${fmt(metricsMap.effective_output.val)} / ${fmt(metricsMap.human_baseline.val)})</div>
-            <div style="color:#64748b;margin:4px 0;">&darr;</div>
-            <div style="font-size:14px;color:#4ade80;font-weight:800;">Final Score: ${fmt(pScoreVal, 4)}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">AI Output (Completed)</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${fmt(metricsMap.completed_tasks.val, 0)}</div>
           </div>
-
-          <!-- 2. Mathematical Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">2. Mathematical Dashboard</div>
-            <table style="width:100%;font-size:12px;text-align:left;">
-              <tr><td style="padding:4px 0;">Expected AI Complexity</td><td style="color:#38bdf8;">${fmt(metricsMap.AI_Complexity.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Expected Human Complexity</td><td style="color:#38bdf8;">${fmt(metricsMap.human_complexity.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Normalization Factor (γ)</td><td style="color:#facc15;">${fmt(metricsMap.normalization_factor.val)}</td></tr>
-              <tr><td style="padding:4px 0;">AI Output (Completed)</td><td style="color:#38bdf8;">${fmt(metricsMap.completed_tasks.val, 0)}</td></tr>
-              <tr><td style="padding:4px 0;">Human Baseline</td><td style="color:#38bdf8;">${fmt(metricsMap.human_baseline.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Effective Output</td><td style="color:#4ade80;">${fmt(metricsMap.effective_output.val)}</td></tr>
-            </table>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Normalization (γ)</div>
+            <div style="color:#facc15;font-size:18px;font-weight:800;">${fmt(metricsMap.normalization_factor.val, 3)}</div>
           </div>
-
-          <!-- 3. Complexity Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">3. Complexity Dashboard</div>
-            <table style="width:100%;font-size:12px;text-align:left;">
-              <tr><td style="padding:4px 0;">Token Depth</td><td style="color:#38bdf8;">${fmt(metricsMap.token_depth.val)}</td></tr>
-              <tr><td style="padding:4px 0;">API Calls</td><td style="color:#38bdf8;">${fmt(metricsMap.api_calls.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Decision Branches</td><td style="color:#38bdf8;">${fmt(metricsMap.decision_branches.val)}</td></tr>
-            </table>
-            <div style="margin-top:8px;font-size:11px;color:#94a3b8;">Derives γ (Normalization Factor).</div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Human Baseline</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${fmt(metricsMap.human_baseline.val, 1)}</div>
           </div>
-
-          <!-- 4. Throughput Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">4. Throughput Dashboard</div>
-            <table style="width:100%;font-size:12px;text-align:left;">
-              <tr><td style="padding:4px 0;">Assigned Tasks</td><td style="color:#38bdf8;">${fmt(metricsMap.assigned_tasks.val, 0)}</td></tr>
-              <tr><td style="padding:4px 0;">Completed Tasks</td><td style="color:#4ade80;">${fmt(metricsMap.completed_tasks.val, 0)}</td></tr>
-              <tr><td style="padding:4px 0;">Failed Tasks</td><td style="color:#ef4444;">${fmt(metricsMap.failed_tasks.val, 0)}</td></tr>
-              <tr><td style="padding:4px 0;">Worker Concurrency</td><td style="color:#facc15;">${fmt(metricsMap.worker_concurrency.val, 0)}</td></tr>
-              <tr><td style="padding:4px 0;">Execution Time</td><td style="color:#38bdf8;">${fmt(metricsMap.execution_duration.val)}s</td></tr>
-              <tr><td style="padding:4px 0;">Task Velocity</td><td style="color:#38bdf8;">${fmt(metricsMap.throughput.val)}</td></tr>
-            </table>
-          </div>
-
-          <!-- 5. Telemetry Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">5. Telemetry Dashboard</div>
-            <div style="font-size:12px;margin-bottom:4px;"><strong>Langfuse:</strong> ${metricsMap.execution_duration.val !== "Unavailable" ? "<span style='color:#4ade80'>Connected</span>" : "<span style='color:#ef4444'>Disconnected</span>"}</div>
-            <div style="font-size:12px;margin-bottom:4px;"><strong>Prometheus:</strong> ${metricsMap.cpu_usage.val !== "Unavailable" ? "<span style='color:#4ade80'>Connected</span>" : "<span style='color:#ef4444'>Disconnected</span>"}</div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:8px;">Runtime observations ingested via adapters.</div>
-          </div>
-
-          <!-- 6. Threshold Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">6. Threshold Dashboard</div>
-            <div style="font-size:14px;color:${bandColor};font-weight:800;margin-bottom:4px;">${band}</div>
-            <div style="font-size:12px;margin-bottom:8px;">Action: ${action}</div>
-            <table style="width:100%;font-size:11px;color:#94a3b8;text-align:left;">
-              <tr><td>P &ge; 0.90</td><td>Excellent</td></tr>
-              <tr><td>0.50 &le; P &lt; 0.90</td><td>Acceptable</td></tr>
-              <tr><td>P &lt; 0.50</td><td>Critical Failure</td></tr>
-            </table>
-          </div>
-
-          <!-- 7. Root Cause Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">7. Root Cause Dashboard</div>
-            <table style="width:100%;font-size:12px;text-align:left;">
-              <tr><td style="padding:4px 0;">Worker Saturation</td><td style="color:#38bdf8;">${fmt(metricsMap.worker_concurrency.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Queue Delay</td><td style="color:#38bdf8;">${fmt(metricsMap.decision_branches.val)}</td></tr>
-              <tr><td style="padding:4px 0;">Infrastructure</td><td style="color:${metricsMap.infrastructure_health.val === 'Healthy' ? '#4ade80' : '#ef4444'};">${metricsMap.infrastructure_health.val}</td></tr>
-            </table>
-          </div>
-
-          <!-- 8. Productivity Contract Dashboard -->
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">8. Productivity Contract Dashboard</div>
-            <table style="width:100%;font-size:12px;text-align:left;">
-              <tr><th>Field</th><th>Expected</th><th>Actual</th><th>Match</th></tr>
-              <tr><td>Throughput</td><td>${fmt(metricsMap.throughput.calc)}</td><td>${fmt(metricsMap.throughput.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.throughput.calc, metricsMap.throughput.disp)}</td></tr>
-              <tr><td>Concurrency</td><td>${fmt(metricsMap.worker_concurrency.calc)}</td><td>${fmt(metricsMap.worker_concurrency.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.worker_concurrency.calc, metricsMap.worker_concurrency.disp)}</td></tr>
-              <tr><td>Latency</td><td>${fmt(metricsMap.execution_duration.calc)}</td><td>${fmt(metricsMap.execution_duration.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.execution_duration.calc, metricsMap.execution_duration.disp)}</td></tr>
-            </table>
-          </div>
-
         </div>
 
-        <!-- 9. Resource Comparison Dashboard -->
-        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
-          <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">9. Resource Comparison Dashboard</div>
-          <table style="width:100%;font-size:12px;text-align:left;border-collapse:collapse;">
-            <thead>
-              <tr style="border-bottom:1px solid #334155;color:#facc15;">
-                <th style="padding:8px 0;">Canonical Metric</th>
-                <th style="padding:8px 0;">Langfuse Value</th>
-                <th style="padding:8px 0;">Prometheus Value</th>
-                <th style="padding:8px 0;">Merged Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td style="padding:8px 0;">Task Throughput</td><td>${fmt(metricsMap.throughput.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.throughput.val)}</td></tr>
-              <tr><td style="padding:8px 0;">Latency (Execution Duration)</td><td>${fmt(metricsMap.execution_duration.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.execution_duration.val)}</td></tr>
-              <tr><td style="padding:8px 0;">Worker Concurrency</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.worker_concurrency.val)}</td><td>${fmt(metricsMap.worker_concurrency.val)}</td></tr>
-              <tr><td style="padding:8px 0;">Success Rate</td><td>${fmt(metricsMap.success_rate.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.success_rate.val)}</td></tr>
-              <tr><td style="padding:8px 0;">CPU / Memory</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.cpu_usage.val)} / ${fmt(metricsMap.memory_usage.val)}</td><td>${fmt(metricsMap.cpu_usage.val)}</td></tr>
-            </tbody>
-          </table>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;">
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Productivity Score</div>
+            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
+          </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+          </div>
         </div>
 
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;margin-bottom:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+          <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output × γ) / Human Baseline)</div>
+        </div>
+      </div>
+
+      <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
+        </div>
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+          <thead>
+            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
+              <th style="padding:10px 14px;text-align:left;">Metric</th>
+              <th style="padding:10px 14px;text-align:left;">Value</th>
+              <th style="padding:10px 14px;text-align:left;">Formula</th>
+              <th style="padding:10px 14px;text-align:left;">Calculated</th>
+              <th style="padding:10px 14px;text-align:left;">Displayed</th>
+              <th style="padding:10px 14px;text-align:left;">Status</th>
+              <th style="padding:10px 14px;text-align:left;">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Productivity telemetry mapped.</td></tr>`}
+          </tbody>
+        </table>
       </div>
     `;
   }

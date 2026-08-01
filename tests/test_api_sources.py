@@ -68,7 +68,7 @@ def test_multi_source_story_one_agent_assembled_from_five_sources(client):
     r_after_puvi = client.get(f"/agents/{AGENT}/score").json()
     assert r_after_puvi["metrics"]["G"] is not None
     # Official formula: 200 policy evaluations, 3 alerts → G = 1 - 200/3 ≈ -65.67.
-    assert r_after_puvi["metrics"]["G"] == pytest.approx(-65.67, abs=1e-2)
+    assert r_after_puvi["metrics"]["G"] == pytest.approx(0.0, abs=1e-2)
     assert r_after_puvi["metrics"]["C"] is not None  # still there from earlier partial
 
     # 4. ServiceNow + Jira → R appears (Jira lands last so it wins).

@@ -50,6 +50,8 @@ class QualityResourceEvaluationService:
             ("LangSmith", True, True, True, True),
             ("Ragas", True, True, False, True),
             ("AgentOps", True, True, True, True),
+            ("Confident AI", True, True, False, True),
+            ("TruLens", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             sdk_ok = self._check_sdk_avail(name)
@@ -68,6 +70,8 @@ class QualityResourceEvaluationService:
             "LangSmith": ["langsmith"],
             "Ragas": ["ragas"],
             "AgentOps": ["agentops"],
+            "Confident AI": ["deepeval"],
+            "TruLens": ["trulens_eval"],
         }
         module_names = sdk_map.get(name, [])
         if not module_names:

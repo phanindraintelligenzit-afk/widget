@@ -84,6 +84,24 @@ class PrometheusAdapter(EnterpriseProductivityAdapter):
         "Active Targets"
     )
 
+class OpenTelemetryAdapter(EnterpriseProductivityAdapter):
+    name = "OpenTelemetry"
+    sdk_modules = ("opentelemetry",)
+    documentation_url = "https://opentelemetry.io/docs"
+    metrics_supported = ("Trace Count", "Latency", "Execution Duration", "Concurrency")
+
+class ApacheSkyWalkingAdapter(EnterpriseProductivityAdapter):
+    name = "Apache SkyWalking"
+    sdk_modules = ("skywalking",)
+    documentation_url = "https://skywalking.apache.org/"
+    metrics_supported = ("Task Throughput", "Worker Activity", "Success Rate", "Failure Rate")
+
+class WorkflowLayerAdapter(EnterpriseProductivityAdapter):
+    name = "Workflow Layer"
+    sdk_modules = ("asyncio",)
+    documentation_url = "https://docs.python.org/3/library/asyncio.html"
+    metrics_supported = ("Completed Tasks", "Assigned Tasks", "Failed Tasks")
+
 
 # ---- Canonical DPI-LS mapping ------------------------------------------
 
@@ -357,6 +375,9 @@ def _import_productivity_row_types():
 ADAPTERS: tuple[EnterpriseProductivityAdapter, ...] = (
     LangfuseAdapter(),
     PrometheusAdapter(),
+    OpenTelemetryAdapter(),
+    ApacheSkyWalkingAdapter(),
+    WorkflowLayerAdapter(),
 )
 
 

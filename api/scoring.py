@@ -481,7 +481,7 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
             
     total_risk = sum(i["contribution"] for i in incidents)
     r_max = settings.r_max if hasattr(settings, "r_max") else 50.0
-    risk_score = 1.0 - min(1.0, total_risk / r_max)
+    risk_score = max(0.0, 1.0 - (total_risk / r_max))
 
     total_freq = sum(i["frequency"] for i in incidents)
     avg_severity = sum(i["severity_weight"] for i in incidents) / len(incidents) if incidents else 0.0
@@ -531,6 +531,36 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
             "TruLens": trulens
         }
     })
+    return sub_metrics
+
+
+def enrich_validation_sub_metrics(s, sub_metrics: dict) -> dict:
+    if "V" not in sub_metrics:
+        sub_metrics["V"] = {}
+        
+    if s is not None:
+        from store.models import ValidationResourceEvaluationRow
+        from sqlalchemy import select
+        evals = s.scalars(select(ValidationResourceEvaluationRow)).all()
+        for r in evals:
+            if r.resource_name in ("Guardrails AI", "Pydantic AI", "Instructor"):
+                if r.current_value is not None and r.current_value != "Unavailable":
+                    sub_metrics["V"][r.metric] = r.current_value
+    return sub_metrics
+
+def enrich_cost_sub_metrics(s, sub_metrics: dict) -> dict:
+    if "C" not in sub_metrics:
+        sub_metrics["C"] = {}
+        
+    if s is not None:
+        from store.models import CostResourceEvaluationRow
+        from sqlalchemy import select
+        evals = s.scalars(select(CostResourceEvaluationRow)).all()
+        for r in evals:
+            if r.resource_name in ("OpenLIT", "OpenCost"):
+                if r.current_value is not None and r.current_value != "Unavailable":
+                    key = f"{r.resource_name}:{r.metric}"
+                    sub_metrics["C"][key] = r.current_value
     return sub_metrics
 
 
@@ -614,10 +644,10 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
     # Policy Violations = total observed governance incident frequency.
     policy_violations = sum(inc["frequency"] for inc in incidents)
 
-    if total_actions <= 0:
+    if policy_violations <= 0:
         g_formula_output = 1.0
     else:
-        g_formula_output = 1.0 - (policy_violations / total_actions)
+        g_formula_output = max(0.0, 1.0 - (total_actions / policy_violations))
 
     sub_metrics["G"].update({
         "incidents": incidents,

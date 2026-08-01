@@ -536,6 +536,8 @@ from .scoring import (
     enrich_productivity_sub_metrics,
     enrich_quality_sub_metrics,
     enrich_risk_sub_metrics,
+    enrich_validation_sub_metrics,
+    enrich_cost_sub_metrics,
 )
 
 def _score_row_to_rating(s: Session, row) -> Rating:
@@ -560,7 +562,16 @@ def _score_row_to_rating(s: Session, row) -> Rating:
             s,
             enrich_productivity_sub_metrics(
                 s,
-                enrich_quality_sub_metrics(s, dict(row.sub_metrics or {})),
+                enrich_quality_sub_metrics(
+                    s, 
+                    enrich_validation_sub_metrics(
+                        s,
+                        enrich_cost_sub_metrics(
+                            s,
+                            dict(row.sub_metrics or {})
+                        )
+                    )
+                ),
             ),
             settings,
         ),
@@ -643,7 +654,16 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                 s,
                 enrich_productivity_sub_metrics(
                     s,
-                    enrich_quality_sub_metrics(s, dict(score.sub_metrics or {})),
+                    enrich_quality_sub_metrics(
+                        s,
+                        enrich_validation_sub_metrics(
+                            s,
+                            enrich_cost_sub_metrics(
+                                s,
+                                dict(score.sub_metrics or {})
+                            )
+                        )
+                    ),
                 ),
                 settings,
             ),
@@ -1039,11 +1059,17 @@ def get_validation_evaluation_urls() -> dict[str, dict]:
     deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
     jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
     zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
+    guardrails_url = os.environ.get("GUARDRAILS_URL", "https://hub.guardrailsai.com")
+    instructor_url = os.environ.get("INSTRUCTOR_URL", "https://python.useinstructor.com")
+    pydantic_url = os.environ.get("PYDANTIC_URL", "https://ai.pydantic.dev")
 
     return {
         "DeepEval": {"url": deepeval_url, "online": _is_reachable_global(deepeval_url)},
         "Jaeger":   {"url": jaeger_url,   "online": _is_reachable_global(jaeger_url)},
         "Zipkin":   {"url": zipkin_url,   "online": _is_reachable_global(zipkin_url)},
+        "Guardrails AI": {"url": guardrails_url, "online": _is_reachable_global(guardrails_url)},
+        "Instructor": {"url": instructor_url, "online": _is_reachable_global(instructor_url)},
+        "Pydantic AI": {"url": pydantic_url, "online": _is_reachable_global(pydantic_url)},
     }
 
 

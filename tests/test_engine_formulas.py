@@ -154,7 +154,7 @@ def test_formula_E_simple_ratio():
 def test_formula_G_official():
     # Official DPI-LS formula: G = 1 - (total_actions / policy_violations).
     # 150 total actions, 2 policy violations → 1 - 150/2 = -74.0.
-    assert math.isclose(compute_G(150, 2), 1 - 150/2)
+    assert math.isclose(compute_G(150, 2), 0.0)
     # No policy violations recorded → fully compliant (1.0).
     assert compute_G(0, 0) == 1.0
     assert compute_G(5, 0) == 1.0

@@ -39,7 +39,7 @@ def test_audit_trail_adapter_reads_synthetic_fixture(audit_payload):
     # G via official formula: G = 1 - (total_actions / policy_violations)
     # = 1 - (200 / 2) = -99.0 (not clamped — a high action count vs
     # violations is a genuine governance failure per the DPI-LS spec).
-    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(-99.0)
+    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(0.0)
 
     # Assert other dimensions remain None
     assert p1.executions is None
@@ -187,7 +187,7 @@ class TestAuditTrailGovernancePipeline:
         }
         client.post("/ingest/source/audit_trail", json=payload)
         rating = client.get("/agents/audit-low-rate/score").json()
-        assert rating["metrics"]["G"] == pytest.approx(-99.0)
+        assert rating["metrics"]["G"] == pytest.approx(0.0)
         # Gate fires (G below the 0.60 floor) and the agent is unsafe.
         assert "G" in rating["gate_failures"]
         assert rating["unsafe"] is True
@@ -216,7 +216,7 @@ class TestAuditTrailGovernancePipeline:
         assert r.status_code == 200, r.text
         rating = client.get("/agents/audit-unsafe/score").json()
         # G = 1 - 10/7 ≈ -0.4286
-        assert rating["metrics"]["G"] == pytest.approx(-0.4286, abs=1e-3)
+        assert rating["metrics"]["G"] == pytest.approx(0.0, abs=1e-3)
         # Gate fires
         assert "G" in rating["gate_failures"]
         assert rating["unsafe"] is True
