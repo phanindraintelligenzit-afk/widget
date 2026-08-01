@@ -38,7 +38,7 @@ else:
 
 print("="*50)
 print("STEP 5: VALIDATION BACKEND API")
-backend_url = 'http://127.0.0.1:8000/api/validation-evaluation/registry'
+backend_url = 'http://127.0.0.1:8000/api/validation-evaluation/resources'
 backend_data = fetch_json(backend_url)
 if isinstance(backend_data, list):
     for resource in backend_data:
@@ -49,7 +49,7 @@ else:
 print("="*50)
 print("STEP 6: SQLITE VALIDATION ROWS")
 try:
-    conn = sqlite3.connect('storage.db')
+    conn = sqlite3.connect('dpi_ls.db')
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM validation_resource_evaluations WHERE resource_name IN ('Zipkin', 'Jaeger', 'DeepEval') ORDER BY last_run DESC LIMIT 15")

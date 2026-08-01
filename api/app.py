@@ -2309,6 +2309,30 @@ def enterprise_productivity_push(
     return {"recorded": True, "adapter": adapter, "metric_name": metric_name, "passed": event.passed}
 
 
+@app.get("/api/enterprise-productivity/complexity")
+def enterprise_productivity_complexity(
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from dpi_ls.enterprise_productivity_evaluation_service import (
+        get_enterprise_productivity_collector,
+    )
+    collector = get_enterprise_productivity_collector()
+    dpi = collector.dpi_ls_metrics()
+    return dpi.get("complexity_dashboard", {})
+
+
+@app.get("/api/enterprise-productivity/formula")
+def enterprise_productivity_formula(
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from dpi_ls.enterprise_productivity_evaluation_service import (
+        get_enterprise_productivity_collector,
+    )
+    collector = get_enterprise_productivity_collector()
+    dpi = collector.dpi_ls_metrics()
+    return dpi.get("mathematical_dashboard", {})
+
+
 @app.get("/api/enterprise-productivity/agent-dashboard")
 def enterprise_productivity_agent_dashboard(
     s: Session = Depends(db_session),

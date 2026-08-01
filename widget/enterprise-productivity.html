@@ -223,13 +223,18 @@
       </div>
     </div>
 
-    <h2>Resource Dashboard — Two enterprise productivity frameworks</h2>
-    <div id="resources-grid" class="resources-grid">
-      <div class="empty">Loading resources…</div>
+    <div class="dashboards-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+      <div class="dashboard-side">
+        <h2>Agent Dashboard — Normalized Canonical Metrics</h2>
+        <div id="canonical-table"><div class="empty">Waiting for runtime telemetry…</div></div>
+      </div>
+      <div class="dashboard-side">
+        <h2>Resource Dashboard — Two enterprise productivity frameworks</h2>
+        <div id="resources-grid" class="resources-grid" style="grid-template-columns: 1fr;">
+          <div class="empty">Loading resources…</div>
+        </div>
+      </div>
     </div>
-
-    <h2>Agent Dashboard — Normalized Canonical Metrics</h2>
-    <div id="canonical-table"><div class="empty">Waiting for runtime telemetry…</div></div>
 
     <h2>Match Analysis — Expected vs Actual, Matched vs Mismatched</h2>
     <div id="match-table"><div class="empty">No productivity events yet. Push events via <code>POST /api/enterprise-productivity/push</code>.</div></div>
