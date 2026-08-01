@@ -91,6 +91,15 @@ def bootstrap() -> None:
             except Exception as ev_e:
                 print(f"[bootstrap] enterprise validation seeding failed: {ev_e}")
 
+            # Seeding ENTERPRISE Quality dimension — DeepEval, TruLens.
+            try:
+                from dpi_ls.enterprise_quality_evaluation_service import (
+                    EnterpriseQualityEvaluationService,
+                )
+                EnterpriseQualityEvaluationService(session).run_evaluations()
+            except Exception as eq_e:
+                print(f"[bootstrap] enterprise quality seeding failed: {eq_e}")
+
             session.commit()
 
             # Pre-populate Prometheus Gauges with the latest scores from DB on startup

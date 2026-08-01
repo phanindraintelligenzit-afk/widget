@@ -705,3 +705,52 @@ def push_cost_results_to_backend(openlit: dict, opencost: dict, host: str, port:
 
     post_data("push-openlit", openlit, "OpenLIT")
     post_data("push-opencost", opencost, "OpenCost")
+
+
+def push_enterprise_quality_results_to_backend(deepeval_res: dict, trulens_res: dict, host: str, port: int) -> None:
+    """Pushes DeepEval and TruLens telemetry to the Enterprise Quality dimension."""
+    import urllib.request
+    import json
+    
+    url = f"http://{host}:{port}/api/enterprise-quality/push"
+
+    def _push(adapter_name: str, metric_name: str, score: float, passed: bool = True):
+        payload = {
+            "adapter": adapter_name,
+            "metric_name": metric_name,
+            "score": score,
+            "passed": passed,
+            "expected": "Met thresholds",
+            "actual": f"Score: {score}",
+        }
+        try:
+            req = urllib.request.Request(
+                url, 
+                data=json.dumps(payload).encode(), 
+                method="POST", 
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=2.0) as resp:
+                pass
+        except Exception as e:
+            print(f"[Enterprise Quality] Failed to push {adapter_name}.{metric_name}: {e}")
+
+    if deepeval_res:
+        if "answer_relevancy" in deepeval_res:
+            _push("DeepEval", "Answer Relevancy", deepeval_res["answer_relevancy"])
+        if "faithfulness" in deepeval_res:
+            _push("DeepEval", "Faithfulness", deepeval_res["faithfulness"])
+        if "hallucination" in deepeval_res:
+            _push("DeepEval", "Hallucination Score", deepeval_res["hallucination"])
+        if "correctness" in deepeval_res:
+            _push("DeepEval", "Correctness", deepeval_res["correctness"])
+            
+    if trulens_res:
+        if "groundedness" in trulens_res:
+            _push("TruLens", "Ground Truth Accuracy", trulens_res["groundedness"])
+        if "safety_score" in trulens_res:
+            _push("TruLens", "Faithfulness", trulens_res["safety_score"])
+        if "hallucination" in trulens_res:
+            # trulens hallucination is string "true" / "false". convert to float rate
+            h_rate = 1.0 if trulens_res["hallucination"] == "true" else 0.0
+            _push("TruLens", "Hallucination Detection", h_rate, passed=(h_rate == 0.0))

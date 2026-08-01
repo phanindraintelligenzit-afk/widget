@@ -2031,3 +2031,166 @@ def _enterprise_validation_adapters():
     """Late import so top-of-module load doesn't require the DB."""
     from dpi_ls.enterprise_validation_evaluation_service import ADAPTERS
     return ADAPTERS
+
+
+# ---- Additive: parallel API namespace /api/enterprise-quality/* ----
+
+@app.get("/api/enterprise-quality/urls")
+def enterprise_quality_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
+    from store.models import EnterpriseQualityResourceRegistryRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseQualityResourceRegistryRow)).all()
+    out: dict[str, dict] = {}
+    for r in rows:
+        out[r.name] = {
+            "url": r.documentation_url or "#",
+            "online": True,
+            "sdk_available": bool(r.sdk_available),
+        }
+    return out
+
+
+@app.get("/api/enterprise-quality/resources")
+def enterprise_quality_resources(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import EnterpriseQualityResourceRegistryRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseQualityResourceRegistryRow)).all()
+    return [
+        {
+            "id": r.id,
+            "resource_name": r.name,
+            "category": "Quality",
+            "sdk_available": r.sdk_available,
+            "documentation_url": r.documentation_url,
+            "integration_implemented": r.integration_implemented,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+
+
+@app.get("/api/enterprise-quality/results")
+def enterprise_quality_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from store.models import EnterpriseQualityResourceEvaluationRow
+    from sqlalchemy import select as _select
+
+    rows = s.scalars(_select(EnterpriseQualityResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "dashboard_verified": r.dashboard_verified,
+            "agent_executed": r.agent_executed,
+            "last_run": r.last_run.isoformat() if r.last_run else None,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/enterprise-quality/evaluate")
+def enterprise_quality_evaluate(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
+    from dpi_ls.enterprise_quality_evaluation_service import (
+        EnterpriseQualityEvaluationService,
+    )
+    from store.models import EnterpriseQualityResourceEvaluationRow
+    from sqlalchemy import select as _select
+
+    EnterpriseQualityEvaluationService(s).run_evaluations()
+    rows = s.scalars(_select(EnterpriseQualityResourceEvaluationRow)).all()
+    return [
+        {
+            "resource_name": r.resource_name,
+            "metric": r.metric,
+            "detected": r.detected,
+            "evidence": r.evidence,
+            "current_value": r.current_value,
+            "status": r.status,
+            "agent_executed": r.agent_executed,
+        }
+        for r in rows
+    ]
+
+
+@app.post("/api/enterprise-quality/push")
+def enterprise_quality_push(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from dpi_ls.enterprise_quality_evaluation_service import (
+        QualityEvent,
+        get_enterprise_quality_collector,
+        EnterpriseQualityEvaluationService,
+    )
+    adapter = payload.get("adapter")
+    metric_name = payload.get("metric_name")
+    if not adapter or not metric_name:
+        raise HTTPException(400, "adapter and metric_name are required")
+    event = QualityEvent(
+        adapter=str(adapter),
+        metric_name=str(metric_name),
+        score=payload.get("score"),
+        expected=payload.get("expected"),
+        actual=payload.get("actual"),
+        passed=bool(payload.get("passed", False)),
+        latency_ms=float(payload.get("latency_ms", 0.0)),
+        correlation_id=payload.get("correlation_id"),
+    )
+    get_enterprise_quality_collector().record(event)
+    EnterpriseQualityEvaluationService(s).run_evaluations()
+    return {"recorded": True, "adapter": adapter, "metric_name": metric_name, "passed": event.passed}
+
+
+@app.get("/api/enterprise-quality/agent-dashboard")
+def enterprise_quality_agent_dashboard(
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from dpi_ls.enterprise_quality_evaluation_service import (
+        QUALITY_CANONICAL_MAP,
+        get_enterprise_quality_collector,
+        ADAPTERS
+    )
+    collector = get_enterprise_quality_collector()
+    dpi = collector.dpi_ls_metrics()
+    canonical = collector.canonical()
+    events = collector.events()
+
+    match_rows: list[dict[str, Any]] = []
+    for ev in events:
+        match_rows.append({
+            "adapter": ev.adapter,
+            "metric_name": ev.metric_name,
+            "expected": _stringify(ev.expected),
+            "actual": _stringify(ev.actual),
+            "score": ev.score,
+            "matched": ev.passed,
+            "status": "MATCH" if ev.passed else "MISMATCH",
+            "correlation_id": ev.correlation_id,
+            "timestamp": ev.timestamp.isoformat(),
+        })
+
+    settings = repo.get_settings(s)
+    q_weight = float(settings.weights.get("Q", 0.20))
+    dpi["weight"] = q_weight
+    if dpi["quality_score"] is not None:
+        dpi["weighted_contribution"] = round(dpi["quality_score"] * q_weight, 4)
+
+    return {
+        **dpi,
+        "canonical_metrics": canonical,
+        "match_analysis": match_rows,
+        "adapters": [
+            {
+                "name": a.name,
+                "sdk_installed": a.sdk_installed(),
+                "documentation_url": a.documentation_url,
+                "metrics_supported": list(a.metrics_supported),
+            }
+            for a in ADAPTERS
+        ],
+    }

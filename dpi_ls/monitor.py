@@ -50,7 +50,8 @@ from .integrations import (
     push_execution_results_to_backend,
     run_jaeger_metrics, run_zipkin_metrics, push_validation_results_to_backend,
     run_llmguard_metrics, run_rebuff_metrics, run_trulens_metrics, push_risk_results_to_backend,
-    run_opa_metrics, run_presidio_metrics, run_detect_secrets_metrics, push_governance_results_to_backend
+    run_opa_metrics, run_presidio_metrics, run_detect_secrets_metrics, push_governance_results_to_backend,
+    push_enterprise_quality_results_to_backend
 )
 
 _log = logging.getLogger("dpi_ls.monitor")
@@ -223,6 +224,10 @@ def _run_evaluations(collector: SignalCollector) -> None:
         push_governance_results_to_backend(collector.agent_id, opa_res, "Open Policy Agent", host_domain, port_num)
         push_governance_results_to_backend(collector.agent_id, presidio_res, "Microsoft Presidio", host_domain, port_num)
         push_governance_results_to_backend(collector.agent_id, secrets_res, "Detect-Secrets", host_domain, port_num)
+        
+        # Enterprise Quality Dimension
+        push_enterprise_quality_results_to_backend(deepeval_res, trulens_res, host_domain, port_num)
+
         
         # Productivity metrics could be computed here.
         try:
