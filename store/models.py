@@ -355,3 +355,46 @@ class GovernanceResourceEvaluationRow(Base):
     status: Mapped[str] = mapped_column(String(64), default="PENDING")
     dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class EnterpriseValidationResourceRegistryRow(Base):
+    """Enterprise Validation dimension registry — Guardrails AI, Pydantic
+    AI, Instructor. Parallel to the existing ValidationResourceRegistryRow
+    so the classic dimension keeps working unchanged (additive extension,
+    never a replacement).
+    """
+    __tablename__ = "enterprise_validation_resource_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    sdk_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    integration_implemented: Mapped[bool] = mapped_column(Boolean, default=True)
+    documentation_url: Mapped[str] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+
+class EnterpriseValidationResourceEvaluationRow(Base):
+    """Runtime evaluation of an enterprise validation metric — one row
+    per (resource, canonical or native metric)."""
+    __tablename__ = "enterprise_validation_resource_evaluations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    resource_name: Mapped[str] = mapped_column(
+        String(128),
+        ForeignKey("enterprise_validation_resource_registry.name"),
+        index=True,
+    )
+    metric: Mapped[str] = mapped_column(String(128))
+    current_value: Mapped[str] = mapped_column(String(256), nullable=True)
+    detected: Mapped[bool] = mapped_column(Boolean, default=False)
+    evidence: Mapped[str] = mapped_column(String(512), nullable=True)
+    last_run: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
+    status: Mapped[str] = mapped_column(String(64), default="PENDING")
+    dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)

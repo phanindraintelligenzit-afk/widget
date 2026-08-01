@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DPI-LS — Enterprise Validation (V)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2d3148; --accent: #6366f1; --accent2: #8b5cf6;
+      --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+      --text: #f1f5f9; --muted: #94a3b8; --muted2: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 1400px; margin: 0 auto; padding: 0 0 40px;
+      color: var(--text); background: var(--bg);
+    }
+    .top-nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 32px; display: flex; align-items: center; gap: 32px;
+      height: 56px; margin-bottom: 32px; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; text-decoration: none; letter-spacing: -0.3px;
+    }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted); text-decoration: none;
+    }
+    .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .page-body { padding: 0 24px; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    .sub {
+      color: var(--muted); font-size: 14px; margin: 0 0 24px;
+      max-width: 900px; line-height: 1.55;
+    }
+    code {
+      background: #1e293b; color: #38bdf8; padding: 4px 10px;
+      border-radius: 5px; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+      border: 1px solid #334155;
+    }
+    h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin: 30px 0 12px; font-weight: 700;
+    }
+
+    /* Resource cards */
+    .resources-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px; margin-bottom: 24px;
+    }
+    .resource-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
+      gap: 12px; transition: border-color 0.15s;
+    }
+    .resource-card:hover { border-color: var(--accent); }
+    .resource-card.status-ok    { border-left: 3px solid var(--green); }
+    .resource-card.status-warn  { border-left: 3px solid var(--amber); }
+    .rc-header {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .rc-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; background: rgba(99,102,241,0.15);
+    }
+    .rc-title { flex: 1; }
+    .rc-name { font-weight: 700; font-size: 16px; }
+    .rc-category { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .rc-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .rc-meta {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      font-size: 11px;
+    }
+    .rc-meta-row { display: flex; justify-content: space-between; gap: 6px; }
+    .rc-meta-key { color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .rc-meta-val { color: var(--text); font-weight: 600; }
+    .rc-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .btn {
+      padding: 8px 14px; border-radius: 8px; text-decoration: none;
+      font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); cursor: pointer; background: transparent; color: var(--text);
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; border: 1px solid transparent;
+    }
+    .btn.primary:hover { opacity: 0.9; }
+    .status-pill {
+      display: inline-block; padding: 3px 10px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    }
+    .status-pill.ok    { background: rgba(16,185,129,0.15); color: var(--green); }
+    .status-pill.warn  { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .status-pill.bad   { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    /* Formula card */
+    .formula-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-bottom: 18px;
+    }
+    .formula-eq {
+      background: #0b1220; padding: 12px 16px; border-radius: 8px;
+      font-family: "SF Mono", Menlo, monospace; font-size: 14px;
+      color: #38bdf8; margin: 8px 0;
+    }
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 12px;
+    }
+    .stat {
+      background: #0b1220; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+    }
+    .stat-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .stat-val { font-size: 22px; font-weight: 800; color: var(--accent); margin-top: 4px; }
+    .stat-val.green { color: var(--green); }
+    .stat-val.amber { color: var(--amber); }
+    .stat-val.red   { color: var(--red); }
+
+    /* Tables */
+    table.dpi {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; font-size: 12px;
+    }
+    table.dpi th, table.dpi td {
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    table.dpi th {
+      background: #0b1220; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+    }
+    table.dpi tr:hover td { background: rgba(99,102,241,0.05); }
+    .status-match    { color: var(--green); font-weight: 700; }
+    .status-mismatch { color: var(--red);   font-weight: 700; }
+
+    /* Gate banner */
+    .gate-safe {
+      background: rgba(16,185,129,0.10); border: 1px solid var(--green);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .gate-unsafe {
+      background: rgba(239,68,68,0.10); border: 1px solid var(--red);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .gate-icon { font-size: 22px; }
+
+    .empty {
+      padding: 24px; text-align: center; color: var(--muted);
+      background: var(--surface); border: 1px dashed var(--border);
+      border-radius: 10px; font-size: 13px;
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width: 100%; border-collapse: collapse; margin-bottom: 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .compare-table th, .compare-table td {
+      padding: 10px 14px; text-align: center; font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .compare-table th:first-child, .compare-table td:first-child {
+      text-align: left; font-weight: 600;
+    }
+    .compare-table th {
+      background: #0b1220; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+    }
+    .check { color: var(--green); font-weight: 900; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
+    <a href="/widget/demo.html" class="nav-link">Dashboard</a>
+    <a href="/widget/resources.html" class="nav-link">Resources</a>
+    <a href="/widget/enterprise-validation.html" class="nav-link active">Enterprise Validation</a>
+  </nav>
+
+  <div class="page-body">
+    <h1>Enterprise Validation Dimension (V)</h1>
+    <p class="sub">
+      Live runtime telemetry from three enterprise validation frameworks —
+      <b>Guardrails AI</b>, <b>Pydantic AI</b>, and <b>Instructor</b> — normalized into the
+      canonical DPI-LS Validation model. Zero mock data; every metric flows from an
+      SDK integration probe or a runtime event pushed via
+      <code>/api/enterprise-validation/push</code>. Formula stays exactly:
+      <code>V = Validated Components / Required Components</code>.
+    </p>
+
+    <div id="gate-banner"></div>
+
+    <h2>Validation Formula &amp; Compliance Gate</h2>
+    <div class="formula-card">
+      <div>
+        <code>V = Validated Components / Required Components</code>
+        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">
+          Hard gate: <b>V &lt; 0.60 → unsafe = true</b>, DPI-LS score capped at 69.
+        </span>
+      </div>
+      <div class="formula-eq" id="formula-eq">V = —</div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Required Components</div><div class="stat-val" id="req-comp">—</div></div>
+        <div class="stat"><div class="stat-label">Validated Components</div><div class="stat-val green" id="val-comp">—</div></div>
+        <div class="stat"><div class="stat-label">Validation Score</div><div class="stat-val" id="val-score">—</div></div>
+        <div class="stat"><div class="stat-label">Weighted Contribution</div><div class="stat-val" id="weighted-contrib">—</div></div>
+      </div>
+    </div>
+
+    <h2>Resource Dashboard — Three enterprise validation frameworks</h2>
+    <div id="resources-grid" class="resources-grid">
+      <div class="empty">Loading resources…</div>
+    </div>
+
+    <h2>Agent Dashboard — Normalized Canonical Metrics</h2>
+    <div id="canonical-table"><div class="empty">Waiting for runtime telemetry…</div></div>
+
+    <h2>Match Analysis — Expected vs Actual, Matched vs Mismatched</h2>
+    <div id="match-table"><div class="empty">No validation events yet. Push events via <code>POST /api/enterprise-validation/push</code>.</div></div>
+
+    <h2>Resource Comparison — Which framework contributes each canonical metric</h2>
+    <div id="compare-table-wrap"><div class="empty">Loading…</div></div>
+  </div>
+
+  <script>
+    const API = "";
+    const DOC_ICONS = {
+      "Guardrails AI": "🛡️",
+      "Pydantic AI":   "🧬",
+      "Instructor":    "📐",
+    };
+
+    function h(tag, attrs, ...children) {
+      const el = document.createElement(tag);
+      Object.entries(attrs || {}).forEach(([k, v]) => {
+        if (k === "class") el.className = v;
+        else if (k === "style") el.setAttribute("style", v);
+        else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v);
+      });
+      for (const c of children.flat()) {
+        if (c === null || c === undefined) continue;
+        el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      }
+      return el;
+    }
+
+    async function loadAll() {
+      const [urls, results, agent] = await Promise.all([
+        fetch(`${API}/api/enterprise-validation/urls`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API}/api/enterprise-validation/results`).then(r => r.json()).catch(() => []),
+        fetch(`${API}/api/enterprise-validation/agent-dashboard`).then(r => r.json()).catch(() => null),
+      ]);
+      renderResources(urls, results);
+      if (agent) {
+        renderFormula(agent);
+        renderGate(agent);
+        renderCanonical(agent.canonical_metrics || {});
+        renderMatch(agent.match_analysis || []);
+        renderComparison(agent, results);
+      }
+    }
+
+    function renderResources(urls, results) {
+      const grouped = {};
+      for (const r of results) {
+        (grouped[r.resource_name] ||= []).push(r);
+      }
+      const container = document.getElementById("resources-grid");
+      container.innerHTML = "";
+      const names = Object.keys(urls);
+      if (!names.length) {
+        container.appendChild(h("div", { class: "empty" }, "No enterprise validation resources registered."));
+        return;
+      }
+      for (const name of names) {
+        const info = urls[name];
+        const metrics = grouped[name] || [];
+        const totalMetrics = metrics.length;
+        const succ = metrics.filter(m => m.status === "SUCCESS").length;
+        const live = metrics.filter(m => m.agent_executed).length;
+        const statusClass = succ > 0 ? "status-ok" : "status-warn";
+        const statusPill = succ > 0
+          ? h("span", { class: "status-pill ok" }, "READY")
+          : h("span", { class: "status-pill warn" }, "AWAITING SIGNAL");
+        const sdkPill = info.sdk_available
+          ? h("span", { class: "status-pill ok" }, "SDK INSTALLED")
+          : h("span", { class: "status-pill warn" }, "SDK NOT LOCAL");
+
+        container.appendChild(h("div", { class: `resource-card ${statusClass}` },
+          h("div", { class: "rc-header" },
+            h("div", { class: "rc-icon" }, DOC_ICONS[name] || "🔧"),
+            h("div", { class: "rc-title" },
+              h("div", { class: "rc-name" }, name),
+              h("div", { class: "rc-category" }, "Enterprise Validation"),
+            ),
+            statusPill,
+          ),
+          h("div", { class: "rc-desc" }, descriptionOf(name)),
+          h("div", { class: "rc-meta" },
+            metaRow("Runtime", info.online ? "Online" : "Offline"),
+            metaRow("SDK", info.sdk_available ? "Installed" : "Not in venv"),
+            metaRow("Metrics", `${totalMetrics} supported`),
+            metaRow("Live", `${live} pushed`),
+          ),
+          h("div", { class: "rc-actions" },
+            h("a", { class: "btn primary", href: info.url, target: "_blank", rel: "noopener" },
+              "🔗 Open Resource"),
+            h("a", { class: "btn", href: info.url, target: "_blank", rel: "noopener" },
+              "📖 Documentation"),
+          ),
+        ));
+      }
+    }
+
+    function descriptionOf(name) {
+      return ({
+        "Guardrails AI":
+          "Runtime input/output validation with reask + safety checks. Emits guard executions, schema/JSON/regex validation, rule violations, and validation latency.",
+        "Pydantic AI":
+          "Typed structured-output validation for LLM responses. Emits model, schema, type, and field validation events, plus retry and serialization telemetry.",
+        "Instructor":
+          "Structured-output extraction with validation-driven retries. Emits extraction success/failure, schema matching, missing fields, and repair attempts.",
+      })[name] || "";
+    }
+    function metaRow(k, v) {
+      return h("div", { class: "rc-meta-row" },
+        h("span", { class: "rc-meta-key" }, k),
+        h("span", { class: "rc-meta-val" }, v),
+      );
+    }
+
+    function renderFormula(agent) {
+      document.getElementById("req-comp").textContent = agent.required_components;
+      document.getElementById("val-comp").textContent = agent.validated_components;
+      const scoreEl = document.getElementById("val-score");
+      scoreEl.textContent = agent.validation_score.toFixed(4);
+      scoreEl.className = "stat-val " + (agent.validation_score >= 0.60 ? "green" : "red");
+      document.getElementById("weighted-contrib").textContent = agent.weighted_contribution.toFixed(4);
+      document.getElementById("formula-eq").textContent =
+        `V = ${agent.validated_components} / ${agent.required_components} = ${agent.validation_score.toFixed(4)}`;
+    }
+
+    function renderGate(agent) {
+      const banner = document.getElementById("gate-banner");
+      const gate = agent.compliance_gate || {};
+      const unsafe = gate.unsafe;
+      banner.innerHTML = "";
+      if (unsafe) {
+        banner.appendChild(h("div", { class: "gate-unsafe" },
+          h("span", { class: "gate-icon" }, "⚠️"),
+          h("div", null,
+            h("div", { style: "font-weight:700;color:var(--red);font-size:14px;" },
+              "Compliance Gate Triggered — Unsafe"),
+            h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+              `V=${gate.current.toFixed(3)} < threshold ${gate.threshold} → DPI-LS score capped at ${gate.capped_score}.`),
+          ),
+        ));
+      } else {
+        banner.appendChild(h("div", { class: "gate-safe" },
+          h("span", { class: "gate-icon" }, "✅"),
+          h("div", null,
+            h("div", { style: "font-weight:700;color:var(--green);font-size:14px;" },
+              "Compliance Gate — Safe"),
+            h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+              `V=${(agent.validation_score || 0).toFixed(3)} ≥ threshold ${gate.threshold}. No gate cap.`),
+          ),
+        ));
+      }
+    }
+
+    function renderCanonical(canonical) {
+      const wrap = document.getElementById("canonical-table");
+      wrap.innerHTML = "";
+      const keys = Object.keys(canonical);
+      if (!keys.length) {
+        wrap.appendChild(h("div", { class: "empty" }, "No canonical metrics yet."));
+        return;
+      }
+      const tbl = h("table", { class: "dpi" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Canonical DPI-LS Metric"),
+          h("th", null, "Merged Value"),
+          h("th", null, "Contributing Adapters"),
+        )),
+        h("tbody", null, ...keys.sort().map(k => h("tr", null,
+          h("td", null, k.replace(/_/g, " ")),
+          h("td", null, String(canonical[k].value)),
+          h("td", null, (canonical[k].sources || []).join(", ") || "—"),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    function renderMatch(rows) {
+      const wrap = document.getElementById("match-table");
+      wrap.innerHTML = "";
+      if (!rows.length) {
+        wrap.appendChild(h("div", { class: "empty" },
+          "No validation events yet. Push events via ",
+          h("code", null, "POST /api/enterprise-validation/push"), "."));
+        return;
+      }
+      const tbl = h("table", { class: "dpi" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Adapter"),
+          h("th", null, "Kind"),
+          h("th", null, "Expected"),
+          h("th", null, "Actual"),
+          h("th", null, "Status"),
+          h("th", null, "Correlation ID"),
+          h("th", null, "Timestamp"),
+        )),
+        h("tbody", null, ...rows.slice(-50).reverse().map(r => h("tr", null,
+          h("td", null, r.adapter),
+          h("td", null, r.kind),
+          h("td", null, r.expected || "—"),
+          h("td", null, r.actual || "—"),
+          h("td", { class: r.matched ? "status-match" : "status-mismatch" }, r.status),
+          h("td", null, r.correlation_id || "—"),
+          h("td", null, new Date(r.timestamp).toLocaleString()),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    function renderComparison(agent, results) {
+      const grouped = {};
+      for (const r of results) {
+        (grouped[r.resource_name] ||= 0);
+        grouped[r.resource_name] += 1;
+      }
+      const canonicalMap = {
+        json_compliance:    { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        schema_compliance:  { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        type_validation:    { "Guardrails AI": false, "Pydantic AI": true, "Instructor": true },
+        validation_errors:  { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        retry_count:        { "Guardrails AI": false, "Pydantic AI": true, "Instructor": true },
+        missing_fields:     { "Guardrails AI": false, "Pydantic AI": true, "Instructor": true },
+        structured_output:  { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        validation_success: { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        validation_failure: { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+        parsing_errors:     { "Guardrails AI": false, "Pydantic AI": true, "Instructor": true },
+        output_compliance:  { "Guardrails AI": true, "Pydantic AI": true, "Instructor": true },
+      };
+      const wrap = document.getElementById("compare-table-wrap");
+      wrap.innerHTML = "";
+      const tbl = h("table", { class: "compare-table" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Canonical DPI-LS Metric"),
+          h("th", null, "Guardrails AI"),
+          h("th", null, "Pydantic AI"),
+          h("th", null, "Instructor"),
+        )),
+        h("tbody", null, ...Object.keys(canonicalMap).map(k => h("tr", null,
+          h("td", null, k.replace(/_/g, " ")),
+          h("td", null, canonicalMap[k]["Guardrails AI"] ? h("span", { class: "check" }, "✓") : "—"),
+          h("td", null, canonicalMap[k]["Pydantic AI"]   ? h("span", { class: "check" }, "✓") : "—"),
+          h("td", null, canonicalMap[k]["Instructor"]    ? h("span", { class: "check" }, "✓") : "—"),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    loadAll();
+    setInterval(loadAll, 5000);
+  </script>
+</body>
+</html>

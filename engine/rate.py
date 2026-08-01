@@ -61,7 +61,8 @@ def rate(
     # 1. Composite — DPI-LS formula and linear weighted metrics.
     raw, weighted_metrics, weights_used = composite(metrics, weights)
 
-    # 2. Compliance gates (G/R/V) — flag Unsafe.
+    # 2. Compliance gates (G/R/V) — flag Unsafe. Score is preserved
+    #    (categorical band override below, no hardcoded numeric cap).
     gate_fired, failed = gate_check(metrics, gate_thresholds)
     gated_score, unsafe = apply_gate(raw, gate_fired)
 
@@ -71,9 +72,9 @@ def rate(
     dimensions_measured = 7 - len(missing)
     coverage = round(dimensions_measured / 7, 3)
 
-    # 3. Band — by the (uncapped) score. Use the display-rounded value
-    #    so floating-point drift at boundaries (e.g. all-.85 → 84.9999…)
-    #    doesn't misclassify by one band.
+    # 3. Band — by the (uncapped) score. Use display-rounded value to
+    #    avoid floating-point misclassification at boundaries
+    #    (all-.85 → 84.9999… loses Exceptional otherwise).
     score_band = band(round(gated_score, 2))
 
     # Compliance cap reason — takes precedence over the completeness
@@ -82,25 +83,18 @@ def rate(
         f"compliance gate: {','.join(failed)} below floor" if gate_fired else None
     )
 
-    # 4. Completeness cap — evaluates whether the band should be held
-    #    at "Needs Optimization" due to insufficient coverage.
+    # 4. Completeness cap — evaluates whether the band should be
+    #    held at "Needs Optimization" due to insufficient coverage.
     final_score, _completeness_band, capped, cap_reason = apply_completeness_cap(
         gated_score, score_band, metrics, dimensions_measured, unsafe,
         gate_cap_reason, min_dimensions_for_full_band,
     )
 
-    # Band override — a *categorical* cap, not a numeric one. No
-    # hardcoded score value leaks into the Rating.
-    #
-    # An unsafe agent (compliance gate failure) is *always* held at
-    # "Needs Optimization" — a gate failure is a safety signal that
-    # must not be masked as either a performance win (Strong/Exceptional)
-    # or a performance failure (Underperforming). Both readings would
-    # mis-report the actual condition.
-    #
-    # A coverage-capped agent is held at "Needs Optimization" only when
-    # its raw band would otherwise be Strong/Exceptional; a naturally
-    # low-scoring under-covered agent stays where the score puts it.
+    # Band override — a *categorical* cap, not a numeric one. Unsafe
+    # agents are always held at "Needs Optimization" (a gate failure
+    # is not a performance failure — it must not be masked as either
+    # Strong/Exceptional or Underperforming). Coverage-capped Strong/
+    # Exceptional agents likewise get held at NEEDS_OPTIMIZATION.
     if unsafe:
         final_band = NEEDS_OPTIMIZATION
     elif capped and score_band in (STRONG, EXCEPTIONAL):
