@@ -26,7 +26,7 @@ class QualityResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the 3 quality resources: LangSmith, Ragas, and AgentOps."""
         from sqlalchemy import delete
-        allowed = ["LangSmith", "Ragas", "AgentOps"]
+        allowed = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"]
         self.session.execute(delete(QualityResourceRegistryRow).where(QualityResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(QualityResourceEvaluationRow).where(QualityResourceEvaluationRow.resource_name.not_in(allowed)))
 
@@ -34,7 +34,9 @@ class QualityResourceEvaluationService:
         resource_metrics = {
             "LangSmith": ["runtime_traces", "llm_evaluation", "hallucination_analysis", "prompt_evaluation", "context_evaluation"],
             "Ragas": ["semantic_accuracy", "faithfulness", "answer_relevancy", "context_precision", "context_recall"],
-            "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"]
+            "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"],
+            "Confident AI": ["answer_relevancy", "faithfulness", "hallucination", "correctness"],
+            "TruLens": ["ground_truth_accuracy", "trulens_faithfulness", "hallucination_detection"]
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(

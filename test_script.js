@@ -1,475 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>DPI-LS — Resource Technical Evaluation</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --surface2: #22263a;
-      --border: #2d3148;
-      --accent: #6366f1;
-      --accent2: #8b5cf6;
-      --green: #10b981;
-      --red: #ef4444;
-      --yellow: #f59e0b;
-      --blue: #3b82f6;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --muted2: #64748b;
-    }
-    body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
 
-    /* ── NAV ── */
-    .nav {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 0 32px;
-      display: flex;
-      align-items: center;
-      gap: 32px;
-      height: 56px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-    .nav-logo {
-      font-weight: 800;
-      font-size: 16px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-decoration: none;
-      letter-spacing: -0.3px;
-    }
-    .nav-links { display: flex; gap: 4px; }
-    .nav-link {
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--muted);
-      text-decoration: none;
-      transition: all 0.15s;
-    }
-    .nav-link:hover { background: var(--surface2); color: var(--text); }
-    .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
-    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-    .run-btn {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      border: none;
-      padding: 8px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-    }
-    .run-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .status-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-
-    /* ── HERO ── */
-    .hero {
-      padding: 40px 32px 32px;
-      border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, rgba(99,102,241,0.05) 0%, transparent 100%);
-    }
-    .hero-tag {
-      display: inline-flex; align-items: center; gap: 6px;
-      background: rgba(99,102,241,0.12);
-      border: 1px solid rgba(99,102,241,0.25);
-      color: #818cf8;
-      font-size: 11px; font-weight: 600;
-      padding: 4px 12px; border-radius: 999px;
-      letter-spacing: 0.08em; text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-    .hero h1 {
-      font-size: 32px; font-weight: 800;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-      margin-bottom: 8px;
-    }
-    .hero p { color: var(--muted); font-size: 14px; max-width: 700px; line-height: 1.6; }
-
-    /* ── WORKFLOW STEPS BANNER ── */
-    .workflow-banner {
-      margin: 28px 32px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 24px;
-    }
-    .workflow-banner h2 {
-      font-size: 12px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.08em; color: var(--muted2); margin-bottom: 16px;
-    }
-    .steps-row {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-    }
-    @media (max-width: 900px) { .steps-row { grid-template-columns: repeat(3,1fr); } }
-    @media (max-width: 600px) { .steps-row { grid-template-columns: 1fr 1fr; } }
-    .step-card {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px;
-      position: relative;
-      transition: border-color 0.15s;
-    }
-    .step-card:hover { border-color: var(--accent); }
-    .step-num {
-      width: 24px; height: 24px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700; color: #fff;
-      margin-bottom: 8px;
-    }
-    .step-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
-    .step-label { font-size: 10px; font-weight: 500; color: var(--accent); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
-    .step-desc { font-size: 11px; color: var(--muted); line-height: 1.5; }
-
-    /* ── FILTERS + SUMMARY BAR ── */
-    .controls {
-      margin: 0 32px 20px;
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .filter-btn {
-      padding: 6px 16px;
-      border-radius: 999px;
-      font-size: 12px; font-weight: 600;
-      border: 1px solid var(--border);
-      background: var(--surface2);
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .filter-btn:hover, .filter-btn.active {
-      background: rgba(99,102,241,0.15);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    .summary-pills { margin-left: auto; display: flex; gap: 10px; }
-    .sum-pill {
-      padding: 5px 14px; border-radius: 999px; font-size: 12px; font-weight: 600;
-    }
-
-    /* ── RESOURCE GRID ── */
-    .resources-grid {
-      padding: 0 32px 48px;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
-      gap: 20px;
-    }
-    @media (max-width: 940px) { .resources-grid { grid-template-columns: 1fr; } }
-
-    /* ── RESOURCE CARD ── */
-    .resource-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-    }
-    .resource-card:hover {
-      border-color: var(--accent);
-      box-shadow: 0 8px 32px rgba(99,102,241,0.12);
-      transform: translateY(-2px);
-    }
-    .resource-card.status-success { border-left: 3px solid var(--green); }
-    .resource-card.status-failed  { border-left: 3px solid var(--red); }
-    .resource-card.status-partial { border-left: 3px solid var(--yellow); }
-
-    .rc-header {
-      padding: 18px 20px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex; align-items: flex-start; gap: 14px;
-    }
-    .rc-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 20px; flex-shrink: 0;
-    }
-    .rc-title-group { flex: 1; min-width: 0; }
-    .rc-name { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
-    .rc-category { font-size: 11px; color: var(--muted2); }
-    .rc-badge {
-      display: flex; align-items: center; gap: 6px; flex-shrink: 0;
-    }
-    .badge {
-      padding: 4px 10px; border-radius: 999px;
-      font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.05em;
-    }
-    .badge-success { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-    .badge-failed  { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-    .badge-partial { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-    .badge-primary    { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
-    .badge-recommended{ background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
-    .badge-candidate  { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-    .badge-optional   { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
-
-    /* ── 5-STEP MINI PROGRESS ── */
-    .rc-steps {
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.01);
-    }
-    .rc-steps-label {
-      font-size: 10px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.06em; color: var(--muted2); margin-bottom: 10px;
-    }
-    .steps-track {
-      display: flex; align-items: center; gap: 0;
-    }
-    .step-node {
-      display: flex; flex-direction: column; align-items: center;
-      flex: 1; position: relative;
-    }
-    .step-circle {
-      width: 28px; height: 28px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; font-weight: 700;
-      border: 2px solid;
-      transition: all 0.3s;
-      position: relative; z-index: 1;
-    }
-    .step-circle.done { background: var(--green); border-color: var(--green); color: #fff; }
-    .step-circle.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 12px rgba(99,102,241,0.5); }
-    .step-circle.pending { background: var(--surface2); border-color: var(--border); color: var(--muted2); }
-    .step-connector {
-      flex: 1; height: 2px; margin-top: -28px; position: relative; z-index: 0;
-      background: var(--border);
-    }
-    .step-connector.done { background: var(--green); }
-    .step-name {
-      font-size: 9px; font-weight: 500; color: var(--muted2);
-      margin-top: 5px; text-align: center; width: 60px; word-break: break-word;
-      line-height: 1.3;
-    }
-    .step-name.done { color: var(--green); }
-    .step-name.active { color: var(--accent); }
-
-    /* ── METRICS GRID ── */
-    .rc-metrics {
-      padding: 14px 20px;
-      border-bottom: 1px solid var(--border);
-    }
-    .rc-metrics-title {
-      font-size: 10px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.06em; color: var(--muted2); margin-bottom: 10px;
-    }
-    .metrics-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-      gap: 8px;
-    }
-    .metric-chip {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 8px 10px;
-      display: flex; flex-direction: column; gap: 3px;
-    }
-    .metric-chip.detected { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.05); }
-    .metric-chip.not-detected { border-color: rgba(239,68,68,0.2); background: rgba(239,68,68,0.03); }
-    .mc-name { font-size: 10px; color: var(--muted); font-family: 'Courier New', monospace; }
-    .mc-val { font-size: 13px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
-    .mc-detected {
-      font-size: 9px; font-weight: 700;
-      display: flex; align-items: center; gap: 3px;
-    }
-    .mc-detected.yes { color: var(--green); }
-    .mc-detected.no  { color: var(--red); }
-
-    /* ── FOOTER / EVIDENCE ── */
-    .rc-footer {
-      padding: 12px 20px;
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      flex-wrap: wrap;
-    }
-    .rc-dashboard-link {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-size: 11px; font-weight: 600; color: var(--accent);
-      text-decoration: none;
-      padding: 6px 12px;
-      border: 1px solid rgba(99,102,241,0.3);
-      border-radius: 8px;
-      background: transparent;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .rc-dashboard-link:hover { background: rgba(99,102,241,0.1); }
-    .verify-btn-card {
-      font-size: 11px; font-weight: 600;
-      padding: 6px 12px; border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--surface2); color: var(--muted);
-      cursor: pointer; transition: all 0.15s;
-    }
-    .verify-btn-card:hover { border-color: var(--green); color: var(--green); }
-    .verified-tag {
-      font-size: 11px; font-weight: 700; color: var(--green);
-      display: flex; align-items: center; gap: 4px;
-    }
-    .rc-last-run { font-size: 10px; color: var(--muted2); }
-
-    /* ── LOADING / EMPTY ── */
-    .loading-wrap, .empty-wrap {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 80px 32px; gap: 16px; text-align: center;
-    }
-    .spinner {
-      width: 40px; height: 40px; border: 3px solid var(--border);
-      border-top-color: var(--accent); border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .empty-icon { font-size: 48px; }
-    .empty-title { font-size: 18px; font-weight: 700; color: var(--text); }
-    .empty-sub { font-size: 14px; color: var(--muted); max-width: 400px; line-height: 1.6; }
-
-    /* ── TOAST ── */
-    .toast {
-      position: fixed; bottom: 24px; right: 24px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 14px 20px;
-      font-size: 13px; font-weight: 500;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-      transform: translateY(80px); opacity: 0;
-      transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
-      z-index: 1000;
-      max-width: 320px;
-    }
-    .toast.show { transform: translateY(0); opacity: 1; }
-    .toast.toast-success { border-color: var(--green); color: #34d399; }
-    .toast.toast-error   { border-color: var(--red);   color: #f87171; }
-    .toast.toast-info    { border-color: var(--accent); color: #818cf8; }
-
-    /* ── COUNT BADGE ── */
-    .count-badge {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 20px; height: 20px; border-radius: 50%;
-      font-size: 10px; font-weight: 700;
-      background: rgba(99,102,241,0.2); color: var(--accent);
-      margin-left: 4px;
-    }
-  </style>
-</head>
-<body>
-
-<!-- NAV -->
-<nav class="nav">
-  <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
-  <div class="nav-links">
-    <a href="/widget/demo.html" class="nav-link">Dashboard</a>
-    <a href="/widget/resources.html" class="nav-link active">Resources</a>
-  </div>
-  <div class="nav-right">
-    <div class="status-dot" title="All services live"></div>
-    <span style="font-size:12px;color:var(--muted)">All services running</span>
-    <button class="run-btn" id="run-eval-btn" onclick="runEvaluation()">▶ Run Evaluation</button>
-  </div>
-</nav>
-
-<!-- HERO -->
-<div class="hero">
-  <div class="hero-tag">⚡ Technical Evaluation Workflow</div>
-  <h1>Observability Resource Evaluation</h1>
-  <p>Each resource below has been integrated into the DPI-LS agent codebase. For every resource, the 5-step Technical Evaluation Workflow was executed: SDK setup → code instrumentation → agent execution → dashboard validation → results documented.</p>
-</div>
-
-<!-- 5-STEP WORKFLOW BANNER -->
-<div class="workflow-banner">
-  <h2>Technical Evaluation Workflow — 5 Steps Applied to Every Resource</h2>
-  <div class="steps-row">
-    <div class="step-card">
-      <div class="step-num">1</div>
-      <div class="step-label">Step 1 · Setup</div>
-      <div class="step-title">Initialize Integration</div>
-      <div class="step-desc">Locate API keys, endpoints, or SDK. Install dependencies and configure the client within agent code.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-num">2</div>
-      <div class="step-label">Step 2 · Code Modification</div>
-      <div class="step-title">Instrument Agent Code</div>
-      <div class="step-desc">Wrap the agent's logic where the target metric occurs so data is actively piped to the resource's endpoint.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-num">3</div>
-      <div class="step-label">Step 3 · Execution</div>
-      <div class="step-title">Execute the Test Run</div>
-      <div class="step-desc">Run agent code locally. Ensure the specific scenario triggering the metric is fully executed during the run.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-num">4</div>
-      <div class="step-label">Step 4 · Validation</div>
-      <div class="step-title">Verify Detection Status</div>
-      <div class="step-desc">Log into the resource's platform or dashboard. Check real-time traces, logs, or evaluation screens to confirm detection.</div>
-    </div>
-    <div class="step-card">
-      <div class="step-num">5</div>
-      <div class="step-label">Step 5 · Documentation</div>
-      <div class="step-title">Log the Results</div>
-      <div class="step-desc">Update the master tracking table. Set Detected = True if metric was captured, False if missed or unsupported.</div>
-    </div>
-  </div>
-</div>
-
-<!-- CONTROLS -->
-<div class="controls">
-  <button class="filter-btn active" onclick="setFilter('all', this)">All Resources <span class="count-badge" id="count-all">—</span></button>
-  <button class="filter-btn" onclick="setFilter('success', this)">✅ SUCCESS <span class="count-badge" id="count-success">—</span></button>
-  <button class="filter-btn" onclick="setFilter('failed', this)">❌ FAILED <span class="count-badge" id="count-failed">—</span></button>
-  <button class="filter-btn" onclick="setFilter('primary', this)">⭐ Primary</button>
-  <button class="filter-btn" onclick="setFilter('recommended', this)">💡 Recommended</button>
-  <div class="summary-pills">
-    <span class="sum-pill" style="background:rgba(16,185,129,0.12);color:#34d399" id="total-detected-pill">— metrics detected</span>
-    <span class="sum-pill" style="background:rgba(99,102,241,0.12);color:#818cf8" id="total-evals-pill">— evaluations</span>
-  </div>
-</div>
-
-<!-- RESOURCES GRID -->
-<div class="resources-grid" id="resources-grid">
-  <div class="loading-wrap" style="grid-column:1/-1">
-    <div class="spinner"></div>
-    <div style="font-size:14px;color:var(--muted)">Loading resource evaluations…</div>
-  </div>
-</div>
-
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<script src="/widget/dpi-ls.js?v=19"></script>
-<script>
 const API = (typeof window !== 'undefined' && window.location?.origin && window.location.origin !== 'null')
   ? window.location.origin
   : '';
@@ -681,8 +210,8 @@ const RESOURCE_META = {
     icon: '🔭', category: 'LLM Observability',
     dpi_status: 'primary',
     description: 'Token usage, cost per trace/generation, model spend, and latency per LLM call. Traces are pushed automatically on every agent run.',
-    dashboard_url: 'https://langfuse.com/docs',
-    dashboard_label: 'Open Resource',
+    dashboard_url: 'https://cloud.langfuse.com',
+    dashboard_label: 'Open Langfuse Cloud',
     color: '#6366f1',
     sdk: 'langfuse',
   },
@@ -690,8 +219,8 @@ const RESOURCE_META = {
     icon: '📊', category: 'Infrastructure Metrics',
     dpi_status: 'recommended',
     description: 'Live Prometheus-format metrics for Chandra FinOps agent — token costs, model cost, TCO, quality scores, and utilization. Exposed by DPI-LS at /metrics/.',
-    dashboard_url: 'https://prometheus.io/docs',
-    dashboard_label: 'Open Resource',
+    dashboard_url: 'http://127.0.0.1:8000/metrics/',
+    dashboard_label: 'Open Metrics Endpoint',
     color: '#e6522c',
     sdk: 'prometheus_client',
   },
@@ -920,7 +449,7 @@ function renderResourceTable(metrics, name) {
     liveMetrics[m.metric] = m.current_value;
   });
 
-  if (['Grafana', 'OpenCost', 'OpenLIT'].includes(name)) {
+  if (['Prometheus', 'Grafana', 'OpenCost', 'OpenLIT'].includes(name)) {
     if (typeof window.renderCostTableHtml === 'function') {
       const mergedSub = { ...chandraCostSub, ...liveMetrics };
       return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
@@ -930,12 +459,40 @@ function renderResourceTable(metrics, name) {
       const mergedSub = { ...chandraQualitySub, ...liveMetrics };
       return window.renderQualityTableHtml(mergedSub, settingsObj, chandraQualityValue, name);
     }
-  } else if (['Langfuse', 'Prometheus', 'OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(name)) {
+  } else if (['OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(name)) {
     if (typeof window.renderProductivityTableHtml === 'function') {
       const mergedSub = { ...chandraProductivitySub, ...liveMetrics };
       return window.renderProductivityTableHtml(mergedSub, settingsObj, chandraProductivityValue, name);
     }
-  } else if (['Phoenix', 'Traceloop'].includes(name)) {
+  } else if (['Langfuse', 'Phoenix', 'Traceloop'].includes(name)) {
+    if (name === 'Langfuse') {
+      // Langfuse spans both Cost and Execution — render both sections
+      const costMetrics  = metrics.filter(m => m._dimension === 'cost' || (!m._dimension && ['input_tokens','output_tokens','prompt_cost','total_cost','model_cost','trace_cost','cost_per_output'].some(k => m.metric && m.metric.includes(k))));
+      const execMetrics  = metrics.filter(m => m._dimension === 'execution' || (!m._dimension && !costMetrics.includes(m)));
+      let html = '';
+      if (costMetrics.length && typeof window.renderCostTableHtml === 'function') {
+        const costSub = {};
+        costMetrics.forEach(m => { costSub[m.metric] = m.current_value; });
+        const mergedCost = { ...chandraCostSub, ...costSub };
+        html += `<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">💰 Cost Metrics</div>${window.renderCostTableHtml(mergedCost, settingsObj, chandraCostValue, name)}</div>`;
+      }
+      if (execMetrics.length) {
+        const execRows = execMetrics.map(m => `
+          <tr>
+            <td style="padding:6px 8px;color:var(--text);font-size:12px;">${escHtml(m.metric)}</td>
+            <td style="padding:6px 8px;color:var(--accent);font-size:12px;">${escHtml(String(m.current_value))}</td>
+            <td style="padding:6px 8px;color:var(--muted);font-size:11px;">${escHtml(m.evidence || '')}</td>
+          </tr>`).join('');
+        html += `<div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚡ Execution Metrics</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead><tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Metric</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
+            </tr></thead><tbody>${execRows}</tbody></table></div>`;
+      }
+      return html || `<div style="padding:10px;color:var(--muted);">No metrics captured yet.</div>`;
+    }
     // Phoenix / Traceloop — execution only
     if (typeof window.renderExecutionTableHtml === 'function') {
       const mergedSub = { ...chandraExecutionSub, ...liveMetrics };
@@ -1327,6 +884,4 @@ loadUrls().then(() => {
   loadData();
   setInterval(loadData, 15000);
 });
-</script>
-</body>
-</html>
+

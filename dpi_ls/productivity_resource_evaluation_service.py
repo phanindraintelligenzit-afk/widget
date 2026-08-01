@@ -26,15 +26,14 @@ class ProductivityResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the 3 productivity resources: OpenTelemetry, Grafana Tempo, and Apache SkyWalking."""
         from sqlalchemy import delete
-        allowed = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"]
+        allowed = ["Langfuse", "Prometheus"]
         self.session.execute(delete(ProductivityResourceRegistryRow).where(ProductivityResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ProductivityResourceEvaluationRow).where(ProductivityResourceEvaluationRow.resource_name.not_in(allowed)))
 
         # Define owned metrics per resource
         resource_metrics = {
-            "OpenTelemetry": ["worker_concurrency", "decision_branches", "human_complexity"],
-            "Grafana Tempo": ["execution_duration", "api_calls", "resolution_velocity"],
-            "Apache SkyWalking": ["token_depth", "throughput"]
+            "Langfuse": ["task_throughput", "latency", "execution_duration", "worker_activity", "concurrency", "success_rate", "failure_rate", "trace_count", "prompt_executions", "token_usage"],
+            "Prometheus": ["cpu", "memory", "queue_length", "infrastructure_health"]
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(
@@ -45,9 +44,8 @@ class ProductivityResourceEvaluationService:
         self.session.flush()
 
         resources = [
-            ("OpenTelemetry", True, True, False, True),
-            ("Grafana Tempo", True, True, False, True),
-            ("Apache SkyWalking", True, True, False, True),
+            ("Langfuse", True, True, False, True),
+            ("Prometheus", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             sdk_ok = self._check_sdk_avail(name)
@@ -63,9 +61,8 @@ class ProductivityResourceEvaluationService:
     def _check_sdk_avail(self, name: str) -> bool:
         """Helper to check if python SDK is importable for a given productivity resource name."""
         sdk_map = {
-            "OpenTelemetry": ["opentelemetry"],
-            "Grafana Tempo": ["opentelemetry.exporter.otlp"],
-            "Apache SkyWalking": ["skywalking"],
+            "Langfuse": ["langfuse"],
+            "Prometheus": ["prometheus_client"],
         }
         module_names = sdk_map.get(name, [])
         if not module_names:
@@ -115,8 +112,8 @@ class ProductivityResourceEvaluationService:
             .limit(1)
         ).first()
 
-        # Extract real values from DB for all three Productivity resources
-        real_values = {"OpenTelemetry": {}, "Grafana Tempo": {}, "Apache SkyWalking": {}}
+        # Extract real values from DB for Productivity resources
+        real_values = {"Langfuse": {}, "Prometheus": {}}
         for r_name in real_values.keys():
             try:
                 rows = self.session.scalars(
@@ -136,9 +133,8 @@ class ProductivityResourceEvaluationService:
 
         # The exact required metrics per the specification
         resource_metrics = {
-            "OpenTelemetry": ["worker_concurrency", "decision_branches", "human_complexity"],
-            "Grafana Tempo": ["execution_duration", "api_calls", "resolution_velocity"],
-            "Apache SkyWalking": ["token_depth", "throughput"]
+            "Langfuse": ["task_throughput", "latency", "execution_duration", "worker_activity", "concurrency", "success_rate", "failure_rate", "trace_count", "prompt_executions", "token_usage"],
+            "Prometheus": ["cpu", "memory", "queue_length", "infrastructure_health"]
         }
 
         results = []

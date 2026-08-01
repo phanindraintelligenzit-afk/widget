@@ -244,19 +244,27 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     
     def safe_float(val, default=0.0):
         try:
-            return float(val)
+            if val is not None:
+                return float(val)
         except (ValueError, TypeError):
-            return default
+            pass
+        try:
+            if default is not None:
+                return float(default)
+        except (ValueError, TypeError):
+            pass
+        return 0.0
             
-    t_d = safe_float(p_eval_map.get("Apache SkyWalking:token_depth"))
-    a_c = safe_float(p_eval_map.get("Grafana Tempo:api_calls"))
-    d_b = safe_float(p_eval_map.get("OpenTelemetry:decision_branches"))
+    # Extract complexity metrics from Langfuse & Prometheus
+    t_d = safe_float(p_eval_map.get("Langfuse:token_usage"), p_eval_map.get("Apache SkyWalking:token_depth"))
+    a_c = safe_float(p_eval_map.get("Langfuse:prompt_executions"), p_eval_map.get("Grafana Tempo:api_calls"))
+    d_b = safe_float(p_eval_map.get("Prometheus:queue_length"), p_eval_map.get("OpenTelemetry:decision_branches"))
     
     alpha1, alpha2, alpha3 = 0.001, 2.5, 5.0
     N_AI = completed_tasks
     
     e_c_ai = ((alpha1 * t_d) + (alpha2 * a_c) + (alpha3 * d_b)) / max(N_AI, 1)
-    e_c_human = safe_float(p_eval_map.get("OpenTelemetry:human_complexity"), 10.0)
+    e_c_human = safe_float(p_eval_map.get("Prometheus:human_complexity"), 10.0)
     
     gamma = e_c_ai / max(e_c_human, 0.0001) if e_c_ai > 0 else 1.0
     effective_output = completed_tasks * gamma
@@ -272,9 +280,14 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "token_depth": t_d,
         "api_calls": a_c,
         "decision_branches": d_b,
-        "worker_concurrency": safe_float(p_eval_map.get("OpenTelemetry:worker_concurrency"), 1.0),
-        "execution_duration": safe_float(p_eval_map.get("Grafana Tempo:execution_duration"), 0.0),
-        "throughput": safe_float(p_eval_map.get("Apache SkyWalking:throughput"), 0.0),
+        "worker_concurrency": safe_float(p_eval_map.get("Prometheus:concurrency"), 1.0),
+        "execution_duration": safe_float(p_eval_map.get("Langfuse:execution_duration"), 0.0),
+        "throughput": safe_float(p_eval_map.get("Langfuse:task_throughput"), 0.0),
+        "cpu_usage": safe_float(p_eval_map.get("Prometheus:cpu"), 0.0),
+        "memory_usage": safe_float(p_eval_map.get("Prometheus:memory"), 0.0),
+        "infrastructure_health": p_eval_map.get("Prometheus:infrastructure_health", "Healthy"),
+        "success_rate": safe_float(p_eval_map.get("Langfuse:success_rate"), 100.0),
+        "failure_rate": safe_float(p_eval_map.get("Langfuse:failure_rate"), 0.0),
         "resolution_velocity": safe_float(p_eval_map.get("Grafana Tempo:resolution_velocity"), 0.0),
         "human_baseline": h_base,
         "normalization_factor": gamma,
@@ -342,12 +355,15 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "stability_metrics": q_eval_map.get("AgentOps:stability_metrics") or sub_metrics["Q"].get("stability_metrics", "Unavailable"),
     })
     
-    # DeepEval and TruLens injected into Q
+    # DeepEval, TruLens, Confident AI injected into Q
     sub_metrics["Q"].update({
-        "answer_relevancy": q_eval_map.get("DeepEval:Answer Relevancy") or sub_metrics["Q"].get("answer_relevancy", "Unavailable"),
-        "faithfulness": q_eval_map.get("DeepEval:Faithfulness") or sub_metrics["Q"].get("faithfulness", "Unavailable"),
-        "hallucination": q_eval_map.get("DeepEval:Hallucination Score") or sub_metrics["Q"].get("hallucination", "Unavailable"),
-        "correctness": q_eval_map.get("DeepEval:Correctness") or sub_metrics["Q"].get("correctness", "Unavailable"),
+        "answer_relevancy": q_eval_map.get("Confident AI:answer_relevancy") or q_eval_map.get("DeepEval:Answer Relevancy") or sub_metrics["Q"].get("answer_relevancy", "Unavailable"),
+        "faithfulness": q_eval_map.get("Confident AI:faithfulness") or q_eval_map.get("DeepEval:Faithfulness") or sub_metrics["Q"].get("faithfulness", "Unavailable"),
+        "hallucination": q_eval_map.get("Confident AI:hallucination") or q_eval_map.get("DeepEval:Hallucination Score") or sub_metrics["Q"].get("hallucination", "Unavailable"),
+        "correctness": q_eval_map.get("Confident AI:correctness") or q_eval_map.get("DeepEval:Correctness") or sub_metrics["Q"].get("correctness", "Unavailable"),
+        "ground_truth_accuracy": q_eval_map.get("TruLens:ground_truth_accuracy") or sub_metrics["Q"].get("ground_truth_accuracy", "Unavailable"),
+        "trulens_faithfulness": q_eval_map.get("TruLens:trulens_faithfulness") or sub_metrics["Q"].get("trulens_faithfulness", "Unavailable"),
+        "hallucination_detection": q_eval_map.get("TruLens:hallucination_detection") or sub_metrics["Q"].get("hallucination_detection", "Unavailable"),
     })
     return sub_metrics
 
@@ -396,6 +412,19 @@ def enrich_validation_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "correctness": v_eval_map.get("DeepEval:Correctness") or sub_metrics["V"].get("correctness", "Unavailable"),
         "evaluation_status": v_eval_map.get("DeepEval:Evaluation Status") or sub_metrics["V"].get("evaluation_status", "Unavailable"),
         "evaluation_count": v_eval_map.get("DeepEval:Evaluation Count") or sub_metrics["V"].get("evaluation_count", "Unavailable"),
+
+        "structural_validation": v_eval_map.get("Guardrails AI:structural_validation") or sub_metrics["V"].get("structural_validation", "Unavailable"),
+        "schema_enforcement": v_eval_map.get("Guardrails AI:schema_enforcement") or sub_metrics["V"].get("schema_enforcement", "Unavailable"),
+        "guardrails_passed": v_eval_map.get("Guardrails AI:guardrails_passed") or sub_metrics["V"].get("guardrails_passed", "Unavailable"),
+        "guardrails_failed": v_eval_map.get("Guardrails AI:guardrails_failed") or sub_metrics["V"].get("guardrails_failed", "Unavailable"),
+        
+        "type_safe_parsing": v_eval_map.get("Pydantic AI:type_safe_parsing") or sub_metrics["V"].get("type_safe_parsing", "Unavailable"),
+        "validation_errors": v_eval_map.get("Pydantic AI:validation_errors") or sub_metrics["V"].get("validation_errors", "Unavailable"),
+        "schema_validation": v_eval_map.get("Pydantic AI:schema_validation") or sub_metrics["V"].get("schema_validation", "Unavailable"),
+        
+        "structured_output_validation": v_eval_map.get("Instructor:structured_output_validation") or sub_metrics["V"].get("structured_output_validation", "Unavailable"),
+        "schema_mapping": v_eval_map.get("Instructor:schema_mapping") or sub_metrics["V"].get("schema_mapping", "Unavailable"),
+        "instructor_passed": v_eval_map.get("Instructor:instructor_passed") or sub_metrics["V"].get("instructor_passed", "Unavailable"),
     })
     return sub_metrics
 

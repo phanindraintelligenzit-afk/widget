@@ -411,7 +411,8 @@ class EnterpriseValidationEvaluationService:
                     .where(EvalRow.metric == metric)
                 )
                 if existing and existing.status == "SUCCESS" and existing.agent_executed:
-                    continue
+                    if live_val is None:
+                        continue
                 if existing is None:
                     self.session.add(EvalRow(
                         resource_name=adapter.name,

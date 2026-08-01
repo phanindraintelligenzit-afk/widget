@@ -327,6 +327,19 @@
       dependencies: { val: dependencies, calc: dependencies, disp: dependencies, formula: "Dependency Graph", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
       request_duration: { val: requestDuration, calc: requestDuration, disp: requestDuration, formula: "Request Duration", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
       error_count: { val: errorCount, calc: errorCount, disp: errorCount, formula: "Error Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
+      structural_validation: { val: sub.structural_validation || "Unavailable", calc: sub.structural_validation || "Unavailable", disp: sub.structural_validation || "Unavailable", formula: "Structural Validation", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
+      schema_enforcement: { val: sub.schema_enforcement || "Unavailable", calc: sub.schema_enforcement || "Unavailable", disp: sub.schema_enforcement || "Unavailable", formula: "Schema Enforcement", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
+      guardrails_passed: { val: sub.guardrails_passed || "Unavailable", calc: sub.guardrails_passed || "Unavailable", disp: sub.guardrails_passed || "Unavailable", formula: "Passed Count", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
+      guardrails_failed: { val: sub.guardrails_failed || "Unavailable", calc: sub.guardrails_failed || "Unavailable", disp: sub.guardrails_failed || "Unavailable", formula: "Failed Count", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
+      
+      type_safe_parsing: { val: sub.type_safe_parsing || "Unavailable", calc: sub.type_safe_parsing || "Unavailable", disp: sub.type_safe_parsing || "Unavailable", formula: "Type-Safe Parsing", src: "Pydantic AI", resource: "Pydantic AI", dec: 0 },
+      validation_errors: { val: sub.validation_errors || "Unavailable", calc: sub.validation_errors || "Unavailable", disp: sub.validation_errors || "Unavailable", formula: "Validation Errors", src: "Pydantic AI", resource: "Pydantic AI", dec: 0 },
+      schema_validation: { val: sub.schema_validation || "Unavailable", calc: sub.schema_validation || "Unavailable", disp: sub.schema_validation || "Unavailable", formula: "Schema Validation", src: "Pydantic AI", resource: "Pydantic AI", dec: 0 },
+      
+      structured_output_validation: { val: sub.structured_output_validation || "Unavailable", calc: sub.structured_output_validation || "Unavailable", disp: sub.structured_output_validation || "Unavailable", formula: "Output Validation", src: "Instructor", resource: "Instructor", dec: 0 },
+      schema_mapping: { val: sub.schema_mapping || "Unavailable", calc: sub.schema_mapping || "Unavailable", disp: sub.schema_mapping || "Unavailable", formula: "Schema Mapping", src: "Instructor", resource: "Instructor", dec: 0 },
+      instructor_passed: { val: sub.instructor_passed || "Unavailable", calc: sub.instructor_passed || "Unavailable", disp: sub.instructor_passed || "Unavailable", formula: "Passed Check", src: "Instructor", resource: "Instructor", dec: 0 },
+
 
       trace_timeline: { val: traceTimeline, calc: traceTimeline, disp: traceTimeline, formula: "Trace Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
       span_timeline: { val: spanTimeline, calc: spanTimeline, disp: spanTimeline, formula: "Span Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
@@ -361,6 +374,14 @@
       hallucination_analysis: { val: sub.hallucination_analysis || "Unavailable", calc: sub.hallucination_analysis || "Unavailable", disp: sub.hallucination_analysis || "Unavailable", formula: "Hallucination Rate", src: "LangSmith", resource: "LangSmith", dec: 3 },
       prompt_evaluation: { val: sub.prompt_evaluation || "Unavailable", calc: sub.prompt_evaluation || "Unavailable", disp: sub.prompt_evaluation || "Unavailable", formula: "Prompt Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
       context_evaluation: { val: sub.context_evaluation || "Unavailable", calc: sub.context_evaluation || "Unavailable", disp: sub.context_evaluation || "Unavailable", formula: "Context Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
+      ground_truth_accuracy: { val: sub.ground_truth_accuracy || "Unavailable", calc: sub.ground_truth_accuracy || "Unavailable", disp: sub.ground_truth_accuracy || "Unavailable", formula: "Ground Truth Accuracy", src: "TruLens", resource: "TruLens", dec: 3 },
+      trulens_faithfulness: { val: sub.trulens_faithfulness || "Unavailable", calc: sub.trulens_faithfulness || "Unavailable", disp: sub.trulens_faithfulness || "Unavailable", formula: "Faithfulness", src: "TruLens", resource: "TruLens", dec: 3 },
+      hallucination_detection: { val: sub.hallucination_detection || "Unavailable", calc: sub.hallucination_detection || "Unavailable", disp: sub.hallucination_detection || "Unavailable", formula: "Hallucination Detection", src: "TruLens", resource: "TruLens", dec: 3 },
+      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
+      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
+      hallucination: { val: sub.hallucination || "Unavailable", calc: sub.hallucination || "Unavailable", disp: sub.hallucination || "Unavailable", formula: "Hallucination Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
+      correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
+
 
       semantic_accuracy: { val: sub.semantic_accuracy || "Unavailable", calc: sub.semantic_accuracy || "Unavailable", disp: sub.semantic_accuracy || "Unavailable", formula: "Semantic Accuracy (QA)", src: "Ragas", resource: "Ragas", dec: 3 },
       faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "Ragas", resource: "Ragas", dec: 3 },
@@ -1203,21 +1224,27 @@
     }
 
     return {
-      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 0 },
-      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
-      api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
-      execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
-      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
-      throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 2 },
-      resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Raw Value", src: "Grafana Tempo", resource: "Grafana Tempo", dec: 2 },
+      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 0 },
+      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "Prometheus", resource: "Prometheus", dec: 2 },
+      api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Langfuse", resource: "Langfuse", dec: 3 },
+      throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      cpu_usage: { val: sub.cpu_usage, calc: sub.cpu_usage, disp: sub.cpu_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
+      memory_usage: { val: sub.memory_usage, calc: sub.memory_usage, disp: sub.memory_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
+      infrastructure_health: { val: sub.infrastructure_health, calc: sub.infrastructure_health, disp: sub.infrastructure_health, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 0 },
+      success_rate: { val: sub.success_rate, calc: sub.success_rate, disp: sub.success_rate, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      failure_rate: { val: sub.failure_rate, calc: sub.failure_rate, disp: sub.failure_rate, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       assigned_tasks: { val: sub.assigned, calc: sub.assigned, disp: sub.assigned, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       completed_tasks: { val: sub.completed, calc: sub.completed, disp: sub.completed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       failed_tasks: { val: sub.failed, calc: sub.failed, disp: sub.failed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "Raw Value", src: "Settings Layer", resource: "Settings Layer", dec: 3 },
-      human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 3 },
+      human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 3 },
       normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
       effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
       Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Backend Engine", dec: 4 },
+      AI_Complexity: { val: sub['E[C_AI]'], calc: sub['E[C_AI]'], disp: sub['E[C_AI]'], formula: "Raw Value", src: "Backend Engine", resource: "Backend Engine", dec: 3 }
     };
   }
 
@@ -1245,87 +1272,143 @@
       return Math.abs(c - d) < 0.001 ? "MATCH" : "MISMATCH";
     };
 
-    const METRIC_NICE_NAMES = {
-      worker_concurrency: "Worker Concurrency",
-      execution_duration: "Execution Duration",
-      throughput: "Throughput",
-      resolution_velocity: "Resolution Velocity",
-      human_baseline: "Human Baseline",
-      normalization_factor: "Normalization Factor (γ)",
-      effective_output: "Effective Output",
-      Productivity_Score: "Productivity Score"
-    };
-
-    let entries = Object.entries(metricsMap);
-    if (resourceFilter) {
-      entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
-    }
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
-    const rowHtml = entries.map(([key, r]) => {
-      const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
-      const calcStr = r.calc !== null && r.calc !== undefined ? r.calc : "Unavailable";
-      const dispStr = r.disp !== null && r.disp !== undefined ? r.disp : "Unavailable";
-      const matchStatus = checkMatch(calcStr, dispStr);
-      const statusColor = matchStatus === "MATCH" ? "#4ade80" : "#ef4444";
-      return `
-        <tr style="border-bottom:1px solid #1e293b;">
-          <td style="padding:10px 14px;color:#94a3b8;text-align:left;font-size:12px;">${METRIC_NICE_NAMES[key] || key}</td>
-          <td style="padding:10px 14px;color:#38bdf8;text-align:left;font-weight:700;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(valStr, r.dec)}</td>
-          <td style="padding:10px 14px;color:#e2e8f0;text-align:left;font-size:12px;">${r.formula || ''}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(calcStr, r.dec)}</td>
-          <td style="padding:10px 14px;color:#cbd5e1;text-align:left;font-size:12px;font-variant-numeric:tabular-nums;">${fmt(dispStr, r.dec)}</td>
-          <td style="padding:10px 14px;color:${statusColor};text-align:left;font-weight:bold;font-size:12px;">${matchStatus}</td>
-          <td style="padding:10px 14px;color:#facc15;text-align:left;font-size:12px;font-weight:600;">${r.src || ''}</td>
-        </tr>
-      `;
-    }).join("");
-
     const pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (pScoreVal * 15.0).toFixed(2);
     
-    return `
-      <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
-            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
-          </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
-            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
-          </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1, (Completed Tasks / Human Baseline) * γ)</div>
-          </div>
-        </div>
-      </div>
+    // Compute Threshold Bands
+    let band = "Excellent";
+    let action = "Matches/Exceeds Human Baseline";
+    let bandColor = "#4ade80";
+    if (pScoreVal < 0.50) {
+      band = "Critical Failure";
+      action = "Circuit Breaker Triggered (DevOps Alert)";
+      bandColor = "#ef4444";
+    } else if (pScoreVal < 0.90) {
+      band = "Acceptable";
+      action = "Prompt/Compute Optimization Required";
+      bandColor = "#facc15";
+    }
 
-      <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
-        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
+    return `
+      <div style="padding:20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b; color:#cbd5e1;">
+        <h2 style="color:#facc15;font-weight:800;margin-bottom:20px;text-transform:uppercase;">Productivity Dimension (P) Dashboard</h2>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          
+          <!-- 1. Formula Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">1. Formula Dashboard</div>
+            <div style="color:#38bdf8;font-size:14px;margin-bottom:8px;font-weight:800;">P = min ( 1, (AI Output × γ) / Human Baseline )</div>
+            <div style="font-size:12px;">AI Output: ${fmt(metricsMap.completed_tasks.val, 0)} × Normalization (γ): ${fmt(metricsMap.normalization_factor.val)}</div>
+            <div style="color:#64748b;margin:4px 0;">&darr;</div>
+            <div style="font-size:12px;">Effective Output: ${fmt(metricsMap.effective_output.val)}</div>
+            <div style="color:#64748b;margin:4px 0;">&darr;</div>
+            <div style="font-size:12px;">Bounding: min(1, ${fmt(metricsMap.effective_output.val)} / ${fmt(metricsMap.human_baseline.val)})</div>
+            <div style="color:#64748b;margin:4px 0;">&darr;</div>
+            <div style="font-size:14px;color:#4ade80;font-weight:800;">Final Score: ${fmt(pScoreVal, 4)}</div>
+          </div>
+
+          <!-- 2. Mathematical Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">2. Mathematical Dashboard</div>
+            <table style="width:100%;font-size:12px;text-align:left;">
+              <tr><td style="padding:4px 0;">Expected AI Complexity</td><td style="color:#38bdf8;">${fmt(metricsMap.AI_Complexity.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Expected Human Complexity</td><td style="color:#38bdf8;">${fmt(metricsMap.human_complexity.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Normalization Factor (γ)</td><td style="color:#facc15;">${fmt(metricsMap.normalization_factor.val)}</td></tr>
+              <tr><td style="padding:4px 0;">AI Output (Completed)</td><td style="color:#38bdf8;">${fmt(metricsMap.completed_tasks.val, 0)}</td></tr>
+              <tr><td style="padding:4px 0;">Human Baseline</td><td style="color:#38bdf8;">${fmt(metricsMap.human_baseline.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Effective Output</td><td style="color:#4ade80;">${fmt(metricsMap.effective_output.val)}</td></tr>
+            </table>
+          </div>
+
+          <!-- 3. Complexity Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">3. Complexity Dashboard</div>
+            <table style="width:100%;font-size:12px;text-align:left;">
+              <tr><td style="padding:4px 0;">Token Depth</td><td style="color:#38bdf8;">${fmt(metricsMap.token_depth.val)}</td></tr>
+              <tr><td style="padding:4px 0;">API Calls</td><td style="color:#38bdf8;">${fmt(metricsMap.api_calls.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Decision Branches</td><td style="color:#38bdf8;">${fmt(metricsMap.decision_branches.val)}</td></tr>
+            </table>
+            <div style="margin-top:8px;font-size:11px;color:#94a3b8;">Derives γ (Normalization Factor).</div>
+          </div>
+
+          <!-- 4. Throughput Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">4. Throughput Dashboard</div>
+            <table style="width:100%;font-size:12px;text-align:left;">
+              <tr><td style="padding:4px 0;">Assigned Tasks</td><td style="color:#38bdf8;">${fmt(metricsMap.assigned_tasks.val, 0)}</td></tr>
+              <tr><td style="padding:4px 0;">Completed Tasks</td><td style="color:#4ade80;">${fmt(metricsMap.completed_tasks.val, 0)}</td></tr>
+              <tr><td style="padding:4px 0;">Failed Tasks</td><td style="color:#ef4444;">${fmt(metricsMap.failed_tasks.val, 0)}</td></tr>
+              <tr><td style="padding:4px 0;">Worker Concurrency</td><td style="color:#facc15;">${fmt(metricsMap.worker_concurrency.val, 0)}</td></tr>
+              <tr><td style="padding:4px 0;">Execution Time</td><td style="color:#38bdf8;">${fmt(metricsMap.execution_duration.val)}s</td></tr>
+              <tr><td style="padding:4px 0;">Task Velocity</td><td style="color:#38bdf8;">${fmt(metricsMap.throughput.val)}</td></tr>
+            </table>
+          </div>
+
+          <!-- 5. Telemetry Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">5. Telemetry Dashboard</div>
+            <div style="font-size:12px;margin-bottom:4px;"><strong>Langfuse:</strong> ${metricsMap.execution_duration.val !== "Unavailable" ? "<span style='color:#4ade80'>Connected</span>" : "<span style='color:#ef4444'>Disconnected</span>"}</div>
+            <div style="font-size:12px;margin-bottom:4px;"><strong>Prometheus:</strong> ${metricsMap.cpu_usage.val !== "Unavailable" ? "<span style='color:#4ade80'>Connected</span>" : "<span style='color:#ef4444'>Disconnected</span>"}</div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:8px;">Runtime observations ingested via adapters.</div>
+          </div>
+
+          <!-- 6. Threshold Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">6. Threshold Dashboard</div>
+            <div style="font-size:14px;color:${bandColor};font-weight:800;margin-bottom:4px;">${band}</div>
+            <div style="font-size:12px;margin-bottom:8px;">Action: ${action}</div>
+            <table style="width:100%;font-size:11px;color:#94a3b8;text-align:left;">
+              <tr><td>P &ge; 0.90</td><td>Excellent</td></tr>
+              <tr><td>0.50 &le; P &lt; 0.90</td><td>Acceptable</td></tr>
+              <tr><td>P &lt; 0.50</td><td>Critical Failure</td></tr>
+            </table>
+          </div>
+
+          <!-- 7. Root Cause Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">7. Root Cause Dashboard</div>
+            <table style="width:100%;font-size:12px;text-align:left;">
+              <tr><td style="padding:4px 0;">Worker Saturation</td><td style="color:#38bdf8;">${fmt(metricsMap.worker_concurrency.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Queue Delay</td><td style="color:#38bdf8;">${fmt(metricsMap.decision_branches.val)}</td></tr>
+              <tr><td style="padding:4px 0;">Infrastructure</td><td style="color:${metricsMap.infrastructure_health.val === 'Healthy' ? '#4ade80' : '#ef4444'};">${metricsMap.infrastructure_health.val}</td></tr>
+            </table>
+          </div>
+
+          <!-- 8. Productivity Contract Dashboard -->
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+            <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">8. Productivity Contract Dashboard</div>
+            <table style="width:100%;font-size:12px;text-align:left;">
+              <tr><th>Field</th><th>Expected</th><th>Actual</th><th>Match</th></tr>
+              <tr><td>Throughput</td><td>${fmt(metricsMap.throughput.calc)}</td><td>${fmt(metricsMap.throughput.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.throughput.calc, metricsMap.throughput.disp)}</td></tr>
+              <tr><td>Concurrency</td><td>${fmt(metricsMap.worker_concurrency.calc)}</td><td>${fmt(metricsMap.worker_concurrency.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.worker_concurrency.calc, metricsMap.worker_concurrency.disp)}</td></tr>
+              <tr><td>Latency</td><td>${fmt(metricsMap.execution_duration.calc)}</td><td>${fmt(metricsMap.execution_duration.disp)}</td><td style="color:#4ade80">${checkMatch(metricsMap.execution_duration.calc, metricsMap.execution_duration.disp)}</td></tr>
+            </table>
+          </div>
+
         </div>
-        <table style="width:100%;border-collapse:collapse;text-align:left;">
-          <thead>
-            <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
-              <th style="padding:10px 14px;text-align:left;">Metric</th>
-              <th style="padding:10px 14px;text-align:left;">Value</th>
-              <th style="padding:10px 14px;text-align:left;">Formula</th>
-              <th style="padding:10px 14px;text-align:left;">Calculated</th>
-              <th style="padding:10px 14px;text-align:left;">Displayed</th>
-              <th style="padding:10px 14px;text-align:left;">Status</th>
-              <th style="padding:10px 14px;text-align:left;">Source</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowHtml || `<tr><td colspan="7" style="padding:15px;color:#64748b;text-align:center;">No Productivity telemetry mapped.</td></tr>`}
-          </tbody>
-        </table>
+
+        <!-- 9. Resource Comparison Dashboard -->
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:15px;">
+          <div style="color:#64748b;font-size:12px;font-weight:700;margin-bottom:8px;text-transform:uppercase;">9. Resource Comparison Dashboard</div>
+          <table style="width:100%;font-size:12px;text-align:left;border-collapse:collapse;">
+            <thead>
+              <tr style="border-bottom:1px solid #334155;color:#facc15;">
+                <th style="padding:8px 0;">Canonical Metric</th>
+                <th style="padding:8px 0;">Langfuse Value</th>
+                <th style="padding:8px 0;">Prometheus Value</th>
+                <th style="padding:8px 0;">Merged Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:8px 0;">Task Throughput</td><td>${fmt(metricsMap.throughput.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.throughput.val)}</td></tr>
+              <tr><td style="padding:8px 0;">Latency (Execution Duration)</td><td>${fmt(metricsMap.execution_duration.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.execution_duration.val)}</td></tr>
+              <tr><td style="padding:8px 0;">Worker Concurrency</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.worker_concurrency.val)}</td><td>${fmt(metricsMap.worker_concurrency.val)}</td></tr>
+              <tr><td style="padding:8px 0;">Success Rate</td><td>${fmt(metricsMap.success_rate.val)}</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.success_rate.val)}</td></tr>
+              <tr><td style="padding:8px 0;">CPU / Memory</td><td style="color:#64748b;">N/A</td><td>${fmt(metricsMap.cpu_usage.val)} / ${fmt(metricsMap.memory_usage.val)}</td><td>${fmt(metricsMap.cpu_usage.val)}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
     `;
   }
@@ -2451,12 +2534,18 @@
     }
         async _verifyDashboard(resource, metric) {
       try {
-        let endpoint = "cost-evaluation";
-        if (["Phoenix", "Traceloop"].includes(resource)) { endpoint = "execution-evaluation"; }
-        else if (["DeepEval", "Jaeger", "Zipkin"].includes(resource)) { endpoint = "validation-evaluation"; }
-        else if (["LangSmith", "Ragas", "AgentOps"].includes(resource)) { endpoint = "quality-evaluation"; }
-        else if (["Grafana Tempo", "Apache SkyWalking"].includes(resource)) { endpoint = "productivity-evaluation"; }
-        else if (["Rebuff", "LLMGuard", "TruLens"].includes(resource)) { endpoint = "risk-evaluation"; }
+        function getCat(m) {
+          const PROD_M = ["Langfuse", "Prometheus", "Grafana Tempo", "Apache SkyWalking"];
+          const COST_M = ["Grafana", "OpenLIT", "OpenCost"];
+          const VAL_M  = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
+          const QUAL_M = ["Phoenix", "Traceloop", "LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
+          if (PROD_M.includes(m)) return "productivity-evaluation";
+          if (COST_M.includes(m)) return "cost-evaluation";
+          if (VAL_M.includes(m))  return "validation-evaluation";
+          return "quality-evaluation";
+        }
+        let endpoint = getCat(resource);
+        if (["Rebuff", "LLMGuard", "TruLens"].includes(resource)) { endpoint = "risk-evaluation"; }
         else if (["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"].includes(resource)) { endpoint = "governance-evaluation"; }
         
         const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
@@ -2536,7 +2625,9 @@
         return 'other';
       }
 
-      const activeResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "OpenLIT", "OpenCost"];
+      const knownResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "OpenLIT", "OpenCost", "Guardrails AI", "Pydantic AI", "Instructor", "Confident AI"];
+      const apiResources = Array.from(new Set((this._results || []).map(r => r.resource_name)));
+      const activeResources = Array.from(new Set([...knownResources, ...apiResources]));
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
       // Group by resource → then by C/V/Q/P/R/G

@@ -60,41 +60,92 @@ class LangfuseAdapter(EnterpriseProductivityAdapter):
     sdk_modules = ("langfuse",)
     documentation_url = "https://langfuse.com/docs"
     metrics_supported = (
-        "Task Completion", "Pending Approvals", "Failed Executions",
-        "Resolution Velocity", "Agent Steps", "Token Usage",
-        "Cost Incurred"
+        "Total Traces", "Successful Traces", "Failed Traces", "Completed Tasks",
+        "Prompt Executions", "Generation Count", "Agent Sessions", "Workflow Executions",
+        "Tool Calls", "Latency", "Average Latency", "P95 Latency", "Execution Duration",
+        "Observation Count", "Prompt Tokens", "Completion Tokens", "Total Tokens",
+        "Cost", "Concurrency", "Active Sessions", "Trace Errors", "Success Rate",
+        "Failure Rate", "Retry Count", "Agent Runtime", "Execution Timeline", "Pending Approvals",
+        "Blocked No Access"
     )
 
 
 class PrometheusAdapter(EnterpriseProductivityAdapter):
     name = "Prometheus"
     sdk_modules = ("prometheus_client", "prometheus_api_client")
-    documentation_url = "https://prometheus.io/docs/introduction/overview/"
+    documentation_url = "https://prometheus.io/docs"
     metrics_supported = (
-        "Worker Concurrency", "Infrastructure Scale", "Permission Denials",
-        "Latency", "CPU Utilization", "Memory Usage", "Error Rate"
+        "CPU Usage", "Memory Usage", "Worker Utilization", "Pod Count",
+        "Replica Count", "Thread Count", "Queue Length", "Request Rate",
+        "Throughput", "Task Rate", "Completed Requests", "Failed Requests",
+        "Latency", "Response Time", "P95", "P99", "Network Throughput",
+        "Disk IO", "Autoscaling", "Worker Availability", "Node Health",
+        "Container Restarts", "Resource Saturation", "Infrastructure Health",
+        "Active Targets"
     )
 
 
 # ---- Canonical DPI-LS mapping ------------------------------------------
 
 PRODUCTIVITY_CANONICAL_MAP: dict[str, dict[str, str]] = {
-    "Completed Tasks": {
-        "Langfuse": "Task Completion",
+    "Task Throughput": {
+        "Langfuse": "Completed Tasks",
+        "Prometheus": "Throughput",
     },
-    "Failed Tasks": {
-        "Langfuse": "Failed Executions",
+    "Latency": {
+        "Langfuse": "Latency",
+        "Prometheus": "Latency",
     },
-    "Blocked/Pending": {
-        "Langfuse": "Pending Approvals",
-        "Prometheus": "Permission Denials",
+    "Execution Duration": {
+        "Langfuse": "Execution Duration",
+        "Prometheus": "Response Time",
+    },
+    "Worker Activity": {
+        "Langfuse": "Agent Sessions",
+        "Prometheus": "Worker Utilization",
     },
     "Concurrency": {
-        "Prometheus": "Worker Concurrency",
+        "Langfuse": "Concurrency",
+        "Prometheus": "Thread Count",
     },
-    "Velocity": {
-        "Langfuse": "Resolution Velocity",
-        "Prometheus": "Latency",
+    "Success Rate": {
+        "Langfuse": "Success Rate",
+        "Prometheus": "Completed Requests",
+    },
+    "Failure Rate": {
+        "Langfuse": "Failure Rate",
+        "Prometheus": "Failed Requests",
+    },
+    "Runtime Health": {
+        "Langfuse": "Agent Runtime",
+        "Prometheus": "Worker Availability",
+    },
+    "Infrastructure Health": {
+        "Prometheus": "Infrastructure Health",
+    },
+    "CPU": {
+        "Prometheus": "CPU Usage",
+    },
+    "Memory": {
+        "Prometheus": "Memory Usage",
+    },
+    "Queue Length": {
+        "Prometheus": "Queue Length",
+    },
+    "Trace Count": {
+        "Langfuse": "Total Traces",
+    },
+    "Prompt Executions": {
+        "Langfuse": "Prompt Executions",
+    },
+    "Token Usage": {
+        "Langfuse": "Total Tokens",
+    },
+    "Pending Approval": {
+        "Langfuse": "Pending Approvals",
+    },
+    "Blocked No Access": {
+        "Langfuse": "Blocked No Access",
     },
 }
 
@@ -150,62 +201,131 @@ class EnterpriseProductivityCollector:
         """Calculates P = min(1.0, (AI Tasks * Gamma) / Human Baseline)."""
         canon = self.canonical()
         
-        # Determine raw metrics
-        ai_tasks_completed = canon.get("Completed Tasks", {}).get("value", 0.0)
-        failed_tasks = canon.get("Failed Tasks", {}).get("value", 0.0)
-        blocked_tasks = canon.get("Blocked/Pending", {}).get("value", 0.0)
+        # Raw metrics for mathematical calculations
+        ai_tasks_completed = canon.get("Task Throughput", {}).get("value", 0.0)
+        failed_tasks = canon.get("Failure Rate", {}).get("value", 0.0)
+        blocked_tasks = canon.get("Blocked No Access", {}).get("value", 0.0)
         
-        if ai_tasks_completed == 0.0 and blocked_tasks > 0.0:
-             # Scenario: Agent severely bottlenecked (e.g. IAM permission denials blocking all tasks)
-             p_score = 0.0
-             band = "Critical Failure"
-             action = "Circuit Breaker Triggered (DevOps Alert)"
-        elif ai_tasks_completed == 0.0 and failed_tasks == 0.0 and blocked_tasks == 0.0:
-            # No data yet
+        # Complexity derivation (from Token Depth, API Calls, Decision Branches)
+        token_depth = canon.get("Token Usage", {}).get("value", 0.0)
+        api_calls = canon.get("Trace Count", {}).get("value", 0.0)
+        decision_branches = canon.get("Prompt Executions", {}).get("value", 0.0)
+        
+        # Baseline complexity values if telemetry isn't robust yet
+        if ai_tasks_completed == 0.0 and blocked_tasks == 0.0 and failed_tasks == 0.0:
             return {
                 "productivity_score": None,
-                "ai_tasks": None,
+                "ai_output": None,
                 "human_baseline": None,
                 "normalization_factor": None,
                 "effective_output": None,
-                "formula": "P = min(1.0, (AI Tasks * Gamma) / Human Baseline)",
+                "formula": "P = min(1, (AI Output * γ) / Human Baseline)",
                 "weight": 0.15,
                 "weighted_contribution": None,
                 "band": "No Data",
-                "action": "Awaiting Telemetry"
+                "action": "Awaiting Telemetry",
+                "complexity_dashboard": {},
+                "mathematical_dashboard": {}
             }
+            
+        # Complexity model
+        base_ai_complexity = 120.0
+        ai_complexity = base_ai_complexity + (token_depth * 0.001) + (api_calls * 0.5) + (decision_branches * 0.2)
+        human_complexity = 100.0  # Constant based on masterclass
+        
+        gamma = round(ai_complexity / human_complexity, 2)
+        effective_output = ai_tasks_completed * gamma
+        human_baseline = 40.0
+        
+        raw_p = effective_output / human_baseline
+        p_score = round(min(1.0, raw_p), 4)
+        
+        if p_score >= 0.90:
+            band = "Excellent"
+            action = "Scale Workers"
+        elif p_score >= 0.50:
+            band = "Acceptable"
+            action = "Optimization Required"
         else:
-            # Apply mathematical formula
-            # Default Gamma = 1.20, Human Baseline = 40 (as per the masterclass example)
-            # You can inject these via settings or environment variables in a real scenario
-            gamma = 1.20
-            human_baseline = 40.0
-            
-            effective_output = ai_tasks_completed * gamma
-            
-            p_score = round(min(1.0, effective_output / human_baseline), 4)
-            
-            if p_score >= 0.90:
-                band = "Excellent"
-                action = "Matches/Exceeds Human Baseline"
-            elif p_score >= 0.50:
-                band = "Acceptable"
-                action = "Prompt/Compute Optimization Required"
-            else:
-                band = "Critical Failure"
-                action = "Circuit Breaker Triggered (DevOps Alert)"
+            band = "Critical Failure"
+            action = "Investigate Bottlenecks / Infrastructure Alert"
+            if blocked_tasks > 0:
+                action = "Investigate IAM / Permission Denied"
+            elif canon.get("Queue Length", {}).get("value", 0) > 100:
+                action = "Investigate Queue"
+
+        mathematical_dashboard = {
+            "expected_ai_complexity": round(ai_complexity, 2),
+            "expected_human_complexity": human_complexity,
+            "normalization_factor": gamma,
+            "ai_output": ai_tasks_completed,
+            "human_baseline": human_baseline,
+            "effective_output": round(effective_output, 2),
+            "bounded_output": p_score,
+            "running_calculation": f"min(1, {round(effective_output,2)}/{human_baseline})",
+            "final_productivity_score": p_score,
+        }
+        
+        complexity_dashboard = {
+            "token_depth": token_depth,
+            "api_calls": api_calls,
+            "decision_branches": decision_branches,
+            "ai_complexity": round(ai_complexity, 2),
+            "human_complexity": human_complexity,
+            "normalization_factor": gamma,
+            "complexity_difference": round(ai_complexity - human_complexity, 2),
+            "complexity_trend": "Increasing" if ai_complexity > base_ai_complexity else "Stable"
+        }
+
+        throughput_dashboard = {
+            "completed_tasks": ai_tasks_completed,
+            "failed_tasks": failed_tasks,
+            "blocked_tasks": blocked_tasks,
+            "human_output": human_baseline,
+            "ai_output": ai_tasks_completed,
+            "effective_output": round(effective_output, 2),
+            "throughput_ratio": round(effective_output / human_baseline, 2) if human_baseline else 0.0,
+            "worker_concurrency": canon.get("Concurrency", {}).get("value", 0.0),
+            "queue_size": canon.get("Queue Length", {}).get("value", 0.0),
+            "execution_time": canon.get("Execution Duration", {}).get("value", 0.0),
+        }
+        
+        threshold_dashboard = {
+            "productivity_score": p_score,
+            "band": band,
+            "infrastructure_action": action,
+            "excellent_threshold": "P >= 0.90",
+            "acceptable_threshold": "0.50 <= P < 0.90",
+            "critical_threshold": "P < 0.50"
+        }
+        
+        root_cause_dashboard = {
+            "pending_approval": canon.get("Pending Approval", {}).get("value", 0.0),
+            "blocked_access": blocked_tasks,
+            "permission_denied": blocked_tasks,
+            "failed_tasks": failed_tasks,
+            "queue_delay": canon.get("Queue Length", {}).get("value", 0.0),
+            "worker_saturation": 1 if canon.get("Concurrency", {}).get("value", 0) > 50 else 0,
+            "low_throughput": 1 if p_score < 0.50 else 0,
+            "infrastructure_failure": 1 if failed_tasks > 10 else 0
+        }
 
         return {
             "productivity_score": p_score,
-            "ai_tasks": ai_tasks_completed,
-            "human_baseline": 40.0 if 'human_baseline' in locals() else None,
-            "normalization_factor": 1.20 if 'gamma' in locals() else None,
-            "effective_output": effective_output if 'effective_output' in locals() else None,
-            "formula": "P = min(1.0, (AI Tasks * Gamma) / Human Baseline)",
+            "ai_output": ai_tasks_completed,
+            "human_baseline": human_baseline,
+            "normalization_factor": gamma,
+            "effective_output": round(effective_output, 2),
+            "formula": "P = min(1, (AI Output * γ) / Human Baseline)",
             "weight": 0.15,
-            "weighted_contribution": round(p_score * 0.15, 4) if p_score is not None else None,
+            "weighted_contribution": round(p_score * 0.15, 4),
             "band": band,
-            "action": action
+            "action": action,
+            "mathematical_dashboard": mathematical_dashboard,
+            "complexity_dashboard": complexity_dashboard,
+            "throughput_dashboard": throughput_dashboard,
+            "threshold_dashboard": threshold_dashboard,
+            "root_cause_dashboard": root_cause_dashboard,
         }
 
 
@@ -309,7 +429,8 @@ class EnterpriseProductivityEvaluationService:
                     .where(EvalRow.metric == metric)
                 )
                 if existing and existing.status == "SUCCESS" and existing.agent_executed:
-                    continue
+                    if live_val is None:
+                        continue
                 if existing is None:
                     self.session.add(EvalRow(
                         resource_name=adapter.name,

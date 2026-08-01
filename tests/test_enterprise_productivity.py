@@ -28,7 +28,7 @@ def test_enterprise_productivity_endpoints(client):
     assert resp.status_code == 200
     results = resp.json()
     assert len(results) > 10
-    langfuse_tasks = next((r for r in results if r["resource_name"] == "Langfuse" and r["metric"] == "Task Completion"), None)
+    langfuse_tasks = next((r for r in results if r["resource_name"] == "Langfuse" and r["metric"] == "Completed Tasks"), None)
     assert langfuse_tasks is not None
     assert langfuse_tasks["current_value"] == "0"
     assert langfuse_tasks["agent_executed"] is False
@@ -36,7 +36,7 @@ def test_enterprise_productivity_endpoints(client):
     # 4. Push telemetry
     push_resp = client.post("/api/enterprise-productivity/push", json={
         "adapter": "Langfuse",
-        "metric_name": "Task Completion",
+        "metric_name": "Completed Tasks",
         "value": 15.0,
         "passed": True,
         "expected": "10.0 tasks",
@@ -48,7 +48,7 @@ def test_enterprise_productivity_endpoints(client):
 
     push_resp = client.post("/api/enterprise-productivity/push", json={
         "adapter": "Prometheus",
-        "metric_name": "Worker Concurrency",
+        "metric_name": "Thread Count",
         "value": 5.0,
         "passed": True,
     })
@@ -57,12 +57,12 @@ def test_enterprise_productivity_endpoints(client):
     # 5. Check results after push
     resp = client.get("/api/enterprise-productivity/results")
     results = resp.json()
-    tasks = next(r for r in results if r["resource_name"] == "Langfuse" and r["metric"] == "Task Completion")
+    tasks = next(r for r in results if r["resource_name"] == "Langfuse" and r["metric"] == "Completed Tasks")
     assert tasks["current_value"] == "15.0"
     assert tasks["agent_executed"] is True
     assert tasks["status"] == "SUCCESS"
 
-    concurrency = next(r for r in results if r["resource_name"] == "Prometheus" and r["metric"] == "Worker Concurrency")
+    concurrency = next(r for r in results if r["resource_name"] == "Prometheus" and r["metric"] == "Thread Count")
     assert concurrency["current_value"] == "5.0"
     assert concurrency["agent_executed"] is True
 
@@ -77,9 +77,9 @@ def test_enterprise_productivity_endpoints(client):
     # Gamma = 1.20
     # Human Baseline = 40.0
     # P = min(1.0, (15.0 * 1.20) / 40.0) = min(1.0, 18.0 / 40.0) = min(1.0, 0.45) = 0.45
-    assert dash["ai_tasks"] == 15.0
+    assert dash["ai_output"] == 15.0
     assert dash["normalization_factor"] == 1.20
-    assert dash["human_baseline"] == 40.0
+    assert dash["effective_output"] == 18.0
     assert dash["productivity_score"] == 0.45
     assert dash["band"] == "Critical Failure"
     

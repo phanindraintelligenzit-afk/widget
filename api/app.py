@@ -1089,7 +1089,7 @@ def run_quality_evaluations(s: Session = Depends(db_session)) -> list[dict[str, 
     service = QualityResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"LangSmith", "Ragas", "AgentOps", "DeepEval", "TruLens"}
+    active_resources = {"LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"}
     return [
         {
             "id": r.id,
@@ -1116,7 +1116,7 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
         service.run_evaluations()
         s.commit()
         eval_rows = repo.list_latest_quality_resource_evaluations(s)
-    active_resources = {"LangSmith", "Ragas", "AgentOps", "DeepEval", "TruLens"}
+    active_resources = {"LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"}
     return [
         {
             "id": r.id,
