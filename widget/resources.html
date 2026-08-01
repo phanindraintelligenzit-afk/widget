@@ -953,7 +953,7 @@ function renderResourceTable(metrics, name) {
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Value</th>
         <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Evidence</th>
       </tr></thead><tbody>${rows}</tbody></table>`;
-  } else if (['DeepEval', 'Jaeger', 'Zipkin'].includes(name)) {
+  } else if (['DeepEval', 'Jaeger', 'Zipkin', 'Guardrails AI', 'Pydantic AI', 'Instructor'].includes(name)) {
     if (typeof window.renderValidationTableHtml === 'function') {
       const mergedSub = { ...chandraSub, ...liveMetrics };
       return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);

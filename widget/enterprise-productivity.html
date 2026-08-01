@@ -111,8 +111,12 @@
       font-family: "SF Mono", Menlo, monospace; font-size: 14px;
       color: #38bdf8; margin: 8px 0;
     }
-    .stat-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    .stat-grid-3 {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+      margin-top: 12px;
+    }
+    .stat-grid-2 {
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
       margin-top: 12px;
     }
     .stat {
@@ -215,11 +219,14 @@
         </span>
       </div>
       <div class="formula-eq" id="formula-eq">P = —</div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-label">Completed Tasks</div><div class="stat-val" id="p-tasks">—</div></div>
+      <div class="stat-grid-3">
+        <div class="stat"><div class="stat-label">AI Output (Completed)</div><div class="stat-val" id="p-tasks">—</div></div>
         <div class="stat"><div class="stat-label">Normalization (γ)</div><div class="stat-val" id="p-gamma">—</div></div>
-        <div class="stat"><div class="stat-label">Effective Output</div><div class="stat-val" id="p-effective">—</div></div>
+        <div class="stat"><div class="stat-label">Human Baseline</div><div class="stat-val" id="p-baseline">—</div></div>
+      </div>
+      <div class="stat-grid-2">
         <div class="stat"><div class="stat-label">Productivity Score</div><div class="stat-val" id="p-score">—</div></div>
+        <div class="stat"><div class="stat-label">Weighted (×15%)</div><div class="stat-val" id="p-weighted">—</div></div>
       </div>
     </div>
 
@@ -351,7 +358,7 @@
     function renderFormula(agent) {
       document.getElementById("p-tasks").textContent = agent.ai_tasks !== null ? agent.ai_tasks.toFixed(1) : "—";
       document.getElementById("p-gamma").textContent = agent.normalization_factor !== null ? agent.normalization_factor.toFixed(2) : "—";
-      document.getElementById("p-effective").textContent = agent.effective_output !== null ? agent.effective_output.toFixed(2) : "—";
+      document.getElementById("p-baseline").textContent = agent.human_baseline !== null ? agent.human_baseline.toFixed(1) : "—";
       
       const scoreEl = document.getElementById("p-score");
       scoreEl.textContent = agent.productivity_score !== null ? agent.productivity_score.toFixed(4) : "—";
@@ -363,9 +370,12 @@
 
         const f = `P = min(1.0, (${agent.ai_tasks.toFixed(1)} * ${agent.normalization_factor.toFixed(2)}) / ${agent.human_baseline.toFixed(1)}) = ${agent.productivity_score.toFixed(4)}`;
         document.getElementById("formula-eq").textContent = f;
+        document.getElementById("p-weighted").textContent = (agent.productivity_score * 15.0).toFixed(2);
+        document.getElementById("p-weighted").className = "stat-val green";
       } else {
         scoreEl.className = "stat-val amber";
         document.getElementById("formula-eq").textContent = "P = Not enough data to compute";
+        document.getElementById("p-weighted").textContent = "—";
       }
     }
 
