@@ -578,6 +578,26 @@ async function loadUrls() {
 }
 
 const RESOURCE_META = {
+
+  'Guardrails AI': {
+    name: 'Guardrails AI', icon: '🛡️', category: 'Validation', dpi_status: 'primary',
+    description: 'Structural validation and schema enforcement.',
+    dashboard_url: 'https://www.guardrailsai.com/docs', dashboard_label: 'Open Guardrails',
+    sdk: 'guardrails-ai'
+  },
+  'Pydantic AI': {
+    name: 'Pydantic AI', icon: '✨', category: 'Validation', dpi_status: 'primary',
+    description: 'Type-safe parsing and validation.',
+    dashboard_url: 'https://ai.pydantic.dev', dashboard_label: 'Open Pydantic AI',
+    sdk: 'pydantic-ai'
+  },
+  'Instructor': {
+    name: 'Instructor', icon: '🎓', category: 'Validation', dpi_status: 'primary',
+    description: 'Structured output validation for LLMs.',
+    dashboard_url: 'https://python.useinstructor.com', dashboard_label: 'Open Instructor',
+    sdk: 'instructor'
+  },
+
   "LLMGuard": {
     name: 'LLMGuard',
     icon: '🛡️', category: 'Risk & Security',
@@ -676,6 +696,24 @@ const RESOURCE_META = {
     dashboard_label: 'Open Grafana Cloud',
     color: '#f46800',
     sdk: 'grafana',
+  },
+  'OpenLIT': {
+    icon: '🔥', category: 'LLM Observability',
+    dpi_status: 'primary',
+    description: 'Tracks comprehensive metrics for LLM observability including tokens, latency, cost, and provider details.',
+    dashboard_url: 'http://localhost:3000',
+    dashboard_label: 'Open OpenLIT',
+    color: '#ff4d4d',
+    sdk: 'openlit',
+  },
+  'OpenCost': {
+    icon: '💸', category: 'Infrastructure Metrics',
+    dpi_status: 'primary',
+    description: 'Tracks infrastructure cost mapping to cluster nodes, pods, and assets.',
+    dashboard_url: 'http://localhost:9003',
+    dashboard_label: 'Open OpenCost',
+    color: '#10b981',
+    sdk: 'requests',
   },
   'DeepEval': {
     icon: '🔮', category: 'LLM Eval & Validation',
@@ -1174,13 +1212,15 @@ async function runEvaluation() {
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
-    const costResources = ["Prometheus", "Grafana"];
-    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
-    const qualResources = ["LangSmith", "Ragas", "AgentOps"];
-    const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
+    const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
+    const qualResources = ["LangSmith", "Ragas", "AgentOps", "DeepEval", "TruLens"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
     const execResources = ["Langfuse", "Phoenix", "Traceloop"];
-    const riskResources = ["LLMGuard", "Rebuff", "TruLens"];
-    const govResources = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
+    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
+    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')
@@ -1223,12 +1263,12 @@ async function loadData() {
     ]);
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok || !r7.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
-    const costResources = ["Prometheus", "Grafana", "OpenCost", "OpenLIT"];
-    const valResources = ["DeepEval", "Jaeger", "Zipkin"];
-    const qualResources = ["LangSmith", "Ragas", "AgentOps"];
-    const prodResources = ["OpenTelemetry", "Grafana Tempo", "Apache SkyWalking"];
-    const riskResources = ["LLMGuard", "Rebuff", "TruLens"];
-    const govResources = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets"];
+    const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
+    const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
+    const qualResources = ["LangSmith", "Ragas", "AgentOps", "DeepEval", "TruLens"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
+    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')

@@ -91,6 +91,8 @@ class Cost(BaseModel):
     model_cost: float = 0.0
     number_of_llm_calls: int = 0
     Human_cost: float = 0.0
+    infrastructure_cost: float = 0.0
+    tco: float = 0.0
 
 
 class AgentObservation(BaseModel):

@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>DPI-LS — Enterprise Productivity (P)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2d3148; --accent: #6366f1; --accent2: #8b5cf6;
+      --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+      --text: #f1f5f9; --muted: #94a3b8; --muted2: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 1400px; margin: 0 auto; padding: 0 0 40px;
+      color: var(--text); background: var(--bg);
+    }
+    .top-nav {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 32px; display: flex; align-items: center; gap: 32px;
+      height: 56px; margin-bottom: 32px; position: sticky; top: 0; z-index: 100;
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text; text-decoration: none; letter-spacing: -0.3px;
+    }
+    .nav-link {
+      padding: 6px 14px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      color: var(--muted); text-decoration: none;
+    }
+    .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .page-body { padding: 0 24px; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    .sub {
+      color: var(--muted); font-size: 14px; margin: 0 0 24px;
+      max-width: 900px; line-height: 1.55;
+    }
+    code {
+      background: #1e293b; color: #38bdf8; padding: 4px 10px;
+      border-radius: 5px; font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+      border: 1px solid #334155;
+    }
+    h2 {
+      font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--muted); margin: 30px 0 12px; font-weight: 700;
+    }
+
+    /* Resource cards */
+    .resources-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 18px; margin-bottom: 24px;
+    }
+    .resource-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; display: flex; flex-direction: column;
+      gap: 12px; transition: border-color 0.15s;
+    }
+    .resource-card:hover { border-color: var(--accent); }
+    .resource-card.status-ok    { border-left: 3px solid var(--green); }
+    .resource-card.status-warn  { border-left: 3px solid var(--amber); }
+    .rc-header {
+      display: flex; align-items: center; gap: 12px;
+    }
+    .rc-icon {
+      width: 44px; height: 44px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; background: rgba(99,102,241,0.15);
+    }
+    .rc-title { flex: 1; }
+    .rc-name { font-weight: 700; font-size: 16px; }
+    .rc-category { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .rc-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .rc-meta {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+      font-size: 11px;
+    }
+    .rc-meta-row { display: flex; justify-content: space-between; gap: 6px; }
+    .rc-meta-key { color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .rc-meta-val { color: var(--text); font-weight: 600; }
+    .rc-actions { display: flex; gap: 8px; margin-top: 4px; }
+    .btn {
+      padding: 8px 14px; border-radius: 8px; text-decoration: none;
+      font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;
+      border: 1px solid var(--border); cursor: pointer; background: transparent; color: var(--text);
+    }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: white; border: 1px solid transparent;
+    }
+    .btn.primary:hover { opacity: 0.9; }
+    .status-pill {
+      display: inline-block; padding: 3px 10px; border-radius: 999px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase;
+    }
+    .status-pill.ok    { background: rgba(16,185,129,0.15); color: var(--green); }
+    .status-pill.warn  { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .status-pill.bad   { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    /* Formula card */
+    .formula-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px; margin-bottom: 18px;
+    }
+    .formula-eq {
+      background: #0b1220; padding: 12px 16px; border-radius: 8px;
+      font-family: "SF Mono", Menlo, monospace; font-size: 14px;
+      color: #38bdf8; margin: 8px 0;
+    }
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      margin-top: 12px;
+    }
+    .stat {
+      background: #0b1220; border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+    }
+    .stat-label {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+    .stat-val { font-size: 22px; font-weight: 800; color: var(--accent); margin-top: 4px; }
+    .stat-val.green { color: var(--green); }
+    .stat-val.amber { color: var(--amber); }
+    .stat-val.red   { color: var(--red); }
+
+    /* Tables */
+    table.dpi {
+      width: 100%; border-collapse: collapse;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; font-size: 12px;
+    }
+    table.dpi th, table.dpi td {
+      padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border);
+    }
+    table.dpi th {
+      background: #0b1220; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+    }
+    table.dpi tr:hover td { background: rgba(99,102,241,0.05); }
+    .status-match    { color: var(--green); font-weight: 700; }
+    .status-mismatch { color: var(--red);   font-weight: 700; }
+
+    /* Gate banner */
+    .gate-safe {
+      background: rgba(16,185,129,0.10); border: 1px solid var(--green);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .gate-unsafe {
+      background: rgba(239,68,68,0.10); border: 1px solid var(--red);
+      border-radius: 10px; padding: 12px 16px; margin-bottom: 18px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .gate-icon { font-size: 22px; }
+
+    .empty {
+      padding: 24px; text-align: center; color: var(--muted);
+      background: var(--surface); border: 1px dashed var(--border);
+      border-radius: 10px; font-size: 13px;
+    }
+
+    /* Comparison table */
+    .compare-table {
+      width: 100%; border-collapse: collapse; margin-bottom: 24px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .compare-table th, .compare-table td {
+      padding: 10px 14px; text-align: center; font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .compare-table th:first-child, .compare-table td:first-child {
+      text-align: left; font-weight: 600;
+    }
+    .compare-table th {
+      background: #0b1220; color: var(--muted); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
+    }
+    .check { color: var(--green); font-weight: 900; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
+    <a href="/widget/demo.html" class="nav-link">Dashboard</a>
+    <a href="/widget/resources.html" class="nav-link">Resources</a>
+    <a href="/widget/enterprise-validation.html" class="nav-link">Enterprise Validation</a>
+    <a href="/widget/enterprise-quality.html" class="nav-link">Enterprise Quality</a>
+    <a href="/widget/enterprise-productivity.html" class="nav-link active">Enterprise Productivity</a>
+  </nav>
+
+  <div class="page-body">
+    <h1>Enterprise Productivity Dimension (P)</h1>
+    <p class="sub">
+      Live runtime telemetry from enterprise productivity frameworks —
+      <b>Langfuse</b> and <b>Prometheus</b> — normalized into the canonical DPI-LS Productivity model.
+      Zero mock data; every metric flows from runtime signal via
+      <code>/api/enterprise-productivity/push</code>. Formula stays exactly:
+      <code>P = min(1.0, (AI Tasks Completed × Normalization Factor) / Human Baseline)</code>.
+    </p>
+
+    <div id="gate-banner"></div>
+
+    <h2>Productivity Formula &amp; Bands</h2>
+    <div class="formula-card">
+      <div>
+        <code>P = min(1.0, (AI Tasks Completed × 1.20) / 40.0)</code>
+        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">
+          Bands: <b>≥0.90</b> (Excellent) / <b>≥0.50</b> (Acceptable) / <b>&lt;0.50</b> (Critical Failure).
+        </span>
+      </div>
+      <div class="formula-eq" id="formula-eq">P = —</div>
+      <div class="stat-grid">
+        <div class="stat"><div class="stat-label">Completed Tasks</div><div class="stat-val" id="p-tasks">—</div></div>
+        <div class="stat"><div class="stat-label">Normalization (γ)</div><div class="stat-val" id="p-gamma">—</div></div>
+        <div class="stat"><div class="stat-label">Effective Output</div><div class="stat-val" id="p-effective">—</div></div>
+        <div class="stat"><div class="stat-label">Productivity Score</div><div class="stat-val" id="p-score">—</div></div>
+      </div>
+    </div>
+
+    <h2>Resource Dashboard — Two enterprise productivity frameworks</h2>
+    <div id="resources-grid" class="resources-grid">
+      <div class="empty">Loading resources…</div>
+    </div>
+
+    <h2>Agent Dashboard — Normalized Canonical Metrics</h2>
+    <div id="canonical-table"><div class="empty">Waiting for runtime telemetry…</div></div>
+
+    <h2>Match Analysis — Expected vs Actual, Matched vs Mismatched</h2>
+    <div id="match-table"><div class="empty">No productivity events yet. Push events via <code>POST /api/enterprise-productivity/push</code>.</div></div>
+
+    <h2>Resource Comparison — Which framework contributes each canonical metric</h2>
+    <div id="compare-table-wrap"><div class="empty">Loading…</div></div>
+  </div>
+
+  <script>
+    const API = "";
+    const DOC_ICONS = {
+      "Langfuse": "📊",
+      "Prometheus":  "📈",
+    };
+
+    function h(tag, attrs, ...children) {
+      const el = document.createElement(tag);
+      Object.entries(attrs || {}).forEach(([k, v]) => {
+        if (k === "class") el.className = v;
+        else if (k === "style") el.setAttribute("style", v);
+        else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v);
+      });
+      for (const c of children.flat()) {
+        if (c === null || c === undefined) continue;
+        el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+      }
+      return el;
+    }
+
+    async function loadAll() {
+      const [urls, results, agent] = await Promise.all([
+        fetch(`${API}/api/enterprise-productivity/urls`).then(r => r.json()).catch(() => ({})),
+        fetch(`${API}/api/enterprise-productivity/results`).then(r => r.json()).catch(() => []),
+        fetch(`${API}/api/enterprise-productivity/agent-dashboard`).then(r => r.json()).catch(() => null),
+      ]);
+      renderResources(urls, results);
+      if (agent) {
+        renderFormula(agent);
+        renderGate(agent);
+        renderCanonical(agent.canonical_metrics || {});
+        renderMatch(agent.match_analysis || []);
+        renderComparison(agent, results);
+      }
+    }
+
+    function renderResources(urls, results) {
+      const grouped = {};
+      for (const r of results) {
+        (grouped[r.resource_name] ||= []).push(r);
+      }
+      const container = document.getElementById("resources-grid");
+      container.innerHTML = "";
+      const names = Object.keys(urls);
+      if (!names.length) {
+        container.appendChild(h("div", { class: "empty" }, "No enterprise productivity resources registered."));
+        return;
+      }
+      for (const name of names) {
+        const info = urls[name];
+        const metrics = grouped[name] || [];
+        const totalMetrics = metrics.length;
+        const succ = metrics.filter(m => m.status === "SUCCESS").length;
+        const live = metrics.filter(m => m.agent_executed).length;
+        const statusClass = succ > 0 ? "status-ok" : "status-warn";
+        const statusPill = succ > 0
+          ? h("span", { class: "status-pill ok" }, "READY")
+          : h("span", { class: "status-pill warn" }, "AWAITING SIGNAL");
+        const sdkPill = info.sdk_available
+          ? h("span", { class: "status-pill ok" }, "SDK INSTALLED")
+          : h("span", { class: "status-pill warn" }, "SDK NOT LOCAL");
+
+        container.appendChild(h("div", { class: `resource-card ${statusClass}` },
+          h("div", { class: "rc-header" },
+            h("div", { class: "rc-icon" }, DOC_ICONS[name] || "⭐"),
+            h("div", { class: "rc-title" },
+              h("div", { class: "rc-name" }, name),
+              h("div", { class: "rc-category" }, "Enterprise Productivity"),
+            ),
+            statusPill,
+          ),
+          h("div", { class: "rc-desc" }, descriptionOf(name)),
+          h("div", { class: "rc-meta" },
+            metaRow("Runtime", info.online ? "Online" : "Offline"),
+            metaRow("SDK", info.sdk_available ? "Installed" : "Not in venv"),
+            metaRow("Metrics", `${totalMetrics} supported`),
+            metaRow("Live", `${live} pushed`),
+          ),
+          h("div", { class: "rc-actions" },
+            h("a", { class: "btn primary", href: info.url, target: "_blank", rel: "noopener" },
+              "🔗 Open Resource"),
+            h("a", { class: "btn", href: info.url, target: "_blank", rel: "noopener" },
+              "📖 Documentation"),
+          ),
+        ));
+      }
+    }
+
+    function descriptionOf(name) {
+      return ({
+        "Langfuse":
+          "Evaluation framework for detailed tracing, telemetry, and tracking agent task completions, velocity, and blocks.",
+        "Prometheus":
+          "Infrastructure monitoring for tracking parallel thread count, concurrency limits, and system latencies.",
+      })[name] || "";
+    }
+    function metaRow(k, v) {
+      return h("div", { class: "rc-meta-row" },
+        h("span", { class: "rc-meta-key" }, k),
+        h("span", { class: "rc-meta-val" }, v),
+      );
+    }
+
+    function renderFormula(agent) {
+      document.getElementById("p-tasks").textContent = agent.ai_tasks !== null ? agent.ai_tasks.toFixed(1) : "—";
+      document.getElementById("p-gamma").textContent = agent.normalization_factor !== null ? agent.normalization_factor.toFixed(2) : "—";
+      document.getElementById("p-effective").textContent = agent.effective_output !== null ? agent.effective_output.toFixed(2) : "—";
+      
+      const scoreEl = document.getElementById("p-score");
+      scoreEl.textContent = agent.productivity_score !== null ? agent.productivity_score.toFixed(4) : "—";
+      
+      if (agent.productivity_score !== null) {
+        if (agent.productivity_score >= 0.90) scoreEl.className = "stat-val green";
+        else if (agent.productivity_score >= 0.50) scoreEl.className = "stat-val amber";
+        else scoreEl.className = "stat-val red";
+
+        const f = `P = min(1.0, (${agent.ai_tasks.toFixed(1)} * ${agent.normalization_factor.toFixed(2)}) / ${agent.human_baseline.toFixed(1)}) = ${agent.productivity_score.toFixed(4)}`;
+        document.getElementById("formula-eq").textContent = f;
+      } else {
+        scoreEl.className = "stat-val amber";
+        document.getElementById("formula-eq").textContent = "P = Not enough data to compute";
+      }
+    }
+
+    function renderGate(agent) {
+      const banner = document.getElementById("gate-banner");
+      banner.innerHTML = "";
+      if (agent.productivity_score !== null) {
+        if (agent.productivity_score < 0.50) {
+          banner.appendChild(h("div", { class: "gate-unsafe" },
+            h("span", { class: "gate-icon" }, "🚨"),
+            h("div", null,
+              h("div", { style: "font-weight:700;color:var(--red);font-size:14px;" },
+                "Critical Failure — Circuit Breaker Triggered (DevOps Alert)"),
+              h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+                `P=${agent.productivity_score.toFixed(3)} < 0.50. Agent is severely bottlenecked.`),
+            ),
+          ));
+        } else if (agent.productivity_score < 0.90) {
+          banner.appendChild(h("div", { class: "gate-unsafe", style: "background: rgba(245,158,11,0.1); border-color: var(--amber);" },
+            h("span", { class: "gate-icon" }, "⚠️"),
+            h("div", null,
+              h("div", { style: "font-weight:700;color:var(--amber);font-size:14px;" },
+                "Acceptable — Prompt/Compute Optimization Required"),
+              h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+                `0.50 ≤ P=${agent.productivity_score.toFixed(3)} < 0.90. Agent is underperforming the human benchmark.`),
+            ),
+          ));
+        } else {
+          banner.appendChild(h("div", { class: "gate-safe" },
+            h("span", { class: "gate-icon" }, "✅"),
+            h("div", null,
+              h("div", { style: "font-weight:700;color:var(--green);font-size:14px;" },
+                "Excellent — Matches/Exceeds Human Baseline"),
+              h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+                `P=${agent.productivity_score.toFixed(3)} ≥ 0.90. Agent throughput is exceptional.`),
+            ),
+          ));
+        }
+      } else {
+        banner.appendChild(h("div", { class: "gate-unsafe", style: "background: rgba(245,158,11,0.1); border-color: var(--amber);" },
+            h("span", { class: "gate-icon" }, "⏳"),
+            h("div", null,
+              h("div", { style: "font-weight:700;color:var(--amber);font-size:14px;" },
+                "No Data — Awaiting Telemetry"),
+              h("div", { style: "color:var(--muted);font-size:12px;margin-top:4px;" },
+                `Need runtime metrics for tasks.`),
+            ),
+          ));
+      }
+    }
+
+    function renderCanonical(canonical) {
+      const wrap = document.getElementById("canonical-table");
+      wrap.innerHTML = "";
+      const keys = Object.keys(canonical);
+      if (!keys.length) {
+        wrap.appendChild(h("div", { class: "empty" }, "No canonical metrics yet."));
+        return;
+      }
+      const tbl = h("table", { class: "dpi" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Canonical DPI-LS Metric"),
+          h("th", null, "Merged Value"),
+          h("th", null, "Contributing Adapters"),
+        )),
+        h("tbody", null, ...keys.sort().map(k => h("tr", null,
+          h("td", null, k.replace(/_/g, " ")),
+          h("td", null, String(canonical[k].value.toFixed(2))),
+          h("td", null, (canonical[k].sources || []).join(", ") || "—"),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    function renderMatch(rows) {
+      const wrap = document.getElementById("match-table");
+      wrap.innerHTML = "";
+      if (!rows.length) {
+        wrap.appendChild(h("div", { class: "empty" },
+          "No productivity events yet. Push events via ",
+          h("code", null, "POST /api/enterprise-productivity/push"), "."));
+        return;
+      }
+      const tbl = h("table", { class: "dpi" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Adapter"),
+          h("th", null, "Metric"),
+          h("th", null, "Value"),
+          h("th", null, "Expected"),
+          h("th", null, "Actual"),
+          h("th", null, "Status"),
+          h("th", null, "Correlation ID"),
+          h("th", null, "Timestamp"),
+        )),
+        h("tbody", null, ...rows.slice(-50).reverse().map(r => h("tr", null,
+          h("td", null, r.adapter),
+          h("td", null, r.metric_name),
+          h("td", null, r.value !== null ? r.value.toFixed(2) : "—"),
+          h("td", null, r.expected || "—"),
+          h("td", null, r.actual || "—"),
+          h("td", { class: r.matched ? "status-match" : "status-mismatch" }, r.status),
+          h("td", null, r.correlation_id || "—"),
+          h("td", null, new Date(r.timestamp).toLocaleString()),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    function renderComparison(agent, results) {
+      const canonicalMap = {
+        "Completed Tasks":     { "Langfuse": true, "Prometheus": false },
+        "Failed Tasks":        { "Langfuse": true, "Prometheus": false },
+        "Blocked/Pending":     { "Langfuse": true, "Prometheus": true },
+        "Concurrency":         { "Langfuse": false, "Prometheus": true },
+        "Velocity":            { "Langfuse": true, "Prometheus": true },
+      };
+      const wrap = document.getElementById("compare-table-wrap");
+      wrap.innerHTML = "";
+      const tbl = h("table", { class: "compare-table" },
+        h("thead", null, h("tr", null,
+          h("th", null, "Canonical DPI-LS Metric"),
+          h("th", null, "Langfuse"),
+          h("th", null, "Prometheus"),
+        )),
+        h("tbody", null, ...Object.keys(canonicalMap).map(k => h("tr", null,
+          h("td", null, k),
+          h("td", null, canonicalMap[k]["Langfuse"] ? h("span", { class: "check" }, "✓") : "—"),
+          h("td", null, canonicalMap[k]["Prometheus"]   ? h("span", { class: "check" }, "✓") : "—"),
+        ))),
+      );
+      wrap.appendChild(tbl);
+    }
+
+    loadAll();
+    setInterval(loadAll, 5000);
+  </script>
+</body>
+</html>

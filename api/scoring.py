@@ -233,6 +233,12 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         p_evals = repo.list_latest_productivity_resource_evaluations(s)
         if p_evals:
             p_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in p_evals}
+            
+        from store.models import EnterpriseProductivityResourceEvaluationRow
+        from sqlalchemy import select
+        ep_evals = s.scalars(select(EnterpriseProductivityResourceEvaluationRow)).all()
+        if ep_evals:
+            p_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in ep_evals})
 
     completed_tasks = sub_metrics["P"].get("completed") or 1
     
@@ -285,6 +291,12 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         if q_evals:
             q_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in q_evals}
 
+        from store.models import EnterpriseQualityResourceEvaluationRow
+        from sqlalchemy import select
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        if eq_evals:
+            q_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
+
     accuracy_str = sub_metrics["Q"].get("QA Accuracy") or q_eval_map.get("Ragas:semantic_accuracy", "Unavailable")
     consistency_str = sub_metrics["Q"].get("Consistency") or q_eval_map.get("AgentOps:consistency_measurement", "Unavailable")
     hallucination_str = sub_metrics["Q"].get("Hallucination Rate") or q_eval_map.get("LangSmith:hallucination_analysis", "Unavailable")
@@ -328,6 +340,62 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "consistency_measurement": consistency_str,
         "session_metrics": q_eval_map.get("AgentOps:session_metrics") or sub_metrics["Q"].get("session_metrics", "Unavailable"),
         "stability_metrics": q_eval_map.get("AgentOps:stability_metrics") or sub_metrics["Q"].get("stability_metrics", "Unavailable"),
+    })
+    
+    # DeepEval and TruLens injected into Q
+    sub_metrics["Q"].update({
+        "answer_relevancy": q_eval_map.get("DeepEval:Answer Relevancy") or sub_metrics["Q"].get("answer_relevancy", "Unavailable"),
+        "faithfulness": q_eval_map.get("DeepEval:Faithfulness") or sub_metrics["Q"].get("faithfulness", "Unavailable"),
+        "hallucination": q_eval_map.get("DeepEval:Hallucination Score") or sub_metrics["Q"].get("hallucination", "Unavailable"),
+        "correctness": q_eval_map.get("DeepEval:Correctness") or sub_metrics["Q"].get("correctness", "Unavailable"),
+    })
+    return sub_metrics
+
+def enrich_validation_sub_metrics(s: Session, sub_metrics: dict) -> dict:
+    if "V" not in sub_metrics:
+        return sub_metrics
+
+    v_eval_map = {}
+    if s is not None:
+        v_evals = repo.list_latest_validation_resource_evaluations(s)
+        if v_evals:
+            v_eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in v_evals}
+            
+        from store.models import EnterpriseValidationResourceEvaluationRow, EnterpriseQualityResourceEvaluationRow
+        from sqlalchemy import select
+        ev_evals = s.scalars(select(EnterpriseValidationResourceEvaluationRow)).all()
+        if ev_evals:
+            v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in ev_evals})
+            
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        if eq_evals:
+            v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
+
+    sub_metrics["V"].update({
+        "trace_id": v_eval_map.get("Jaeger:trace_id") or sub_metrics["V"].get("trace_id", "Unavailable"),
+        "validation_traces": v_eval_map.get("Jaeger:validation_traces") or sub_metrics["V"].get("validation_traces", "Unavailable"),
+        "span_count": v_eval_map.get("Jaeger:span_count") or sub_metrics["V"].get("span_count", "Unavailable"),
+        "latency": v_eval_map.get("Jaeger:latency") or sub_metrics["V"].get("latency", "Unavailable"),
+        "execution_time": v_eval_map.get("Jaeger:execution_time") or sub_metrics["V"].get("execution_time", "Unavailable"),
+        "dependencies": v_eval_map.get("Jaeger:dependencies") or sub_metrics["V"].get("dependencies", "Unavailable"),
+        "request_duration": v_eval_map.get("Jaeger:request_duration") or sub_metrics["V"].get("request_duration", "Unavailable"),
+        "error_count": v_eval_map.get("Jaeger:error_count") or sub_metrics["V"].get("error_count", "Unavailable"),
+        
+        "trace_timeline": v_eval_map.get("Zipkin:trace_timeline") or sub_metrics["V"].get("trace_timeline", "Unavailable"),
+        "span_timeline": v_eval_map.get("Zipkin:span_timeline") or sub_metrics["V"].get("span_timeline", "Unavailable"),
+        "service_calls": v_eval_map.get("Zipkin:service_calls") or sub_metrics["V"].get("service_calls", "Unavailable"),
+        "request_path": v_eval_map.get("Zipkin:request_path") or sub_metrics["V"].get("request_path", "Unavailable"),
+        "trace_latency": v_eval_map.get("Zipkin:trace_latency") or sub_metrics["V"].get("trace_latency", "Unavailable"),
+        "execution_timeline": v_eval_map.get("Zipkin:execution_timeline") or sub_metrics["V"].get("execution_timeline", "Unavailable"),
+        "error_timeline": v_eval_map.get("Zipkin:error_timeline") or sub_metrics["V"].get("error_timeline", "Unavailable"),
+        
+        # DeepEval in Validation (as expected by JS)
+        "answer_relevancy": v_eval_map.get("DeepEval:Answer Relevancy") or sub_metrics["V"].get("answer_relevancy", "Unavailable"),
+        "faithfulness": v_eval_map.get("DeepEval:Faithfulness") or sub_metrics["V"].get("faithfulness", "Unavailable"),
+        "hallucination": v_eval_map.get("DeepEval:Hallucination Score") or sub_metrics["V"].get("hallucination", "Unavailable"),
+        "correctness": v_eval_map.get("DeepEval:Correctness") or sub_metrics["V"].get("correctness", "Unavailable"),
+        "evaluation_status": v_eval_map.get("DeepEval:Evaluation Status") or sub_metrics["V"].get("evaluation_status", "Unavailable"),
+        "evaluation_count": v_eval_map.get("DeepEval:Evaluation Count") or sub_metrics["V"].get("evaluation_count", "Unavailable"),
     })
     return sub_metrics
 
@@ -605,6 +673,7 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
             "Validated Components": val,
             "Validation Score": v_score,
         }
+        res = enrich_validation_sub_metrics(s, res)
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")
         in_t = c_raw.get("input_tokens", 0) or 0
@@ -615,17 +684,19 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
         
         pc = in_t * settings.input_token_price
         cc = out_t * settings.output_token_price
-        mc = pc + cc
-        tco = mc + hc
+        mc = c_raw.get("model_cost", 0.0) or (pc + cc)
+        infra_cost = c_raw.get("infrastructure_cost", 0.0) or 0.0
+        tco = mc + hc + infra_cost
         
         c_raw["completed_outputs"] = obs.tasks.completed if obs.tasks else 1
         c_raw["input_token_price"] = settings.input_token_price
         c_raw["output_token_price"] = settings.output_token_price
-        c_raw["AI Cost Per Output"] = mc / max(c_raw["completed_outputs"], 1)
+        c_raw["AI Cost Per Output"] = (mc + infra_cost) / max(c_raw["completed_outputs"], 1)
         c_raw["Human Cost / Output"] = hc
         c_raw["Prompt Cost (USD)"] = pc
         c_raw["Completion Cost (USD)"] = cc
         c_raw["Model Cost (USD)"] = mc
+        c_raw["Infrastructure Cost (USD)"] = infra_cost
         c_raw["Token Cost (USD)"] = pc + cc
         c_raw["Total Cost (USD)"] = tco
         c_raw["Efficiency Ratio"] = hc / max(c_raw["AI Cost Per Output"], 0.000001)

@@ -164,18 +164,21 @@ def compute_C(
     model_cost: float,
     completed_outputs: int,
     utilization: float,
+    infrastructure_cost: float = 0.0,
 ) -> float:
     """C = min(1, human_cost_per_output / AI_cost_per_output) × utilization.
 
     The agent's per-output cost is derived here from the totals the
     caller already has on hand: ``model_cost / completed_outputs``.
     That keeps the contract's ``Cost`` model to just the three numbers
-    the dashboard shows (``input_tokens``, ``output_tokens``,
-    ``model_cost``) instead of forcing callers to pre-compute the
-    per-output figure.
+    The dropped fields (``ai_cost_per_output``, ``cloud_cost``,
+    ``systems_accessed``) were either a derived value or pure
+    observability. Removing them keeps the contract aligned with the
+    dashboard: what you see on the card is exactly what the model
+    carries.
 
     Edge cases (in priority order):
-    * ``model_cost <= 0``         → 1.0 (no spend reported → "free", maximum efficiency).
+    * ``model_cost <= 0 and infrastructure_cost <= 0``         → 1.0 (no spend reported → "free", maximum efficiency).
     * ``completed_outputs <= 0``  → treat as one output (avoids
       div-by-zero AND prevents a single huge ``model_cost`` from
       vanishing into a tiny per-output when the caller didn't supply
@@ -184,12 +187,12 @@ def compute_C(
       means the comparison is meaningless).
     * ``utilization`` is clamped to [0, 1].
     """
-    if model_cost <= 0:
+    if model_cost <= 0 and infrastructure_cost <= 0:
         return 1.0
     if human_cost_per_output <= 0:
         return 0.0
     outputs = completed_outputs if completed_outputs > 0 else 1
-    ai_cost_per_output = model_cost / outputs
+    ai_cost_per_output = (model_cost + infrastructure_cost) / outputs
     ratio = min(1.0, human_cost_per_output / ai_cost_per_output)
     util = min(1.0, utilization)
     return ratio * util
@@ -252,6 +255,7 @@ def metrics_from_observation(
         obs.cost.model_cost,
         obs.tasks.completed,
         settings.utilization,
+        obs.cost.infrastructure_cost,
     )
 
     return {"P": P, "Q": Q, "E": E, "G": G, "R": R, "V": V, "C": C}
@@ -330,6 +334,7 @@ def metrics_from_partial(
             # dimension from claiming a Strong band.
             partial.tasks.completed if partial.tasks is not None else 1,
             settings.utilization,
+            partial.cost.infrastructure_cost,
         )
         if partial.cost is not None
         else None

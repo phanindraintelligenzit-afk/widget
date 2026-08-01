@@ -100,7 +100,17 @@ def bootstrap() -> None:
             except Exception as eq_e:
                 print(f"[bootstrap] enterprise quality seeding failed: {eq_e}")
 
+            # Seeding ENTERPRISE Productivity dimension — Langfuse, Prometheus.
+            try:
+                from dpi_ls.enterprise_productivity_evaluation_service import (
+                    EnterpriseProductivityEvaluationService,
+                )
+                EnterpriseProductivityEvaluationService(session).run_evaluations()
+            except Exception as ep_e:
+                print(f"[bootstrap] enterprise productivity seeding failed: {ep_e}")
+
             session.commit()
+
 
             # Pre-populate Prometheus Gauges with the latest scores from DB on startup
             from api.scoring import update_prometheus_metrics
