@@ -82,5 +82,6 @@ filterwarnings = [
     "ignore:There is no current event loop:DeprecationWarning",
     "ignore:websockets.legacy is deprecated:DeprecationWarning",
     "ignore:websockets.server.WebSocketServerProtocol is deprecated:DeprecationWarning",
-    "ignore:Call to deprecated method __init__:DeprecationWarning"
+    "ignore:Call to deprecated method __init__:DeprecationWarning",
+    "ignore:The 'is_flag' and 'flag_value' parameters are not supported by Typer:DeprecationWarning"
 ]
