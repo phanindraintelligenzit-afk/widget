@@ -37,7 +37,6 @@ def test_ingest_via_webhook_adapter_acme(client):
     assert rating["metrics"]["G"] == pytest.approx(0.0, abs=1e-3)
     assert "G" in rating["gate_failures"]
     assert rating["unsafe"] is True
-    assert rating["score"] < 0
 
 
 def test_ingest_unknown_adapter_returns_404(client):

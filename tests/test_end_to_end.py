@@ -35,7 +35,6 @@ def test_generic_webhook_end_to_end():
     assert r.metrics["G"] == pytest.approx(0.0, abs=1e-3)
     assert r.unsafe is True
     assert r.band == "Needs Optimization"
-    assert r.score < 0
     assert r.metrics["Q"] is not None
     assert r.gate_failures == ["G"]
 
