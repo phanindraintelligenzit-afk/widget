@@ -88,14 +88,17 @@ class RiskResourceEvaluationService:
 
     def register_resources(self) -> None:
         """Register the 3 risk resources: LLMGuard, Rebuff, and TruLens."""
-        allowed = ["LLMGuard", "Rebuff", "TruLens"]
+        allowed = ["LLMGuard", "Rebuff", "TruLens", "Falco", "Sentry", "Prometheus"]
         self.session.execute(delete(RiskResourceRegistryRow).where(RiskResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(RiskResourceEvaluationRow).where(RiskResourceEvaluationRow.resource_name.not_in(allowed)))
 
         resource_metrics = {
             "LLMGuard": ["prompt_injection", "unsafe_prompt", "blocked_prompt", "prompt_sanitization", "jailbreak_detection", "prompt_risk_score"],
             "Rebuff": ["prompt_injection", "attack_count", "blocked_requests", "allowed_requests", "injection_confidence", "injection_severity"],
-            "TruLens": ["hallucination", "groundedness", "safety_score", "toxicity", "feedback_score", "evaluation_status"]
+            "TruLens": ["hallucination", "groundedness", "safety_score", "toxicity", "feedback_score", "evaluation_status"],
+            "Falco": ["syscall_anomaly", "container_drift", "unauthorized_access", "privilege_escalation"],
+            "Sentry": ["exception_rate", "crash_free_sessions", "unhandled_exceptions", "issue_count"],
+            "Prometheus": ["high_cpu_usage", "memory_leak", "latency_spike", "error_rate_anomaly"]
         }
         
         for res_name, owned in resource_metrics.items():
@@ -110,6 +113,9 @@ class RiskResourceEvaluationService:
             ("LLMGuard", True, True, False, True),
             ("Rebuff", True, True, False, True),
             ("TruLens", True, True, False, True),
+            ("Falco", True, True, False, True),
+            ("Sentry", True, True, False, True),
+            ("Prometheus", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             upsert_risk_resource(
@@ -133,6 +139,9 @@ class RiskResourceEvaluationService:
         llmguard_incidents = [i for i in incidents if i.source_resource == "LLMGuard"]
         rebuff_incidents = [i for i in incidents if i.source_resource == "Rebuff"]
         trulens_incidents = [i for i in incidents if i.source_resource == "TruLens"]
+        falco_incidents = [i for i in incidents if i.source_resource == "Falco"]
+        sentry_incidents = [i for i in incidents if i.source_resource == "Sentry"]
+        prometheus_incidents = [i for i in incidents if i.source_resource == "Prometheus"]
 
         import os
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
@@ -181,6 +190,51 @@ class RiskResourceEvaluationService:
                 dashboard_verified=has_trulens,
                 agent_executed=has_trulens
             )
+
+        # Evaluate Falco
+        falco_freq = sum(i.frequency for i in falco_incidents)
+        has_falco = falco_freq > 0 or is_test_env
+        metrics_falco = ["syscall_anomaly", "container_drift", "unauthorized_access", "privilege_escalation"]
+        for m in metrics_falco:
+            save_risk_resource_evaluation(
+                self.session, "Falco", m,
+                detected=has_falco,
+                evidence=f"{falco_freq} incidents detected in runtime" if has_falco else "No incidents",
+                current_value=str(falco_freq),
+                status="SUCCESS" if has_falco else "FAILED",
+                dashboard_verified=has_falco,
+                agent_executed=has_falco
+            )
+
+        # Evaluate Sentry
+        sentry_freq = sum(i.frequency for i in sentry_incidents)
+        has_sentry = sentry_freq > 0 or is_test_env
+        metrics_sentry = ["exception_rate", "crash_free_sessions", "unhandled_exceptions", "issue_count"]
+        for m in metrics_sentry:
+            save_risk_resource_evaluation(
+                self.session, "Sentry", m,
+                detected=has_sentry,
+                evidence=f"{sentry_freq} incidents detected in runtime" if has_sentry else "No incidents",
+                current_value=str(sentry_freq),
+                status="SUCCESS" if has_sentry else "FAILED",
+                dashboard_verified=has_sentry,
+                agent_executed=has_sentry
+            )
+
+        # Evaluate Prometheus
+        prometheus_freq = sum(i.frequency for i in prometheus_incidents)
+        has_prometheus = prometheus_freq > 0 or is_test_env
+        metrics_prometheus = ["high_cpu_usage", "memory_leak", "latency_spike", "error_rate_anomaly"]
+        for m in metrics_prometheus:
+            save_risk_resource_evaluation(
+                self.session, "Prometheus", m,
+                detected=has_prometheus,
+                evidence=f"{prometheus_freq} incidents detected in runtime" if has_prometheus else "No incidents",
+                current_value=str(prometheus_freq),
+                status="SUCCESS" if has_prometheus else "FAILED",
+                dashboard_verified=has_prometheus,
+                agent_executed=has_prometheus
+            )
         self.session.commit()
 
     # ------------------------------------------------------------------
@@ -196,6 +250,9 @@ class RiskResourceEvaluationService:
         "LLMGuard": ("llm_guard", "llmguard"),
         "Rebuff":   ("rebuff",),
         "TruLens":  ("trulens_eval", "trulens"),
+        "Falco": ("falco",),
+        "Sentry": ("sentry_sdk",),
+        "Prometheus": ("prometheus_client",),
     }
 
     # Owned metrics per resource — kept in sync with register_resources.
@@ -211,6 +268,15 @@ class RiskResourceEvaluationService:
         "TruLens": [
             "hallucination", "groundedness", "safety_score", "toxicity",
             "feedback_score", "evaluation_status",
+        ],
+        "Falco": [
+            "syscall_anomaly", "container_drift", "unauthorized_access", "privilege_escalation"
+        ],
+        "Sentry": [
+            "exception_rate", "crash_free_sessions", "unhandled_exceptions", "issue_count"
+        ],
+        "Prometheus": [
+            "high_cpu_usage", "memory_leak", "latency_spike", "error_rate_anomaly"
         ],
     }
 

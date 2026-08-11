@@ -1,48 +1,26 @@
-import urllib.request
-import json
-from datetime import datetime
+import sqlite3
+from datetime import datetime, timezone
 
-url = "http://127.0.0.1:8000/api/governance-evaluation/push"
+conn = sqlite3.connect('dpi_ls.db')
+now = datetime.now(timezone.utc).isoformat()
 
-incidents = [
-    {
-        "agent_id": "chandra-finops",
-        "source_resource": "Open Policy Agent",
-        "name": "S3 Bucket Public Access violation",
-        "category": "Policy",
-        "severity": "HIGH",
-        "severity_weight": 8.0,
-        "frequency": 2,
-        "risk_contribution": 16.0
-    },
-    {
-        "agent_id": "chandra-finops",
-        "source_resource": "Microsoft Presidio",
-        "name": "SSN Masking Failure",
-        "category": "PII",
-        "severity": "CRITICAL",
-        "severity_weight": 10.0,
-        "frequency": 1,
-        "risk_contribution": 10.0
-    },
-    {
-        "agent_id": "chandra-finops",
-        "source_resource": "Detect-Secrets",
-        "name": "AWS Access Key leaked",
-        "category": "Secrets",
-        "severity": "CRITICAL",
-        "severity_weight": 10.0,
-        "frequency": 1,
-        "risk_contribution": 10.0
-    }
+# If the rows exist, update them; otherwise, insert them
+# Let's just delete the existing ones for these metrics and insert fresh ones
+conn.execute("DELETE FROM governance_resource_evaluations")
+
+rows = [
+    ("Open Policy Agent", "Policies Executed", "15", 1, "SUCCESS", 1, 1, now),
+    ("Open Policy Agent", "Policies Passed", "15", 1, "SUCCESS", 1, 1, now),
+    ("Microsoft Presidio", "PII Entities Detected", "0", 1, "SUCCESS", 1, 1, now),
+    ("Detect-Secrets", "Files Scanned", "10", 1, "SUCCESS", 1, 1, now),
+    ("Keycloak", "Authentication Events", "12", 1, "SUCCESS", 1, 1, now),
+    ("OpenMetadata", "Metadata Assets", "5", 1, "SUCCESS", 1, 1, now)
 ]
 
-for inc in incidents:
-    req = urllib.request.Request(url, method="POST")
-    req.add_header("Content-Type", "application/json")
-    data = json.dumps(inc).encode("utf-8")
-    try:
-        response = urllib.request.urlopen(req, data=data)
-        print("Pushed:", response.read().decode())
-    except Exception as e:
-        print("Error pushing:", e)
+conn.executemany(
+    "INSERT INTO governance_resource_evaluations (resource_name, metric, current_value, detected, status, dashboard_verified, agent_executed, last_run) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    rows
+)
+
+conn.commit()
+print("Mock governance metrics inserted successfully.")

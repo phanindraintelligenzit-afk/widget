@@ -86,6 +86,38 @@ def post_rebuff(payload):
 
 post_rebuff(rebuff_payload)
 
+# Simulate Governance
+def post_governance(payload):
+    url = "http://127.0.0.1:8000/api/governance-evaluation/push"
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, method="POST", headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"[Governance {payload['source_resource']}] Response: {resp.status}")
+    except Exception as e:
+        print(f"[Governance {payload['source_resource']}] Push failed: {e}")
+
+post_governance({
+    "agent_id": "chandra-finops",
+    "source_resource": "Keycloak",
+    "name": "Unauthorized Access Attempt",
+    "category": "Denial",
+    "severity": "High",
+    "frequency": 2,
+    "trace_id": "trace-kc-1",
+    "span_id": "span-kc-1"
+})
+
+post_governance({
+    "agent_id": "chandra-finops",
+    "source_resource": "OpenMetadata",
+    "name": "Schema Violation",
+    "category": "Violation",
+    "severity": "High",
+    "frequency": 1,
+    "trace_id": "trace-om-1",
+    "span_id": "span-om-1"
+})
 print("Triggering quality evaluation pipeline...")
 try:
     url_quality = "http://127.0.0.1:8000/api/quality-evaluation/evaluate"

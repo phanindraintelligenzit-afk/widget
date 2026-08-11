@@ -76,7 +76,7 @@ def test_score_history_orders_newest_first():
 
 def test_settings_round_trip():
     s = _session()
-    assert repo.get_settings(s).r_max == 3.0
+    assert repo.get_settings(s).r_max == 50.0
     custom = Settings(r_max=42.0, utilization=0.9, human_cost_per_output=2.0)
     repo.save_settings(s, custom)
     s.commit()

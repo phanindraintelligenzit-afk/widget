@@ -67,6 +67,16 @@ def _sync_metrics_from_sub_metrics(
         except (TypeError, ValueError):
             pass
 
+    v_sub = sub_metrics.get("V") or {}
+    if (
+        metrics.get("V") is not None
+        and "Validation Score" in v_sub
+    ):
+        try:
+            metrics["V"] = float(v_sub["Validation Score"]) / 100.0
+        except (TypeError, ValueError):
+            pass
+
 
 def score_and_persist(
     s: Session,
@@ -489,6 +499,9 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
     llmguard = {"Prompt Injection Attempts": 0, "Unsafe Prompts": 0, "Blocked Prompts": 0, "Jailbreaks": 0, "Sanitized Prompts": 0}
     rebuff = {"Attack Count": 0, "Injection Attempts": 0, "Blocked Requests": 0, "Allowed Requests": 0, "Injection Confidence": 0}
     trulens = {"Hallucinations": 0, "Groundedness": 0, "Toxicity": 0, "Safety Score": 0, "Feedback Score": 0}
+    falco = {"Syscall Anomalies": 0, "Container Drifts": 0, "Unauthorized Access": 0, "Privilege Escalations": 0}
+    sentry = {"Exception Rate": 0, "Crash-Free Sessions": 0, "Unhandled Exceptions": 0, "Issues": 0}
+    prometheus = {"High CPU": 0, "Memory Leaks": 0, "Latency Spikes": 0, "Error Anomalies": 0}
 
     for inc in incidents:
         # Mock increment counters based on source/category for demonstration 
@@ -507,6 +520,21 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
             if "Hallucination" in inc["name"]: trulens["Hallucinations"] += inc["frequency"]
             elif "Toxic" in inc["name"]: trulens["Toxicity"] += inc["frequency"]
             else: trulens["Safety Score"] += inc["frequency"]
+        elif src == "Falco":
+            if "anomaly" in inc["name"].lower() or "syscall" in inc["name"].lower(): falco["Syscall Anomalies"] += inc["frequency"]
+            elif "drift" in inc["name"].lower(): falco["Container Drifts"] += inc["frequency"]
+            elif "unauthorized" in inc["name"].lower() or "access" in inc["name"].lower(): falco["Unauthorized Access"] += inc["frequency"]
+            else: falco["Privilege Escalations"] += inc["frequency"]
+        elif src == "Sentry":
+            if "exception" in inc["name"].lower() or "error" in inc["name"].lower(): sentry["Unhandled Exceptions"] += inc["frequency"]
+            elif "crash" in inc["name"].lower(): sentry["Crash-Free Sessions"] += inc["frequency"]
+            elif "rate" in inc["name"].lower(): sentry["Exception Rate"] += inc["frequency"]
+            else: sentry["Issues"] += inc["frequency"]
+        elif src == "Prometheus":
+            if "cpu" in inc["name"].lower(): prometheus["High CPU"] += inc["frequency"]
+            elif "memory" in inc["name"].lower(): prometheus["Memory Leaks"] += inc["frequency"]
+            elif "latency" in inc["name"].lower(): prometheus["Latency Spikes"] += inc["frequency"]
+            else: prometheus["Error Anomalies"] += inc["frequency"]
 
     sub_metrics["R"].update({
         "incidents": incidents,
@@ -528,24 +556,12 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dic
         "runtime_resources": {
             "LLMGuard": llmguard,
             "Rebuff": rebuff,
-            "TruLens": trulens
+            "TruLens": trulens,
+            "Falco": falco,
+            "Sentry": sentry,
+            "Prometheus": prometheus
         }
     })
-    return sub_metrics
-
-
-def enrich_validation_sub_metrics(s, sub_metrics: dict) -> dict:
-    if "V" not in sub_metrics:
-        sub_metrics["V"] = {}
-        
-    if s is not None:
-        from store.models import ValidationResourceEvaluationRow
-        from sqlalchemy import select
-        evals = s.scalars(select(ValidationResourceEvaluationRow)).all()
-        for r in evals:
-            if r.resource_name in ("Guardrails AI", "Pydantic AI", "Instructor"):
-                if r.current_value is not None and r.current_value != "Unavailable":
-                    sub_metrics["V"][r.metric] = r.current_value
     return sub_metrics
 
 def enrich_cost_sub_metrics(s, sub_metrics: dict) -> dict:
@@ -595,6 +611,8 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
     opa = {"Policies Executed": 0, "Policies Passed": 0, "Policies Failed": 0, "Denied Requests": 0, "Allowed Requests": 0}
     presidio = {"PII Entities Detected": 0, "Masked Entities": 0, "Mask Failure": 0}
     secrets = {"Secrets Found": 0, "Secrets Blocked": 0, "Critical Secrets": 0, "Files Scanned": 0, "Repositories Scanned": 0}
+    keycloak = {"Authentication Events": 0, "Authorization Events": 0, "Permission Denials": 0, "Failed Logins": 0}
+    openmetadata = {"Metadata Assets": 0, "Tables": 0, "Schemas": 0, "Schema Changes": 0, "Governance Coverage": 0}
 
     if s is not None:
         from store.models import GovernanceResourceEvaluationRow
@@ -620,6 +638,18 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
                         secrets[r.metric] = int(r.current_value)
                     except (TypeError, ValueError):
                         pass
+            elif r.resource_name == "Keycloak":
+                if r.metric in keycloak and r.current_value is not None:
+                    try:
+                        keycloak[r.metric] = int(r.current_value)
+                    except (TypeError, ValueError):
+                        pass
+            elif r.resource_name == "OpenMetadata":
+                if r.metric in openmetadata and r.current_value is not None:
+                    try:
+                        openmetadata[r.metric] = int(r.current_value)
+                    except (TypeError, ValueError):
+                        pass
 
     for inc in incidents:
         src = inc["source"]
@@ -631,6 +661,14 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
             presidio["Mask Failure"] += inc["frequency"]
         elif src == "Detect-Secrets":
             secrets["Secrets Found"] += inc["frequency"]
+        elif src == "Keycloak":
+            keycloak["Authentication Events"] += inc["frequency"]
+            if inc["severity"] == "High" or inc["category"] == "Denial":
+                keycloak["Permission Denials"] += inc["frequency"]
+        elif src == "OpenMetadata":
+            openmetadata["Metadata Assets"] += inc["frequency"]
+            if inc["severity"] == "High" or inc["category"] == "Violation":
+                openmetadata["Schema Changes"] += inc["frequency"]
 
     # --- Official DPI-LS governance formula, from runtime telemetry only ---
     # Total Actions = sum of real policy-gated actions executed across the
@@ -640,14 +678,18 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
         + (presidio.get("PII Entities Detected") or 0)
         + (secrets.get("Secrets Found") or 0)
         + (secrets.get("Files Scanned") or 0)
+        + (keycloak.get("Authentication Events") or 0)
+        + (keycloak.get("Authorization Events") or 0)
+        + (openmetadata.get("Metadata Assets") or 0)
+        + (openmetadata.get("Tables") or 0)
     )
     # Policy Violations = total observed governance incident frequency.
     policy_violations = sum(inc["frequency"] for inc in incidents)
 
-    if policy_violations <= 0:
-        g_formula_output = 1.0
+    if total_actions <= 0:
+        g_formula_output = 1.0 if policy_violations == 0 else 0.0
     else:
-        g_formula_output = max(0.0, 1.0 - (total_actions / policy_violations))
+        g_formula_output = max(0.0, 1.0 - (policy_violations / total_actions))
 
     sub_metrics["G"].update({
         "incidents": incidents,
@@ -659,7 +701,9 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
         "runtime_resources": {
             "Open Policy Agent": opa,
             "Microsoft Presidio": presidio,
-            "Detect-Secrets": secrets
+            "Detect-Secrets": secrets,
+            "Keycloak": keycloak,
+            "OpenMetadata": openmetadata
         }
     })
     return sub_metrics

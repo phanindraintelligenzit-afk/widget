@@ -385,23 +385,33 @@ def push_risk_incident(
     if has_incident:
         incident_obj = normalize_incident(payload, resource_name)
         
-        row = RiskIncidentRow(
-            incident_id=incident_obj.incident_id,
-            name=incident_obj.name,
-            category=incident_obj.category,
-            source_resource=incident_obj.source_resource,
-            agent_id=agent_id,
-            severity=incident_obj.severity,
-            severity_weight=incident_obj.severity_weight,
-            frequency=incident_obj.frequency,
-            risk_contribution=incident_obj.risk_contribution,
-            trace_id=incident_obj.trace_id,
-            span_id=incident_obj.span_id,
-            correlation_id=incident_obj.correlation_id,
-            status="NORMALIZED",
-        )
-        s.add(row)
-        incident_id = incident_obj.incident_id
+        from sqlalchemy import select
+        existing = None
+        if incident_obj.trace_id:
+            existing = s.scalar(select(RiskIncidentRow).where(RiskIncidentRow.trace_id == incident_obj.trace_id, RiskIncidentRow.agent_id == agent_id).limit(1))
+        if not existing and incident_obj.correlation_id:
+            existing = s.scalar(select(RiskIncidentRow).where(RiskIncidentRow.correlation_id == incident_obj.correlation_id, RiskIncidentRow.agent_id == agent_id).limit(1))
+            
+        if existing:
+            incident_id = existing.incident_id
+        else:
+            row = RiskIncidentRow(
+                incident_id=incident_obj.incident_id,
+                name=incident_obj.name,
+                category=incident_obj.category,
+                source_resource=incident_obj.source_resource,
+                agent_id=agent_id,
+                severity=incident_obj.severity,
+                severity_weight=incident_obj.severity_weight,
+                frequency=incident_obj.frequency,
+                risk_contribution=incident_obj.risk_contribution,
+                trace_id=incident_obj.trace_id,
+                span_id=incident_obj.span_id,
+                correlation_id=incident_obj.correlation_id,
+                status="NORMALIZED",
+            )
+            s.add(row)
+            incident_id = incident_obj.incident_id
     
     # Update the corresponding evaluation row so the dashboard reflects the real telemetry
     from store.models import RiskResourceEvaluationRow
@@ -1789,13 +1799,20 @@ def push_governance_incident(
         eval_row.status = "SUCCESS"
         eval_row.agent_executed = True
         eval_row.detected = True
+        
+        try:
+            curr = int(eval_row.current_value) if eval_row.current_value else 0
+        except ValueError:
+            curr = 0
+            
         if has_incident:
             eval_row.evidence = f"1 incident detected in runtime for {name}"
-            eval_row.current_value = "1"
         else:
-            eval_row.detected = True
             eval_row.evidence = "0 incidents detected during runtime check."
-            eval_row.current_value = "0"
+            
+        # Increment action count in both cases (violation or success)
+        eval_row.current_value = str(curr + 1)
+        
         eval_row.last_run = datetime.now(timezone.utc)
         
     s.commit()

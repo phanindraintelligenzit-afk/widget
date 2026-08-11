@@ -145,7 +145,7 @@
   }
 
   function fmtScore(n) {
-    return Number.isFinite(n) ? Math.round(n).toString() : "—";
+    return Number.isFinite(n) ? (Number.isInteger(n) ? n.toString() : n.toFixed(1)) : "—";
   }
 
   function fmtMetric(v) {
@@ -189,7 +189,7 @@
     return `
       <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">${escapeHtml(row.agent_name || row.agent_id)}</td>
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(row.score)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score)}</td>
         ${metricCells}
       </tr>
     `;
@@ -531,6 +531,8 @@
     const opa = resources["Open Policy Agent"] || {};
     const presidio = resources["Microsoft Presidio"] || {};
     const secrets = resources["Detect-Secrets"] || {};
+    const keycloak = resources["Keycloak"] || {};
+    const openmetadata = resources["OpenMetadata"] || {};
 
     // Official DPI-LS formula: G = 1 - (Total Actions / Policy Violations).
     // Both figures come exclusively from runtime telemetry.
@@ -539,10 +541,10 @@
 
     // Raw Governance value from the official formula (telemetry only).
     let gScoreVal;
-    if (policyViolations <= 0) {
-      gScoreVal = 1.0;
+    if (totalActions <= 0) {
+      gScoreVal = policyViolations === 0 ? 1.0 : 0.0;
     } else {
-      gScoreVal = 1.0 - (totalActions / policyViolations);
+      gScoreVal = Math.max(0.0, 1.0 - (policyViolations / totalActions));
     }
 
     // The engine-derived value (when supplied) is authoritative for the
@@ -552,7 +554,7 @@
 
     const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
     const metricsMap = {
-      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets", dec: 0 },
+      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
       "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
       "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "1 - (Total Actions / Policy Violations)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
     };
@@ -565,6 +567,12 @@
     }
     if (Object.keys(secrets).length > 0) {
        metricsMap["Secrets Found"] = { val: secrets["Secrets Found"] || 0, calc: secrets["Secrets Found"] || 0, disp: secrets["Secrets Found"] || 0, formula: "Secret Scans", src: "Detect-Secrets", resource: "Detect-Secrets", dec: 0 };
+    }
+    if (Object.keys(keycloak).length > 0) {
+       metricsMap["Authentication Events"] = { val: keycloak["Authentication Events"] || 0, calc: keycloak["Authentication Events"] || 0, disp: keycloak["Authentication Events"] || 0, formula: "Auth Events", src: "Keycloak", resource: "Keycloak", dec: 0 };
+    }
+    if (Object.keys(openmetadata).length > 0) {
+       metricsMap["Metadata Assets"] = { val: openmetadata["Metadata Assets"] || 0, calc: openmetadata["Metadata Assets"] || 0, disp: openmetadata["Metadata Assets"] || 0, formula: "Asset Count", src: "OpenMetadata", resource: "OpenMetadata", dec: 0 };
     }
 
     const fmt = (val, dec = 3) => {
@@ -629,6 +637,10 @@
           </tr>
         `).join("");
     }
+    const gateHtml = gScoreVal === 0.0 ? `<div style="margin-top:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:8px 12px;border-radius:6px;color:#fca5a5;font-size:11px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:14px;">⚠️</span>
+      <span>Governance Compliance Gate Fired. Score capped to 0.000 (100% Violation Rate)</span>
+    </div>` : '';
 
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
@@ -648,8 +660,17 @@
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 − (Total Actions / Policy Violations)</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 − (Policy Violations / Total Actions)</div>
           </div>
+        </div>
+        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Governance Calculation</div>
+          <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+            <div>Total Actions : ${totalActions}</div>
+            <div>Policy Violations : ${policyViolations}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Governance Score : 1 - (${policyViolations} / ${totalActions}) = ${gScoreVal.toFixed(3)}</div>
+          </div>
+          ${gateHtml}
         </div>
       </div>
 
@@ -753,6 +774,9 @@
     const llmguard = resources["LLMGuard"] || {};
     const trulens = resources["TruLens"] || {};
     const rebuff = resources["Rebuff"] || {};
+    const falco = resources["Falco"] || {};
+    const sentry = resources["Sentry"] || {};
+    const prometheus = resources["Prometheus"] || {};
 
     if (Object.keys(llmguard).length > 0) {
        metricsMap["LLMGuard Prompts Blocked"] = { val: llmguard["Blocked Prompts"] || 0, calc: llmguard["Blocked Prompts"] || 0, disp: llmguard["Blocked Prompts"] || 0, formula: "LLMGuard Telemetry", src: "LLMGuard", resource: "LLMGuard", dec: 0 };
@@ -764,6 +788,18 @@
     }
     if (Object.keys(rebuff).length > 0) {
        metricsMap["Rebuff Attack Count"] = { val: rebuff["Attack Count"] || 0, calc: rebuff["Attack Count"] || 0, disp: rebuff["Attack Count"] || 0, formula: "Rebuff Telemetry", src: "Rebuff", resource: "Rebuff", dec: 0 };
+    }
+    if (Object.keys(falco).length > 0) {
+       metricsMap["Falco Syscall Anomalies"] = { val: falco["Syscall Anomalies"] || 0, calc: falco["Syscall Anomalies"] || 0, disp: falco["Syscall Anomalies"] || 0, formula: "Falco Telemetry", src: "Falco", resource: "Falco", dec: 0 };
+       metricsMap["Falco Container Drifts"] = { val: falco["Container Drifts"] || 0, calc: falco["Container Drifts"] || 0, disp: falco["Container Drifts"] || 0, formula: "Falco Telemetry", src: "Falco", resource: "Falco", dec: 0 };
+    }
+    if (Object.keys(sentry).length > 0) {
+       metricsMap["Sentry Unhandled Exceptions"] = { val: sentry["Unhandled Exceptions"] || 0, calc: sentry["Unhandled Exceptions"] || 0, disp: sentry["Unhandled Exceptions"] || 0, formula: "Sentry Telemetry", src: "Sentry", resource: "Sentry", dec: 0 };
+       metricsMap["Sentry Crash-Free Sessions"] = { val: sentry["Crash-Free Sessions"] || 0, calc: sentry["Crash-Free Sessions"] || 0, disp: sentry["Crash-Free Sessions"] || 0, formula: "Sentry Telemetry", src: "Sentry", resource: "Sentry", dec: 0 };
+    }
+    if (Object.keys(prometheus).length > 0) {
+       metricsMap["Prometheus High CPU"] = { val: prometheus["High CPU"] || 0, calc: prometheus["High CPU"] || 0, disp: prometheus["High CPU"] || 0, formula: "Prometheus Telemetry", src: "Prometheus", resource: "Prometheus", dec: 0 };
+       metricsMap["Prometheus Latency Spikes"] = { val: prometheus["Latency Spikes"] || 0, calc: prometheus["Latency Spikes"] || 0, disp: prometheus["Latency Spikes"] || 0, formula: "Prometheus Telemetry", src: "Prometheus", resource: "Prometheus", dec: 0 };
     }
     
     const fmt = (val, dec = 3) => {
@@ -1975,7 +2011,7 @@
         if (allUpdated) {
           for (const item of data) {
             const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
-            const scoreToUse = typeof item.score === 'number' ? item.score : item.raw_score;
+            const scoreToUse = (item.raw_score !== undefined && item.raw_score !== null) ? item.raw_score : item.score;
             tr.cells[1].textContent = fmtScore(scoreToUse);
             
             const wm = item.weighted_metrics || {};
@@ -2509,8 +2545,8 @@
           return "quality-evaluation";
         }
         let endpoint = getCat(resource);
-        if (["Rebuff", "LLMGuard", "TruLens"].includes(resource)) { endpoint = "risk-evaluation"; }
-        else if (["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"].includes(resource)) { endpoint = "governance-evaluation"; }
+        if (["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"].includes(resource)) { endpoint = "risk-evaluation"; }
+        else if (["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"].includes(resource)) { endpoint = "governance-evaluation"; }
         
         const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
           method: "POST",
@@ -2589,7 +2625,7 @@
         return 'other';
       }
 
-      const knownResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "OpenLIT", "OpenCost", "Guardrails AI", "Pydantic AI", "Instructor", "Confident AI"];
+      const knownResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata", "OpenLIT", "OpenCost", "Guardrails AI", "Pydantic AI", "Instructor", "Confident AI"];
       const apiResources = Array.from(new Set((this._results || []).map(r => r.resource_name)));
       const activeResources = Array.from(new Set([...knownResources, ...apiResources]));
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));

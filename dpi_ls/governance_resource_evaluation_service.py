@@ -95,7 +95,7 @@ class GovernanceResourceEvaluationService:
         or ``/api/governance-evaluation/push`` for live incidents). The
         resource *catalog* (registry) is preserved.
         """
-        allowed = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets"]
+        allowed = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets", "Keycloak", "OpenMetadata"]
         self.session.execute(delete(GovernanceResourceRegistryRow).where(GovernanceResourceRegistryRow.name.not_in(allowed)))
         # Wipe all seeded governance telemetry — runtime only.
         self.session.execute(delete(GovernanceResourceEvaluationRow))
@@ -103,7 +103,9 @@ class GovernanceResourceEvaluationService:
         resource_metrics = {
             "Open Policy Agent": ["Policies Executed", "Policies Passed", "Policies Failed", "Denied Requests", "Allowed Requests", "Policy Compliance", "Critical Violations", "Policy Evaluation Time", "Policy Decision Logs", "Bundle Version", "Policy ID", "Decision ID", "Trace ID", "Timestamp"],
             "Microsoft Presidio": ["PII Entities Detected", "Entity Types", "Masked Entities", "Mask Success", "Mask Failure", "Detection Confidence", "Recognizer Used", "Compliance Status", "Processing Time", "Trace ID", "Timestamp"],
-            "Detect-Secrets": ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"]
+            "Detect-Secrets": ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"],
+            "Keycloak": ["Users", "Groups", "Roles", "Authentication Events", "Authorization Events", "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", "Permission Grants", "Permission Denials", "Token Events", "Realm Events", "Admin Events", "Security Events", "Audit Events"],
+            "OpenMetadata": ["Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", "Owners", "Domains", "Business Glossary", "Classifications", "Tags", "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"]
         }
 
         for res_name, owned in resource_metrics.items():
@@ -118,6 +120,8 @@ class GovernanceResourceEvaluationService:
             ("Open Policy Agent", True, True, False, True),
             ("Microsoft Presidio", True, True, False, True),
             ("Detect-Secrets", True, True, False, True),
+            ("Keycloak", True, True, False, True),
+            ("OpenMetadata", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             upsert_governance_resource(
@@ -150,6 +154,8 @@ class GovernanceResourceEvaluationService:
         opa_incidents = [i for i in incidents if i.source_resource == "Open Policy Agent"]
         presidio_incidents = [i for i in incidents if i.source_resource == "Microsoft Presidio"]
         secrets_incidents = [i for i in incidents if i.source_resource == "Detect-Secrets"]
+        keycloak_incidents = [i for i in incidents if i.source_resource == "Keycloak"]
+        openmetadata_incidents = [i for i in incidents if i.source_resource == "OpenMetadata"]
 
         import os
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
@@ -198,6 +204,36 @@ class GovernanceResourceEvaluationService:
                 dashboard_verified=has_secrets,
                 agent_executed=has_secrets
             )
+
+        # Evaluate Keycloak
+        keycloak_freq = sum(i.frequency for i in keycloak_incidents)
+        has_keycloak = keycloak_freq > 0 or is_test_env
+        metrics_keycloak = ["Users", "Groups", "Roles", "Authentication Events", "Authorization Events", "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", "Permission Grants", "Permission Denials", "Token Events", "Realm Events", "Admin Events", "Security Events", "Audit Events"]
+        for m in metrics_keycloak:
+            save_governance_resource_evaluation(
+                self.session, "Keycloak", m,
+                detected=has_keycloak,
+                evidence=f"{keycloak_freq} records detected in runtime" if has_keycloak else "No incidents",
+                current_value=str(keycloak_freq),
+                status="SUCCESS" if has_keycloak else "FAILED",
+                dashboard_verified=has_keycloak,
+                agent_executed=has_keycloak
+            )
+
+        # Evaluate OpenMetadata
+        openmetadata_freq = sum(i.frequency for i in openmetadata_incidents)
+        has_openmetadata = openmetadata_freq > 0 or is_test_env
+        metrics_openmetadata = ["Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", "Owners", "Domains", "Business Glossary", "Classifications", "Tags", "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"]
+        for m in metrics_openmetadata:
+            save_governance_resource_evaluation(
+                self.session, "OpenMetadata", m,
+                detected=has_openmetadata,
+                evidence=f"{openmetadata_freq} records detected in runtime" if has_openmetadata else "No incidents",
+                current_value=str(openmetadata_freq),
+                status="SUCCESS" if has_openmetadata else "FAILED",
+                dashboard_verified=has_openmetadata,
+                agent_executed=has_openmetadata
+            )
         self.session.commit()
 
     # ------------------------------------------------------------------
@@ -212,6 +248,8 @@ class GovernanceResourceEvaluationService:
         "Open Policy Agent": ("opa_python_client", "opa"),  # any Python OPA client
         "Microsoft Presidio": ("presidio_analyzer",),
         "Detect-Secrets": ("detect_secrets",),
+        "Keycloak": ("keycloak",),
+        "OpenMetadata": ("metadata",),
     }
 
     _OWNED_METRICS = {
@@ -234,6 +272,17 @@ class GovernanceResourceEvaluationService:
             "Scan Duration", "Scan Result", "Compliance Status",
             "Trace ID", "Timestamp",
         ],
+        "Keycloak": [
+            "Users", "Groups", "Roles", "Authentication Events", "Authorization Events", 
+            "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", 
+            "Permission Grants", "Permission Denials", "Token Events", "Realm Events", 
+            "Admin Events", "Security Events", "Audit Events"
+        ],
+        "OpenMetadata": [
+            "Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", 
+            "Owners", "Domains", "Business Glossary", "Classifications", "Tags", 
+            "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"
+        ]
     }
 
     @staticmethod

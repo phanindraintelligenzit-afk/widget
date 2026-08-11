@@ -504,6 +504,8 @@ let dashboardUrls = {
   'OpenTelemetry': { url: 'http://localhost:16686', online: false },
   'Grafana Tempo': { url: 'http://localhost:3200', online: false },
   'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
+  'Keycloak':      { url: 'https://www.keycloak.org/documentation', online: true },
+  'OpenMetadata':  { url: 'https://docs.open-metadata.org', online: true },
 };
 
 async function loadChandraData() {
@@ -640,6 +642,18 @@ const RESOURCE_META = {
     icon: '🔑', category: 'Governance',
     description: 'Enterprise secrets scanning to prevent credential leakage.',
     tags: ['Secrets', 'Scanning', 'Compliance']
+  },
+  "Keycloak": {
+    name: 'Keycloak',
+    icon: '🔐', category: 'Governance',
+    description: 'Open Source Identity and Access Management.',
+    tags: ['IAM', 'Authentication', 'Authorization']
+  },
+  "OpenMetadata": {
+    name: 'OpenMetadata',
+    icon: '📊', category: 'Governance',
+    description: 'Open standard for metadata, search, and lineage.',
+    tags: ['Metadata', 'Lineage', 'Catalog']
   },
   "Open Policy Agent": {
     name: 'Open Policy Agent',
@@ -959,7 +973,7 @@ function renderResourceTable(metrics, name) {
       return window.renderValidationTableHtml(mergedSub, settingsObj, chandraValidationValue, name);
     }
     return `<div style="padding:15px;color:#64748b;">Validation rendering logic missing.</div>`;
-  } else if (['Open Policy Agent', 'Microsoft Presidio', 'Detect-Secrets'].includes(name)) {
+  } else if (['Open Policy Agent', 'Microsoft Presidio', 'Detect-Secrets', 'Keycloak', 'OpenMetadata'].includes(name)) {
     if (typeof window.renderGovernanceTableHtml === 'function') {
       const mergedSub = { ...chandraGovSub, ...liveMetrics };
       return window.renderGovernanceTableHtml(mergedSub, settingsObj, chandraGovValue, name);
@@ -1197,7 +1211,7 @@ async function runEvaluation() {
     const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
     const execResources = ["Langfuse", "Phoenix", "Traceloop"];
     const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
-    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
+    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')
@@ -1245,7 +1259,7 @@ async function loadData() {
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
     const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
     const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
-    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent"];
+    const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
       .filter(r => r.resource_name === 'Langfuse')

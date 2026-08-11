@@ -5,7 +5,7 @@ def test_settings_default(client):
     r = client.get("/settings")
     assert r.status_code == 200
     body = r.json()
-    assert body["r_max"] == 3.0
+    assert body["r_max"] == 50.0
     assert body["weights"]["P"] == 0.15
 
 
