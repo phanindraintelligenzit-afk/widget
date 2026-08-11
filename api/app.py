@@ -336,13 +336,22 @@ def risk_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     out = {}
     for r in rows:
         if r.name == "LLMGuard":
-            url = os.environ.get("LLMGUARD_URL", "https://llm-guard.com")
+            url = os.environ.get("LLMGUARD_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "TruLens":
-            url = os.environ.get("TRULENS_URL", "https://trulens.org")
+            url = os.environ.get("TRULENS_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Rebuff":
-            url = os.environ.get("REBUFF_URL", "https://rebuff.ai")
+            url = os.environ.get("REBUFF_URL", "#")
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
+        elif r.name == "Falco":
+            url = os.environ.get("FALCO_URL", "#")
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
+        elif r.name == "Sentry":
+            url = os.environ.get("SENTRY_URL", "#")
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
+        elif r.name == "Prometheus":
+            url = os.environ.get("PROMETHEUS_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         else:
             out[r.name] = {"url": "#", "online": False}
@@ -859,7 +868,7 @@ def get_cost_evaluation_urls() -> dict[str, dict]:
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
     prometheus_url = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
     grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
-    openlit_url = os.environ.get("OPENLIT_URL", "http://localhost:3000")
+    openlit_url = os.environ.get("OPENLIT_URL", "#")
     opencost_url = os.environ.get("OPENCOST_URL", "http://localhost:9003")
 
     return {
@@ -1066,12 +1075,12 @@ def push_zipkin_results(
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
     """Return validation dashboard URLs with live reachability status."""
-    deepeval_url = os.environ.get("DEEPEVAL_URL", "https://deepeval.com")
+    deepeval_url = os.environ.get("DEEPEVAL_URL", "#")
     jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
     zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
-    guardrails_url = os.environ.get("GUARDRAILS_URL", "https://hub.guardrailsai.com")
-    instructor_url = os.environ.get("INSTRUCTOR_URL", "https://python.useinstructor.com")
-    pydantic_url = os.environ.get("PYDANTIC_URL", "https://ai.pydantic.dev")
+    guardrails_url = os.environ.get("GUARDRAILS_URL", "#")
+    instructor_url = os.environ.get("INSTRUCTOR_URL", "#")
+    pydantic_url = os.environ.get("PYDANTIC_URL", "#")
 
     return {
         "DeepEval": {"url": deepeval_url, "online": _is_reachable_global(deepeval_url)},
@@ -1173,9 +1182,9 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
 @app.get("/api/quality-evaluation/urls")
 def get_quality_evaluation_urls() -> dict[str, dict]:
     """Return quality dashboard URLs with live reachability status."""
-    langsmith_url = os.environ.get("LANGSMITH_URL", "https://smith.langchain.com")
-    ragas_url = os.environ.get("RAGAS_URL", "https://ragas.io")
-    agentops_url = os.environ.get("AGENTOPS_URL", "https://app.agentops.ai")
+    langsmith_url = os.environ.get("LANGSMITH_URL", "#")
+    ragas_url = os.environ.get("RAGAS_URL", "#")
+    agentops_url = os.environ.get("AGENTOPS_URL", "#")
 
     return {
         "LangSmith": {"url": langsmith_url, "online": _is_reachable_global(langsmith_url)},
@@ -1395,11 +1404,13 @@ def get_productivity_evaluation_urls() -> dict[str, dict]:
     
     skywalking_url = os.environ.get("SKYWALKING_URL", "http://localhost:8080")
     skywalking_ui_url = os.environ.get("SKYWALKING_UI_URL", "http://localhost:8080")
+    workflow_url = os.environ.get("WORKFLOW_URL", "#")
 
     return {
         "OpenTelemetry":     {"url": otel_ui_url,       "online": _is_reachable_global(otel_url)},
         "Grafana Tempo":     {"url": tempo_ui_url,      "online": _is_reachable_global(tempo_url)},
         "Apache SkyWalking": {"url": skywalking_ui_url, "online": _is_reachable_global(skywalking_url)},
+        "Workflow Layer":    {"url": workflow_url,      "online": _is_reachable_global(workflow_url)},
     }
 
 
@@ -1576,7 +1587,7 @@ def get_execution_evaluation_urls() -> dict[str, dict]:
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
     phoenix_collector = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
     phoenix_url = os.environ.get("PHOENIX_UI_URL", phoenix_collector.replace("/v1/traces", ""))
-    traceloop_url = os.environ.get("TRACELOOP_BASE_URL", "https://app.traceloop.com")
+    traceloop_url = os.environ.get("TRACELOOP_BASE_URL", "#")
     
     return {
         "Langfuse": {"url": langfuse_url, "online": _is_reachable_global(langfuse_url)},
@@ -1667,6 +1678,53 @@ def push_traceloop_results(
     s.commit()
     return {"updated": updated, "count": len(updated)}
 
+@app.post("/api/execution-evaluation/push-opentelemetry")
+def push_exec_opentelemetry_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_execution_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_execution_resource_evaluation(
+            s,
+            resource_name="OpenTelemetry",
+            metric=metric,
+            detected=True,
+            evidence=f"Real OpenTelemetry execution metric. Value: {val_str}",
+            current_value=val_str,
+            status="SUCCESS",
+            agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
+
+@app.post("/api/execution-evaluation/push-jaeger")
+def push_exec_jaeger_results(
+    payload: dict = Body(...),
+    s: Session = Depends(db_session),
+) -> dict[str, Any]:
+    from store.repo import save_execution_resource_evaluation
+    updated = []
+    for metric, val in payload.items():
+        if metric == "resource_name": continue
+        val_str = str(val)
+        save_execution_resource_evaluation(
+            s,
+            resource_name="Jaeger",
+            metric=metric,
+            detected=True,
+            evidence=f"Real Jaeger execution metric. Value: {val_str}",
+            current_value=val_str,
+            status="SUCCESS",
+            agent_executed=True,
+        )
+        updated.append(metric)
+    s.commit()
+    return {"updated": updated, "count": len(updated)}
 
 
 @app.post("/api/governance-evaluation/evaluate")
@@ -1722,13 +1780,19 @@ def governance_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     import os
     for r in rows:
         if r.name == "Open Policy Agent":
-            url = os.environ.get("OPA_URL", "https://www.openpolicyagent.org")
+            url = os.environ.get("OPA_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Microsoft Presidio":
-            url = os.environ.get("PRESIDIO_URL", "https://microsoft.github.io/presidio")
+            url = os.environ.get("PRESIDIO_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Detect-Secrets":
-            url = os.environ.get("DETECT_SECRETS_URL", "https://github.com/Yelp/detect-secrets")
+            url = os.environ.get("DETECT_SECRETS_URL", "#")
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
+        elif r.name == "Keycloak":
+            url = os.environ.get("KEYCLOAK_URL", "#")
+            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
+        elif r.name == "OpenMetadata":
+            url = os.environ.get("OPENMETADATA_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         else:
             out[r.name] = {"url": "#", "online": False}

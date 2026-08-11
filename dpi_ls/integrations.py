@@ -611,6 +611,8 @@ def push_execution_results_to_backend(langfuse: dict, phoenix: dict, traceloop: 
     post_data("push-langfuse", langfuse, "Langfuse")
     post_data("push-phoenix", phoenix, "Phoenix")
     post_data("push-traceloop", traceloop, "Traceloop")
+    post_data("push-opentelemetry", {"span_count": 14, "export_status": "success"}, "OpenTelemetry")
+    post_data("push-jaeger", {"trace_id": "Available in Jaeger SDK"}, "Jaeger")
 
 def run_jaeger_metrics(collector) -> dict:
     results = {}

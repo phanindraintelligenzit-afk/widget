@@ -1254,10 +1254,10 @@
 
     return {
       worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 0 },
-      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "Prometheus", resource: "Prometheus", dec: 2 },
+      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
       api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Langfuse", resource: "Langfuse", dec: 2 },
       execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
-      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Langfuse", resource: "Langfuse", dec: 3 },
+      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
       throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       cpu_usage: { val: sub.cpu_usage, calc: sub.cpu_usage, disp: sub.cpu_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
       memory_usage: { val: sub.memory_usage, calc: sub.memory_usage, disp: sub.memory_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
@@ -1449,6 +1449,9 @@
       workflow_execution: { val: sub.workflow_execution || "Unavailable", calc: sub.workflow_execution || "Unavailable", disp: sub.workflow_execution || "Unavailable", formula: "Workflow execution payload",          src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
       workflow_status:    { val: sub.workflow_status   || "Unavailable", calc: sub.workflow_status   || "Unavailable", disp: sub.workflow_status   || "Unavailable", formula: "Workflow execution status",            src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
       root_span:          { val: sub.root_span         || "Unavailable", calc: sub.root_span         || "Unavailable", disp: sub.root_span         || "Unavailable", formula: "Workflow root span",                   src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
+      otel_span_count:    { val: sub.otel_span_count   || "Unavailable", calc: sub.otel_span_count   || "Unavailable", disp: sub.otel_span_count   || "Unavailable", formula: "OpenTelemetry Span Count",             src: "OpenTelemetry (runtime telemetry)", resource: "OpenTelemetry", dec: 0 },
+      otel_status:        { val: sub.otel_status       || "Unavailable", calc: sub.otel_status       || "Unavailable", disp: sub.otel_status       || "Unavailable", formula: "OpenTelemetry Export Status",          src: "OpenTelemetry (runtime telemetry)", resource: "OpenTelemetry", dec: 0 },
+      jaeger_trace:       { val: sub.jaeger_trace      || "Unavailable", calc: sub.jaeger_trace      || "Unavailable", disp: sub.jaeger_trace      || "Unavailable", formula: "Jaeger Trace ID",                      src: "Jaeger (runtime telemetry)", resource: "Jaeger", dec: 0 },
     };
   }
 
@@ -1487,7 +1490,10 @@
       Total_Attempts: "Total Attempts",
       Successful_Attempts: "Successful Attempts",
       execution_status: "Execution Status",
-      Execution_Score: "Execution Score"
+      Execution_Score: "Execution Score",
+      otel_span_count: "OTel Span Count",
+      otel_status: "OTel Status",
+      jaeger_trace: "Jaeger Trace ID"
     };
 
     let entries = Object.entries(metricsMap);

@@ -460,6 +460,9 @@ def enrich_execution_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "iterations_used": e_eval_map.get("Phoenix:iterations_used") or sub_metrics["E"].get("iterations_used", "Unavailable"),
         "successful_executions": e_eval_map.get("Phoenix:successful_executions") or sub_metrics["E"].get("successful_executions", "Unavailable"),
         "execution_status": e_eval_map.get("Phoenix:execution_status") or sub_metrics["E"].get("execution_status", "Unavailable"),
+        "otel_span_count": e_eval_map.get("OpenTelemetry:span_count") or sub_metrics["E"].get("otel_span_count", "Unavailable"),
+        "otel_status": e_eval_map.get("OpenTelemetry:export_status") or sub_metrics["E"].get("otel_status", "Unavailable"),
+        "jaeger_trace": e_eval_map.get("Jaeger:trace_id") or sub_metrics["E"].get("jaeger_trace", "Unavailable"),
     })
     return sub_metrics
 

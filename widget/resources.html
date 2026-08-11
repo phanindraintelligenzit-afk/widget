@@ -655,23 +655,32 @@ const RESOURCE_META = {
     description: 'Open standard for metadata, search, and lineage.',
     tags: ['Metadata', 'Lineage', 'Catalog']
   },
-  "Open Policy Agent": {
-    name: 'Open Policy Agent',
-    icon: '📜', category: 'Governance',
-    description: 'Cloud-native policy engine that unifies policy enforcement across the stack.',
-    tags: ['Policy', 'Rules', 'Runtime']
+  'Workflow Layer': {
+    icon: '🔄', category: 'Application Performance Monitoring',
+    dpi_status: 'primary',
+    description: 'Tracks task assignments, completions, and failures.',
+    dashboard_url: 'http://localhost:8080',
+    dashboard_label: 'Open Workflow UI',
+    color: '#8b5cf6',
+    sdk: 'workflow'
   },
-  "Microsoft Presidio": {
-    name: 'Microsoft Presidio',
-    icon: '🕵️', category: 'Governance',
-    description: 'Data protection and de-identification SDK for text and images.',
-    tags: ['PII', 'Anonymization', 'Data Privacy']
+  'Falco': {
+    icon: '🦅', category: 'Risk & Security',
+    dpi_status: 'primary',
+    description: 'Cloud native runtime security focusing on system calls and anomalies.',
+    dashboard_url: 'https://falco.org/',
+    dashboard_label: 'Open Falco',
+    color: '#06b6d4',
+    sdk: 'falco'
   },
-  "Detect-Secrets": {
-    name: 'Detect-Secrets',
-    icon: '🔑', category: 'Governance',
-    description: 'Enterprise secrets scanning to prevent credential leakage.',
-    tags: ['Secrets', 'Scanning', 'Compliance']
+  'Sentry': {
+    icon: '🚨', category: 'Risk & Security',
+    dpi_status: 'primary',
+    description: 'Application monitoring and error tracking software.',
+    dashboard_url: 'https://sentry.io',
+    dashboard_label: 'Open Sentry',
+    color: '#e11d48',
+    sdk: 'sentry'
   },
   'Phoenix': {
     icon: '🔥', category: 'Execution Metrics',
@@ -845,8 +854,9 @@ function groupByResource(data) {
 function resourceStatus(name, metrics = []) {
   const dashInfo = dashboardUrls[name] || { url: '', online: true };
   if (!dashInfo.online) return 'failed';
+  if (metrics.length === 0) return 'failed';
   
-  if (metrics.some(m => m.status === 'CREDENTIALS_MISSING')) return 'failed';
+  if (metrics.some(m => m.status === 'CREDENTIALS_MISSING' || m.status === 'FAILED')) return 'failed';
   const ok = metrics.filter(m => m.status === 'SUCCESS').length;
   if (ok > 0) return 'success';
   return 'failed';
@@ -1044,20 +1054,56 @@ function renderResourceCard(name, metrics = []) {
   
   const nameHtml = `<span onclick="toggleResourceTable('${escHtml(name)}')" style="color:var(--text); text-decoration:underline dashed var(--muted); cursor:pointer;">${escHtml(name)}</span>`;
 
-  let linkHtml;
-  if (name === 'DeepEval') {
-    linkHtml = `<a class="rc-dashboard-link-inline" href="https://deepeval.com" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔮 DeepEval Documentation</a><span style="font-size:10px;color:#4ade80;margin-left:6px;">● Running In Process</span>`;
-  } else {
-    const serviceOfflineStatus = ['LangSmith', 'Ragas', 'AgentOps'].includes(name) 
-      ? `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Configuration Required</span>` 
-      : `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline</span>`;
+  const DOCS = {
+    "Langfuse": "https://langfuse.com/docs",
+    "Grafana": "https://grafana.com/docs/",
+    "Prometheus": "https://prometheus.io/docs/",
+    "OpenLIT": "https://docs.openlit.io/",
+    "OpenCost": "https://opencost.io/docs/",
+    "DeepEval": "https://docs.confident-ai.com/",
+    "Jaeger": "https://www.jaegertracing.io/docs/",
+    "Zipkin": "https://zipkin.io/",
+    "Guardrails AI": "https://www.guardrailsai.com/docs/",
+    "Pydantic AI": "https://ai.pydantic.dev/",
+    "Instructor": "https://python.useinstructor.com/",
+    "LangSmith": "https://docs.smith.langchain.com/",
+    "Ragas": "https://docs.ragas.io/",
+    "AgentOps": "https://docs.agentops.ai/",
+    "Confident AI": "https://docs.confident-ai.com/",
+    "TruLens": "https://www.trulens.org/",
+    "OpenTelemetry": "https://opentelemetry.io/docs/",
+    "Apache SkyWalking": "https://skywalking.apache.org/docs/",
+    "TraceLoop": "https://www.traceloop.com/docs/",
+    "Phoenix": "https://arize.com/docs/phoenix/",
+    "Rebuff": "https://docs.rebuff.ai/",
+    "LLM Guard": "https://llm-guard.com/",
+    "Falco": "https://falco.org/docs/",
+    "Sentry": "https://develop.sentry.dev/",
+    "Open Policy Agent": "https://www.openpolicyagent.org/docs/",
+    "Keycloak": "https://www.keycloak.org/documentation",
+    "OpenMetadata": "https://docs.open-metadata.org/",
+    "Microsoft Presidio": "https://microsoft.github.io/presidio/",
+    "Detect Secrets": "https://github.com/Yelp/detect-secrets",
+    "Workflow Layer": "#"
+  };
+  
+  const docUrl = DOCS[name] || "#";
+  const docHtml = `<a class="rc-dashboard-link-inline" href="${docUrl}" target="_blank" style="color:var(--muted); font-size:12px; text-decoration:underline;">Documentation</a>`;
 
-    linkHtml = (isOnline && tcpOnline)
-      ? `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</a>${liveTag}`
-      : (isOnline && !tcpOnline)
-        ? `<button onclick="toggleResourceTable('${escHtml(name)}')" class="rc-dashboard-link-inline" style="background:none; border:none; cursor:pointer; padding:0; color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open ${escHtml(name)}</button>${liveTag}`
-        : serviceOfflineStatus;
+  const libraryBased = ['DeepEval', 'Ragas', 'Guardrails AI', 'Pydantic AI', 'Instructor', 'Detect Secrets', 'Microsoft Presidio', 'Workflow Layer', 'TruLens', 'LLM Guard', 'Rebuff'];
+  let linkHtml;
+  if (libraryBased.includes(name)) {
+    linkHtml = `<span style="color:var(--muted2); font-weight:700; font-size:13px;">LIBRARY-BASED / NO STANDALONE URL</span>`;
+  } else {
+    const isOffline = !dashUrl || dashUrl === '#' || (!tcpOnline && !['LangSmith', 'AgentOps', 'TraceLoop', 'Langfuse', 'Confident AI'].includes(name));
+    if (isOffline) {
+      linkHtml = `<span style="color:var(--muted2); font-weight:700; font-size:13px;">⚠️ Service Offline / Not Configured</span>`;
+    } else {
+      linkHtml = `<a class="rc-dashboard-link-inline" href="${dashUrl}" target="_blank" style="color:var(--accent); font-weight:700; text-decoration:underline; font-size:13px; display:inline-flex; align-items:center; gap:4px;">🔗 Open Resource</a>${liveTag}`;
+    }
   }
+
+  linkHtml = linkHtml + `<span style="margin: 0 8px; color: var(--muted);">|</span>` + docHtml;
 
 
   const verifyHtml = dashVerified
@@ -1208,9 +1254,9 @@ async function runEvaluation() {
     const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
-    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
-    const execResources = ["Langfuse", "Phoenix", "Traceloop"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus", "Workflow Layer"];
+    const execResources = ["Langfuse", "Phoenix", "Traceloop", "OpenTelemetry", "Jaeger"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
@@ -1226,7 +1272,7 @@ async function runEvaluation() {
       ...prodData.filter(r => prodResources.includes(r.resource_name)),
       ...langfuseCostRows,
       ...langfuseExecRows,
-      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name)),
+      ...execData.filter(r => ['Phoenix', 'Traceloop', 'OpenTelemetry', 'Jaeger'].includes(r.resource_name)),
       ...riskData.filter(r => riskResources.includes(r.resource_name)),
       ...govData.filter(r => govResources.includes(r.resource_name))
     ];
@@ -1257,8 +1303,8 @@ async function loadData() {
     const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
-    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus", "Workflow Layer"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
@@ -1274,7 +1320,7 @@ async function loadData() {
       ...prodData.filter(r => prodResources.includes(r.resource_name)),
       ...langfuseCostRows,
       ...langfuseExecRows,
-      ...execData.filter(r => ['Phoenix', 'Traceloop'].includes(r.resource_name)),
+      ...execData.filter(r => ['Phoenix', 'Traceloop', 'OpenTelemetry', 'Jaeger'].includes(r.resource_name)),
       ...riskData.filter(r => riskResources.includes(r.resource_name)),
       ...govData.filter(r => govResources.includes(r.resource_name))
     ];
