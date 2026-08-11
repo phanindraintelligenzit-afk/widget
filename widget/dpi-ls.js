@@ -1986,9 +1986,10 @@
     }
     _render({ loading, data, error }) {
       if (data) {
-        data = data.filter(item => item.agent_id === "chandra-finops");
+        this._data = data;
+      } else {
+        this._data = [];
       }
-      this._data = data || [];
       
       if (loading) {
         this._renderShell(`<div class="empty">Loading…</div>`);
