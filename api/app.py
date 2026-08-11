@@ -658,8 +658,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
     for agent, score in repo.latest_scores_for_all(s):
         if score is None:
             continue
-        if not all and agent.id != "chandra-finops":
-            continue
+
         
         m_dict = dict(score.metrics or {})
         w_dict = dict(score.weighted_metrics or {})
