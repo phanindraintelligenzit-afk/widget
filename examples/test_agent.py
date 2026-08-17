@@ -325,24 +325,25 @@ async def run_agent_observation() -> None:
 
     if is_mock:
         from unittest.mock import patch
+        import litellm
         
         async def mock_acompletion(*args, **kwargs):
-            class MockMessage:
-                content = "SIMULATED RESPONSE: Based on the AWS Cost Explorer data, the us-east-1 region incurred the highest costs over the last 3 days due to heavy EC2 usage. No unusual anomalies were detected."
-            class MockChoice:
-                message = MockMessage()
-            class MockUsage:
-                prompt_tokens = 450
-                completion_tokens = 850
-                total_tokens = 1300
-            class MockResponse:
-                choices = [MockChoice()]
-                usage = MockUsage()
-                id = "mock-id"
-                model = kwargs.get("model", "mock-model")
-                def model_dump(self):
-                    return {}
-            return MockResponse()
+            # Use actual litellm objects to satisfy the strict Pydantic checks in the agents framework
+            return litellm.ModelResponse(
+                id="mock-id",
+                model=kwargs.get("model", "mock-model"),
+                choices=[
+                    litellm.Choices(
+                        finish_reason="stop",
+                        index=0,
+                        message=litellm.Message(
+                            content="SIMULATED RESPONSE: Based on the AWS Cost Explorer data, the us-east-1 region incurred the highest costs over the last 3 days due to heavy EC2 usage. No unusual anomalies were detected.",
+                            role="assistant"
+                        )
+                    )
+                ],
+                usage=litellm.Usage(prompt_tokens=450, completion_tokens=850, total_tokens=1300)
+            )
             
         print("\n[Mock] Injecting simulated LLM response to complete telemetry flow cleanly without raising AuthenticationErrors...\n")
         with patch("litellm.acompletion", new=mock_acompletion):
