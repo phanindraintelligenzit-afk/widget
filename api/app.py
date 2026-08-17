@@ -54,6 +54,19 @@ from .schemas import (
     SMEFlowStart,
     SMEFlowStatus,
     SMERatingIn,
+    AgentOnboardingIn,
+    AgentOnboardingOut,
+    ManagerRatingIn,
+    ManagerRatingOut,
+    CustomerRatingIn,
+    CustomerRatingOut,
+    AgentConfigurationIn,
+    AgentConfigurationOut,
+    AgentUpdate,
+    AgentCreate,
+    AgentKRAIn,
+    AgentKRAOut,
+    AgentStatusIn,
 )
 from .scoring import ingest_partials, score_and_persist
 from .sme_orchestration import advance_session, start_session
@@ -537,6 +550,194 @@ def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_sessi
         first_seen=row.first_seen,
         last_seen=row.last_seen,
     )
+
+# ---- Task 1 APIs ----
+
+@app.get("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
+def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+    row = store.repo.get_agent_onboarding(s, agent_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Agent onboarding not found")
+    return AgentOnboardingOut(
+        agent_id=row.agent_id,
+        description=row.description,
+        agent_type=row.agent_type,
+        status=row.status,
+        environment=row.environment,
+        agent_owner=row.agent_owner,
+        manager=row.manager,
+        business_owner=row.business_owner,
+        technical_owner=row.technical_owner,
+        digital_worker_role=row.digital_worker_role,
+        responsibilities=row.responsibilities,
+        business_function=row.business_function,
+        department=row.department,
+        scope=row.scope,
+        created_at=row.created_at,
+        updated_at=row.updated_at
+    )
+
+@app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+    # Ensure base agent exists
+    agent = s.get(store.models.AgentRow, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+        
+    payload = body.model_dump(exclude_unset=True)
+    row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
+    s.commit()
+    return AgentOnboardingOut(
+        agent_id=row.agent_id,
+        description=row.description,
+        agent_type=row.agent_type,
+        status=row.status,
+        environment=row.environment,
+        agent_owner=row.agent_owner,
+        manager=row.manager,
+        business_owner=row.business_owner,
+        technical_owner=row.technical_owner,
+        digital_worker_role=row.digital_worker_role,
+        responsibilities=row.responsibilities,
+        business_function=row.business_function,
+        department=row.department,
+        scope=row.scope,
+        created_at=row.created_at,
+        updated_at=row.updated_at
+    )
+
+@app.post("/api/agents/{agent_id}/kra", response_model=AgentKRAOut)
+def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)) -> AgentKRAOut:
+    row = store.repo.upsert_agent_kra(s, agent_id, body.kra_name, body.target_value, body.weight)
+    s.commit()
+    return AgentKRAOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        kra_name=row.kra_name,
+        target_value=float(row.target) if row.target else 0.0,
+        weight=row.weight,
+        created_at=row.created_at
+    )
+
+@app.get("/api/agents/{agent_id}/kra", response_model=list[AgentKRAOut])
+def get_kras(agent_id: str, s: Session = Depends(db_session)) -> list[AgentKRAOut]:
+    rows = store.repo.list_agent_kras(s, agent_id)
+    return [
+        AgentKRAOut(
+            id=r.id,
+            agent_id=r.agent_id,
+            kra_name=r.kra_name,
+            target_value=float(r.target) if r.target else 0.0,
+            weight=r.weight,
+            created_at=r.created_at
+        ) for r in rows
+    ]
+
+@app.put("/api/agents/{agent_id}/status")
+def update_status(agent_id: str, body: AgentStatusIn, s: Session = Depends(db_session)):
+    try:
+        agent = store.repo.update_agent_status(s, agent_id, body.status)
+        s.commit()
+        return {"status": agent.status}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+@app.post("/api/agents/{agent_id}/manager-rating", response_model=ManagerRatingOut)
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)) -> ManagerRatingOut:
+    # Authorization checks should happen here (if manager_id matches the agent's manager)
+    onboarding = store.repo.get_agent_onboarding(s, agent_id)
+    if onboarding and onboarding.manager and body.manager_id != onboarding.manager:
+        raise HTTPException(status_code=403, detail="Unauthorized: Only the assigned manager can rate this agent.")
+    
+    row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
+    s.commit()
+    return ManagerRatingOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        manager_id=row.manager_id,
+        review_period=row.review_period,
+        rating=row.rating,
+        comments=row.comments,
+        submitted_at=row.submitted_at
+    )
+
+@app.get("/api/agents/{agent_id}/manager-rating", response_model=list[ManagerRatingOut])
+def list_manager_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[ManagerRatingOut]:
+    rows = store.repo.get_manager_ratings(s, agent_id)
+    return [
+        ManagerRatingOut(
+            id=row.id,
+            agent_id=row.agent_id,
+            manager_id=row.manager_id,
+            review_period=row.review_period,
+            rating=row.rating,
+            comments=row.comments,
+            submitted_at=row.submitted_at
+        ) for row in rows
+    ]
+
+@app.post("/api/agents/{agent_id}/customer-rating", response_model=CustomerRatingOut)
+def add_customer_rating(agent_id: str, body: CustomerRatingIn, s: Session = Depends(db_session)) -> CustomerRatingOut:
+    row = store.repo.save_customer_rating(s, agent_id, body.rating, body.customer_id, body.task_id, body.feedback)
+    s.commit()
+    return CustomerRatingOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        customer_id=row.customer_id,
+        task_id=row.task_id,
+        rating=row.rating,
+        feedback=row.feedback,
+        submitted_at=row.submitted_at
+    )
+
+@app.get("/api/agents/{agent_id}/customer-rating", response_model=list[CustomerRatingOut])
+def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[CustomerRatingOut]:
+    rows = store.repo.get_customer_ratings(s, agent_id)
+    return [
+        CustomerRatingOut(
+            id=row.id,
+            agent_id=row.agent_id,
+            customer_id=row.customer_id,
+            task_id=row.task_id,
+            rating=row.rating,
+            feedback=row.feedback,
+            submitted_at=row.submitted_at
+        ) for row in rows
+    ]
+
+@app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
+def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session)) -> AgentConfigurationOut:
+    row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
+    s.commit()
+    return AgentConfigurationOut(
+        id=row.id,
+        agent_id=row.agent_id,
+        configuration_key=row.configuration_key,
+        configuration_value=row.configuration_value,
+        source=row.source,
+        created_by=row.created_by,
+        effective_from=row.effective_from,
+        version=row.version,
+        approval_status=row.approval_status
+    )
+
+@app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
+def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[AgentConfigurationOut]:
+    rows = store.repo.list_agent_configurations(s, agent_id)
+    return [
+        AgentConfigurationOut(
+            id=row.id,
+            agent_id=row.agent_id,
+            configuration_key=row.configuration_key,
+            configuration_value=row.configuration_value,
+            source=row.source,
+            created_by=row.created_by,
+            effective_from=row.effective_from,
+            version=row.version,
+            approval_status=row.approval_status
+        ) for row in rows
+    ]
+
 
 
 @app.delete("/api/agents/{agent_id}")

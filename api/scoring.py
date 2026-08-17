@@ -94,6 +94,20 @@ def score_and_persist(
         agent_id=obs.agent_id,
         human_output_per_period=agent.baseline_human_output,
     )
+    configs = repo.list_agent_configurations(s, obs.agent_id)
+    if configs:
+        settings_update = {}
+        for c in configs:
+            if c.configuration_key == "human_baseline":
+                baseline_obj.human_output_per_period = float(c.configuration_value)
+            elif c.configuration_key == "utilization":
+                settings_update["utilization"] = float(c.configuration_value)
+            elif c.configuration_key == "human_cost_per_output":
+                settings_update["human_cost_per_output"] = float(c.configuration_value)
+            elif c.configuration_key == "normalization_factor":
+                settings_update["normalization_factor"] = float(c.configuration_value)
+        if settings_update:
+            settings = settings.model_copy(update=settings_update)
     
     # Load Risk Incidents
     from sqlalchemy import select
@@ -170,6 +184,20 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
         agent_id=merged.agent_id,
         human_output_per_period=agent.baseline_human_output,
     )
+    configs = repo.list_agent_configurations(s, merged.agent_id)
+    if configs:
+        settings_update = {}
+        for c in configs:
+            if c.configuration_key == "human_baseline":
+                baseline.human_output_per_period = float(c.configuration_value)
+            elif c.configuration_key == "utilization":
+                settings_update["utilization"] = float(c.configuration_value)
+            elif c.configuration_key == "human_cost_per_output":
+                settings_update["human_cost_per_output"] = float(c.configuration_value)
+            elif c.configuration_key == "normalization_factor":
+                settings_update["normalization_factor"] = float(c.configuration_value)
+        if settings_update:
+            settings = settings.model_copy(update=settings_update)
     metrics = metrics_from_partial(merged, settings, baseline)
     sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
     _sync_metrics_from_sub_metrics(metrics, sub_metrics)

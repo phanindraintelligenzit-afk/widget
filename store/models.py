@@ -23,6 +23,7 @@ class AgentRow(Base):
 
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256))
+    status: Mapped[str] = mapped_column(String(64), default="ACTIVE")
     baseline_human_output: Mapped[float] = mapped_column(Float, default=100.0)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
@@ -475,3 +476,88 @@ class EnterpriseProductivityResourceEvaluationRow(Base):
     status: Mapped[str] = mapped_column(String(64), default="PENDING")
     dashboard_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     agent_executed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class AgentOnboardingRow(Base):
+    """Business onboarding details for an Agent."""
+    __tablename__ = "agent_onboarding"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), unique=True, index=True)
+    description: Mapped[str] = mapped_column(String(1024), nullable=True)
+    agent_type: Mapped[str] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(64), default="draft")
+    environment: Mapped[str] = mapped_column(String(64), nullable=True)
+    
+    agent_owner: Mapped[str] = mapped_column(String(128), nullable=True)
+    manager: Mapped[str] = mapped_column(String(128), nullable=True)
+    business_owner: Mapped[str] = mapped_column(String(128), nullable=True)
+    technical_owner: Mapped[str] = mapped_column(String(128), nullable=True)
+    
+    digital_worker_role: Mapped[str] = mapped_column(String(128), nullable=True)
+    responsibilities: Mapped[str] = mapped_column(String(1024), nullable=True)
+    business_function: Mapped[str] = mapped_column(String(128), nullable=True)
+    department: Mapped[str] = mapped_column(String(128), nullable=True)
+    scope: Mapped[str] = mapped_column(String(256), nullable=True)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class AgentKRARow(Base):
+    """Key Result Areas associated with an Agent."""
+    __tablename__ = "agent_kras"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    kra_name: Mapped[str] = mapped_column(String(128))
+    kra_description: Mapped[str] = mapped_column(String(512), nullable=True)
+    target: Mapped[str] = mapped_column(String(128), nullable=True)
+    measurement_dimension: Mapped[str] = mapped_column(String(64), nullable=True)
+    weight: Mapped[float] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class AgentConfigurationRow(Base):
+    """Agent-specific static configurations (e.g. baselines for scoring)."""
+    __tablename__ = "agent_configuration"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    configuration_key: Mapped[str] = mapped_column(String(128))
+    configuration_value: Mapped[str] = mapped_column(String(256))
+    source: Mapped[str] = mapped_column(String(128), nullable=True)
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    effective_to: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[str] = mapped_column(String(128), nullable=True)
+    updated_by: Mapped[str] = mapped_column(String(128), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    approval_status: Mapped[str] = mapped_column(String(64), default="Approved")
+
+
+class ManagerRatingRow(Base):
+    """Manager-side performance review."""
+    __tablename__ = "manager_ratings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    manager_id: Mapped[str] = mapped_column(String(128))
+    review_period: Mapped[str] = mapped_column(String(64), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer)
+    comments: Mapped[str] = mapped_column(String(1024), nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+class CustomerRatingRow(Base):
+    """Customer/Business User feedback."""
+    __tablename__ = "customer_ratings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), index=True)
+    customer_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    task_id: Mapped[str] = mapped_column(String(128), nullable=True)
+    rating: Mapped[int] = mapped_column(Integer)
+    feedback: Mapped[str] = mapped_column(String(1024), nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
