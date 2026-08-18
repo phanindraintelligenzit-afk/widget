@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-<a href="#quick-start"><b>Quick Start</b></a> • <a href="#architecture"><b>Architecture</b></a> • <a href="#dashboard"><b>Dashboard</b></a> • <a href="#the-7-dimensions"><b>The 7 Dimensions</b></a>
+<a href="#quick-start"><b>Quick Start</b></a> • <a href="./dpi_ls_business_architecture.md"><b>Architecture</b></a> • <a href="#dashboard"><b>Dashboard</b></a> • <a href="#the-7-dimensions"><b>The 7 Dimensions</b></a>
 </p>
 
 </div>
@@ -60,7 +60,7 @@ graph LR
 ```
 
 For detailed architecture diagrams, refer to:
-[Architecture](./docs/architecture.png)
+[DPI-LS Business Architecture Document](./dpi_ls_business_architecture.md)
 
 ## Dashboard
 
