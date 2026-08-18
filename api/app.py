@@ -25,7 +25,7 @@ from typing import Any, Optional
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-from fastapi import Body, Depends, FastAPI, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -642,8 +642,21 @@ def update_status(agent_id: str, body: AgentStatusIn, s: Session = Depends(db_se
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
-@app.post("/api/agents/{agent_id}/manager-rating", response_model=ManagerRatingOut)
-def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)) -> ManagerRatingOut:
+import subprocess
+
+def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str = "1") -> str:
+    env = os.environ.copy()
+    env["AGENT_ID"] = agent_id
+    env["AGENT_NAME"] = agent_name
+    env["HUMAN_BASELINE"] = human_baseline
+    try:
+        result = subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env, check=True, capture_output=True, text=True)
+        return result.stdout + "\n" + result.stderr
+    except subprocess.CalledProcessError as e:
+        return e.stdout + "\n" + e.stderr + f"\nError: {e}"
+
+@app.post("/api/agents/{agent_id}/manager-rating")
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)):
     # Authorization checks should happen here (if manager_id matches the agent's manager)
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
     if onboarding and onboarding.manager and body.manager_id != onboarding.manager:
@@ -651,15 +664,29 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
     
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
     s.commit()
-    return ManagerRatingOut(
-        id=row.id,
-        agent_id=row.agent_id,
-        manager_id=row.manager_id,
-        review_period=row.review_period,
-        rating=row.rating,
-        comments=row.comments,
-        submitted_at=row.submitted_at
-    )
+
+    agent_row = s.get(store.models.AgentRow, agent_id)
+    agent_name = agent_row.name if agent_row else agent_id
+
+    configs = store.repo.list_agent_configurations(s, agent_id)
+    human_baseline = "1"
+    for c in configs:
+        if c.configuration_key == "human_baseline":
+            human_baseline = c.configuration_value
+            break
+
+    logs = run_agent_telemetry_task(agent_id, agent_name, human_baseline)
+
+    return {
+        "id": row.id,
+        "agent_id": row.agent_id,
+        "manager_id": row.manager_id,
+        "rating": row.rating,
+        "comments": row.comments,
+        "review_period": row.review_period,
+        "created_at": row.created_at,
+        "logs": logs
+    }
 
 @app.get("/api/agents/{agent_id}/manager-rating", response_model=list[ManagerRatingOut])
 def list_manager_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[ManagerRatingOut]:

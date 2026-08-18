@@ -62,7 +62,7 @@
                 msg.style.display = 'block';
                 if (res.ok) {
                     msg.className = 'success';
-                    msg.textContent = 'KRA saved successfully!';
+                    msg.innerHTML = 'KRA saved successfully! <br><br><a href="/widget/agent-config.html" style="color:#0d6efd; text-decoration:underline;">Continue to Agent Configuration &rarr;</a>';
                 } else {
                     msg.className = 'error';
                     msg.textContent = 'Failed to save KRA: ' + await res.text();

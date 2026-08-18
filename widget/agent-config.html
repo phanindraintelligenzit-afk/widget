@@ -99,7 +99,7 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          statusEl.textContent = 'Configuration saved successfully!';
+          statusEl.innerHTML = 'Configuration saved successfully! <br><br><a href="/widget/manager-review.html" style="color:var(--accent); text-decoration:underline;">Continue to Manager Review &rarr;</a>';
           statusEl.classList.add('success');
         } else {
           const err = await res.json();

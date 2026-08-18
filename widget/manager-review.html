@@ -111,7 +111,17 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          statusEl.textContent = 'Manager review submitted successfully!';
+          const data = await res.json();
+          let logsHtml = '';
+          if (data.logs) {
+            logsHtml = `
+              <div style="margin-top:20px; text-align:left; background:#000; padding:15px; border-radius:6px; overflow-x:auto; max-height:400px; overflow-y:auto;">
+                <h4 style="color:#94a3b8; margin-bottom:10px; font-family:monospace;">Terminal Output:</h4>
+                <pre style="color:#10b981; font-family:monospace; font-size:12px; white-space:pre-wrap;">${data.logs}</pre>
+              </div>
+            `;
+          }
+          statusEl.innerHTML = `Manager review submitted successfully! <br><br><a href="/widget/demo.html" style="color:var(--accent); text-decoration:underline;">View Dashboard &rarr;</a>${logsHtml}`;
           statusEl.classList.add('success');
         } else {
           const err = await res.json();
