@@ -1,16 +1,27 @@
-# DPI-LS — Digital FTE Performance Index for Life Sciences
+<div align="center">
 
-> **A comprehensive report card for your AI Digital Workers — scoring them on a 0 to 100 scale across 7 performance dimensions, with built-in safety gates and a live dashboard.**
+<h1><span style="color: #76b900">DPI-LS</span> Digital FTE Performance Index for Life Sciences</h1>
 
----
+**A comprehensive report card for your AI Digital Workers.**
 
-## What is DPI-LS?
+<p align="center">
+  <img src="https://img.shields.io/badge/Intelligenz_IT-76b900?style=flat-square&logo=nvidia&logoColor=white" alt="Intelligenz IT"/>
+  <img src="https://img.shields.io/badge/paper-Internal-gray?style=flat-square" alt="Paper"/>
+  <img src="https://img.shields.io/badge/blog-Intelligenz_IT-76b900?style=flat-square" alt="Blog"/>
+  <img src="https://img.shields.io/badge/license-Proprietary-blue?style=flat-square" alt="License"/>
+</p>
 
-When companies deploy AI to handle important work — like processing invoices, analyzing medical documents, or monitoring cloud costs — they need to know if the AI is doing a good job, working safely, and actually saving money.
+<p align="center">
+  <a href="#getting-started"><b>Quick Start</b></a> &middot;
+  <a href="#business-architecture"><b>Architecture</b></a> &middot;
+  <a href="#step-6-the-dpi-ls-dashboard"><b>Dashboard</b></a> &middot;
+  <a href="#the-7-performance-dimensions"><b>The 7 Dimensions</b></a>
+</p>
 
-**DPI-LS answers that question.** Instead of just hoping the AI works, DPI-LS automatically measures 7 critical performance areas and gives you a single, easy-to-understand score out of 100. It combines hard data from the AI's operations with subjective feedback from human managers to ensure the AI is truly adding value.
+</div>
 
-**We measure Trust, not just Productivity.** By bridging HR, Business, and Compliance, DPI-LS helps organizations manage AI as a workforce — with full lifecycle governance and accountability.
+> **Scoring AI on a 0 to 100 scale across 7 performance dimensions, with built-in safety gates and a live event-driven dashboard.**
+
 
 ---
 
