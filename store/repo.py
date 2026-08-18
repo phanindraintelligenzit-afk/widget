@@ -34,6 +34,11 @@ from .models import (
     RiskResourceRegistryRow,
     RiskResourceEvaluationRow,
     RiskIncidentRow,
+    AgentOnboardingRow,
+    AgentKRARow,
+    AgentConfigurationRow,
+    ManagerRatingRow,
+    CustomerRatingRow,
 )
 
 def list_latest_risk_incidents(s: Session) -> list[RiskIncidentRow]:
@@ -790,5 +795,107 @@ def verify_dashboard_execution_resource_evaluation(session: Session, resource_na
     row = session.scalars(q).first()
     if row:
         row.dashboard_verified = True
-        return True
     return False
+
+
+# ---- Task 1: Enterprise Digital Worker Management ----
+
+def upsert_agent_onboarding(s: Session, agent_id: str, payload: dict) -> AgentOnboardingRow:
+    row = s.scalars(select(AgentOnboardingRow).where(AgentOnboardingRow.agent_id == agent_id)).first()
+    if not row:
+        row = AgentOnboardingRow(agent_id=agent_id)
+        s.add(row)
+    
+    for key, value in payload.items():
+        if hasattr(row, key) and value is not None:
+            setattr(row, key, value)
+            
+    row.updated_at = _utcnow()
+    s.flush()
+    return row
+
+def get_agent_onboarding(s: Session, agent_id: str) -> Optional[AgentOnboardingRow]:
+    return s.scalars(select(AgentOnboardingRow).where(AgentOnboardingRow.agent_id == agent_id)).first()
+
+def save_manager_rating(s: Session, agent_id: str, manager_id: str, rating: int, comments: Optional[str] = None, review_period: Optional[str] = None) -> ManagerRatingRow:
+    row = ManagerRatingRow(
+        agent_id=agent_id,
+        manager_id=manager_id,
+        rating=rating,
+        comments=comments,
+        review_period=review_period
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+def get_manager_ratings(s: Session, agent_id: str) -> list[ManagerRatingRow]:
+    return list(s.scalars(select(ManagerRatingRow).where(ManagerRatingRow.agent_id == agent_id).order_by(ManagerRatingRow.submitted_at.desc())))
+
+def save_customer_rating(s: Session, agent_id: str, rating: int, customer_id: Optional[str] = None, task_id: Optional[str] = None, feedback: Optional[str] = None) -> CustomerRatingRow:
+    row = CustomerRatingRow(
+        agent_id=agent_id,
+        customer_id=customer_id,
+        task_id=task_id,
+        rating=rating,
+        feedback=feedback
+    )
+    s.add(row)
+    s.flush()
+    return row
+
+def get_customer_ratings(s: Session, agent_id: str) -> list[CustomerRatingRow]:
+    return list(s.scalars(select(CustomerRatingRow).where(CustomerRatingRow.agent_id == agent_id).order_by(CustomerRatingRow.submitted_at.desc())))
+
+def upsert_agent_configuration(s: Session, agent_id: str, key: str, value: str, source: Optional[str] = None, created_by: Optional[str] = None) -> AgentConfigurationRow:
+    # We could implement versioning, but for now we simply update or create.
+    row = s.scalars(select(AgentConfigurationRow).where(AgentConfigurationRow.agent_id == agent_id, AgentConfigurationRow.configuration_key == key)).first()
+    if not row:
+        row = AgentConfigurationRow(
+            agent_id=agent_id,
+            configuration_key=key,
+            configuration_value=value,
+            source=source,
+            created_by=created_by,
+            updated_by=created_by
+        )
+        s.add(row)
+    else:
+        row.configuration_value = value
+        if source: row.source = source
+        row.updated_by = created_by
+        row.updated_at = _utcnow()
+        row.version += 1
+    s.flush()
+    return row
+
+def list_agent_configurations(s: Session, agent_id: str) -> list[AgentConfigurationRow]:
+    return list(s.scalars(select(AgentConfigurationRow).where(AgentConfigurationRow.agent_id == agent_id)))
+
+def upsert_agent_kra(s: Session, agent_id: str, kra_name: str, target_value: float, weight: float) -> AgentKRARow:
+    row = s.scalars(select(AgentKRARow).where(AgentKRARow.agent_id == agent_id, AgentKRARow.kra_name == kra_name)).first()
+    if not row:
+        row = AgentKRARow(
+            agent_id=agent_id,
+            kra_name=kra_name,
+            target=str(target_value),
+            weight=weight
+        )
+        s.add(row)
+    else:
+        row.target = str(target_value)
+        row.weight = weight
+    s.flush()
+    return row
+
+def list_agent_kras(s: Session, agent_id: str) -> list[AgentKRARow]:
+    return list(s.scalars(select(AgentKRARow).where(AgentKRARow.agent_id == agent_id)))
+
+def update_agent_status(s: Session, agent_id: str, status: str) -> AgentRow:
+    agent = s.scalars(select(AgentRow).where(AgentRow.id == agent_id)).first()
+    if not agent:
+        raise ValueError(f"Agent {agent_id} not found")
+    agent.status = status
+    agent.last_seen = _utcnow()
+    s.flush()
+    return agent

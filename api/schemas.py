@@ -84,6 +84,85 @@ class AgentUpdate(BaseModel):
     baseline_human_output: Optional[float] = None
 
 
+class AgentOnboardingIn(BaseModel):
+    description: Optional[str] = None
+    agent_type: Optional[str] = None
+    environment: Optional[str] = None
+    agent_owner: Optional[str] = None
+    manager: Optional[str] = None
+    business_owner: Optional[str] = None
+    technical_owner: Optional[str] = None
+    digital_worker_role: Optional[str] = None
+    responsibilities: Optional[str] = None
+    business_function: Optional[str] = None
+    department: Optional[str] = None
+    scope: Optional[str] = None
+
+
+class AgentOnboardingOut(AgentOnboardingIn):
+    agent_id: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ManagerRatingIn(BaseModel):
+    manager_id: str
+    review_period: Optional[str] = None
+    rating: int
+    comments: Optional[str] = None
+
+
+class ManagerRatingOut(ManagerRatingIn):
+    id: int
+    agent_id: str
+    submitted_at: datetime
+
+
+class CustomerRatingIn(BaseModel):
+    customer_id: Optional[str] = None
+    task_id: Optional[str] = None
+    rating: int
+    feedback: Optional[str] = None
+
+
+class CustomerRatingOut(CustomerRatingIn):
+    id: int
+    agent_id: str
+    submitted_at: datetime
+
+
+class AgentConfigurationIn(BaseModel):
+    configuration_key: str
+    configuration_value: str
+    source: Optional[str] = None
+    created_by: Optional[str] = None
+
+
+class AgentConfigurationOut(AgentConfigurationIn):
+    id: int
+    agent_id: str
+    effective_from: datetime
+    version: int
+    approval_status: str
+
+
+class AgentKRAIn(BaseModel):
+    kra_name: str
+    target_value: float
+    weight: float
+
+
+class AgentKRAOut(AgentKRAIn):
+    id: int
+    agent_id: str
+    created_at: datetime
+
+
+class AgentStatusIn(BaseModel):
+    status: str
+
+
 # Forward ref import avoids circular load.
 from contract import Rating  # noqa: E402
 SMEFlowStatus.model_rebuild()
