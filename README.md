@@ -45,12 +45,18 @@ When companies deploy AI to handle important work — like processing invoices, 
 
 The complete end-to-end workflow follows this architecture:
 
-```
-Agent Onboarding → KRA Configuration → Static Data Configuration → Manager Review
-                                                                        ↓
-                                                            Event-Driven Automation
-                                                                        ↓
-                                                              DPI-LS Dashboard
+```mermaid
+graph LR
+    A[Agent Onboarding] --> B[KRA Configuration]
+    B --> C[Static Data Configuration]
+    C --> D[Manager Review]
+    D -->|Event-Driven Automation| E[DPI-LS Dashboard]
+    
+    style A fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
+    style B fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
+    style C fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
+    style D fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
+    style E fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
 ```
 
 For detailed architecture diagrams, refer to:
