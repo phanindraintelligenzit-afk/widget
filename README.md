@@ -1,14 +1,22 @@
 <div align="center">
 
-<h1><span style="color: #76b900">DPI-LS</span> Digital FTE Performance Index for Life Sciences</h1>
+<img src="./assets/title.svg" alt="DPI-LS Digital FTE Performance Index for Life Sciences" width="800" />
 
 **A comprehensive report card for your AI Digital Workers.**
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Intelligenz_IT-76b900?style=flat-square&logo=nvidia&logoColor=white" alt="Intelligenz IT"/>
-  <img src="https://img.shields.io/badge/paper-Internal-gray?style=flat-square" alt="Paper"/>
-  <img src="https://img.shields.io/badge/blog-Intelligenz_IT-76b900?style=flat-square" alt="Blog"/>
-  <img src="https://img.shields.io/badge/license-Proprietary-blue?style=flat-square" alt="License"/>
+  <a href="https://intelligenzit.com/">
+    <img src="https://img.shields.io/badge/Organization-Intelligenz_IT-green?style=flat-square" alt="Organization"/>
+  </a>
+  <a href="https://intelligenzit.com/">
+    <img src="https://img.shields.io/badge/Paper-Internal-blue?style=flat-square" alt="Paper"/>
+  </a>
+  <a href="https://intelligenzit.com/">
+    <img src="https://img.shields.io/badge/Blog-Intelligenz_IT-orange?style=flat-square" alt="Blog"/>
+  </a>
+  <a href="https://intelligenzit.com/">
+    <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
+  </a>
 </p>
 
 <p align="center">
