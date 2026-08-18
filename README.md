@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="./assets/title.svg" alt="DPI-LS Digital FTE Performance Index for Life Sciences" width="800" />
+# DPI-LS Digital FTE Performance Index for Life Sciences
 
 <p align="center">A comprehensive enterprise-grade solution by Intelligenz IT.</p>
 
