@@ -2,20 +2,11 @@
 
 <img src="./assets/title.svg" alt="DPI-LS Digital FTE Performance Index for Life Sciences" width="800" />
 
-<p align="center">
 A comprehensive enterprise-grade solution by Intelligenz IT.
-</p>
 
-<p align="center">
 [![Organization](https://img.shields.io/badge/Organization-Intelligenz_IT-green?style=flat-square)](https://intelligenzit.com/) [![Paper](https://img.shields.io/badge/Paper-Internal-blue?style=flat-square)](https://intelligenzit.com/) [![LinkedIn](https://img.shields.io/badge/LinkedIn-Intelligenz_IT-0A66C2?style=flat-square&logo=linkedin)](https://www.linkedin.com/company/intelligenz-it/) [![Agent Dashboards](https://img.shields.io/badge/Agent_Dashboards-DPI_LS-purple?style=flat-square)](http://54.160.31.20:3000/onboarding) [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](https://intelligenzit.com/)
-</p>
 
-<p align="center">
-<a href="#quick-start">Quick Start</a> •
-<a href="#architecture">Architecture</a> •
-<a href="#dashboard">Dashboard</a> •
-<a href="#the-7-dimensions">The 7 Dimensions</a>
-</p>
+[**Quick Start**](#quick-start) • [**Architecture**](#architecture) • [**Dashboard**](#dashboard) • [**The 7 Dimensions**](#the-7-dimensions)
 
 </div>
 
