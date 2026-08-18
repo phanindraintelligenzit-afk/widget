@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Agent Onboarding</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+      --border: #2d3148; --accent: #6366f1; --green: #10b981;
+      --text: #f1f5f9; --muted: #94a3b8;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      max-width: 1400px; margin: 0 auto; padding: 0 0 40px;
+      color: var(--text); background: var(--bg);
+    }
+    .top-nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex; align-items: center; gap: 32px;
+      height: 56px; margin-bottom: 32px;
+    }
+    .nav-logo {
+      font-weight: 800; font-size: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      text-decoration: none;
+    }
+    .page-body { padding: 0 24px; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
+    input, textarea, select {
+      width: 100%; padding: 10px; background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; font-family: inherit;
+    }
+    button {
+      background: var(--accent); color: white; padding: 10px 20px;
+      border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+      margin-top: 20px;
+    }
+    button:hover { opacity: 0.9; }
+    .status-msg { margin-top: 16px; font-size: 14px; }
+    .success { color: var(--green); }
+    .error { color: #ef4444; }
+  </style>
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
+    <span style="color:var(--muted)">Agent Onboarding</span>
+  </nav>
+  <div class="page-body">
+    <h1>Onboard Digital Worker</h1>
+    <form id="onboardingForm">
+      <div class="form-group">
+        <label>Agent ID (must exist in system)</label>
+        <input type="text" id="agent_id" required placeholder="e.g. agent-001">
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <textarea id="description" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Agent Type</label>
+        <input type="text" id="agent_type">
+      </div>
+      <div class="form-group">
+        <label>Environment</label>
+        <input type="text" id="environment" value="Production">
+      </div>
+      <div class="form-group">
+        <label>Manager (Email / ID)</label>
+        <input type="text" id="manager" required>
+      </div>
+      <div class="form-group">
+        <label>Business Owner</label>
+        <input type="text" id="business_owner">
+      </div>
+      <div class="form-group">
+        <label>Technical Owner</label>
+        <input type="text" id="technical_owner">
+      </div>
+      <div class="form-group">
+        <label>Digital Worker Role</label>
+        <input type="text" id="digital_worker_role">
+      </div>
+      <button type="submit">Submit Onboarding</button>
+      <div id="status" class="status-msg"></div>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const agentId = document.getElementById('agent_id').value;
+      const payload = {
+        description: document.getElementById('description').value,
+        agent_type: document.getElementById('agent_type').value,
+        environment: document.getElementById('environment').value,
+        manager: document.getElementById('manager').value,
+        business_owner: document.getElementById('business_owner').value,
+        technical_owner: document.getElementById('technical_owner').value,
+        digital_worker_role: document.getElementById('digital_worker_role').value,
+      };
+      
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = 'Submitting...';
+      statusEl.className = 'status-msg';
+
+      try {
+        const res = await fetch(`/api/agents/${agentId}/onboard`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          statusEl.innerHTML = 'Onboarding submitted successfully! <br><br><a href="/widget/kra.html" style="color:var(--accent); text-decoration:underline;">Continue to KRA Configuration &rarr;</a>';
+          statusEl.classList.add('success');
+        } else {
+          const err = await res.json();
+          statusEl.textContent = 'Error: ' + (err.detail || 'Unknown error');
+          statusEl.classList.add('error');
+        }
+      } catch (err) {
+        statusEl.textContent = 'Network Error';
+        statusEl.classList.add('error');
+      }
+    });
+  </script>
+</body>
+</html>

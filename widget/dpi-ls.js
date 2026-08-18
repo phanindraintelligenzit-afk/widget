@@ -1770,7 +1770,7 @@
     return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped — below coverage floor" : ""}">measured ${dim}/7${capped ? " · capped" : ""}</span>`;
   }
 
-  function agentCardHtml(rating, expandedSet = new Set()) {
+  function agentCardHtml(rating, expandedSet = new Set(), enterpriseData = {}) {
     const metrics = ["P", "Q", "E", "G", "R", "V", "C"]
       .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k), rating))
       .join("");
@@ -1793,6 +1793,39 @@
     // math. Surface the raw_score as a small subtitle under the
     // score so the discrepancy is explicit.
     const rawScore = Number.isFinite(rating.raw_score) ? rating.raw_score : null;
+    
+    // Enterprise Action Links
+    const agentId = rating.agent_id || 'agent-001';
+    const onb = enterpriseData.onboarding;
+    const mgr = enterpriseData.managerRatings || [];
+    const cust = enterpriseData.customerRatings || [];
+    
+    let entInfo = "";
+    if (onb && onb.manager) {
+      entInfo += `<span><strong>Manager:</strong> ${escapeHtml(onb.manager)}</span><br>`;
+    }
+    if (mgr.length) {
+      entInfo += `<span><strong>Latest Mgr Rating:</strong> ${mgr[0].rating}/5</span><br>`;
+    }
+    if (cust.length) {
+      entInfo += `<span><strong>Latest Cust Rating:</strong> ${cust[0].rating}/5</span><br>`;
+    }
+
+    const enterpriseBanner = `
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <h4 style="font-size:12px;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Enterprise Worker Management</h4>
+        <div style="font-size:12px;color:var(--text);margin-bottom:12px;line-height:1.4;">
+          ${entInfo}
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <a href="/widget/onboarding.html?agent=${agentId}" target="_blank" style="background:var(--surface2);color:var(--accent);padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none;">Onboarding</a>
+          <a href="/widget/agent-config.html?agent=${agentId}" target="_blank" style="background:var(--surface2);color:var(--accent);padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none;">Configuration</a>
+          <a href="/widget/manager-review.html?agent=${agentId}" target="_blank" style="background:var(--surface2);color:var(--accent);padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none;">Manager Review</a>
+          <a href="/widget/customer-feedback.html?agent=${agentId}" target="_blank" style="background:var(--surface2);color:var(--accent);padding:4px 8px;border-radius:4px;font-size:11px;text-decoration:none;">Customer Feedback</a>
+        </div>
+      </div>
+    `;
+
     return `
       <div class="card" part="card">
         <div class="head">
@@ -1808,6 +1841,7 @@
         ${capNote}
         <div class="metrics">${metrics}</div>
         ${missing}
+        ${enterpriseBanner}
       </div>
     `;
   }
@@ -2158,27 +2192,37 @@
         return;
       }
       try {
-        const r = await fetch(
-          `${apiBase(this)}/agents/${encodeURIComponent(id)}/score`,
-          { headers: { "Accept": "application/json" } }
-        );
-        if (r.status === 404) {
+        const pScore = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/score`, { headers: { "Accept": "application/json" } });
+        const pOnboard = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/onboard`, { headers: { "Accept": "application/json" } });
+        const pManager = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/manager-rating`, { headers: { "Accept": "application/json" } });
+        const pCustomer = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/customer-rating`, { headers: { "Accept": "application/json" } });
+        
+        const [rScore, rOnboard, rManager, rCustomer] = await Promise.all([pScore, pOnboard, pManager, pCustomer]);
+
+        if (rScore.status === 404) {
           this._render({ notFound: true, id });
           return;
         }
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const rating = await r.json();
-        this._render({ rating });
+        if (!rScore.ok) throw new Error(`HTTP ${rScore.status}`);
+        
+        const rating = await rScore.json();
+        const onboarding = rOnboard.ok ? await rOnboard.json() : null;
+        const managerRatings = rManager.ok ? await rManager.json() : [];
+        const customerRatings = rCustomer.ok ? await rCustomer.json() : [];
+        
+        this._render({ rating, onboarding, managerRatings, customerRatings, id });
       } catch (e) {
         this._render({ error: e && e.message ? e.message : String(e) });
       }
     }
-    _render({ loading, notFound, rating, error, id }) {
+    _render({ loading, notFound, rating, onboarding, managerRatings, customerRatings, error, id }) {
       let body;
       if (loading) body = `<div class="empty">Loading…</div>`;
       else if (error) body = `<div class="err">${escapeHtml(error)}</div>`;
       else if (notFound) body = `<div class="empty">No score yet for <code>${escapeHtml(id)}</code>.</div>`;
-      else body = agentCardHtml(rating, this._expandedMetrics);
+      else {
+        body = agentCardHtml(rating, this._expandedMetrics, {onboarding, managerRatings, customerRatings});
+      }
       this._renderShell(body);
     }
   }
