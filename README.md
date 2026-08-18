@@ -4,27 +4,12 @@
 
 **A comprehensive report card for your AI Digital Workers.**
 
-<p align="center">
-  <a href="https://intelligenzit.com/">
-    <img src="https://img.shields.io/badge/Organization-Intelligenz_IT-green?style=flat-square" alt="Organization"/>
-  </a>
-  <a href="https://intelligenzit.com/">
-    <img src="https://img.shields.io/badge/Paper-Internal-blue?style=flat-square" alt="Paper"/>
-  </a>
-  <a href="https://intelligenzit.com/">
-    <img src="https://img.shields.io/badge/Blog-Intelligenz_IT-orange?style=flat-square" alt="Blog"/>
-  </a>
-  <a href="https://intelligenzit.com/">
-    <img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/>
-  </a>
-</p>
 
-<p align="center">
-  <a href="#getting-started"><b>Quick Start</b></a> &middot;
-  <a href="#business-architecture"><b>Architecture</b></a> &middot;
-  <a href="#step-6-the-dpi-ls-dashboard"><b>Dashboard</b></a> &middot;
-  <a href="#the-7-performance-dimensions"><b>The 7 Dimensions</b></a>
-</p>
+[![Organization](https://img.shields.io/badge/Organization-Intelligenz_IT-green?style=flat-square)](https://intelligenzit.com/) [![Paper](https://img.shields.io/badge/Paper-Internal-blue?style=flat-square)](https://intelligenzit.com/) [![Blog](https://img.shields.io/badge/Blog-Intelligenz_IT-orange?style=flat-square)](https://intelligenzit.com/) [![License](https://img.shields.io/badge/License-Proprietary-red?style=flat-square)](https://intelligenzit.com/)
+
+[**Quick Start**](#getting-started) &middot; [**Architecture**](#business-architecture) &middot; [**Dashboard**](#step-6-the-dpi-ls-dashboard) &middot; [**The 7 Dimensions**](#the-7-performance-dimensions)
+
+
 
 </div>
 
