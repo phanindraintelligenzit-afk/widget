@@ -83,7 +83,7 @@ flowchart TD
     B -->|Defines Target Metrics| C
     C -->|Sets Human Baselines| D
     
-    D -.->|Submits SME Rating (1-5)| E
+    D -->|Submits SME Rating 1 to 5| E
     E -->|Background Execution| F
     F -->|Calculates 7 Dimensions| G
     
