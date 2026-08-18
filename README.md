@@ -46,17 +46,51 @@ When companies deploy AI to handle important work — like processing invoices, 
 The complete end-to-end workflow follows this architecture:
 
 ```mermaid
-graph LR
-    A[Agent Onboarding] --> B[KRA Configuration]
-    B --> C[Static Data Configuration]
-    C --> D[Manager Review]
-    D -->|Event-Driven Automation| E[DPI-LS Dashboard]
+flowchart TD
+    %% Define Global Styles
+    classDef primary fill:#0033A0,stroke:#002277,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
+    classDef secondary fill:#007BFF,stroke:#0056b3,stroke-width:2px,color:#ffffff,rx:8px,ry:8px;
+    classDef database fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#000000;
+    classDef dashboard fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000000;
+    classDef userAction fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000000,stroke-dasharray: 5 5;
     
-    style A fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
-    style B fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
-    style C fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
-    style D fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px
-    style E fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+    %% Main Nodes
+    subgraph Phase 1: Preparation [Phase 1: Agent & Data Configuration]
+        direction TB
+        A([1. Agent Onboarding]):::primary
+        B([2. KRA Configuration]):::primary
+        C([3. Static Data Config]):::primary
+    end
+
+    subgraph Phase 2: Evaluation [Phase 2: Human & Machine Evaluation]
+        direction TB
+        D([4. Manager Review]):::userAction
+        E{5. Event-Driven<br/>Telemetry Trigger}:::secondary
+        F[(Database<br/>Aggregation & Engine)]:::database
+    end
+    
+    subgraph Phase 3: Visibility [Phase 3: Executive Visibility]
+        direction TB
+        G[[6. DPI-LS Live Dashboard]]:::dashboard
+        G1(Main Leaderboard)
+        G2(Resources Hub)
+        G3(Score Analytics)
+        G4(Feedback Portal)
+    end
+
+    %% Connections
+    A -->|Registers Identity & Ownership| B
+    B -->|Defines Target Metrics| C
+    C -->|Sets Human Baselines| D
+    
+    D -.->|Submits SME Rating (1-5)| E
+    E -->|Background Execution| F
+    F -->|Calculates 7 Dimensions| G
+    
+    G --- G1
+    G --- G2
+    G --- G3
+    G --- G4
 ```
 
 For detailed architecture diagrams, refer to:
