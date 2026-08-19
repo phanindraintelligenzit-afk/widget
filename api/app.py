@@ -684,7 +684,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
         "rating": row.rating,
         "comments": row.comments,
         "review_period": row.review_period,
-        "created_at": row.created_at,
+        "created_at": row.submitted_at,
         "logs": logs
     }
 

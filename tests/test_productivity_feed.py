@@ -39,20 +39,20 @@ def test_metrics_from_observation_applies_normalization():
 
     # 1. Default settings: factor = 1.0
     # P = min(1.0, (5 / 10) * 1.0) = 0.5
-    settings_default = Settings()
+    settings_default = Settings(r_max=50.0, gate_thresholds={"G":0.6,"R":0.7,"V":0.6}, q_sub_weights={"accuracy":0.7,"consistency":0.2,"hallucination":0.1})
     assert settings_default.normalization_factor == 1.0
     metrics_default = metrics_from_observation(sample_observation, settings_default, baseline)
     assert metrics_default["P"] == 0.5
 
     # 2. Custom settings: factor = 1.5
     # P = min(1.0, (5 / 10) * 1.5) = 0.75
-    settings_custom = Settings(normalization_factor=1.5)
+    settings_custom = Settings(normalization_factor=1.5, r_max=50.0, gate_thresholds={"G":0.6,"R":0.7,"V":0.6}, q_sub_weights={"accuracy":0.7,"consistency":0.2,"hallucination":0.1})
     metrics_custom = metrics_from_observation(sample_observation, settings_custom, baseline)
     assert metrics_custom["P"] == 0.75
 
     # 3. Custom settings: factor = 0.27
     # P = min(1.0, (5 / 10) * 0.27) = 0.135
-    settings_old = Settings(normalization_factor=0.27)
+    settings_old = Settings(normalization_factor=0.27, r_max=50.0, gate_thresholds={"G":0.6,"R":0.7,"V":0.6}, q_sub_weights={"accuracy":0.7,"consistency":0.2,"hallucination":0.1})
     metrics_old = metrics_from_observation(sample_observation, settings_old, baseline)
     assert metrics_old["P"] == pytest.approx(0.135)
 
@@ -67,6 +67,9 @@ def test_api_settings_normalization_factor(client):
 
     # Update settings with custom normalization_factor
     data["normalization_factor"] = 0.5
+    data["q_sub_weights"] = {"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}
+    data["gate_thresholds"] = {"G": 0.60, "R": 0.70, "V": 0.60}
+    data["r_max"] = 50.0
     put_response = client.put("/settings", json=data)
     assert put_response.status_code == 200
     updated_data = put_response.json()

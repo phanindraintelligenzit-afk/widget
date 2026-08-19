@@ -1,0 +1,148 @@
+You are working inside this repository (already cloned, you are at the root):
+https://github.com/phanindraintelligenzit-afk/widget (branch: claude/gallant-dirac-02u1M)
+
+This is the DPI-LS project — a FastAPI service that scores AI agents on a 0–100 index
+across 7 performance dimensions and serves a live dashboard at localhost:8000.
+The existing codebase is fully working with 121 passing tests.
+DO NOT modify anything inside engine/ — the scoring math is stable and correct.
+
+Current repo layout:
+  contract/      Pydantic models — AgentObservation, PartialObservation
+  engine/        Pure scoring logic — metrics, score, gates, bands, SME state machine  ← DO NOT TOUCH
+  ingestion/     Adapters (generic webhook, OTel, source adapters)
+  api/           FastAPI app, routes, orchestration, bootstrap
+  store/         SQLAlchemy models + repo
+  widget/        dpi-ls.js web components + demo.html
+  fixtures/      Synthetic payloads for tests and demo
+  tests/         121 tests (all must continue to pass)
+  scripts/       demo_seed.sh
+  pyproject.toml
+  CLAUDE.md
+
+════════════════════════════════════════════════════════════
+OBJECTIVE
+════════════════════════════════════════════════════════════
+
+Refactor this project into an installable Python package named dpi-ls so that any
+developer can monitor their AI agent's performance across all 7 dimensions by adding
+just TWO LINES to their existing agent script — one import and one monitor() call —
+regardless of which LLM framework they use.
+
+Supported frameworks to intercept automatically:
+  - OpenAI Agents SDK
+  - LangGraph
+  - LangChain
+  - CrewAI
+  - AutoGen
+  - Raw OpenAI / Anthropic client calls
+  - Any other framework (graceful fallback with inferred metrics)
+
+When the user runs their agent script, the package must:
+  1. Intercept the agent's runtime calls silently in the background
+  2. Collect raw signals for all 7 dimensions throughout execution
+  3. Use a LangGraph-based LLM evaluator ONLY for the Quality (Q) dimension
+  4. Use deterministic math (no LLM) for the other 6 dimensions: P, E, G, R, V, C
+  5. Auto-start the FastAPI dashboard server at localhost:8000 in the background
+  6. POST a canonical AgentObservation to /ingest after the agent finishes
+  7. Keep the dashboard server alive so the user can browse results at localhost:8000
+
+════════════════════════════════════════════════════════════
+TARGET DEVELOPER EXPERIENCE
+════════════════════════════════════════════════════════════
+
+The user's agent file changes by exactly 2 lines:
+
+    import dpi_ls                                      # line 1
+    dpi_ls.monitor(agent, agent_id="my-agent")         # line 2
+
+Everything else in their file stays exactly the same.
+After the agent run completes: dashboard is live at http://localhost:8000
+All 7 dimensions are scored and visible on the dashboard automatically.
+
+════════════════════════════════════════════════════════════
+MEASUREMENT STRATEGY
+════════════════════════════════════════════════════════════
+
+P — Productivity  : count(outputs) / baseline_outputs         ← deterministic, NO LLM
+Q — Quality       : LangGraph graph with 3 LLM scoring nodes  ← LLM ONLY HERE
+E — Execution     : successes / attempts counter              ← deterministic, NO LLM
+G — Governance    : regex policy check on outputs             ← deterministic, NO LLM
+R — Risk          : error frequency × severity weights        ← deterministic, NO LLM
+V — Validation    : JSON schema presence check on outputs     ← deterministic, NO LLM
+C — Cost          : token usage × configured price per token  ← deterministic, NO LLM
+
+The 7 scoring formulas (DO NOT change these — engine/ owns the math):
+  P = min(1, AI_outputs / human_baseline)
+  Q = 0.70 * Accuracy + 0.20 * Consistency + 0.10 * (1 - Hallucination)
+  E = successful_executions / attempts
+  G = 1 - (policy_violations / total_actions)
+  R = 1 - min(1, sum(freq * severity) / R_max)
+  V = validated_components / required_components
+  C = min(1, human_cost / AI_cost) * utilization
+
+Composite: DPI-LS = 100 * (P^0.15 * Q^0.20 * E^0.15 * G^0.20 * R^0.15 * V^0.10 * C^0.05)
+
+Hard gates: If G < 0.60 OR R < 0.50 OR V < 0.60 → score capped at 69, flagged Unsafe
+
+Bands: 85–100 Exceptional | 70–84 Strong | 50–69 Needs Optimization | <50 Underperforming/Unsafe
+
+════════════════════════════════════════════════════════════
+LLM CONFIGURATION — Q DIMENSION EVALUATOR ONLY
+════════════════════════════════════════════════════════════
+
+For the LangGraph Quality evaluator, use AWS Bedrock via LangChain:
+
+    from langchain_aws import ChatBedrockConverse
+    import os
+
+    llm = ChatBedrockConverse(model_id=os.getenv("MODEL_NAME"))
+
+The user sets MODEL_NAME in their .env file, e.g.:
+    MODEL_NAME=us.amazon.nova-pro-v1:0
+
+AWS credentials are resolved automatically from the environment
+(AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_DEFAULT_REGION)
+or from an active IAM role. No extra auth config needed.
+
+════════════════════════════════════════════════════════════
+IMPLEMENTATION STEPS
+════════════════════════════════════════════════════════════
+
+1. Read the full repo structure first — understand every existing file before writing anything.
+2. Read CLAUDE.md for project-specific conventions.
+3. Create dpi_ls/ package at the repo root with:
+     __init__.py        — exposes monitor() as the public API
+     monitor.py         — framework detection + agent wrapping logic
+     collector.py       — runtime signal collector for all 7 dimensions
+     evaluator.py       — LangGraph Q-dimension evaluator using ChatBedrockConverse
+     server.py          — background FastAPI server launcher
+     poster.py          — builds AgentObservation and POSTs to /ingest
+4. Wire monitor() so it:
+     - detects the framework automatically (OpenAI Agents, LangGraph, LangChain, CrewAI, AutoGen, raw clients)
+     - patches the framework's execution hooks to collect signals during the run
+     - registers an atexit / post-run callback to run the Q evaluator, build the observation, POST it, and keep the server alive
+5. Add dpi-ls as an installable package in pyproject.toml with all new dependencies.
+6. Write an example file at examples/test_agent.py showing the 2-line integration with OpenAI Agents SDK.
+7. Run the full test suite — all 121 existing tests must still pass.
+8. Fix any failures before finishing.
+
+Do not modify anything inside engine/.
+Do not break any existing API routes or Pydantic contracts.
+
+
+Some of the work is already done in previous session check whether everything working and make it work 
+
+Previous session work
+
+
+✻ Baked for 1s
+
+  8 tasks (6 done, 2 in progress, 0 open)
+  ◼ Plan and scaffold dpi_ls package
+  ◼ Add tests for new package and run full suite
+  ✔ Implement SignalCollector and policy heuristics
+  ✔ Implement framework patchers
+  ✔ Implement LangGraph Q evaluator
+   … +3 completed
+
+if current changes dont work good you can change the files to make it work correctly 

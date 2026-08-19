@@ -1,0 +1,63 @@
+# DPI-LS Observability Stack – Complete Run Guide
+# (Real Prometheus 3.12 + Real Grafana 13 + MLflow + Backend)
+# =====================================================================
+# Open 5 separate PowerShell terminal tabs in VS Code.
+# Paste the commands for each tab and let them run.
+# =====================================================================
+
+# ══════════════════════════════════════════════════════════════════
+# TERMINAL TAB 1 – Start DPI-LS Backend Server
+# ══════════════════════════════════════════════════════════════════
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+
+
+# ══════════════════════════════════════════════════════════════════
+# TERMINAL TAB 2 – Start Jaeger & Zipkin
+# ══════════════════════════════════════════════════════════════════
+docker run -d --name jaeger -p 16686:16686 -p 14268:14268 jaegertracing/all-in-one:latest
+docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin:latest
+
+
+# ══════════════════════════════════════════════════════════════════
+# TERMINAL TAB 3 – Start Real Prometheus
+# ══════════════════════════════════════════════════════════════════
+cd "C:\Users\User\Downloads\prometheus-3.12.0.windows-amd64\prometheus-3.12.0.windows-amd64"
+.\prometheus.exe --config.file=prometheus.yml --web.listen-address=127.0.0.1:9090
+
+
+# ══════════════════════════════════════════════════════════════════
+# TERMINAL TAB 4 – Start Real Grafana
+# ══════════════════════════════════════════════════════════════════
+cd "C:\Users\User\Downloads\grafana_13.0.2_26816849631_windows_amd64\grafana-13.0.2\bin"
+.\grafana.exe server --homepath ".."
+
+
+# ══════════════════════════════════════════════════════════════════
+# TERMINAL TAB 5 – Run Test Traffic (Generates Live Data)
+# Run this once or twice while showing the dashboard!
+# ══════════════════════════════════════════════════════════════════
+& d:\Projects\widget\widget\.venv\Scripts\Activate.ps1
+cd d:\Projects\widget\widget
+$env:PYTHONIOENCODING="utf-8"; $env:DPI_LS_NO_BLOCK="1"; uv run python examples/test_agent.py
+
+
+# ══════════════════════════════════════════════════════════════════
+# BROWSER URLs – Open all of these to show Ranga
+# ══════════════════════════════════════════════════════════════════
+#
+#  GRAFANA (Real, auto-provisioned)
+#  http://localhost:3000/d/dpi_ls_finops_v1    ← DPI-LS Scorecard dashboard
+#  http://localhost:3000/connections/datasources  ← Data Sources (all listed)
+#
+#  PROMETHEUS (Real)
+#  http://localhost:9090/targets               ← Scrape targets (UP/DOWN)
+#
+#  JAEGER
+#  http://localhost:16686                      ← OpenTelemetry traces
+#
+#  ZIPKIN
+#  http://localhost:9411                       ← Trace timeline dashboard
+#  DPI-LS BACKEND
+#  http://localhost:8000/widget/resources.html ← Resource evaluation UI

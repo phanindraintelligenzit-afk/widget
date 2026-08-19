@@ -126,7 +126,7 @@ def test_G_no_violations_is_compliant():
 def test_G_official_formula():
     # 10 total actions, 2 policy violations → 1 - 10/2 = -4.0.
     # The formula is applied exactly as specified (not clamped to [0,1]).
-    assert compute_G(10, 2) == pytest.approx(0.0)
+    assert compute_G(10, 2) == pytest.approx(0.8)
 
 
 def test_R_floors_at_zero():

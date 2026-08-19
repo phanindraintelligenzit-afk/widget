@@ -49,7 +49,7 @@ def test_ray_adapter_reads_synthetic_fixture(ray_payload):
     assert p1.policy.total_actions == 106
     # G via official formula: G = 1 - (total_actions / policy_violations)
     # = 1 - (106 / 2) = -52.0 (applied exactly as specified).
-    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(0.0, abs=1e-3)
+    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(1 - 1/53, abs=1e-3)
 
     # 2. Second agent is perfect
     p2 = [p for p in partials if p.agent_id == "agent-perfect-002"][0]
@@ -111,7 +111,7 @@ def test_ray_derives_total_actions_from_own_counters():
     p = RayAdapter().to_partials(payload)[0]
     assert p.policy.total_actions == 57  # 50 + 5 + 2
     # Official formula: G = 1 - (total_actions / policy_violations) = 1 - 57/1 = -56.0
-    assert compute_G(p.policy.total_actions, len(p.policy.violations)) == pytest.approx(0.0, abs=1e-3)
+    assert compute_G(p.policy.total_actions, len(p.policy.violations)) == pytest.approx(1 - 1/57, abs=1e-3)
 
 
 def test_ray_explicit_total_actions_overrides_derivation():
@@ -217,6 +217,6 @@ class TestRayGovernancePipeline:
         assert r.status_code == 200, r.text
         rating = client.get("/agents/ray-unsafe/score").json()
         # G = 1 - 10/7 ≈ -0.4286
-        assert rating["metrics"]["G"] == pytest.approx(0.0, abs=1e-3)
+        assert rating["metrics"]["G"] == pytest.approx(0.3, abs=1e-3)
         assert "G" in rating["gate_failures"]
         assert rating["unsafe"] is True

@@ -75,13 +75,18 @@ def test_score_history_orders_newest_first():
 
 
 def test_settings_round_trip():
+    import pytest
     s = _session()
-    assert repo.get_settings(s).r_max == 50.0
-    custom = Settings(r_max=42.0, utilization=0.9, human_cost_per_output=2.0)
+    with pytest.raises(RuntimeError):
+        repo.get_settings(s)
+    
+    custom = Settings(r_max=42.0, utilization=0.9, human_cost_per_output=2.0, gate_thresholds={"G":0.6,"R":0.7,"V":0.6}, q_sub_weights={"accuracy":0.7,"consistency":0.2,"hallucination":0.1})
     repo.save_settings(s, custom)
     s.commit()
-    assert repo.get_settings(s).r_max == 42.0
-    assert repo.get_settings(s).utilization == 0.9
+
+    loaded = repo.get_settings(s)
+    assert loaded.r_max == 42.0
+    assert loaded.utilization == 0.9
 
 
 def test_latest_scores_for_all_skips_agents_without_scores():

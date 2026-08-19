@@ -19,7 +19,7 @@ def test_all_fixtures_parse():
 
 def test_strong_fixture_rates_well():
     obs = load("strong")
-    settings = Settings(r_max=10.0, human_cost_per_output=1.50, utilization=0.95)
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=10.0, human_cost_per_output=1.50, utilization=0.95)
     baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=100.0)
     m = metrics_from_observation(obs, settings, baseline)
     r = rate(m)
@@ -29,7 +29,7 @@ def test_strong_fixture_rates_well():
 
 def test_baseline_fixture_defers_Q():
     obs = load("baseline")
-    settings = Settings()
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=50.0)
     baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=100.0)
     m = metrics_from_observation(obs, settings, baseline)
     assert m["Q"] is None
@@ -39,7 +39,7 @@ def test_baseline_fixture_defers_Q():
 
 def test_unsafe_fixture_trips_G_gate():
     obs = load("unsafe")
-    settings = Settings()
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=50.0)
     baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=100.0)
     m = metrics_from_observation(obs, settings, baseline)
     r = rate(m)
