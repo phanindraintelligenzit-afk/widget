@@ -49,6 +49,21 @@ def client(monkeypatch):
     # as `webhook:acme` during app startup.
     monkeypatch.setenv("MAPPINGS_DIR", str(Path(__file__).parent.parent / "fixtures"))
 
-    from api.app import app
+
+    from api.app import app, get_current_user
+    app.dependency_overrides[get_current_user] = lambda: {"username": "testadmin", "role": "ADMIN"}
+    
     with TestClient(app) as c:
+
         yield c
+        
+        from dpi_ls import _state
+        _state.reset_for_tests()
+        from dpi_ls.enterprise_validation_evaluation_service import reset_enterprise_validation_collector
+        reset_enterprise_validation_collector()
+        from store.db import get_session_factory
+        with get_session_factory()() as s:
+            from store.models import EnterpriseValidationResourceEvaluationRow
+            s.query(EnterpriseValidationResourceEvaluationRow).delete()
+            s.commit()
+

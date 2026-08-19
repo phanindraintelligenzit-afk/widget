@@ -45,6 +45,9 @@ dependencies = [
     "psycopg2-binary>=2.9.12",
     "alembic>=1.19.1",
     "boto3>=1.43.0",
+    "pyjwt>=2.13.0",
+    "passlib>=1.7.4",
+    "bcrypt>=5.0.0",
 ]
 
 [project.optional-dependencies]

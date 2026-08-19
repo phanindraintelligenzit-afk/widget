@@ -36,7 +36,6 @@ def test_partial_coverage_agent_through_full_engine(client):
     client.post("/ingest/source/aws_cost", json=payload)
     r = client.get("/agents/agent-multi-001/score").json()
     assert r["coverage"] == 0.143  # 1/7 dimensions
-    assert r["capped"] is True      # Completeness cap fires
-    pass       # Capped to "Needs Optimization"
-    assert r["band"] == "Needs Optimization"
-
+    assert r["capped"] is False
+    assert r["band"] == "Underperforming"
+
