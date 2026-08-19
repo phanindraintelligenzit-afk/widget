@@ -44,7 +44,6 @@ When companies deploy AI to handle important work — like processing invoices, 
 ## Architecture
 
 The complete end-to-end workflow follows this architecture:
-<<<<<<< HEAD
 
 ```mermaid
 flowchart TD
@@ -54,8 +53,15 @@ flowchart TD
     classDef database fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#000000;
     classDef dashboard fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000000;
     classDef userAction fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000000,stroke-dasharray: 5 5;
+    classDef security fill:#FF5722,stroke:#BF360C,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
     
     %% Main Nodes
+    subgraph Phase 0: Security [Phase 0: Authentication & RBAC]
+        direction TB
+        L([0a. User Login]):::security
+        R{0b. RBAC Verification<br/>Admin/Manager/Customer}:::security
+    end
+
     subgraph Phase 1: Preparation [Phase 1: Agent & Data Configuration]
         direction TB
         A([1. Agent Onboarding]):::primary
@@ -80,6 +86,9 @@ flowchart TD
     end
 
     %% Connections
+    L -->|Validates JWT Credentials| R
+    R -->|Authorizes Specific Roles| A
+    
     A -->|Registers Identity & Ownership| B
     B -->|Defines Target Metrics| C
     C -->|Sets Human Baselines| D
@@ -154,77 +163,7 @@ docker compose up -d
 - [Design Rationale](./CLAUDE.md)
 - [License](./LICENSE)
 
-=======
 
-```
-Agent Onboarding → KRA Configuration → Static Data Configuration → Manager Review
-                                                                        ↓
-                                                            Event-Driven Automation
-                                                                        ↓
-                                                              DPI-LS Dashboard
-```
-
-For detailed architecture diagrams, refer to:
-[Architecture](./docs/architecture.png)
-
-## Dashboard
-
-All results flow into the live Dashboard, which serves as your central command center. The Dashboard contains:
-- **Leaderboard**: All agents ranked by score.
-- **Resources**: Operational manuals and guides.
-- **DPI-LS Score Details**: Scoring methodology.
-- **Customer Feedback Portal**: End-user feedback forms.
-
-[Dashboard Reference](./docs/dashboard.png)
-
-## KPIs
-
-- **Score Range**: 0-100 arithmetic mean of all dimensions.
-- **Exceptional**: 85-100
-- **Strong**: 70-84
-- **Needs Optimization**: 50-69
-- **Underperforming**: Below 50
-
-## The 7 Dimensions
-
-Every AI agent is evaluated across these 7 areas:
-
-| Dimension | What It Measures | In Simple Terms |
-|-----------|-----------------|-----------------|
-| **P** — Productivity | How much work the AI completes compared to a human | "Is the AI faster than a person?" |
-| **Q** — Quality | Accuracy, consistency, and hallucination rate of AI outputs | "Is the AI giving correct answers?" |
-| **E** — Execution | Success rate of all AI tasks and tool calls | "Is the AI completing tasks without errors?" |
-| **G** — Governance | Policy compliance — PII leaks, unauthorized access | "Is the AI following the rules?" |
-| **R** — Risk | Frequency and severity of incidents and exceptions | "Is the AI causing any problems?" |
-| **V** — Validation | Whether outputs are properly structured | "Is the AI producing well-formatted results?" |
-| **C** — Cost | AI cost per output compared to human cost per output | "Is the AI saving us money?" |
-
-## AI Agent Model
-
-The engine is **agent-agnostic** — it consumes a canonical `AgentObservation` schema and never imports an agent framework. It supports:
-- OpenAI Agents SDK
-- LangGraph, LangChain, CrewAI, AutoGen, LlamaIndex
-- Raw OpenAI / Anthropic
-- Any custom framework
-
-## Security & Governance
-
-If the AI fails on Governance (G), Risk (R), or Validation (V), the system automatically caps the score and flags the agent as **Unsafe** — no matter how well it performs in other areas. A single PII leak will trigger this safety gate.
-
-## Deployment
-
-Deploy using Docker Compose for the full observability stack:
-```bash
-docker compose up -d
-```
-
-## References
-
-- [Whitepaper](./docs/whitepaper.pdf)
-- [Design Rationale](./CLAUDE.md)
-- [License](./LICENSE)
-
->>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
 ## About Intelligenz IT
 
 Intelligenz IT is a global enterprise transformation partner specializing in:
