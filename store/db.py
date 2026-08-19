@@ -14,7 +14,8 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 DEFAULT_URL = "sqlite:///./dpi_ls.db"
-
+import json
+import boto3
 
 class Base(DeclarativeBase):
     pass
@@ -24,10 +25,43 @@ _engine: Optional[Engine] = None
 _SessionLocal: Optional[sessionmaker[Session]] = None
 
 
+def get_db_secret(secret_name: str) -> str:
+    """Fetch database credentials from AWS Secrets Manager."""
+    client = boto3.client("secretsmanager", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-east-1"))
+    response = client.get_secret_value(SecretId=secret_name)
+    secret = json.loads(response["SecretString"])
+    # Construct Postgres URL from secret
+    user = secret.get("username", "")
+    password = secret.get("password", "")
+    host = secret.get("host", "localhost")
+    port = secret.get("port", "5432")
+    dbname = secret.get("dbname", "dpi_ls")
+    return f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{dbname}"
+
+
 def configure(url: str | None = None) -> Engine:
     """(Re)bind the engine. Call this before init_db()."""
     global _engine, _SessionLocal
-    url = url or os.environ.get("DATABASE_URL", DEFAULT_URL)
+    dpi_env = os.environ.get("DPI_ENV", "development")
+    
+    # 1. Resolve connection URL
+    if not url:
+        url = os.environ.get("DPI_DB_URL")
+        # In production, if DPI_DB_URL isn't explicitly set (e.g. for a proxy), fetch from Secrets Manager
+        if not url and dpi_env == "production":
+            secret_name = os.environ.get("DPI_DB_SECRET_NAME", "dpi-ls/production/database")
+            try:
+                url = get_db_secret(secret_name)
+            except Exception as e:
+                raise RuntimeError(f"Failed to fetch DB credentials from Secrets Manager: {e}")
+        elif not url:
+            url = DEFAULT_URL
+
+    # 2. Hard production guard: Fail loud, never fall back.
+    if dpi_env == "production":
+        if "sqlite" in url or "localhost" in url:
+            raise RuntimeError(f"Startup assertion failed: DPI_ENV=production but resolved DB URL points to local/sqlite: {url}")
+
     is_sqlite = url.startswith("sqlite")
     is_memory = is_sqlite and ":memory:" in url
 
@@ -35,7 +69,6 @@ def configure(url: str | None = None) -> Engine:
     kwargs = {"connect_args": connect_args, "future": True}
     if is_memory:
         # Share the same in-memory DB across sessions for the duration
-        # of the process.
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
 

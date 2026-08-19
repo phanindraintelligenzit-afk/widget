@@ -92,12 +92,12 @@ def compute_E(successful: int, attempts: int) -> float:
 
 
 def compute_G(total_actions: int, policy_violations: int) -> float:
-    """G = 1 − (total_actions / policy_violations).
+    """G = 1 − (policy_violations / total_actions).
 
     Official DPI-LS governance formula (per project specification /
     Ranga Sir's documentation): governance strength is measured as one
-    minus the ratio of total policy-gated actions to the number of
-    policy violations observed. When no violations have been recorded
+    minus the ratio of policy violations observed to the number of
+    total policy-gated actions. When no violations have been recorded
     the agent is fully compliant → ``1.0``.
 
     The formula is evaluated exactly as specified and is not clamped to
@@ -113,10 +113,10 @@ def compute_G(total_actions: int, policy_violations: int) -> float:
         policy_violations:  number of policy violations observed
                             (runtime telemetry, never hardcoded).
     """
-    # Official formula: G = 1 - (total_actions / policy_violations)
-    if policy_violations <= 0:
+    # Official formula: G = 1 - (policy_violations / total_actions)
+    if total_actions <= 0:
         return 1.0
-    return max(0.0, 1.0 - (total_actions / policy_violations))
+    return max(0.0, 1.0 - (policy_violations / total_actions))
 
 
 def compute_R(incidents: list | None, r_max: float) -> float:

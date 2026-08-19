@@ -30,18 +30,15 @@ DEFAULT_GATE_THRESHOLDS: dict[str, float] = {"G": 0.60, "R": 0.70, "V": 0.60}
 class Settings(BaseModel):
     """Per-deployment tunables. Per-agent baselines live in AgentBaseline."""
     weights: dict[str, float] = Field(default_factory=lambda: dict(DEFAULT_WEIGHTS))
-    q_sub_weights: dict[str, float] = Field(
-        default_factory=lambda: dict(DEFAULT_Q_SUB_WEIGHTS)
-    )
-    gate_thresholds: dict[str, float] = Field(
-        default_factory=lambda: dict(DEFAULT_GATE_THRESHOLDS)
-    )
-    r_max: float = 50.0
+    q_sub_weights: dict[str, float]
+    gate_thresholds: dict[str, float]
+    r_max: float
     human_cost_per_output: float = 50.0
     utilization: float = 1.0
     normalization_factor: float = 1.0
     input_token_price: float = 0.000005
     output_token_price: float = 0.000015
+    ground_truth_dataset_path: str | None = None
 
     # Coverage cap. The composite redistributes weight off None metrics, so an
     # agent with only 1–2 dimensions reported could otherwise score 100. This

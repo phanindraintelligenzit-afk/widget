@@ -389,12 +389,9 @@ def run_ragas(question: str, agent_answer: str, context: list[str]) -> dict:
     """Run Ragas SDK metrics."""
     results = {}
     if not os.getenv("OPENAI_API_KEY"):
-        print("[Ragas] OPENAI_API_KEY not set — using simulated metric evaluation.")
-        results["semantic_accuracy"] = 0.950
-        results["faithfulness"] = 0.850
-        results["answer_relevancy"] = 0.900
-        results["context_precision"] = 0.920
-        results["context_recall"] = 0.880
+        if os.environ.get("DPI_ENV") == "production":
+            raise RuntimeError("OPENAI_API_KEY required for Ragas evaluation in production.")
+        print("[Ragas] OPENAI_API_KEY not set — skipping.")
         return results
     try:
         from datasets import Dataset
@@ -430,12 +427,9 @@ def run_ragas(question: str, agent_answer: str, context: list[str]) -> dict:
 def run_langsmith() -> dict:
     results = {}
     if os.getenv("LANGCHAIN_TRACING_V2", "").lower() != "true" or not os.getenv("LANGCHAIN_API_KEY"):
-        print("[LangSmith] Tracing not enabled or API key missing — using simulated metrics.")
-        results["runtime_traces"] = 1
-        results["llm_evaluation"] = 0.950
-        results["prompt_evaluation"] = 0.900
-        results["context_evaluation"] = 0.920
-        results["hallucination_analysis"] = 0.050
+        if os.environ.get("DPI_ENV") == "production":
+            raise RuntimeError("LANGCHAIN_API_KEY required for LangSmith evaluation in production.")
+        print("[LangSmith] Tracing not enabled or API key missing — skipping.")
         return results
     try:
         from langsmith import Client

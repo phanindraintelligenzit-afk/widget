@@ -42,6 +42,9 @@ dependencies = [
     "agentops>=0.3.16",
     "traceloop-sdk>=0.62.1",
     "httpx2>=2.9.1",
+    "psycopg2-binary>=2.9.12",
+    "alembic>=1.19.1",
+    "boto3>=1.43.0",
 ]
 
 [project.optional-dependencies]

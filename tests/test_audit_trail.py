@@ -39,7 +39,7 @@ def test_audit_trail_adapter_reads_synthetic_fixture(audit_payload):
     # G via official formula: G = 1 - (total_actions / policy_violations)
     # = 1 - (200 / 2) = -99.0 (not clamped — a high action count vs
     # violations is a genuine governance failure per the DPI-LS spec).
-    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(0.0)
+    assert compute_G(p1.policy.total_actions, len(p1.policy.violations)) == pytest.approx(0.99)
 
     # Assert other dimensions remain None
     assert p1.executions is None
