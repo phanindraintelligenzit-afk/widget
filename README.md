@@ -5,10 +5,9 @@
 <p align="center">A comprehensive enterprise-grade solution by Intelligenz IT.</p>
 
 <p align="center">
-<a href="https://intelligenzit.com/"><img src="https://img.shields.io/badge/Organization-Intelligenz_IT-green?style=flat-square" alt="Organization"/></a>
-<a href="https://intelligenzit.com/"><img src="https://img.shields.io/badge/Paper-Internal-blue?style=flat-square" alt="Paper"/></a>
-<a href="https://www.linkedin.com/company/intelligenz-it/"><img src="https://img.shields.io/badge/LinkedIn-Intelligenz_IT-0A66C2?style=flat-square&logo=linkedin" alt="LinkedIn"/></a>
-<a href="http://54.160.31.20:3000/onboarding"><img src="https://img.shields.io/badge/Agent_Dashboards-DPI_LS-purple?style=flat-square" alt="Agent Dashboards"/></a>
+<a href="https://intelligenzit.com/"><img src="https://img.shields.io/badge/Intelligenz_IT-green?style=flat-square" alt="Organization"/></a>
+<a href="https://www.linkedin.com/company/intelligenz-it/"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin" alt="LinkedIn"/></a>
+<a href="http://54.160.31.20:3000/onboarding"><img src="https://img.shields.io/badge/Agent_Dashboards?style=flat-square" alt="Agent Dashboards"/></a>
 <a href="https://intelligenzit.com/"><img src="https://img.shields.io/badge/License-Proprietary-red?style=flat-square" alt="License"/></a>
 </p>
 
