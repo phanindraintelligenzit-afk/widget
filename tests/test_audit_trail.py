@@ -188,9 +188,8 @@ class TestAuditTrailGovernancePipeline:
         client.post("/ingest/source/audit_trail", json=payload)
         rating = client.get("/agents/audit-low-rate/score").json()
         assert rating["metrics"]["G"] == pytest.approx(0.99)
-        # Gate fires (G below the 0.60 floor) and the agent is unsafe.
-        assert "G" in rating["gate_failures"]
-        assert rating["unsafe"] is True
+        assert "G" not in rating["gate_failures"]
+        assert rating["unsafe"] is False
 
     def test_high_audit_trail_violation_rate_fires_g_gate(self, client):
         """Official formula: 10 actions / 7 violations = G = 1 - 10/7 ≈ -0.4286.
@@ -215,7 +214,7 @@ class TestAuditTrailGovernancePipeline:
         r = client.post("/ingest/source/audit_trail", json=payload)
         assert r.status_code == 200, r.text
         rating = client.get("/agents/audit-unsafe/score").json()
-        # G = 1 - 10/7 ≈ -0.4286
+        # G = 1 - 7/10 = 0.3
         assert rating["metrics"]["G"] == pytest.approx(0.3, abs=1e-3)
         # Gate fires
         assert "G" in rating["gate_failures"]

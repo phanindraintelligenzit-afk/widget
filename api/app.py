@@ -149,7 +149,78 @@ def _is_reachable_global(url: str) -> bool:
     except Exception:
         return False
 
+
+
+
+from fastapi.security import OAuth2PasswordBearer
+from fastapi import Depends, HTTPException, status
+from passlib.context import CryptContext
+import jwt
+from datetime import datetime, timedelta, timezone
+from store.models import UserRow
+from sqlalchemy import select
+
+SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    if os.environ.get("TESTING") == "1" and token == "testtoken":
+        # For tests that explicitly pass a fake token to avoid parsing
+        pass
+    
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        role: str = payload.get("role")
+        if username is None or role is None:
+            raise credentials_exception
+        return {"username": username, "role": role}
+    except jwt.PyJWTError:
+        raise credentials_exception
+
+def require_role(roles: list[str]):
+    def role_checker(user: dict = Depends(get_current_user)):
+        if user["role"] not in roles:
+            raise HTTPException(status_code=403, detail="Not enough permissions")
+        return user
+    return role_checker
+
+
+
+
+
 app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
+
+@app.post("/api/login")
+def login(req: LoginRequest, db: Session = Depends(db_session)):
+    user = db.query(UserRow).filter(UserRow.username == req.username).first()
+    if not user or not pwd_context.verify(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user.username, "role": user.role}, expires_delta=access_token_expires
+    )
+    return {"token": access_token}
 
 # CORS so the widget can be embedded cross-origin. WIDGET_ALLOWED_ORIGINS
 # can be set to a comma-separated allowlist in prod; the demo defaults to *.
@@ -507,7 +578,25 @@ def risk_dashboard(
 
 
 @app.get("/agents", response_model=list[AgentSummary])
-def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
+def list_all_agents(
+    limit: int = 100, 
+    offset: int = 0, 
+    search: str = None, 
+    sort_by: str = None, 
+    s: Session = Depends(db_session)
+) -> list[AgentSummary]:
+    from store.models import AgentRow
+    from sqlalchemy import select
+    q = select(AgentRow)
+    if search:
+        q = q.where(AgentRow.name.ilike(f'%{search}%') | AgentRow.id.ilike(f'%{search}%'))
+    if sort_by == 'name':
+        q = q.order_by(AgentRow.name)
+    else:
+        q = q.order_by(AgentRow.last_seen.desc())
+        
+    q = q.offset(offset).limit(limit)
+    rows = s.scalars(q).all()
     return [
         AgentSummary(
             agent_id=row.id,
@@ -516,7 +605,7 @@ def list_all_agents(s: Session = Depends(db_session)) -> list[AgentSummary]:
             first_seen=row.first_seen,
             last_seen=row.last_seen,
         )
-        for row in repo.list_agents(s)
+        for row in rows
     ]
 
 
@@ -534,7 +623,7 @@ def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSu
 
 
 @app.put("/api/agents/{agent_id}", response_model=AgentSummary)
-def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_session)) -> AgentSummary:
+def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentSummary:
     row = s.get(store.models.AgentRow, agent_id)
     if not row:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -578,7 +667,7 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnbo
     )
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentOnboardingOut:
     # Ensure base agent exists
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
@@ -607,7 +696,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
     )
 
 @app.post("/api/agents/{agent_id}/kra", response_model=AgentKRAOut)
-def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)) -> AgentKRAOut:
+def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentKRAOut:
     row = store.repo.upsert_agent_kra(s, agent_id, body.kra_name, body.target_value, body.weight)
     s.commit()
     return AgentKRAOut(
@@ -634,7 +723,7 @@ def get_kras(agent_id: str, s: Session = Depends(db_session)) -> list[AgentKRAOu
     ]
 
 @app.put("/api/agents/{agent_id}/status")
-def update_status(agent_id: str, body: AgentStatusIn, s: Session = Depends(db_session)):
+def update_status(agent_id: str, body: AgentStatusIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))):
     try:
         agent = store.repo.update_agent_status(s, agent_id, body.status)
         s.commit()
@@ -656,7 +745,7 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
         return e.stdout + "\n" + e.stderr + f"\nError: {e}"
 
 @app.post("/api/agents/{agent_id}/manager-rating")
-def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)):
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     # Authorization checks should happen here (if manager_id matches the agent's manager)
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
     if onboarding and onboarding.manager and body.manager_id != onboarding.manager:
@@ -704,7 +793,7 @@ def list_manager_ratings(agent_id: str, s: Session = Depends(db_session)) -> lis
     ]
 
 @app.post("/api/agents/{agent_id}/customer-rating", response_model=CustomerRatingOut)
-def add_customer_rating(agent_id: str, body: CustomerRatingIn, s: Session = Depends(db_session)) -> CustomerRatingOut:
+def add_customer_rating(agent_id: str, body: CustomerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN", "CUSTOMER"]))) -> CustomerRatingOut:
     row = store.repo.save_customer_rating(s, agent_id, body.rating, body.customer_id, body.task_id, body.feedback)
     s.commit()
     return CustomerRatingOut(
@@ -733,7 +822,7 @@ def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> li
     ]
 
 @app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
-def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session)) -> AgentConfigurationOut:
+def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentConfigurationOut:
     row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
     s.commit()
     return AgentConfigurationOut(
@@ -768,7 +857,7 @@ def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[A
 
 
 @app.delete("/api/agents/{agent_id}")
-def delete_agent(agent_id: str, s: Session = Depends(db_session)) -> dict[str, str]:
+def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> dict[str, str]:
     from store.models import AgentRow
     row = s.get(AgentRow, agent_id)
     if not row:
@@ -2716,3 +2805,40 @@ def enterprise_productivity_agent_dashboard(
             for a in ADAPTERS
         ],
     }
+
+
+@app.get("/trace/{run_id}")
+def get_run_trace(run_id: str, session: Session = Depends(db_session)):
+    from store.models import ScoreTraceRow
+    from fastapi import HTTPException
+    row = session.query(ScoreTraceRow).filter(ScoreTraceRow.run_id == run_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Trace not found")
+    return row.trace
+
+
+from pydantic import BaseModel
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+
+@app.get("/login.html", include_in_schema=False)
+def login_page():
+    return FileResponse("widget/login.html")
+
+@app.get("/agent-profile.html", include_in_schema=False)
+def agent_profile_page():
+    return FileResponse("widget/agent-profile.html")
+
+@app.delete("/agents/{agent_id}")
+def delete_agent(agent_id: str, s: Session = Depends(db_session)):
+    from store.models import AgentRow
+    agent = s.get(AgentRow, agent_id)
+    if agent:
+        s.delete(agent)
+        s.commit()
+        return {"status": "success"}
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Agent not found")

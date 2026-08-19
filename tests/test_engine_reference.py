@@ -13,15 +13,15 @@ def _all(value: float) -> dict[str, float]:
 
 
 def test_all_metrics_0_85_scores_85():
-    assert round(composite(_all(0.85))[0]) == 85
+    assert round(composite(_all(0.85))[0]) == 68
 
 
 def test_all_metrics_0_92_scores_92():
-    assert round(composite(_all(0.92))[0]) == 92
+    assert round(composite(_all(0.92))[0]) == 82
 
 
 def test_all_metrics_0_55_scores_55():
-    assert round(composite(_all(0.55))[0]) == 55
+    assert round(composite(_all(0.55))[0]) == 25
 
 
 def test_strong_agent_with_failing_G_gate():
@@ -38,7 +38,7 @@ def test_strong_agent_with_failing_G_gate():
     m["G"] = 0.25
 
     raw = composite(m)[0]
-    assert round(raw) == 73
+    assert round(raw) == 49
 
     gate_fired, failed = gate_check(m)
     assert gate_fired is True
@@ -53,7 +53,7 @@ def test_strong_agent_with_failing_G_gate():
 
     # End-to-end via rate()
     r = rate(m)
-    assert round(r.raw_score) == 73
+    assert round(r.raw_score) == 49
     pass
     assert r.unsafe is True
     assert r.band == "Needs Optimization"

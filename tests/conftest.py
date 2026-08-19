@@ -49,6 +49,10 @@ def client(monkeypatch):
     # as `webhook:acme` during app startup.
     monkeypatch.setenv("MAPPINGS_DIR", str(Path(__file__).parent.parent / "fixtures"))
 
-    from api.app import app
+
+    from api.app import app, get_current_user
+    app.dependency_overrides[get_current_user] = lambda: {"username": "testadmin", "role": "ADMIN"}
+    
     with TestClient(app) as c:
+
         yield c

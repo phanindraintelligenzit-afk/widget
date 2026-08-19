@@ -561,3 +561,22 @@ class CustomerRatingRow(Base):
     rating: Mapped[int] = mapped_column(Integer)
     feedback: Mapped[str] = mapped_column(String(1024), nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+class ScoreTraceRow(Base):
+    __tablename__ = "score_traces"
+
+    run_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    config_version: Mapped[str] = mapped_column(String(64))
+    final_score: Mapped[float] = mapped_column(Float)
+    trace: Mapped[dict[str, Any]] = mapped_column(JSON)
+
+
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(256))
+    role: Mapped[str] = mapped_column(String(64), default="VIEWER")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

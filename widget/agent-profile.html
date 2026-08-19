@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Agent Profile</title>
+  <style>
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; padding: 20px; }
+    .container { max-width: 1200px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
+    h1, h2 { margin-top: 0; }
+    .card { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 4px; }
+    .nav { margin-bottom: 20px; }
+    .nav a { margin-right: 15px; text-decoration: none; color: #2563eb; font-weight: bold; }
+    .btn { background: #2563eb; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-danger { background: #dc2626; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f9f9f9; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav">
+      <a href="/">← Dashboard</a>
+      <a href="/login.html" style="float:right;" onclick="localStorage.clear();">Logout</a>
+    </div>
+    <h1 id="agent-name">Agent Profile</h1>
+    
+    <div class="grid">
+      <div class="card">
+        <h2>Agent Information</h2>
+        <p><strong>ID:</strong> <span id="agent-id"></span></p>
+        <p><strong>Type:</strong> <span id="agent-type"></span></p>
+        <p><strong>Environment:</strong> <span id="agent-env"></span></p>
+        <p><strong>Description:</strong> <span id="agent-desc"></span></p>
+      </div>
+
+      <div class="card">
+        <h2>Business Information</h2>
+        <p><strong>Agent Owner:</strong> <span id="agent-owner"></span></p>
+        <p><strong>Manager:</strong> <span id="agent-manager"></span></p>
+        <p><strong>Business Owner:</strong> <span id="agent-biz-owner"></span></p>
+        <p><strong>Technical Owner:</strong> <span id="agent-tech-owner"></span></p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>DPI-LS Score & Runtime Metrics</h2>
+      <p><strong>Latest Score:</strong> <span id="agent-score" style="font-size: 2em; font-weight: bold; color: #16a34a;"></span> <span id="agent-band"></span></p>
+      <p><strong>Status:</strong> <span id="agent-status"></span></p>
+      <div id="metrics-bars"></div>
+    </div>
+    
+    <div class="grid">
+      <div class="card">
+        <h2>KRA Configuration</h2>
+        <table id="kra-table">
+          <thead><tr><th>Name</th><th>Target</th><th>Weight</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Static Configuration / Business Baseline</h2>
+        <table id="config-table">
+          <thead><tr><th>Key</th><th>Value</th><th>Source</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Manager & Customer Ratings</h2>
+      <div class="grid">
+        <div>
+          <h3>Manager Ratings</h3>
+          <table id="manager-table">
+            <thead><tr><th>Manager</th><th>Rating</th><th>Period</th><th>Comments</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div>
+          <h3>Customer Feedback</h3>
+          <table id="customer-table">
+            <thead><tr><th>Customer</th><th>Rating</th><th>Feedback</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Historical Executions / Scores</h2>
+      <table id="history-table">
+        <thead><tr><th>Date</th><th>Score</th><th>Band</th><th>Status</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Actions</h2>
+      <button class="btn btn-danger" onclick="deleteAgent()">Retire Agent</button>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const agentId = urlParams.get('id');
+
+    async function loadData() {
+      if (!agentId) return;
+      document.getElementById('agent-id').innerText = agentId;
+
+      // 1. Onboarding Info
+      fetch(`/api/agents/${agentId}/onboard`).then(r => r.json()).then(data => {
+        if(data.detail) return;
+        document.getElementById('agent-type').innerText = data.agent_type;
+        document.getElementById('agent-env').innerText = data.environment;
+        document.getElementById('agent-desc').innerText = data.description;
+        document.getElementById('agent-owner').innerText = data.agent_owner;
+        document.getElementById('agent-manager').innerText = data.manager;
+        document.getElementById('agent-biz-owner').innerText = data.business_owner;
+        document.getElementById('agent-tech-owner').innerText = data.technical_owner;
+      });
+
+      // 2. Score
+      fetch(`/agents/${agentId}/score`).then(r => r.json()).then(data => {
+        if(data.detail) return;
+        document.getElementById('agent-score').innerText = data.score;
+        document.getElementById('agent-band').innerText = `(${data.band})`;
+        document.getElementById('agent-status').innerText = data.unsafe ? "UNSAFE" : "ACTIVE";
+        
+        const m = data.metrics || {};
+        let html = '';
+        for (const [k, v] of Object.entries(m)) {
+          const val = v !== null ? v.toFixed(3) : 'N/A';
+          html += `<p><strong>${k}:</strong> ${val}</p>`;
+        }
+        document.getElementById('metrics-bars').innerHTML = html;
+      });
+
+      // 3. KRA
+      fetch(`/api/agents/${agentId}/kra`).then(r => r.json()).then(data => {
+        if(!Array.isArray(data)) return;
+        const tb = document.querySelector('#kra-table tbody');
+        data.forEach(d => {
+          tb.innerHTML += `<tr><td>${d.kra_name}</td><td>${d.target_value}</td><td>${d.weight}</td></tr>`;
+        });
+      });
+
+      // 4. Config
+      fetch(`/api/agents/${agentId}/config`).then(r => r.json()).then(data => {
+        if(!Array.isArray(data)) return;
+        const tb = document.querySelector('#config-table tbody');
+        data.forEach(d => {
+          tb.innerHTML += `<tr><td>${d.configuration_key}</td><td>${d.configuration_value}</td><td>${d.source}</td></tr>`;
+        });
+      });
+
+      // 5. Manager Ratings
+      fetch(`/api/agents/${agentId}/manager-rating`).then(r => r.json()).then(data => {
+        if(!Array.isArray(data)) return;
+        const tb = document.querySelector('#manager-table tbody');
+        data.forEach(d => {
+          tb.innerHTML += `<tr><td>${d.manager_id}</td><td>${d.rating}</td><td>${d.review_period}</td><td>${d.comments}</td></tr>`;
+        });
+      });
+
+      // 6. Customer Ratings
+      fetch(`/api/agents/${agentId}/customer-rating`).then(r => r.json()).then(data => {
+        if(!Array.isArray(data)) return;
+        const tb = document.querySelector('#customer-table tbody');
+        data.forEach(d => {
+          tb.innerHTML += `<tr><td>${d.customer_id}</td><td>${d.rating}</td><td>${d.feedback}</td></tr>`;
+        });
+      });
+
+      // 7. History
+      fetch(`/agents/${agentId}/history`).then(r => r.json()).then(data => {
+        if(!Array.isArray(data)) return;
+        const tb = document.querySelector('#history-table tbody');
+        data.forEach(d => {
+          tb.innerHTML += `<tr><td>${new Date(d.computed_at).toLocaleString()}</td><td>${d.score}</td><td>${d.band}</td><td>${d.unsafe ? 'UNSAFE' : 'SAFE'}</td></tr>`;
+        });
+      });
+    }
+
+    async function deleteAgent() {
+      if(confirm('Are you sure you want to retire this agent?')) {
+        const res = await fetch(`/agents/${agentId}`, {method: 'DELETE'});
+        if(res.ok) window.location.href = '/';
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

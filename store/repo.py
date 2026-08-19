@@ -160,6 +160,27 @@ def save_score(
     )
     s.add(row)
     s.flush()
+    
+    # Traceability
+    try:
+        run_id = str(observation_id)
+        trace_obj = dpi_ls.trace.build_trace(
+            agent_id=agent_id,
+            run_id=run_id,
+            metrics=rating.metrics,
+            weighted_metrics=rating.weighted_metrics,
+            weights_used=rating.weights_used,
+            gate_thresholds={},
+            gate_failures=rating.gate_failures,
+            raw_score=rating.raw_score,
+            final_score=rating.score,
+            band_label=rating.band,
+            config_version="v1"
+        )
+        dpi_ls.trace.persist_trace(s, run_id, "v1", rating.score, trace_obj)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Trace generation failed: {e}")
     return row
 
 

@@ -374,7 +374,7 @@ async def run_agent_observation() -> None:
 
     from dpi_ls.poster import post_observation
     from contract.settings import Settings
-    collector.human_cost = Settings().human_cost_per_output
+    collector.human_cost = 0.05
     base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
     rating = post_observation(collector, base_url)
     if rating:
