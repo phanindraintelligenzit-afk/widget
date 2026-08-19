@@ -4,7 +4,6 @@ This document outlines the end-to-end business architecture and event-driven wor
 
 ```mermaid
 flowchart TD
-<<<<<<< HEAD
     %% Define Global Styles
     classDef primary fill:#0033A0,stroke:#002277,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
     classDef secondary fill:#007BFF,stroke:#0056b3,stroke-width:2px,color:#ffffff,rx:8px,ry:8px;
@@ -49,21 +48,6 @@ flowchart TD
     G --- G2
     G --- G3
     G --- G4
-=======
-    A[1. Agent Onboarding] -->|Registers Agent Identity & Ownership| B(2. KRA Configuration)
-    B -->|Defines Success Metrics & Weights| C(3. Static Data Configuration)
-    C -->|Sets Human Baselines| D{4. Manager Review}
-    D -->|Human SME Rating 1-5| E[[5. Event-Driven Telemetry Trigger]]
-    E -->|Background Script Executes| F[(Database Aggregation)]
-    F -->|Calculates 7 Dimensions| G[6. DPI-LS Dashboard]
-    
-    subgraph Dashboard Navigation
-    G --> G1(Main Leaderboard)
-    G --> G2(Resources)
-    G --> G3(DPI-LS Score Details)
-    G --> G4(Customer Feedback Portal)
-    end
->>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
 ```
 
 ## Workflow Phases
