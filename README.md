@@ -1,10 +1,6 @@
 <div align="center">
 
-<<<<<<< HEAD
 # DPI-LS Digital FTE Performance Index for Life Sciences
-=======
-<img src="./assets/title.svg" alt="DPI-LS Digital FTE Performance Index for Life Sciences" width="800" />
->>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
 
 <p align="center">A comprehensive enterprise-grade solution by Intelligenz IT.</p>
 
@@ -17,11 +13,7 @@
 </p>
 
 <p align="center">
-<<<<<<< HEAD
 <a href="#quick-start"><b>Quick Start</b></a> • <a href="./dpi_ls_business_architecture.md"><b>Architecture</b></a> • <a href="#dashboard"><b>Dashboard</b></a> • <a href="#the-7-dimensions"><b>The 7 Dimensions</b></a>
-=======
-<a href="#quick-start"><b>Quick Start</b></a> • <a href="#architecture"><b>Architecture</b></a> • <a href="#dashboard"><b>Dashboard</b></a> • <a href="#the-7-dimensions"><b>The 7 Dimensions</b></a>
->>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
 </p>
 
 </div>
