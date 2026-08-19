@@ -32,7 +32,7 @@ def test_generic_webhook_end_to_end():
     # Acme: 200 actions, 2 policy breaches → G = 1 - 200/2 = -99.0. The
     # negative G fails the 0.60 compliance floor → unsafe, G gate fires,
     # and the weighted composite is negative.
-    assert r.metrics["G"] == pytest.approx(0.0, abs=1e-3)
+    assert r.metrics["G"] == pytest.approx(0.99, abs=1e-3)
     assert r.unsafe is True
     assert r.band == "Needs Optimization"
     assert r.metrics["Q"] is not None

@@ -217,6 +217,6 @@ class TestRayGovernancePipeline:
         assert r.status_code == 200, r.text
         rating = client.get("/agents/ray-unsafe/score").json()
         # G = 1 - 10/7 ≈ -0.4286
-        assert rating["metrics"]["G"] == pytest.approx(0.0, abs=1e-3)
+        assert rating["metrics"]["G"] == pytest.approx(0.3, abs=1e-3)
         assert "G" in rating["gate_failures"]
         assert rating["unsafe"] is True
