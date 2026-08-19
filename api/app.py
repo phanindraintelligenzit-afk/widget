@@ -892,26 +892,13 @@ def _score_row_to_rating(s: Session, row) -> Rating:
     # Enrich sub_metrics live from the DB (G + R rows change between
     # ingests) …
     settings = repo.get_settings(s)
-    live_sub = enrich_governance_sub_metrics(
-        s,
-        enrich_risk_sub_metrics(
-            s,
-            enrich_productivity_sub_metrics(
-                s,
-                enrich_quality_sub_metrics(
-                    s, 
-                    enrich_validation_sub_metrics(
-                        s,
-                        enrich_cost_sub_metrics(
-                            s,
-                            dict(row.sub_metrics or {})
-                        )
-                    )
-                ),
-            ),
-            settings,
-        ),
-    )
+    live_sub = dict(row.sub_metrics or {})
+    live_sub = enrich_cost_sub_metrics(s, live_sub)
+    live_sub = enrich_validation_sub_metrics(s, live_sub)
+    live_sub = enrich_quality_sub_metrics(s, live_sub)
+    live_sub = enrich_productivity_sub_metrics(s, live_sub)
+    live_sub = enrich_risk_sub_metrics(s, live_sub, row.agent_id, settings)
+    live_sub = enrich_governance_sub_metrics(s, live_sub, row.agent_id)
 
     # … then keep metrics + weighted_metrics in lock-step with those
     # live values, so the per-agent card's row cells always match its
@@ -983,26 +970,13 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
 
         # Enrich sub_metrics with LIVE data (governance + risk are read from
         # the DB at every request, not frozen at ingest time).
-        live_sub = enrich_governance_sub_metrics(
-            s,
-            enrich_risk_sub_metrics(
-                s,
-                enrich_productivity_sub_metrics(
-                    s,
-                    enrich_quality_sub_metrics(
-                        s,
-                        enrich_validation_sub_metrics(
-                            s,
-                            enrich_cost_sub_metrics(
-                                s,
-                                dict(score.sub_metrics or {})
-                            )
-                        )
-                    ),
-                ),
-                settings,
-            ),
-        )
+        live_sub = dict(score.sub_metrics or {})
+        live_sub = enrich_cost_sub_metrics(s, live_sub)
+        live_sub = enrich_validation_sub_metrics(s, live_sub)
+        live_sub = enrich_quality_sub_metrics(s, live_sub)
+        live_sub = enrich_productivity_sub_metrics(s, live_sub)
+        live_sub = enrich_risk_sub_metrics(s, live_sub, agent.id, settings)
+        live_sub = enrich_governance_sub_metrics(s, live_sub, agent.id)
 
         # Row-vs-panel sync: whenever the live sub_metrics contain a fresher
         # G / R value than what's frozen in the persisted metrics dict,

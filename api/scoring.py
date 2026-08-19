@@ -494,14 +494,18 @@ def enrich_execution_sub_metrics(s: Session, sub_metrics: dict) -> dict:
     })
     return sub_metrics
 
-def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, settings=None) -> dict:
+def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, agent_id: str = None, settings=None) -> dict:
     if "R" not in sub_metrics:
         sub_metrics["R"] = {}
         
     incidents = []
     if s is not None:
-        from store.repo import list_latest_risk_incidents
-        inc_rows = list_latest_risk_incidents(s)
+        from store.models import RiskIncidentRow
+        from sqlalchemy import select
+        query = select(RiskIncidentRow)
+        if agent_id:
+            query = query.where(RiskIncidentRow.agent_id == agent_id)
+        inc_rows = s.scalars(query).all()
         for row in inc_rows:
             freq = row.frequency or 1
             weight = row.severity_weight or 1.0
@@ -611,7 +615,7 @@ def enrich_cost_sub_metrics(s, sub_metrics: dict) -> dict:
     return sub_metrics
 
 
-def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
+def enrich_governance_sub_metrics(s, sub_metrics: dict, agent_id: str = None) -> dict:
     if "G" not in sub_metrics:
         sub_metrics["G"] = {}
 
@@ -619,7 +623,10 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict) -> dict:
     if s is not None:
         from sqlalchemy import select
         from store.models import GovernanceIncidentRow
-        inc_rows = s.scalars(select(GovernanceIncidentRow).order_by(GovernanceIncidentRow.timestamp.desc())).all()
+        query = select(GovernanceIncidentRow).order_by(GovernanceIncidentRow.timestamp.desc())
+        if agent_id:
+            query = query.where(GovernanceIncidentRow.agent_id == agent_id)
+        inc_rows = s.scalars(query).all()
         for row in inc_rows:
             freq = row.frequency or 1
             weight = row.severity_weight or 1.0
@@ -777,8 +784,8 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
         res["G"] = obs.policy.model_dump(mode="json")
     
     # Enrich Risk with incidents from DB
-    res = enrich_risk_sub_metrics(s, res, settings)
-    res = enrich_governance_sub_metrics(s, res)
+    res = enrich_risk_sub_metrics(s, res, obs.agent_id, settings)
+    res = enrich_governance_sub_metrics(s, res, obs.agent_id)
 
     if obs.validation:
         v_raw = obs.validation.model_dump(mode="json")
