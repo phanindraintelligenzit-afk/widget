@@ -42,7 +42,7 @@ When companies deploy AI to handle important work — like processing invoices, 
 
 The complete end-to-end workflow follows this architecture:
 
-`mermaid
+```mermaid
 flowchart TD
     %% Define Global Styles
     classDef primary fill:#0033A0,stroke:#002277,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
@@ -98,7 +98,7 @@ flowchart TD
     G --- G2
     G --- G3
     G --- G4
-`
+```
 
 For detailed architecture diagrams and the event-driven workflow, please refer to the dedicated document:
 [DPI-LS Business Architecture Document](./dpi_ls_business_architecture.md)
