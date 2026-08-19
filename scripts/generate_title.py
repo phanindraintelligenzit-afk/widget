@@ -2,8 +2,13 @@ import os
 
 def generate_title_svg():
     os.makedirs('assets', exist_ok=True)
+<<<<<<< HEAD
     svg_content = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 80" width="100%" height="80">
   <text x="500" y="50" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="bold">
+=======
+    svg_content = """<svg xmlns="http://www.w3.org/2000/svg" width="800" height="80">
+  <text x="400" y="50" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="bold">
+>>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
     <tspan fill="#76b900">DPI-LS</tspan>
     <tspan fill="#24292e"> Digital FTE Performance Index for Life Sciences</tspan>
   </text>
