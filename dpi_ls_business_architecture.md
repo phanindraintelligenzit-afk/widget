@@ -10,8 +10,15 @@ flowchart TD
     classDef database fill:#E3F2FD,stroke:#1565C0,stroke-width:2px,color:#000000;
     classDef dashboard fill:#F3E5F5,stroke:#7B1FA2,stroke-width:2px,color:#000000;
     classDef userAction fill:#E8F5E9,stroke:#2E7D32,stroke-width:2px,color:#000000,stroke-dasharray: 5 5;
+    classDef security fill:#FF5722,stroke:#BF360C,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
     
     %% Main Nodes
+    subgraph Phase 0: Security [Phase 0: Authentication & RBAC]
+        direction TB
+        L([0a. User Login]):::security
+        R{0b. RBAC Verification<br/>Admin/Manager/Customer}:::security
+    end
+
     subgraph Phase 1: Preparation [Phase 1: Agent & Data Configuration]
         direction TB
         A([1. Agent Onboarding]):::primary
@@ -37,6 +44,9 @@ flowchart TD
     end
 
     %% Connections
+    L -->|Validates JWT Credentials| R
+    R -->|Authorizes Specific Roles| A
+    
     A -->|Registers Identity & Ownership| B
     B -->|Defines Target Metrics| C
     C -->|Sets Human Baselines| D
