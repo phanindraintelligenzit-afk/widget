@@ -80,7 +80,9 @@ flowchart TD
 ### Phase 6: The Dashboard (Visualization & Action)
 - **Action:** The computed scores are pushed to the live web interface.
 - **Business Value:** Provides a single pane of glass for executives to monitor AI health.
-  - **Dashboard:** The main leaderboard ranking all agents.
+  - **Dashboard:** The main leaderboard ranking all agents. Clicking an agent opens their profile.
+  - **Agent Profile View:** Shows detailed KRA configuration, static data baselines, and historical ratings for a specific agent.
+  - **Feedback Portal:** Captures direct end-user feedback and automatically redirects into the Agent Profile view.
   - **Resources:** Central hub for AI operations manuals.
   - **DPI-LS Score:** Deep dive into how the metrics were calculated.
   - **Submit Customer Feedback:** Closes the loop by allowing end-users to provide feedback, driving continuous improvement.
