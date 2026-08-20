@@ -67,36 +67,23 @@ flowchart TD
 
 ## Workflow Phases
 
-### Phase 0: Authentication & RBAC (Security)
-- **Action:** Users authenticate via the Login portal, receiving a secure JWT token. The system verifies Role-Based Access Control (RBAC) privileges (Admin, Manager, Customer, Viewer).
-- **Business Value:** Secures the enterprise platform. Ensures that only Admins can onboard agents/KRAs, Managers can only rate their assigned agents, and Customers can only submit feedback, enforcing strict governance and auditing.
+### Phase 0: Secure Login
+First, users log into the system securely. The platform checks their role to see if they are an Admin, Manager, or Customer. This ensures that only authorized people can add new agents, rate their own agents, or submit feedback, keeping the entire system safe and accountable.
 
-### Phase 1: Agent Onboarding (Identity & Governance)
-- **Action:** A new Digital Worker is registered into the system.
-- **Business Value:** Establishes clear accountability by assigning a Business Owner, Technical Owner, and Manager. This ensures the AI is not a "black box" and has human oversight.
+### Phase 1: Agent Onboarding
+Once logged in, an Admin registers a new AI Digital Worker into the system. This step is crucial because it assigns real human owners (a Business Owner, Technical Owner, and Manager) to the AI, ensuring it never operates in the dark without human supervision.
 
-### Phase 2: KRA Configuration (Strategic Alignment)
-- **Action:** Key Result Areas (KRAs) are defined with specific target values and weights.
-- **Business Value:** Aligns the AI's operations with business goals. By weighting metrics (e.g., giving Accuracy an 85% weight), the scoring engine knows exactly what constitutes success or failure for this specific business process.
+### Phase 2: Setting Goals
+Next, the Admin defines the specific goals (Key Result Areas) the AI needs to achieve. By setting target metrics and weighing their importance, the system learns exactly what success looks like for that specific business process.
 
-### Phase 3: Static Data Configuration (Benchmarking)
-- **Action:** Baseline metrics, such as the `human_baseline`, are ingested from enterprise HR or Operations data.
-- **Business Value:** Allows the system to calculate ROI and Efficiency. The AI's speed and cost are mathematically compared against these baselines to prove true business value.
+### Phase 3: Adding Human Benchmarks
+The system then brings in real-world data, like how much a human costs or how fast a human works. By having this baseline, the platform can mathematically prove if the AI is actually saving time and money compared to a human worker.
 
-### Phase 4: Manager Review (Subjective Evaluation)
-- **Action:** The assigned human manager reviews the AI's performance for a specific period and submits a 1-5 rating and comments.
-- **Business Value:** Ensures objective metrics are balanced with human SME (Subject Matter Expert) feedback. This feeds directly into the "Quality" dimension of the final score.
+### Phase 4: Manager Approval
+After the AI has been running, its assigned human manager logs in to rate its performance on a scale of 1 to 5 and leaves comments. This ensures that cold, hard data is always balanced with real human feedback.
 
-### Phase 5: Event-Driven Automation (The Engine)
-- **Action:** Submitting the Manager Review acts as a trigger. The FastAPI backend automatically dispatches a background task (`test_agent.py`).
-- **Business Value:** "Zero-Touch Scoring". The system dynamically pulls the baselines and weights defined in Phases 2 and 3, runs live evaluations across observability tools (Jaeger, Zipkin, DeepEval, etc.), and computes the scores without freezing the user's browser or requiring manual terminal commands.
+### Phase 5: The Automated Engine
+The moment the manager submits their review, it triggers the backend engine. Without anyone having to click another button, the system automatically gathers all the metrics, runs deep evaluations across our monitoring tools, and computes the final score in the background.
 
-### Phase 6: The Dashboard (Visualization & Action)
-- **Action:** The computed scores are pushed to the live web interface.
-- **Business Value:** Provides a single pane of glass for executives to monitor AI health.
-  - **Dashboard:** The main leaderboard ranking all agents. Clicking an agent opens their profile.
-  - **Agent Profile View:** Shows detailed KRA configuration, static data baselines, and historical ratings for a specific agent.
-  - **Feedback Portal:** Captures direct end-user feedback and automatically redirects into the Agent Profile view.
-  - **Resources:** Central hub for AI operations manuals.
-  - **DPI-LS Score:** Deep dive into how the metrics were calculated.
-  - **Submit Customer Feedback:** Closes the loop by allowing end-users to provide feedback, driving continuous improvement.
+### Phase 6: The Executive Dashboard
+Finally, all these calculations are pushed to a live, easy-to-read web dashboard. Here, executives can view a leaderboard ranking all their AI agents. From the dashboard, they can click on any agent to open its detailed profile, read documentation in the resources hub, or drill down into how the metrics were calculated. End-users can also submit direct feedback, which automatically updates the agent's profile and drives continuous improvement.
