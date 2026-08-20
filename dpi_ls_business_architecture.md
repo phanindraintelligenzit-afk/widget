@@ -57,6 +57,10 @@ flowchart TD
 
 ## Workflow Phases
 
+### Phase 0: Authentication & RBAC (Security)
+- **Action:** Users authenticate via the Login portal, receiving a secure JWT token. The system verifies Role-Based Access Control (RBAC) privileges (Admin, Manager, Customer, Viewer).
+- **Business Value:** Secures the enterprise platform. Ensures that only Admins can onboard agents/KRAs, Managers can only rate their assigned agents, and Customers can only submit feedback, enforcing strict governance and auditing.
+
 ### Phase 1: Agent Onboarding (Identity & Governance)
 - **Action:** A new Digital Worker is registered into the system.
 - **Business Value:** Establishes clear accountability by assigning a Business Owner, Technical Owner, and Manager. This ensures the AI is not a "black box" and has human oversight.
