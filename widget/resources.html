@@ -1222,7 +1222,7 @@ async function verifyDashboard(resourceName) {
     const body = isCost ? { resource_name: resourceName, metric: 'model_cost' } : { resource_name: resourceName };
     const r = await fetch(`${API}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
       body: JSON.stringify(body)
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

@@ -22,7 +22,7 @@
   <div class="container">
     <div class="nav">
       <a href="/">← Dashboard</a>
-      <a href="/login.html" style="float:right;" onclick="localStorage.clear();">Logout</a>
+      <a href="/widget/admin-login.html" style="float:right;" onclick="localStorage.clear();">Logout</a>
     </div>
     <h1 id="agent-name">Agent Profile</h1>
     
@@ -112,7 +112,7 @@
       document.getElementById('agent-id').innerText = agentId;
 
       // 1. Onboarding Info
-      fetch(`/api/agents/${agentId}/onboard`).then(r => r.json()).then(data => {
+      fetch(`/api/agents/${agentId}/onboard`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(data.detail) return;
         document.getElementById('agent-type').innerText = data.agent_type;
         document.getElementById('agent-env').innerText = data.environment;
@@ -124,7 +124,7 @@
       });
 
       // 2. Score
-      fetch(`/agents/${agentId}/score`).then(r => r.json()).then(data => {
+      fetch(`/agents/${agentId}/score`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(data.detail) return;
         document.getElementById('agent-score').innerText = data.score;
         document.getElementById('agent-band').innerText = `(${data.band})`;
@@ -140,7 +140,7 @@
       });
 
       // 3. KRA
-      fetch(`/api/agents/${agentId}/kra`).then(r => r.json()).then(data => {
+      fetch(`/api/agents/${agentId}/kra`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(!Array.isArray(data)) return;
         const tb = document.querySelector('#kra-table tbody');
         data.forEach(d => {
@@ -149,7 +149,7 @@
       });
 
       // 4. Config
-      fetch(`/api/agents/${agentId}/config`).then(r => r.json()).then(data => {
+      fetch(`/api/agents/${agentId}/config`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(!Array.isArray(data)) return;
         const tb = document.querySelector('#config-table tbody');
         data.forEach(d => {
@@ -158,7 +158,7 @@
       });
 
       // 5. Manager Ratings
-      fetch(`/api/agents/${agentId}/manager-rating`).then(r => r.json()).then(data => {
+      fetch(`/api/agents/${agentId}/manager-rating`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(!Array.isArray(data)) return;
         const tb = document.querySelector('#manager-table tbody');
         data.forEach(d => {
@@ -167,7 +167,7 @@
       });
 
       // 6. Customer Ratings
-      fetch(`/api/agents/${agentId}/customer-rating`).then(r => r.json()).then(data => {
+      fetch(`/api/agents/${agentId}/customer-rating`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(!Array.isArray(data)) return;
         const tb = document.querySelector('#customer-table tbody');
         data.forEach(d => {
@@ -176,7 +176,7 @@
       });
 
       // 7. History
-      fetch(`/agents/${agentId}/history`).then(r => r.json()).then(data => {
+      fetch(`/agents/${agentId}/history`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
         if(!Array.isArray(data)) return;
         const tb = document.querySelector('#history-table tbody');
         data.forEach(d => {

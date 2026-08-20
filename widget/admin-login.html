@@ -42,7 +42,7 @@
         const data = await res.json();
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
-        window.location.href = '/';
+          window.location.href = '/widget/onboarding.html';
       } else {
         document.getElementById('error').style.display = 'block';
       }

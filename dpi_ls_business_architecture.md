@@ -4,7 +4,6 @@ This document outlines the end-to-end business architecture and event-driven wor
 
 ```mermaid
 flowchart TD
-<<<<<<< HEAD
     %% Define Global Styles
     classDef primary fill:#0033A0,stroke:#002277,stroke-width:3px,color:#ffffff,font-weight:bold,rx:10px,ry:10px;
     classDef secondary fill:#007BFF,stroke:#0056b3,stroke-width:2px,color:#ffffff,rx:8px,ry:8px;
@@ -34,6 +33,7 @@ flowchart TD
         G2(Resources Hub)
         G3(Score Analytics)
         G4(Feedback Portal)
+        G5(Agent Profile View)
     end
 
     %% Connections
@@ -49,24 +49,17 @@ flowchart TD
     G --- G2
     G --- G3
     G --- G4
-=======
-    A[1. Agent Onboarding] -->|Registers Agent Identity & Ownership| B(2. KRA Configuration)
-    B -->|Defines Success Metrics & Weights| C(3. Static Data Configuration)
-    C -->|Sets Human Baselines| D{4. Manager Review}
-    D -->|Human SME Rating 1-5| E[[5. Event-Driven Telemetry Trigger]]
-    E -->|Background Script Executes| F[(Database Aggregation)]
-    F -->|Calculates 7 Dimensions| G[6. DPI-LS Dashboard]
+    G --- G5
     
-    subgraph Dashboard Navigation
-    G --> G1(Main Leaderboard)
-    G --> G2(Resources)
-    G --> G3(DPI-LS Score Details)
-    G --> G4(Customer Feedback Portal)
-    end
->>>>>>> 9d08770022af6e0a6e87b127b6e46f8b0e28f44d
+    G4 -->|Auto-Redirect on Submit| G5
+    G1 -->|Click Agent Name| G5
 ```
 
 ## Workflow Phases
+
+### Phase 0: Authentication & RBAC (Security)
+- **Action:** Users authenticate via the Login portal, receiving a secure JWT token. The system verifies Role-Based Access Control (RBAC) privileges (Admin, Manager, Customer, Viewer).
+- **Business Value:** Secures the enterprise platform. Ensures that only Admins can onboard agents/KRAs, Managers can only rate their assigned agents, and Customers can only submit feedback, enforcing strict governance and auditing.
 
 ### Phase 1: Agent Onboarding (Identity & Governance)
 - **Action:** A new Digital Worker is registered into the system.
@@ -91,7 +84,9 @@ flowchart TD
 ### Phase 6: The Dashboard (Visualization & Action)
 - **Action:** The computed scores are pushed to the live web interface.
 - **Business Value:** Provides a single pane of glass for executives to monitor AI health.
-  - **Dashboard:** The main leaderboard ranking all agents.
+  - **Dashboard:** The main leaderboard ranking all agents. Clicking an agent opens their profile.
+  - **Agent Profile View:** Shows detailed KRA configuration, static data baselines, and historical ratings for a specific agent.
+  - **Feedback Portal:** Captures direct end-user feedback and automatically redirects into the Agent Profile view.
   - **Resources:** Central hub for AI operations manuals.
   - **DPI-LS Score:** Deep dive into how the metrics were calculated.
   - **Submit Customer Feedback:** Closes the loop by allowing end-users to provide feedback, driving continuous improvement.

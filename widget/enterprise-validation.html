@@ -262,9 +262,9 @@
 
     async function loadAll() {
       const [urls, results, agent] = await Promise.all([
-        fetch(`${API}/api/enterprise-validation/urls`).then(r => r.json()).catch(() => ({})),
-        fetch(`${API}/api/enterprise-validation/results`).then(r => r.json()).catch(() => []),
-        fetch(`${API}/api/enterprise-validation/agent-dashboard`).then(r => r.json()).catch(() => null),
+        fetch(`${API}/api/enterprise-validation/urls`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({})),
+        fetch(`${API}/api/enterprise-validation/results`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/api/enterprise-validation/agent-dashboard`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => null),
       ]);
       renderResources(urls, results);
       if (agent) {

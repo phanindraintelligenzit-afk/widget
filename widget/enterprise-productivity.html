@@ -274,9 +274,9 @@
 
     async function loadAll() {
       const [urls, results, agent] = await Promise.all([
-        fetch(`${API}/api/enterprise-productivity/urls`).then(r => r.json()).catch(() => ({})),
-        fetch(`${API}/api/enterprise-productivity/results`).then(r => r.json()).catch(() => []),
-        fetch(`${API}/api/enterprise-productivity/agent-dashboard`).then(r => r.json()).catch(() => null),
+        fetch(`${API}/api/enterprise-productivity/urls`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({})),
+        fetch(`${API}/api/enterprise-productivity/results`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/api/enterprise-productivity/agent-dashboard`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => null),
       ]);
       renderResources(urls, results);
       if (agent) {

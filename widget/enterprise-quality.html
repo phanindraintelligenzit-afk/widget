@@ -261,9 +261,9 @@
 
     async function loadAll() {
       const [urls, results, agent] = await Promise.all([
-        fetch(`${API}/api/enterprise-quality/urls`).then(r => r.json()).catch(() => ({})),
-        fetch(`${API}/api/enterprise-quality/results`).then(r => r.json()).catch(() => []),
-        fetch(`${API}/api/enterprise-quality/agent-dashboard`).then(r => r.json()).catch(() => null),
+        fetch(`${API}/api/enterprise-quality/urls`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({})),
+        fetch(`${API}/api/enterprise-quality/results`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => []),
+        fetch(`${API}/api/enterprise-quality/agent-dashboard`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => null),
       ]);
       renderResources(urls, results);
       if (agent) {
