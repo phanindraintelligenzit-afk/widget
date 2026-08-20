@@ -80,6 +80,7 @@ flowchart TD
         G2(Resources Hub)
         G3(Score Analytics)
         G4(Feedback Portal)
+        G5(Agent Profile View)
     end
 
     %% Connections
@@ -98,6 +99,10 @@ flowchart TD
     G --- G2
     G --- G3
     G --- G4
+    G --- G5
+    
+    G4 -->|Auto-Redirect on Submit| G5
+    G1 -->|Click Agent Name| G5
 ```
 
 For detailed architecture diagrams and the event-driven workflow, please refer to the dedicated document:

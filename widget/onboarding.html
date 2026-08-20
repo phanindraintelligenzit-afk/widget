@@ -115,7 +115,7 @@
       try {
         const res = await fetch(`/api/agents/${agentId}/onboard`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
           body: JSON.stringify(payload)
         });
         if (res.ok) {

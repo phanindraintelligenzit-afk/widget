@@ -188,7 +188,7 @@
     
     return `
       <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;">${escapeHtml(row.agent_name || row.agent_id)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:#38bdf8;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score)}</td>
         ${metricCells}
       </tr>
@@ -2005,8 +2005,8 @@
     async _tick() {
       try {
         const [rRatings, rSettings] = await Promise.all([
-          fetch(`${apiBase(this)}/ratings`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/settings`, { headers: { "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/ratings`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/settings`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
         ]);
         if (!rRatings.ok) throw new Error(`HTTP ${rRatings.status}`);
         const data = await rRatings.json();
@@ -2192,10 +2192,10 @@
         return;
       }
       try {
-        const pScore = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/score`, { headers: { "Accept": "application/json" } });
-        const pOnboard = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/onboard`, { headers: { "Accept": "application/json" } });
-        const pManager = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/manager-rating`, { headers: { "Accept": "application/json" } });
-        const pCustomer = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/customer-rating`, { headers: { "Accept": "application/json" } });
+        const pScore = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/score`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } });
+        const pOnboard = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/onboard`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } });
+        const pManager = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/manager-rating`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } });
+        const pCustomer = fetch(`${apiBase(this)}/agents/${encodeURIComponent(id)}/customer-rating`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } });
         
         const [rScore, rOnboard, rManager, rCustomer] = await Promise.all([pScore, pOnboard, pManager, pCustomer]);
 
@@ -2246,7 +2246,7 @@
     _api(path, opts) {
       return fetch(`${apiBase(this)}${path}`, {
         ...opts,
-        headers: { "Content-Type": "application/json", ...(opts && opts.headers) },
+        headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Content-Type": "application/json", ...(opts && opts.headers) },
       });
     }
     async _start() {
@@ -2386,7 +2386,7 @@
     attributeChangedCallback() { if (this.shadowRoot) this._load(); }
     async _load() {
       try {
-        const r = await fetch(`${apiBase(this)}/settings`);
+        const r = await fetch(`${apiBase(this)}/settings`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token") } });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         this._settings = await r.json();
         this._render({});
@@ -2398,7 +2398,7 @@
       try {
         const r = await fetch(`${apiBase(this)}/settings`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Content-Type": "application/json" },
           body: JSON.stringify(updated),
         });
         if (!r.ok) {
@@ -2523,20 +2523,20 @@
     async _tick() {
       try {
         const [resCost, resVal, resQual, resProd, resExec, resRisk, resGov, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec, urlsRisk, urlsGov] = await Promise.all([
-          fetch(`${apiBase(this)}/api/cost-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/validation-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/quality-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/risk-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/governance-evaluation/results`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/cost-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/results`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } })
         ]);
 
         const [rC, rV, rQ, rP, rE, rR, rG, uC, uV, uQ, uP, uE, uR, uG] = await Promise.all([
@@ -2555,20 +2555,20 @@
       try {
         this._render({ loading: true });
         const [evalCost, evalVal, evalQual, evalProd, evalExec, evalRisk, evalGov, urlsCost, urlsVal, urlsQual, urlsProd, urlsExec, urlsRisk, urlsGov] = await Promise.all([
-          fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/validation-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/quality-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/risk-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/governance-evaluation/evaluate`, { method: "POST", headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Accept": "application/json" } }),
-          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Accept": "application/json" } })
+          fetch(`${apiBase(this)}/api/cost-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/evaluate`, { method: "POST", headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/cost-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/validation-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/quality-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/productivity-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/execution-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/risk-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } }),
+          fetch(`${apiBase(this)}/api/governance-evaluation/urls`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept": "application/json" } })
         ]);
 
         const [rC, rV, rQ, rP, rE, rR, rG, uC, uV, uQ, uP, uE, uR, uG] = await Promise.all([
@@ -2601,7 +2601,7 @@
         
         const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Content-Type": "application/json" },
           body: JSON.stringify({ resource_name: resource, metric: metric })
         });
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
