@@ -42,6 +42,12 @@ flowchart TD
         G4(Feedback Portal)
         G5(Agent Profile View)
     end
+    
+    subgraph Phase 4: Termination [Phase 4: Session End]
+        direction TB
+        H([7. Logout Session]):::security
+        L2([8. Return to Login]):::security
+    end
 
     %% Connections
     L -->|Validates JWT Credentials| R
@@ -63,6 +69,10 @@ flowchart TD
     
     G4 -->|Auto-Redirect on Submit| G5
     G1 -->|Click Agent Name| G5
+    
+    G -->|Click Logout| H
+    G5 -->|Click Logout| H
+    H -->|Clears JWT Token| L2
 ```
 
 ## Workflow Phases
@@ -87,3 +97,6 @@ The moment the manager submits their review, it triggers the backend engine. Wit
 
 ### Phase 6: The Executive Dashboard
 Finally, all these calculations are pushed to a live, easy-to-read web dashboard. Here, executives can view a leaderboard ranking all their AI agents. From the dashboard, they can click on any agent to open its detailed profile, read documentation in the resources hub, or drill down into how the metrics were calculated. End-users can also submit direct feedback, which automatically updates the agent's profile and drives continuous improvement.
+
+### Phase 7: Secure Logout (Session Termination)
+When a user finishes their tasks on the Dashboard or Agent Profile, they can securely click **Logout**. This destroys their session token and returns them safely to the login screen, completing the full lifecycle and keeping the platform secure.
