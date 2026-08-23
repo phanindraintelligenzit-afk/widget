@@ -82,6 +82,12 @@ flowchart TD
         G4(Feedback Portal)
         G5(Agent Profile View)
     end
+    
+    subgraph Phase 4: Termination [Phase 4: Session End]
+        direction TB
+        H([7. Logout Session]):::security
+        L2([8. Return to Login]):::security
+    end
 
     %% Connections
     L -->|Validates JWT Credentials| R
@@ -103,6 +109,10 @@ flowchart TD
     
     G4 -->|Auto-Redirect on Submit| G5
     G1 -->|Click Agent Name| G5
+    
+    G -->|Click Logout| H
+    G5 -->|Click Logout| H
+    H -->|Clears JWT Token| L2
 ```
 
 For detailed architecture diagrams and the event-driven workflow, please refer to the dedicated document:
