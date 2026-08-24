@@ -73,18 +73,22 @@
         <label>Environment</label>
         <input type="text" id="environment" value="Production">
       </div>
-      <div class="form-group">
-        <label>Manager (Email / ID)</label>
-        <input type="text" id="manager" required>
-      </div>
-      <div class="form-group">
-        <label>Business Owner</label>
-        <input type="text" id="business_owner">
-      </div>
-      <div class="form-group">
-        <label>Technical Owner</label>
-        <input type="text" id="technical_owner">
-      </div>
+        <div class="form-group">
+          <label>Business Owner Name</label>
+          <input type="text" id="business_owner_name" required>
+        </div>
+        <div class="form-group">
+          <label>Business Owner (Email)</label>
+          <input type="text" id="business_owner_email" required>
+        </div>
+        <div class="form-group">
+          <label>Technical Owner Name</label>
+          <input type="text" id="technical_owner_name" required>
+        </div>
+        <div class="form-group">
+          <label>Technical Owner (Email)</label>
+          <input type="text" id="technical_owner_email" required>
+        </div>
       <div class="form-group">
         <label>Digital Worker Role</label>
         <input type="text" id="digital_worker_role">
@@ -102,9 +106,10 @@
         description: document.getElementById('description').value,
         agent_type: document.getElementById('agent_type').value,
         environment: document.getElementById('environment').value,
-        manager: document.getElementById('manager').value,
-        business_owner: document.getElementById('business_owner').value,
-        technical_owner: document.getElementById('technical_owner').value,
+        business_owner_name: document.getElementById('business_owner_name').value,
+        business_owner_email: document.getElementById('business_owner_email').value,
+        technical_owner_name: document.getElementById('technical_owner_name').value,
+        technical_owner_email: document.getElementById('technical_owner_email').value,
         digital_worker_role: document.getElementById('digital_worker_role').value,
       };
       
