@@ -119,14 +119,34 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
+          let agentIdVal = document.getElementById('agent_id').value;
+          let descVal = document.getElementById('description').value;
+          let typeVal = document.getElementById('agent_type').value;
+          let envVal = document.getElementById('environment').value;
           let managerEmail = document.getElementById('manager').value;
+          let bizOwner = document.getElementById('business_owner').value;
+          let techOwner = document.getElementById('technical_owner').value;
+          let roleVal = document.getElementById('digital_worker_role').value;
+          
           let successMsg = 'Onboarding submitted successfully!';
           
           if (managerEmail && managerEmail.includes('@gmail.com')) {
-              successMsg += '<br><br><span style="color:#4ade80;">&#10003; Welcome notification has been dispatched to <b>' + managerEmail + '</b> via SMTP!</span>';
+              successMsg += '<br><br><span style="color:#4ade80;">&#10003; <b>Welcome to our Intelligenz IT Pvt Limited.</b> Notification has been dispatched to <b>' + managerEmail + '</b> via SMTP!<br>Check our Intelligenz IT related dimensions: <a href="https://intelligenzit.com/" target="_blank" style="color:var(--accent); text-decoration:underline;">Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner</a></span>';
           }
           
-          successMsg += '<br><br><a href="/widget/kra.html" style="color:var(--accent); text-decoration:underline;">Continue to KRA Configuration &rarr;</a>';
+          successMsg += '<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;">';
+          successMsg += '<strong style="color:#7aa2f7;">Submitted Configuration:</strong><br>';
+          successMsg += '<b>Agent ID:</b> ' + agentIdVal + '<br>';
+          successMsg += '<b>Description:</b> ' + descVal + '<br>';
+          successMsg += '<b>Agent Type:</b> ' + typeVal + '<br>';
+          successMsg += '<b>Environment:</b> ' + envVal + '<br>';
+          successMsg += '<b>Manager (Email/ID):</b> ' + managerEmail + '<br>';
+          successMsg += '<b>Business Owner:</b> ' + bizOwner + '<br>';
+          successMsg += '<b>Technical Owner:</b> ' + techOwner + '<br>';
+          successMsg += '<b>Digital Worker Role:</b> ' + roleVal + '<br>';
+          successMsg += '</div>';
+          
+          successMsg += '<br><a href="/widget/kra.html" style="color:var(--accent); text-decoration:underline;">Continue to KRA Configuration &rarr;</a>';
           statusEl.innerHTML = successMsg;
           statusEl.classList.add('success');
         } else {
