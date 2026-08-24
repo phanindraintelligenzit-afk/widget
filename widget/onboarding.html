@@ -123,28 +123,42 @@
           let descVal = document.getElementById('description').value;
           let typeVal = document.getElementById('agent_type').value;
           let envVal = document.getElementById('environment').value;
-          let managerEmail = document.getElementById('manager').value;
           let bizOwner = document.getElementById('business_owner').value;
+          let bizEmail = document.getElementById('business_owner_email').value;
           let techOwner = document.getElementById('technical_owner').value;
           let roleVal = document.getElementById('digital_worker_role').value;
           
           let successMsg = 'Onboarding submitted successfully!';
           
-          if (managerEmail && managerEmail.includes('@gmail.com')) {
-              successMsg += '<br><br><span style="color:#4ade80;">&#10003; <b>Welcome to our Intelligenz IT Pvt Limited.</b> Notification has been dispatched to <b>' + managerEmail + '</b> via SMTP!<br>Check our Intelligenz IT related dimensions: <a href="https://intelligenzit.com/" target="_blank" style="color:var(--accent); text-decoration:underline;">Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner</a></span>';
+          if (bizEmail) {
+              successMsg += '<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;">';
+              successMsg += '<span style="color:#4ade80;">&#10003; <b>Welcome to our Intelligenz IT Pvt Limited.</b> Notification has been dispatched to <b>' + bizEmail + '</b> via SMTP!</span><br>';
+              successMsg += 'Check our Intelligenz IT related dimensions: <a href="https://intelligenzit.com/" target="_blank" style="color:var(--accent); text-decoration:underline;">Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner</a><br><br>';
+              successMsg += '<hr style="border:1px solid #2f334d; margin: 10px 0;">';
+              successMsg += '<b>Hi ' + bizOwner + ',</b><br><br>';
+              successMsg += 'DPI-LS is a platform that monitors AI digital workers like human employees. Here are the details of your newly onboarded digital worker:<br><br>';
+              successMsg += '<b>Agent ID:</b> ' + agentIdVal + '<br>';
+              successMsg += '<b>Description:</b> ' + descVal + '<br>';
+              successMsg += '<b>Agent Type:</b> ' + typeVal + '<br>';
+              successMsg += '<b>Environment:</b> ' + envVal + '<br>';
+              successMsg += '<b>Business Owner Name:</b> ' + bizOwner + '<br>';
+              successMsg += '<b>Business Owner Email ID:</b> ' + bizEmail + '<br>';
+              successMsg += '<b>Technical Owner Email ID:</b> ' + techOwner + '<br>';
+              successMsg += '<b>Digital Worker Role:</b> ' + roleVal + '<br>';
+              successMsg += '</div>';
+          } else {
+              // Fallback if no email
+              successMsg += '<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;">';
+              successMsg += '<strong style="color:#7aa2f7;">Submitted Configuration:</strong><br>';
+              successMsg += '<b>Agent ID:</b> ' + agentIdVal + '<br>';
+              successMsg += '<b>Description:</b> ' + descVal + '<br>';
+              successMsg += '<b>Agent Type:</b> ' + typeVal + '<br>';
+              successMsg += '<b>Environment:</b> ' + envVal + '<br>';
+              successMsg += '<b>Business Owner Name:</b> ' + bizOwner + '<br>';
+              successMsg += '<b>Technical Owner Email ID:</b> ' + techOwner + '<br>';
+              successMsg += '<b>Digital Worker Role:</b> ' + roleVal + '<br>';
+              successMsg += '</div>';
           }
-          
-          successMsg += '<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;">';
-          successMsg += '<strong style="color:#7aa2f7;">Submitted Configuration:</strong><br>';
-          successMsg += '<b>Agent ID:</b> ' + agentIdVal + '<br>';
-          successMsg += '<b>Description:</b> ' + descVal + '<br>';
-          successMsg += '<b>Agent Type:</b> ' + typeVal + '<br>';
-          successMsg += '<b>Environment:</b> ' + envVal + '<br>';
-          successMsg += '<b>Manager (Email/ID):</b> ' + managerEmail + '<br>';
-          successMsg += '<b>Business Owner:</b> ' + bizOwner + '<br>';
-          successMsg += '<b>Technical Owner:</b> ' + techOwner + '<br>';
-          successMsg += '<b>Digital Worker Role:</b> ' + roleVal + '<br>';
-          successMsg += '</div>';
           
           successMsg += '<br><a href="/widget/kra.html" style="color:var(--accent); text-decoration:underline;">Continue to KRA Configuration &rarr;</a>';
           statusEl.innerHTML = successMsg;
