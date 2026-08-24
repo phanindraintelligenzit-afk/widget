@@ -798,7 +798,7 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
 def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
     # Authorization checks should happen here (if manager_id matches the agent's manager)
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
-    if onboarding and onboarding.manager and body.manager_id != onboarding.manager:
+    if onboarding and body.manager_id != onboarding.technical_owner_email and body.manager_id not in (onboarding.business_owner_email or '') and body.manager_id not in (onboarding.business_owner_email or ''):
         raise HTTPException(status_code=403, detail="Unauthorized: Only the assigned manager can rate this agent.")
     
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
