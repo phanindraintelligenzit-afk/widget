@@ -490,9 +490,10 @@ class AgentOnboardingRow(Base):
     environment: Mapped[str] = mapped_column(String(64), nullable=True)
     
     agent_owner: Mapped[str] = mapped_column(String(128), nullable=True)
-    manager: Mapped[str] = mapped_column(String(128), nullable=True)
-    business_owner: Mapped[str] = mapped_column(String(128), nullable=True)
-    technical_owner: Mapped[str] = mapped_column(String(128), nullable=True)
+    business_owner_name: Mapped[str] = mapped_column(String(128), nullable=True)
+    business_owner_email: Mapped[str] = mapped_column(String(256), nullable=True)
+    technical_owner_name: Mapped[str] = mapped_column(String(128), nullable=True)
+    technical_owner_email: Mapped[str] = mapped_column(String(256), nullable=True)
     
     digital_worker_role: Mapped[str] = mapped_column(String(128), nullable=True)
     responsibilities: Mapped[str] = mapped_column(String(1024), nullable=True)

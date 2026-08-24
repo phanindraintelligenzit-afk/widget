@@ -674,9 +674,10 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnbo
         status=row.status,
         environment=row.environment,
         agent_owner=row.agent_owner,
-        manager=row.manager,
-        business_owner=row.business_owner,
-        technical_owner=row.technical_owner,
+        business_owner_name=row.business_owner_name,
+        business_owner_email=row.business_owner_email,
+        technical_owner_name=row.technical_owner_name,
+        technical_owner_email=row.technical_owner_email,
         digital_worker_role=row.digital_worker_role,
         responsibilities=row.responsibilities,
         business_function=row.business_function,
@@ -695,6 +696,34 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
         
     payload = body.model_dump(exclude_unset=True)
     row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
+    
+    # Send mock emails to the technical owner and business owners
+    tech_email = row.technical_owner_email
+    biz_emails = row.business_owner_email
+    if biz_emails:
+        emails = [e.strip() for e in biz_emails.split(',')]
+        for e in emails:
+            if e:
+                print(f"\n--- MOCK SMTP EMAIL ---")
+                print(f"To: {e}")
+                print(f"Subject: Welcome to our Intelligenz IT Pvt Limited")
+                print(f"Body:")
+                print(f"Welcome to our Intelligenz IT Pvt Limited.")
+                print(f"Notification has been dispatched to {e} via SMTP!")
+                print(f"Check our Intelligenz IT related dimensions:")
+                print(f"Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner")
+                print(f"https://intelligenzit.com/\n-----------------------\n")
+    if tech_email:
+        print(f"\n--- MOCK SMTP EMAIL ---")
+        print(f"To: {tech_email}")
+        print(f"Subject: Welcome to our Intelligenz IT Pvt Limited")
+        print(f"Body:")
+        print(f"Welcome to our Intelligenz IT Pvt Limited.")
+        print(f"Notification has been dispatched to {tech_email} via SMTP!")
+        print(f"Check our Intelligenz IT related dimensions:")
+        print(f"Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner")
+        print(f"https://intelligenzit.com/\n-----------------------\n")
+
     s.commit()
     return AgentOnboardingOut(
         agent_id=row.agent_id,
@@ -703,9 +732,10 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
         status=row.status,
         environment=row.environment,
         agent_owner=row.agent_owner,
-        manager=row.manager,
-        business_owner=row.business_owner,
-        technical_owner=row.technical_owner,
+        business_owner_name=row.business_owner_name,
+        business_owner_email=row.business_owner_email,
+        technical_owner_name=row.technical_owner_name,
+        technical_owner_email=row.technical_owner_email,
         digital_worker_role=row.digital_worker_role,
         responsibilities=row.responsibilities,
         business_function=row.business_function,
