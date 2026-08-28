@@ -104,7 +104,7 @@
         <th>Agent</th>
         <th>Score</th>
         <th>P</th><th>Q</th><th>E</th><th>G</th><th>R</th><th>V</th><th>C</th>
-        <th>Actions</th>
+        <th>SME Rating</th>
       </tr>
     </thead>
     <tbody id="agent-body"></tbody>
@@ -136,15 +136,30 @@
       });
     }
     
-    async function deleteAgent(id) {
-        if(confirm('Delete agent?')) {
-            await fetch('/api/agents/' + id, {method: 'DELETE'});
-            fetchAgents();
-        }
-    }
-    
-    function addAgent() { alert('Not implemented'); }
-    function editAgent(id) { alert('Not implemented'); }
+    async function submitStar(agentId, rating) {
+          const payload = {
+              agent_id: agentId,
+              manager_id: "sme@intelligenzit.com",
+              rating: rating,
+              feedback: "Direct star rating via Rating Page"
+          };
+          
+          try {
+              const res = await fetch('/api/ratings', {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json'},
+                  body: JSON.stringify(payload)
+              });
+              
+              if(res.ok) {
+                  alert("Success! You gave " + agentId + " a " + rating + "-star rating. The DPI-LS Matrix has been updated.");
+                  fetchAgents();
+              }
+          } catch(e) {
+              console.error(e);
+              alert("Error submitting rating.");
+          }
+      }
     
     fetchAgents();
   </script>
