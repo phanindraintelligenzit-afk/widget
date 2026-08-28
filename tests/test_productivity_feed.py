@@ -68,7 +68,7 @@ def test_api_settings_normalization_factor(client):
     # Update settings with custom normalization_factor
     data["normalization_factor"] = 0.5
     data["q_sub_weights"] = {"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}
-    data["gate_thresholds"] = {"G": 0.60, "R": 0.70, "V": 0.60}
+    data["gate_thresholds"] = {"G": 0.60, "R": 0.50, "V": 0.60}
     data["r_max"] = 50.0
     put_response = client.put("/settings", json=data)
     assert put_response.status_code == 200

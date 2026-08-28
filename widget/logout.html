@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Logout - Intelligenz IT</title>
+  <style>
+    :root {
+      --bg: #00051e;
+      --text: #f8fafc;
+      --accent: #facc15;
+      --surface: #0a0f2b;
+      --surface2: #1e293b;
+      --muted: #94a3b8;
+    }
+    
+    .container {
+      background: var(--surface);
+      border: 1px solid var(--surface2);
+      border-radius: 12px;
+      padding: 60px 50px;
+      max-width: 650px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    img {
+      max-width: 350px;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 32px;
+      margin: 0 0 15px;
+      color: var(--text);
+    }
+    p {
+      font-size: 17px;
+      line-height: 1.7;
+      color: var(--muted);
+      margin-bottom: 35px;
+    }
+    .highlight {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    a.btn {
+      display: inline-block;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      text-decoration: none;
+      padding: 12px 24px;
+      font-weight: 600;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    a.btn:hover {
+      background: var(--accent);
+      color: #000;
+    }
+    .countdown {
+      margin-top: 30px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0; padding: 0;
+      color: var(--text); background: var(--bg);
+      display: flex; min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+    }
+</style>
+</head>
+<body>
+  <div class="container">
+    <img src="intelligenz-logo.png" alt="Intelligenz IT Logo">
+    <h1>Thank You!</h1>
+    <p>
+      Thank you for trusting us with your regulated workflows and utilizing our<br>
+      <span class="highlight">DPI-LS (Digital Performance Index — Life Sciences)</span><br>
+      platform to safely evaluate and monitor your digital workforce.
+    </p>
+    <a href="https://intelligenzit.com/" class="btn">
+      Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner
+    </a>
+    <div class="countdown">
+      Automatically redirecting to the login screen in <span id="timer" style="color:var(--text); font-weight:bold;">60</span> seconds...
+    </div>
+  </div>
+
+  <script>
+    // Ensure the session token is securely erased the moment they hit the logout screen
+    localStorage.clear();
+
+    let timeLeft = 60;
+    const timerEl = document.getElementById('timer');
+    
+    const interval = setInterval(() => {
+      timeLeft--;
+      timerEl.textContent = timeLeft;
+      if (timeLeft <= 0) {
+        clearInterval(interval);
+        window.location.href = '/widget/admin-login.html';
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

@@ -20,6 +20,7 @@ def test_ingest_canonical_observation(client):
     rating = r.json()
     assert "score" in rating
     assert rating["band"] in ("Strong", "Exceptional", "Needs Optimization", "Underperforming")
+    print("RATING=", rating)
     assert rating["unsafe"] is False
 
 

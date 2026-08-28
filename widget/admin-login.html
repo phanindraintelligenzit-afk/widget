@@ -3,24 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <title>DPI-LS Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; }
-    .login-container { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-    h1 { margin-top: 0; color: #1a1a1a; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #00051e; --surface: #0a0f2b; --surface2: #141938;
+      --border: #1e2345; --accent: #facc15; --green: #10b981;
+      --text: #ffffff; --muted: #a1a1aa;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh;
+      color: var(--text); background: var(--bg);
+    }
+    .login-container {
+      background: var(--surface); padding: 2rem; border-radius: 12px;
+      border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      width: 100%; max-width: 420px;
+    }
+    h1 { margin-top: 0; color: var(--text); font-size: 24px; }
     .form-group { margin-bottom: 1rem; }
-    label { display: block; margin-bottom: 0.5rem; font-weight: bold; }
-    input { width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    button { width: 100%; padding: 0.75rem; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-    button:hover { background: #1d4ed8; }
-    .error { color: red; margin-top: 1rem; display: none; }
-  </style>
+    label { display: block; margin-bottom: 0.5rem; font-size: 13px; color: var(--muted); }
+    input {
+      width: 100%; padding: 10px; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px; font-family: inherit;
+    }
+    button {
+      width: 100%; padding: 10px; background: var(--accent); color: #000;
+      border: none; border-radius: 6px; font-weight: 600; cursor: pointer; margin-top: 10px;
+    }
+    button:hover { opacity: 0.9; }
+    .error { color: #ef4444; margin-top: 1rem; display: none; font-size: 14px; text-align: center; }
+  
+    input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+        -webkit-text-fill-color: var(--text) !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+</style>
 </head>
 <body>
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: var(--text); font-size: 28px; margin-bottom: 10px;">Welcome to Intelligenz IT</h1>
+    <a href="https://intelligenzit.com/" target="_blank" style="color: var(--accent); text-decoration: none; font-size: 14px; font-weight: 600;">Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner</a>
+  </div>
+
   <div class="login-container">
-    <h1>Login to DPI-LS</h1>
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img src="intelligenz-logo.png" alt="Intelligenz IT Logo" style="max-width: 250px;">
+    </div>
+    <h2 style="text-align: center; margin-bottom: 20px; font-size: 20px;">Login to DPI-LS</h2>
     <div class="form-group">
       <label>Username</label>
-      <input type="text" id="username" placeholder="admin / manager / customer" />
+      <input type="text" id="username" placeholder="admin" />
     </div>
     <div class="form-group">
       <label>Password</label>
@@ -42,7 +77,8 @@
         const data = await res.json();
         localStorage.setItem('token', data.token);
         localStorage.setItem('role', data.role);
-          window.location.href = '/widget/onboarding.html';
+        localStorage.setItem('loginTime', new Date().toLocaleString());
+        window.location.href = '/widget/demo.html';
       } else {
         document.getElementById('error').style.display = 'block';
       }

@@ -4,21 +4,85 @@
   <meta charset="utf-8">
   <title>DPI-LS — Agent Scores</title>
   <style>
-    :root { --bg: #0f1117; --surface: #1a1d27; --text: #f1f5f9; --border: #2d3148; --accent: #6366f1; }
-    body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; }
-    .nav { background: var(--surface); padding: 15px; display: flex; gap: 20px; margin-bottom: 20px; border-radius: 8px;}
+    :root { --bg: #0f1117; --surface: #1a1d27; --text: #f1f5f9; --border: #2d3148; --accent: #facc15; }
+    
+    
     .nav a { color: var(--text); text-decoration: none; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; background: var(--surface); }
     th, td { padding: 12px; border: 1px solid var(--border); text-align: left; }
     button { padding: 5px 10px; cursor: pointer; }
-  </style>
+  
+    input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+        -webkit-text-fill-color: var(--text) !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0; padding: 0;
+      color: var(--text); background: var(--bg);
+      display: flex; min-height: 100vh;
+    }
+    .sidebar {
+      width: 260px;
+      background: var(--bg);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 32px 0;
+    }
+    .sidebar-nav {
+      display: flex; flex-direction: column;
+      gap: 16px; margin-top: 40px;
+    }
+    .sidebar-link {
+      padding: 12px 32px;
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 18px;
+      transition: background 0.2s;
+    }
+    .sidebar-link:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .sidebar-link.active {
+      font-weight: 700;
+    }
+    .main-content {
+      flex: 1;
+      padding: 40px;
+      overflow-y: auto;
+    }
+</style>
 </head>
 <body>
-  <nav class="nav">
-    <a href="/widget/demo.html">Dashboard</a>
-    <a href="/widget/resources.html">Resources</a>
-    <!-- <a href="/widget/score.html" style="font-weight:bold; color:var(--accent);">DPI-LS Score</a> -->
-  </nav>
+    <aside class="sidebar">
+    <div style="padding: 0 32px; display: flex; align-items: center; justify-content: center;">
+      <img src="intelligenz-logo.png" alt="Intelligenz IT Logo" style="max-width: 180px;">
+    </div>
+                <nav class="sidebar-nav">
+      <a href="/widget/demo.html" class="sidebar-link">Dashboard</a>
+      <a href="/widget/onboarding.html" class="sidebar-link">Onboard Agent</a>
+      <a href="/widget/agent-config.html" class="sidebar-link">Configuration</a>
+      <a href="/widget/score.html" class="sidebar-link active">Rating</a>
+      <a href="/widget/agent-profile.html" class="sidebar-link">Profile</a>
+      <a href="/widget/resources.html" class="sidebar-link">Resources</a>
+      <a href="/widget/logout.html" class="sidebar-link">Sign Out</a>
+    </nav>
+  </aside>
+  <main class="main-content">
+    <header class="top-header" style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
+      <div style="margin-right: auto;"><span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
+      <div class="search-bar" style="position: relative;">
+        <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
+        <span style="position: absolute; right: 12px; top: 9px; opacity: 0.6; font-size: 14px;">??</span>
+      </div>
+      <button class="chatbot-btn" style="background: var(--accent); color: #000; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(250, 204, 21, 0.2);" title="DPI-LS AI Assistant">
+        ??
+      </button>
+    </header>
+
+
   
   <h1>Agent Scores (Raw Values)</h1>
   <button onclick="addAgent()">Add Agent</button>
@@ -73,5 +137,293 @@
     
     fetchAgents();
   </script>
+  </main>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const loginTime = localStorage.getItem('loginTime');
+      if (loginTime) {
+        const el = document.getElementById('login-time-display');
+        if (el) { el.style.display = 'inline-block'; el.innerHTML = '&#128340; <strong style="color:var(--text);">Session Started:</strong> ' + loginTime; }
+      }
+    });
+  </script>
+
+<!-- Chatbot Panel -->
+<div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
+    <div style="background: var(--bg); padding: 15px; border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
+        <strong style="color: var(--accent);">DPI-LS AI Assistant</strong>
+        <button id="chatbot-close" style="background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 16px;">&times;</button>
+    </div>
+    <div id="chatbot-messages" style="flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+        <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; align-self: flex-start; max-width: 85%;">
+            Hello! I am your DPI-LS Assistant. You can ask me how scores are calculated, why an agent was flagged for risk, or how to navigate the platform. How can I help you today?
+        </div>
+    </div>
+    <div style="padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px;">
+        <input type="text" id="chatbot-input" placeholder="Ask a question..." style="flex: 1; padding: 8px 12px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text); outline: none;">
+        <button id="chatbot-send" style="background: var(--accent); color: #000; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer; font-weight: 600;">Send</button>
+    </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    // Search Functionality
+    document.querySelectorAll('.search-bar input').forEach(inp => {
+        inp.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const query = e.target.value.trim().toLowerCase();
+                if (!query) return;
+                
+                if (query.includes('agent-') || query.includes('finops') || query.includes('hr')) {
+                    const agentId = query.replace(/[^a-z0-9-]/g, '');
+                    window.location.href = `/widget/agent-profile.html?id=${agentId}`;
+                } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
+                    window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
+                } else {
+                    alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+                }
+            }
+        });
+    });
+
+    // Chatbot Functionality
+    const chatPanel = document.getElementById('chatbot-panel');
+    const chatClose = document.getElementById('chatbot-close');
+    const chatMsgs = document.getElementById('chatbot-messages');
+    const chatInput = document.getElementById('chatbot-input');
+    const chatSend = document.getElementById('chatbot-send');
+
+    if (!chatPanel) return;
+
+    document.querySelectorAll('.chatbot-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            chatPanel.style.display = chatPanel.style.display === 'flex' ? 'none' : 'flex';
+        });
+    });
+
+    chatClose.addEventListener('click', () => {
+        chatPanel.style.display = 'none';
+    });
+
+    function appendMessage(text, isUser) {
+        const msg = document.createElement('div');
+        msg.style.padding = '10px';
+        msg.style.borderRadius = '8px';
+        msg.style.maxWidth = '85%';
+        msg.style.marginBottom = '5px';
+        msg.style.lineHeight = '1.4';
+        if (isUser) {
+            msg.style.background = 'var(--accent)';
+            msg.style.color = '#000';
+            msg.style.alignSelf = 'flex-end';
+            msg.textContent = text;
+            chatMsgs.appendChild(msg);
+            chatMsgs.scrollTop = chatMsgs.scrollHeight;
+        } else {
+            msg.style.background = 'rgba(255,255,255,0.05)';
+            msg.style.color = 'var(--text)';
+            msg.style.alignSelf = 'flex-start';
+            chatMsgs.appendChild(msg);
+            
+            let i = 0;
+            msg.textContent = '';
+            const speed = 15; // ms per char
+            const typeWriter = setInterval(() => {
+                msg.textContent += text.charAt(i);
+                i++;
+                chatMsgs.scrollTop = chatMsgs.scrollHeight;
+                if (i >= text.length) clearInterval(typeWriter);
+            }, speed);
+        }
+    }
+
+    function processQuery(query) {
+        const q = query.toLowerCase();
+        setTimeout(() => {
+            if (q.includes('risk') || q.includes('red')) {
+                appendMessage("Risk scores below 50 are colored Red and indicate a safety or compliance violation. DPI-LS heavily weights Risk (R^2 penalty) to ensure unsafe agents are immediately flagged.", false);
+            } else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
+                appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
+            } else if (q.includes('search') || q.includes('find')) {
+                appendMessage("You can use the search bar at the top of the screen to quickly jump to a specific agent's profile (e.g., 'agent-001') or filter dashboard metrics.", false);
+            } else if (q.includes('configure') || q.includes('weight')) {
+                appendMessage("You can adjust metric weights and baselines on the Configuration page. The total weight distribution must equal exactly 100%.", false);
+            } else if (q.includes('hello') || q.includes('hi')) {
+                appendMessage("Hello! How can I assist you with your Digital Workforce today?", false);
+            } else {
+                appendMessage("I'm the AI assistant for the DPI-LS platform. I can explain scoring formulas, help you interpret metrics, or guide you through platform features. Try asking 'How is Risk calculated?' or 'How do I change weights?'", false);
+            }
+        }, 600);
+    }
+
+    function handleSend() {
+        const text = chatInput.value.trim();
+        if (!text) return;
+        appendMessage(text, true);
+        chatInput.value = '';
+        processQuery(text);
+    }
+
+    chatSend.addEventListener('click', handleSend);
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') handleSend();
+    });
+});
+</script>
+
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.search-bar').forEach(bar => {
+        const inp = bar.querySelector('input');
+        if (!inp) return;
+        
+        // Ensure parent is relative so dropdown positions correctly
+        bar.style.position = 'relative';
+        
+        // Create dropdown container
+        const dropdown = document.createElement('div');
+        dropdown.style.position = 'absolute';
+        dropdown.style.top = '100%';
+        dropdown.style.left = '0';
+        dropdown.style.width = '100%';
+        dropdown.style.background = '#1a1b26'; // dark theme
+        dropdown.style.border = '1px solid var(--border)';
+        dropdown.style.borderRadius = '8px';
+        dropdown.style.marginTop = '5px';
+        dropdown.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
+        dropdown.style.display = 'none';
+        dropdown.style.flexDirection = 'column';
+        dropdown.style.maxHeight = '300px';
+        dropdown.style.overflowY = 'auto';
+        dropdown.style.zIndex = '10000';
+        bar.appendChild(dropdown);
+
+        inp.addEventListener('input', async (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            if (!query) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Fetch live agents
+                const res = await fetch('/api/ratings');
+                let agents = [];
+                if (res.ok) {
+                    agents = await res.json();
+                }
+
+                // Hardcode metrics
+                const metrics = ['Risk', 'Productivity', 'Quality', 'Efficiency', 'Governance', 'Cost', 'Validation'];
+
+                dropdown.innerHTML = '';
+                let hasResults = false;
+
+                // Filter Agents
+                const matchedAgents = agents.filter(a => (a.agent_id && a.agent_id.toLowerCase().includes(query)) || (a.agent_name && a.agent_name.toLowerCase().includes(query)));
+                const uniqueAgents = [];
+                const seen = new Set();
+                for(let a of matchedAgents) {
+                    if(!seen.has(a.agent_id)) {
+                        seen.add(a.agent_id);
+                        uniqueAgents.push(a);
+                    }
+                }
+
+                if (uniqueAgents.length > 0) {
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.padding = '8px 12px';
+                    groupTitle.style.fontSize = '11px';
+                    groupTitle.style.color = '#94a3b8';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.textTransform = 'uppercase';
+                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.textContent = 'Agents';
+                    dropdown.appendChild(groupTitle);
+
+                    uniqueAgents.forEach(a => {
+                        hasResults = true;
+                        const item = document.createElement('div');
+                        item.style.padding = '10px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.fontSize = '13px';
+                        item.style.color = '#38bdf8';
+                        item.style.transition = 'background 0.2s';
+                        item.innerHTML = '&#128100; ' + a.agent_id;
+                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
+                        item.onmouseout = () => item.style.background = 'transparent';
+                        item.onclick = () => {
+                            window.location.href = /widget/agent-profile.html?id=;
+                        };
+                        dropdown.appendChild(item);
+                    });
+                }
+
+                // Filter Metrics
+                const matchedMetrics = metrics.filter(m => m.toLowerCase().includes(query));
+                if (matchedMetrics.length > 0) {
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.padding = '8px 12px';
+                    groupTitle.style.fontSize = '11px';
+                    groupTitle.style.color = '#94a3b8';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.textTransform = 'uppercase';
+                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.style.marginTop = uniqueAgents.length > 0 ? '5px' : '0';
+                    groupTitle.textContent = 'Metrics';
+                    dropdown.appendChild(groupTitle);
+
+                    matchedMetrics.forEach(m => {
+                        hasResults = true;
+                        const item = document.createElement('div');
+                        item.style.padding = '10px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.fontSize = '13px';
+                        item.style.color = '#facc15';
+                        item.style.transition = 'background 0.2s';
+                        item.innerHTML = '&#128200; ' + m + ' Score';
+                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
+                        item.onmouseout = () => item.style.background = 'transparent';
+                        item.onclick = () => {
+                            window.location.href = /widget/demo.html?filter=;
+                        };
+                        dropdown.appendChild(item);
+                    });
+                }
+
+                if (!hasResults) {
+                    const noRes = document.createElement('div');
+                    noRes.style.padding = '10px 12px';
+                    noRes.style.fontSize = '13px';
+                    noRes.style.color = '#94a3b8';
+                    noRes.textContent = 'No matches found';
+                    dropdown.appendChild(noRes);
+                }
+
+                dropdown.style.display = 'flex';
+            } catch(err) {
+                console.error(err);
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!bar.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+        
+        // Show dropdown when clicking back into input if there's text
+        inp.addEventListener('focus', () => {
+            if (inp.value.trim()) {
+                dropdown.style.display = 'flex';
+            }
+        });
+    });
+});
+</script>
+
 </body>
 </html>

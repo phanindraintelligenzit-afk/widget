@@ -13,14 +13,14 @@ def test_onboarding_api(client: TestClient):
     onboard_data = {
         "description": "Test onboard",
         "agent_type": "Support",
-        "manager": "mgr@test.com",
+        "technical_owner_email": "mgr@test.com",
         "digital_worker_role": "Customer Service Representative"
     }
     res = client.post("/api/agents/agent-task1/onboard", json=onboard_data)
     assert res.status_code == 200
     data = res.json()
     assert data["agent_id"] == "agent-task1"
-    assert data["manager"] == "mgr@test.com"
+    assert data["technical_owner_email"] == "mgr@test.com"
 
     # Test Onboarding Get
     res = client.get("/api/agents/agent-task1/onboard")
@@ -44,7 +44,7 @@ def test_manager_rating_api(client: TestClient):
 
     # Authorization Check
     # Need to set up onboarding first for the auth check to trigger
-    client.post("/api/agents/agent-task1/onboard", json={"manager": "mgr@test.com"})
+    client.post("/api/agents/agent-task1/onboard", json={"technical_owner_email": "mgr@test.com"})
     
     bad_rating_data = {
         "manager_id": "notmgr@test.com",

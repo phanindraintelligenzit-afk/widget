@@ -8,9 +8,9 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
-      --border: #2d3148; --accent: #6366f1; --green: #10b981;
-      --text: #f1f5f9; --muted: #94a3b8;
+      --bg: #00051e; --surface: #0a0f2b; --surface2: #141938;
+      --border: #1e2345; --accent: #facc15; --green: #10b981;
+      --text: #ffffff; --muted: #a1a1aa;
     }
     body {
       font-family: 'Inter', sans-serif;
@@ -23,10 +23,11 @@
       padding: 0 32px;
       display: flex; align-items: center; gap: 32px;
       height: 56px; margin-bottom: 32px;
+      position: sticky; top: 0; z-index: 100;
     }
     .nav-logo {
       font-weight: 800; font-size: 16px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      background: linear-gradient(135deg, #facc15, #eab308);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       text-decoration: none;
     }
@@ -39,7 +40,7 @@
       border: 1px solid var(--border); border-radius: 6px; font-family: inherit;
     }
     button {
-      background: var(--accent); color: white; padding: 10px 20px;
+      background: var(--accent); color: #000; padding: 10px 20px;
       border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
       margin-top: 20px;
     }
@@ -47,11 +48,19 @@
     .status-msg { margin-top: 16px; font-size: 14px; }
     .success { color: var(--green); }
     .error { color: #ef4444; }
-  </style>
+  
+    input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+        -webkit-text-fill-color: var(--text) !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+</style>
 </head>
 <body>
   <nav class="top-nav">
-    <a href="/widget/demo.html" class="nav-logo">DPI-LS</a>
+    <a href="/widget/demo.html" class="nav-logo" style="display: flex; align-items: center;">
+      <img src="intelligenz-logo.png" alt="Intelligenz IT Logo" style="height: 32px;">
+    </a>
     <span style="color:var(--muted)">Manager Review</span>
   </nav>
   <div class="page-body">
@@ -62,8 +71,8 @@
         <input type="text" id="agent_id" required>
       </div>
       <div class="form-group">
-        <label>Your Manager ID / Email</label>
-        <input type="text" id="manager_id" required>
+        <label>Business Owner Email (Required for authorization)</label>
+        <input type="email" id="manager_id" required placeholder="name@company.com">
       </div>
       <div class="form-group">
         <label>Review Period (e.g. Q1 2026)</label>
@@ -111,25 +120,18 @@
           body: JSON.stringify(payload)
         });
         if (res.ok) {
-          const data = await res.json();
-          let logsHtml = '';
-          if (data.logs) {
-            logsHtml = `
-              <div style="margin-top:20px; text-align:left; background:#000; padding:15px; border-radius:6px; overflow-x:auto; max-height:400px; overflow-y:auto;">
-                <h4 style="color:#94a3b8; margin-bottom:10px; font-family:monospace;">Terminal Output:</h4>
-                <pre style="color:#10b981; font-family:monospace; font-size:12px; white-space:pre-wrap;">${data.logs}</pre>
-              </div>
-            `;
-          }
-          statusEl.innerHTML = `Manager review submitted successfully! <br><br><a href="/widget/demo.html" style="color:var(--accent); text-decoration:underline;">View Dashboard &rarr;</a>${logsHtml}`;
+          statusEl.innerHTML = 'Review submitted successfully!<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;"><span style="color:#4ade80;">&#10003; <b>Intelligenz IT Pvt Limited</b><br>Notification has been dispatched to Business & Technical Owners via SMTP!</span></div><br><span style="color:var(--muted)">Redirecting to Agent Profile...</span>';
           statusEl.classList.add('success');
+          setTimeout(() => {
+              window.location.href = '/widget/agent-profile.html?id=' + encodeURIComponent(agentId);
+          }, 3000);
         } else {
           const err = await res.json();
           statusEl.textContent = 'Error: ' + (err.detail || 'Unknown error');
           statusEl.classList.add('error');
         }
       } catch (err) {
-        statusEl.textContent = 'Network Error';
+        statusEl.textContent = 'Network Error: ' + err.message;
         statusEl.classList.add('error');
       }
     });

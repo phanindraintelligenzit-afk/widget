@@ -174,12 +174,25 @@
     }
   }
 
+
+  function getScoreColor(score) {
+    if (score === null || score === undefined) return '#38bdf8';
+    if (score >= 80) return '#10b981';
+    if (score > 50) return '#facc15';
+    return '#ef4444';
+  }
+
   function boardRowHtml(row) {
     if (!row) return "";
     const w_m = row.weighted_metrics || {};
     const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
     
+    const scoreToUse = row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score;
+    let sum = 0;
     const metricCells = KEYS.map(k => {
+      if (w_m[k] !== null && w_m[k] !== undefined) {
+        sum += (w_m[k] * 100);
+      }
       const display = (w_m[k] !== null && w_m[k] !== undefined)
         ? (w_m[k] * 100).toFixed(2)
         : "\u2014";
@@ -189,7 +202,8 @@
     return `
       <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:#38bdf8;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;">${fmtScore(row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;" title="Sum of Parameters">${sum.toFixed(1)}</td>
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:${getScoreColor(scoreToUse)};font-weight:800;text-align:center;font-size:15px;" title="Official Evaluated DPI-LS Score">${fmtScore(scoreToUse)}</td>
         ${metricCells}
       </tr>
     `;
@@ -2053,18 +2067,27 @@
           for (const item of data) {
             const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
             const scoreToUse = (item.raw_score !== undefined && item.raw_score !== null) ? item.raw_score : item.score;
-            tr.cells[1].textContent = fmtScore(scoreToUse);
             
             const wm = item.weighted_metrics || {};
             const m  = item.metrics || {};
             const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
+            
+            let sum = 0;
+            KEYS.forEach(k => {
+              if (wm[k] !== null && wm[k] !== undefined) sum += (wm[k] * 100);
+            });
+            
+            tr.cells[1].textContent = sum.toFixed(1);
+            tr.cells[2].textContent = fmtScore(scoreToUse);
+            tr.cells[2].style.color = getScoreColor(scoreToUse);
+
             KEYS.forEach((k, idx) => {
-              const td = tr.cells[idx + 2];
+              const td = tr.cells[idx + 3];
               if (td) {
                 const val = wm[k] !== undefined ? wm[k] : m[k];
                 const display = (val !== null && val !== undefined)
                   ? (wm[k] !== undefined ? (val * 100).toFixed(2) : val.toFixed(2))
-                  : "—";
+                  : "\u2014";
                 td.textContent = display;
               }
             });
@@ -2114,6 +2137,7 @@
             <tr style="background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
               <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#38bdf8;">DPI-LS</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
@@ -2142,7 +2166,7 @@
             const detailTr = document.createElement("tr");
             detailTr.className = (this._expandedKey === "C") ? "cost-detail-row" : "detail-row";
             detailTr.dataset.expandedKey = this._expandedKey;
-            detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+            detailTr.innerHTML = `<td colspan="10" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
             tr.parentNode.insertBefore(detailTr, tr.nextSibling);
           }
         }

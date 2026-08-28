@@ -61,7 +61,7 @@ def test_metrics_from_partial_returns_None_for_missing_dimensions():
     # treating the cost total as a per-output figure (denominator=1).
     # model_cost=1.0 == human_cost_per_output → C=1.0.
     p = _p("aws_cost", cost=Cost(model_cost=1.0))
-    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, human_cost_per_output=1.0, utilization=1.0, r_max=50.0)
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, human_cost_per_output=1.0, utilization=1.0, r_max=50.0)
     baseline = AgentBaseline(agent_id="a", human_output_per_period=100)
     m = metrics_from_partial(p, settings, baseline)
     assert m["C"] == 1.0
@@ -72,7 +72,7 @@ def test_metrics_from_partial_returns_None_for_missing_dimensions():
 def test_rate_redistributes_weight_for_present_metrics_only():
     """A C-only observation redistributes weight to C, but gets capped due to completeness."""
     p = _p("aws_cost", cost=Cost(model_cost=1.0))
-    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, human_cost_per_output=1.0, utilization=1.0, r_max=50.0)
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, human_cost_per_output=1.0, utilization=1.0, r_max=50.0)
     baseline = AgentBaseline(agent_id="a", human_output_per_period=100)
     r = rate(metrics_from_partial(p, settings, baseline))
 

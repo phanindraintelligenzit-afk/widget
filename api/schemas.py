@@ -89,9 +89,10 @@ class AgentOnboardingIn(BaseModel):
     agent_type: Optional[str] = None
     environment: Optional[str] = None
     agent_owner: Optional[str] = None
-    manager: Optional[str] = None
-    business_owner: Optional[str] = None
-    technical_owner: Optional[str] = None
+    business_owner_name: Optional[str] = None
+    business_owner_email: Optional[str] = None
+    technical_owner_name: Optional[str] = None
+    technical_owner_email: Optional[str] = None
     digital_worker_role: Optional[str] = None
     responsibilities: Optional[str] = None
     business_function: Optional[str] = None

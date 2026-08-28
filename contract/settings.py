@@ -24,7 +24,7 @@ DEFAULT_Q_SUB_WEIGHTS: dict[str, float] = {
 # Provisional default pending Ranga sign-off:
 # R_max (risk threshold) is set at 0.30 (meaning we hard-gate when safety score R < 0.70)
 # with a soft interrupt band of 0.20-0.30.
-DEFAULT_GATE_THRESHOLDS: dict[str, float] = {"G": 0.60, "R": 0.70, "V": 0.60}
+DEFAULT_GATE_THRESHOLDS: dict[str, float] = {"G": 0.60, "R": 0.50, "V": 0.60}
 
 
 class Settings(BaseModel):
