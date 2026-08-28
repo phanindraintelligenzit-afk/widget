@@ -51,8 +51,9 @@
     }
     .sidebar {
       width: 260px;
-      position: sticky;
+      position: fixed;
       top: 0;
+      left: 0;
       height: 100vh;
       overflow-y: auto;
       background: var(--bg);
@@ -86,7 +87,7 @@
     .main-content {
       flex: 1;
       padding: 40px;
-      overflow-y: auto;
+      margin-left: 260px;
     }
 </style>
 </head>
@@ -106,7 +107,7 @@
     </nav>
   </aside>
   <main class="main-content">
-    <header class="top-header" style="position: sticky; top: -40px; background: var(--bg); z-index: 1000; padding-top: 40px; margin-top: -40px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
+    <header class="top-header" style="position: sticky; top: 0; background: var(--bg); z-index: 1000; padding-top: 20px; margin-top: -20px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
       <div style="margin-right: auto; display: flex; align-items: center; gap: 20px;">
           <h1 style="margin: 0; font-size: 22px;">DPI-LS (Digital Performance Index - Life Science)</h1>
           <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
