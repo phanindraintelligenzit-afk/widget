@@ -96,19 +96,27 @@
 
   
   <h2 style="margin-top: 0; color: var(--accent); font-size: 18px; margin-bottom: 25px;">Agent Scores (Raw Values)</h2>
-  <button onclick="addAgent()">Add Agent</button>
   
-  <table id="agent-table">
-    <thead>
-      <tr>
-        <th>Agent</th>
-        <th>Score</th>
-        <th>P</th><th>Q</th><th>E</th><th>G</th><th>R</th><th>V</th><th>C</th>
-        <th>SME Rating</th>
-      </tr>
-    </thead>
-    <tbody id="agent-body"></tbody>
-  </table>
+  
+  <div style="background:#020617;border-radius:10px;border:2px solid #334155;overflow:hidden;font-family:'Courier New',Courier,monospace;margin-top:15px;">
+    <table id="agent-table" style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#0f172a;color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:1px;">
+          <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">Agent</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">Score</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">P</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">Q</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">E</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">G</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">R</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">V</th>
+          <th style="padding:10px;border:1px solid #1e293b;text-align:center;">C</th>
+          <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">SME Rating</th>
+        </tr>
+      </thead>
+      <tbody id="agent-body"></tbody>
+    </table>
+</div>
 
   <script>
     async function fetchAgents() {
@@ -117,17 +125,17 @@
       const body = document.getElementById('agent-body');
       body.innerHTML = '';
       agents.forEach(a => {
-        const row = `<tr>
-          <td>${a.agent_name}</td>
-          <td>${a.score.toFixed(2)}</td>
-          <td>${a.metrics.P?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.Q?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.E?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.G?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.R?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.V?.toFixed(2) || '0'}</td>
-          <td>${a.metrics.C?.toFixed(2) || '0'}</td>
-          <td style="min-width:120px;" onmouseout="resetStars('${a.agent_id}')">
+        const row = `<tr style="border-bottom:1px solid #1e293b; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
+            <td style="padding:12px 14px; color:#38bdf8; font-weight:700;">${a.agent_name}</td>
+            <td style="padding:12px; text-align:center; color:#e2e8f0; font-weight:700;">${a.score.toFixed(2)}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.P?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.Q?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.E?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.G?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.R?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.V?.toFixed(2) || '0'}</td>
+            <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.C?.toFixed(2) || '0'}</td>
+            <td style="padding:12px 14px; min-width:140px;" onmouseout="resetStars('${a.agent_id}')">
               <span id="star-${a.agent_id}-1" style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="hoverStars('${a.agent_id}', 1)" onclick="submitStar('${a.agent_id}', 1)">&#9733;</span>
               <span id="star-${a.agent_id}-2" style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="hoverStars('${a.agent_id}', 2)" onclick="submitStar('${a.agent_id}', 2)">&#9733;</span>
               <span id="star-${a.agent_id}-3" style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="hoverStars('${a.agent_id}', 3)" onclick="submitStar('${a.agent_id}', 3)">&#9733;</span>
