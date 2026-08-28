@@ -145,15 +145,15 @@
           <div class="form-group"><label>Validation (V)</label><input type="number" step="0.01" id="base_V" value="0.95" required></div>
       </div>
 
-      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Weightage Distribution (%) <span id="weightTotal" style="float:right; color:var(--muted); font-size:14px;">Total: 100%</span></h3>
+      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Weightage Distribution <span id="weightTotal" style="float:right; color:var(--muted); font-size:14px;">Total: 100</span></h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-          <div class="form-group"><label>Productivity (P) %</label><input type="number" class="weight-input" id="weight_P" value="15" required></div>
-          <div class="form-group"><label>Quality (Q) %</label><input type="number" class="weight-input" id="weight_Q" value="20" required></div>
-          <div class="form-group"><label>Efficiency (E) %</label><input type="number" class="weight-input" id="weight_E" value="15" required></div>
-          <div class="form-group"><label>Governance (G) %</label><input type="number" class="weight-input" id="weight_G" value="20" required></div>
-          <div class="form-group"><label>Risk (R) %</label><input type="number" class="weight-input" id="weight_R" value="15" required></div>
-          <div class="form-group"><label>Cost (C) %</label><input type="number" class="weight-input" id="weight_C" value="5" required></div>
-          <div class="form-group"><label>Validation (V) %</label><input type="number" class="weight-input" id="weight_V" value="10" required></div>
+          <div class="form-group"><label>Productivity (P)</label><input type="number" class="weight-input" id="weight_P" value="15" required></div>
+          <div class="form-group"><label>Quality (Q)</label><input type="number" class="weight-input" id="weight_Q" value="20" required></div>
+          <div class="form-group"><label>Efficiency (E)</label><input type="number" class="weight-input" id="weight_E" value="15" required></div>
+          <div class="form-group"><label>Governance (G)</label><input type="number" class="weight-input" id="weight_G" value="20" required></div>
+          <div class="form-group"><label>Risk (R)</label><input type="number" class="weight-input" id="weight_R" value="15" required></div>
+          <div class="form-group"><label>Cost (C)</label><input type="number" class="weight-input" id="weight_C" value="5" required></div>
+          <div class="form-group"><label>Validation (V)</label><input type="number" class="weight-input" id="weight_V" value="10" required></div>
       </div>
 
       <button type="submit" style="margin-top:20px;">Save Configuration</button>
@@ -179,108 +179,70 @@
         input.addEventListener('input', updateWeightTotal);
     });
 
+    
+    function calculateDPI() {
+        const P = parseFloat(document.getElementById('base_P').value) || 0;
+        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
+        const E = parseFloat(document.getElementById('base_E').value) || 0;
+        const G = parseFloat(document.getElementById('base_G').value) || 0;
+        const R = parseFloat(document.getElementById('base_R').value) || 0;
+        const C = parseFloat(document.getElementById('base_C').value) || 0;
+        const V = parseFloat(document.getElementById('base_V').value) || 0;
+        
+        let dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
+        dpi = dpi * 100; // Assuming it calculates to a ~1.0 scale
+        if (dpi > 100) dpi = 100;
+        
+        document.getElementById('live_dpi_score').innerText = dpi.toFixed(2);
+        
+        let wTotal = 0;
+        document.querySelectorAll('.weight-input').forEach(inp => wTotal += (parseFloat(inp.value)||0));
+        document.getElementById('weightTotal').innerText = "Total: " + wTotal;
+        if(wTotal !== 100) {
+            document.getElementById('weightTotal').style.color = "#ef4444";
+        } else {
+            document.getElementById('weightTotal').style.color = "var(--muted)";
+        }
+    }
+    
+    // Attach event listeners
+    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
+    calculateDPI(); // initial run
+
+    
     document.getElementById('configForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const total = updateWeightTotal();
-      if (total !== 100) {
-          alert('Error: The total weightage must equal exactly 100%. Currently: ' + total + '%');
-          return;
-      }
-
-      const agentId = document.getElementById('agent_id').value;
-      const statusEl = document.getElementById('status');
-      
-      statusEl.innerHTML = '<span style="color:var(--accent)">Saving Configuration & Running AI Evaluation... Please wait (this may take up to 10 seconds).</span>';
-      statusEl.className = 'status-msg';
-
-      const configs = [
-          { configuration_key: 'base_P', configuration_value: document.getElementById('base_P').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_Q', configuration_value: document.getElementById('base_Q').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_E', configuration_value: document.getElementById('base_E').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_G', configuration_value: document.getElementById('base_G').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_R', configuration_value: document.getElementById('base_R').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_C', configuration_value: document.getElementById('base_C').value, source: 'DPI-LS Config' },
-          { configuration_key: 'base_V', configuration_value: document.getElementById('base_V').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_P', configuration_value: document.getElementById('weight_P').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_Q', configuration_value: document.getElementById('weight_Q').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_E', configuration_value: document.getElementById('weight_E').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_G', configuration_value: document.getElementById('weight_G').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_R', configuration_value: document.getElementById('weight_R').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_C', configuration_value: document.getElementById('weight_C').value, source: 'DPI-LS Config' },
-          { configuration_key: 'weight_V', configuration_value: document.getElementById('weight_V').value, source: 'DPI-LS Config' }
-      ];
-
-      try {
-        await Promise.all(configs.map(payload => 
-            fetch(/api/agents//config, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-              body: JSON.stringify(payload)
-            })
-        ));
+        e.preventDefault();
+        const agentId = document.getElementById('agent_id').value || 'agent-001';
         
-        statusEl.innerHTML = '<span style="color:var(--accent)">Evaluation running... Polling for agent score (this may take up to 15 seconds)...</span>';
+        const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
+        let successCount = 0;
         
-        let initialCount = 0;
-        try {
-           const preRes = await fetch('/api/ratings');
-           if (preRes.ok) {
-               const preRatings = await preRes.json();
-               initialCount = preRatings.filter(r => r.agent_id === agentId).length;
-           }
-        } catch(e) {}
+        // Save Base Values
+        for (let m of metrics) {
+            let val = document.getElementById('base_' + m).value;
+            await fetch(`/api/agents/${agentId}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
+            });
+            successCount++;
+        }
         
-        let finalScore = "N/A";
-        let attempts = 0;
+        // Save Weights
+        for (let m of metrics) {
+            let val = document.getElementById('weight_' + m).value;
+            await fetch(`/api/agents/${agentId}/config`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
+            });
+            successCount++;
+        }
         
-        const pollTimer = setInterval(async () => {
-           attempts++;
-           try {
-               const scoreRes = await fetch('/api/ratings');
-               if (scoreRes.ok) {
-                   const ratings = await scoreRes.json();
-                   const myAgentRatings = ratings.filter(r => r.agent_id === agentId);
-                   if (myAgentRatings.length > initialCount) {
-                       myAgentRatings.sort((a,b) => b.id - a.id);
-                       finalScore = myAgentRatings[0].score.toFixed(1);
-                       
-                       clearInterval(pollTimer);
-                       
-                       statusEl.innerHTML = 
-                          Configuration saved successfully!<br><br>
-                          <div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:center; margin-top: 10px;">
-                            <span style="color:#4ade80; font-size: 16px;">&#10003; <b>Intelligenz IT Pvt Limited</b></span><br><br>
-                            Notification dispatched to Business & Technical Owners.<br>
-                            <h2 style="color:var(--accent); margin:15px 0 5px;">Final Score:  / 100</h2>
-                            <span style="color:var(--muted)">Redirecting to Dashboard in 5 seconds...</span>
-                          </div>
-                          <br><a href="/widget/demo.html" style="color:var(--accent); text-decoration:underline;">Click here to go to Dashboard instantly &rarr;</a>
-                        ;
-                        statusEl.classList.add('success');
-                        
-                        setTimeout(() => {
-                            window.location.href = '/widget/demo.html';
-                        }, 5000);
-                   }
-               }
-           } catch(e) {}
-           
-           if (attempts >= 15 && finalScore === "N/A") {
-               clearInterval(pollTimer);
-               statusEl.innerHTML = 
-                  Configuration saved successfully, but evaluation timed out.<br><br>
-                  <a href="/widget/demo.html" style="color:var(--accent); text-decoration:underline;">Continue to Dashboard &rarr;</a>
-               ;
-               statusEl.classList.add('success');
-           }
-        }, 1000);
-          
-      } catch (err) {
-        statusEl.textContent = 'Network Error: ' + err.message;
-        statusEl.classList.add('error');
-      }
+        // Alert and trigger test script via backend if possible, or just alert
+        alert("Success! " + successCount + " configurations saved to Dashboard and Rating sections!");
     });
+
 
   </script>
   </main>

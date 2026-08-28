@@ -61,7 +61,7 @@
       overflow-y: auto;
       box-sizing: border-box;
     }
-    .page-body { max-width: 800px; }
+    .page-body { max-width: 1200px; width: 100%; }
     h1 { font-size: 24px; margin-bottom: 24px; }
     .form-group { margin-bottom: 16px; }
     label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
@@ -118,7 +118,8 @@
     <div class="page-body">
     
     <h2 style="margin-top: 0; color: var(--accent); font-size: 18px; margin-bottom: 25px;">Onboard Digital Worker</h2>
-    <form id="onboardingForm">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
+      <form id="onboardingForm">
       <div class="form-group">
         <label>Agent ID (e.g. agent-001)</label>
         <input type="text" id="agent_id" required placeholder="agent-001">
@@ -158,6 +159,12 @@
       <button type="submit">Submit Onboarding</button>
       <div id="status" class="status-msg"></div>
     </form>
+      
+      <div id="onboarding-preview" style="background:#020617; border-radius:10px; border:2px solid #334155; padding: 24px; font-family:'Courier New',Courier,monospace; display: none; height: 100%; box-sizing: border-box;">
+         <h3 style="color:#facc15; margin-top:0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px; letter-spacing: 1px;">AGENT ONBOARDED</h3>
+         <div id="preview-content" style="color: #e2e8f0; font-size: 13px; line-height: 1.8;"></div>
+      </div>
+      </div>
   </div>
 
   <script>
