@@ -22,10 +22,10 @@ def test_widget_demo_html_served(client):
     assert "/widget/dpi-ls.js" in r.text
 
 
-def test_root_redirects_to_demo(client):
+def test_root_redirects_to_login(client):
     r = client.get("/", follow_redirects=False)
     assert r.status_code in (302, 307)
-    assert r.headers["location"].endswith("/widget/demo.html")
+    assert r.headers["location"].endswith("/widget/admin-login.html")
 
 
 def test_cors_headers_on_ratings(client):

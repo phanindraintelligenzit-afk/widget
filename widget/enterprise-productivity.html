@@ -7,7 +7,7 @@
   <style>
     :root {
       --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
-      --border: #2d3148; --accent: #6366f1; --accent2: #8b5cf6;
+      --border: #2d3148; --accent: #facc15; --accent2: #8b5cf6;
       --green: #10b981; --amber: #f59e0b; --red: #ef4444;
       --text: #f1f5f9; --muted: #94a3b8; --muted2: #64748b;
     }
@@ -33,7 +33,7 @@
       font-size: 13px; font-weight: 500;
       color: var(--muted); text-decoration: none;
     }
-    .nav-link.active { background: rgba(99,102,241,0.15); color: var(--accent); }
+    .nav-link.active { background: rgba(250,204,21,0.15); color: var(--accent); }
     .page-body { padding: 0 24px; }
     h1 { font-size: 28px; margin: 0 0 6px; }
     .sub {
@@ -69,7 +69,7 @@
     .rc-icon {
       width: 44px; height: 44px; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 24px; background: rgba(99,102,241,0.15);
+      font-size: 24px; background: rgba(250,204,21,0.15);
     }
     .rc-title { flex: 1; }
     .rc-name { font-weight: 700; font-size: 16px; }
@@ -186,7 +186,13 @@
       text-transform: uppercase; letter-spacing: 0.04em; font-size: 10px;
     }
     .check { color: var(--green); font-weight: 900; font-size: 14px; }
-  </style>
+  
+    input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus, input:-webkit-autofill:active {
+        -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+        -webkit-text-fill-color: var(--text) !important;
+        transition: background-color 5000s ease-in-out 0s;
+    }
+</style>
 </head>
 <body>
   <nav class="top-nav">

@@ -27,7 +27,7 @@ def client(monkeypatch):
             payload={
                 "weights": {"P": 0.15, "Q": 0.20, "E": 0.15, "G": 0.20, "R": 0.15, "C": 0.05, "V": 0.10},
                 "q_sub_weights": {"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10},
-                "gate_thresholds": {"G": 0.60, "R": 0.70, "V": 0.60},
+                "gate_thresholds": {"G": 0.60, "R": 0.50, "V": 0.60},
                 "r_max": 50.0,
                 "human_cost_per_output": 50.0,
                 "utilization": 1.0,

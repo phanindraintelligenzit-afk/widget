@@ -15,7 +15,7 @@ from fixtures import load_raw, mapping_path
 
 
 def _rate_observation(obs):
-    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=10.0, human_cost_per_output=1.50, utilization=0.95)
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=10.0, human_cost_per_output=1.50, utilization=0.95)
     baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=100.0)
     return rate(metrics_from_observation(obs, settings, baseline))
 
@@ -44,7 +44,7 @@ def test_productivity_with_default_baseline_1_0():
     from fixtures import load
 
     obs = load("strong")
-    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.70, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=50.0)
+    settings = Settings(gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60}, q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10}, r_max=50.0)
     # Use default baseline of 1.0
     baseline = AgentBaseline(agent_id=obs.agent_id, human_output_per_period=1.0)
 

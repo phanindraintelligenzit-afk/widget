@@ -219,13 +219,7 @@ app = FastAPI(title="DPI-LS", version="0.0.1", lifespan=lifespan)
 def login(req: LoginRequest, db: Session = Depends(db_session)):
     user = db.query(UserRow).filter(UserRow.username == req.username).first()
     if not user:
-        if req.username in ['admin', 'manager', 'customer'] and req.password == req.username + '123':
-            role_map = {'admin': 'ADMIN', 'manager': 'MANAGER', 'customer': 'CUSTOMER'}
-            user = UserRow(username=req.username, password_hash=req.password, role=role_map[req.username])
-            db.add(user)
-            db.commit()
-            db.refresh(user)
-        elif req.username == 'IntelligenzIT' and req.password == 'InteelligenzIt 123':
+        if req.username == 'admin' and req.password == 'admin123':
             user = UserRow(username=req.username, password_hash=req.password, role='ADMIN')
             db.add(user)
             db.commit()
@@ -297,12 +291,12 @@ app.mount("/metrics", make_asgi_app())
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
-    return RedirectResponse(url="/widget/demo.html")
+    return RedirectResponse(url="/widget/admin-login.html")
 
 
 @app.get("/index.html", include_in_schema=False)
 def index_redirect() -> RedirectResponse:
-    return RedirectResponse(url="/widget/demo.html")
+    return RedirectResponse(url="/widget/admin-login.html")
 
 
 @app.get("/resources.html", include_in_schema=False)
@@ -338,7 +332,77 @@ def ingest_observation(
 ) -> Rating:
     """Ingest a completed agent observation (telemetry) and return its score."""
     try:
-        return score_and_persist(s, obs, baseline=baseline)
+        rating = score_and_persist(s, obs, baseline=baseline)
+        
+        # Email the Business Owner with the new score
+        onboarding = store.repo.get_agent_onboarding(s, obs.agent_id)
+        if onboarding:
+            email_subject = f"DPI-LS: New Score Generated for {obs.agent_id}"
+            
+            p_val = rating.metrics.get('P', 0.0)
+            q_val = rating.metrics.get('Q', 0.0)
+            e_val = rating.metrics.get('E', 0.0)
+            g_val = rating.metrics.get('G', 0.0)
+            r_val = rating.metrics.get('R', 0.0)
+            v_val = rating.metrics.get('V', 0.0)
+            c_val = rating.metrics.get('C', 0.0)
+            
+            email_body = (
+                f"Hello {onboarding.business_owner_name or 'Business Owner'},\n\n"
+                f"A new run for your AI Digital Worker has completed. Here is the latest performance scorecard:\n\n"
+                f"=========================================\n"
+                f" AGENT NAME / ID :  {obs.agent_id}\n"
+                f"=========================================\n"
+                f" FINAL SCORE     :  {rating.score:.1f} / 100\n"
+                f" PERFORMANCE BAND:  {rating.band}\n"
+                f"=========================================\n"
+                f" PARAMETER BREAKDOWN:\n"
+                f"  (P) Productivity : {p_val:.2f}\n"
+                f"  (Q) Quality      : {q_val:.2f}\n"
+                f"  (E) Execution    : {e_val:.2f}\n"
+                f"  (G) Governance   : {g_val:.2f}\n"
+                f"  (R) Risk         : {r_val:.2f}\n"
+                f"  (V) Validation   : {v_val:.2f}\n"
+                f"  (C) Cost         : {c_val:.2f}\n"
+                f"=========================================\n\n"
+                f"Check your agent's live dashboard for detailed insights.\n\n"
+                f"--- DPI-LS Platform ---"
+            )
+            
+            all_emails = []
+            if onboarding.business_owner_email:
+                all_emails.extend([e.strip() for e in onboarding.business_owner_email.split(',') if e.strip()])
+            if onboarding.technical_owner_email:
+                all_emails.append(onboarding.technical_owner_email.strip())
+                
+            import os, smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            
+            smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+            smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+            smtp_user = os.environ.get("SMTP_USER", "")
+            smtp_pass = os.environ.get("SMTP_PASS", "")
+
+            if smtp_user and smtp_pass and all_emails:
+                try:
+                    for recipient in all_emails:
+                        msg = MIMEMultipart()
+                        msg['From'] = smtp_user
+                        msg['To'] = recipient
+                        msg['Subject'] = email_subject
+                        msg.attach(MIMEText(email_body, 'plain'))
+                        
+                        server = smtplib.SMTP(smtp_host, smtp_port)
+                        server.starttls()
+                        server.login(smtp_user, smtp_pass)
+                        server.sendmail(smtp_user, recipient, msg.as_string())
+                        server.quit()
+                        print(f"\n[DPI-LS SMTP] SUCCESS: Score Email sent successfully to {recipient}")
+                except Exception as e:
+                    print(f"\n[DPI-LS SMTP] ERROR: Failed to send Score email: {e}")
+                    
+        return rating
     except Exception as e:
         print(f"CRITICAL INGEST ERROR: {e}")
         import traceback
@@ -689,40 +753,76 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnbo
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
 def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentOnboardingOut:
-    # Ensure base agent exists
+    # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
-        raise HTTPException(status_code=404, detail="Agent not found")
+        agent = store.models.AgentRow(id=agent_id, name=agent_id)
+        s.add(agent)
+        s.flush()
         
     payload = body.model_dump(exclude_unset=True)
     row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
     
-    # Send mock emails to the technical owner and business owners
-    tech_email = row.technical_owner_email
-    biz_emails = row.business_owner_email
-    if biz_emails:
-        emails = [e.strip() for e in biz_emails.split(',')]
-        for e in emails:
-            if e:
-                print(f"\n--- MOCK SMTP EMAIL ---")
-                print(f"To: {e}")
-                print(f"Subject: Welcome to our Intelligenz IT Pvt Limited")
-                print(f"Body:")
-                print(f"Welcome to our Intelligenz IT Pvt Limited.")
-                print(f"Notification has been dispatched to {e} via SMTP!")
-                print(f"Check our Intelligenz IT related dimensions:")
-                print(f"Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner")
-                print(f"https://intelligenzit.com/\n-----------------------\n")
-    if tech_email:
-        print(f"\n--- MOCK SMTP EMAIL ---")
-        print(f"To: {tech_email}")
-        print(f"Subject: Welcome to our Intelligenz IT Pvt Limited")
-        print(f"Body:")
-        print(f"Welcome to our Intelligenz IT Pvt Limited.")
-        print(f"Notification has been dispatched to {tech_email} via SMTP!")
-        print(f"Check our Intelligenz IT related dimensions:")
-        print(f"Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner")
-        print(f"https://intelligenzit.com/\n-----------------------\n")
+    # Build email body
+    email_subject = "DPI-LS: New Digital Worker Onboarded - Intelligenz IT"
+    email_body = (
+        f"Welcome to Intelligenz IT Pvt Limited.\n\n"
+        f"A new AI Digital Worker has been onboarded on the DPI-LS platform.\n\n"
+        f"Agent ID: {agent_id}\n"
+        f"Description: {row.description or 'N/A'}\n"
+        f"Agent Type: {row.agent_type or 'N/A'}\n"
+        f"Environment: {row.environment or 'N/A'}\n"
+        f"Business Owner: {row.business_owner_name or 'N/A'} ({row.business_owner_email or 'N/A'})\n"
+        f"Technical Owner: {row.technical_owner_name or 'N/A'} ({row.technical_owner_email or 'N/A'})\n"
+        f"Digital Worker Role: {row.digital_worker_role or 'N/A'}\n\n"
+        f"Check our Intelligenz IT related dimensions:\n"
+        f"https://intelligenzit.com/\n\n"
+        f"--- DPI-LS Platform ---"
+    )
+
+    # Collect all recipient emails
+    all_emails = []
+    if row.business_owner_email:
+        all_emails.extend([e.strip() for e in row.business_owner_email.split(',') if e.strip()])
+    if row.technical_owner_email:
+        all_emails.append(row.technical_owner_email.strip())
+
+    # Try real SMTP email sending
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+
+    if smtp_user and smtp_pass and all_emails:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        try:
+            for recipient in all_emails:
+                msg = MIMEMultipart()
+                msg['From'] = smtp_user
+                msg['To'] = recipient
+                msg['Subject'] = email_subject
+                msg.attach(MIMEText(email_body, 'plain'))
+                
+                server = smtplib.SMTP(smtp_host, smtp_port)
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, recipient, msg.as_string())
+                server.quit()
+                print(f"\n[DPI-LS SMTP] SUCCESS: Email sent successfully to {recipient}")
+        except Exception as e:
+            print(f"\n[DPI-LS SMTP] ERROR: Failed to send email: {e}")
+    else:
+        # Fallback: Mock email to console
+        for recipient in all_emails:
+            print(f"\n--- MOCK SMTP EMAIL ---")
+            print(f"To: {recipient}")
+            print(f"Subject: {email_subject}")
+            print(f"Body:\n{email_body}")
+            print(f"-----------------------\n")
+        if not smtp_user:
+            print("[DPI-LS SMTP] ⚠️  No SMTP_USER configured. Set SMTP_USER and SMTP_PASS in .env for real email sending.")
 
     s.commit()
     return AgentOnboardingOut(
@@ -748,6 +848,53 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
 @app.post("/api/agents/{agent_id}/kra", response_model=AgentKRAOut)
 def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentKRAOut:
     row = store.repo.upsert_agent_kra(s, agent_id, body.kra_name, body.target_value, body.weight)
+    
+    # Fetch onboarding info to get emails
+    onboarding = store.repo.get_agent_onboarding(s, agent_id)
+    if onboarding:
+        email_subject = f"DPI-LS: KRA Updated for {agent_id}"
+        email_body = (
+            f"Hello {onboarding.business_owner_name or 'Business Owner'},\n\n"
+            f"A Key Result Area (KRA) has been configured/updated for your AI Digital Worker.\n\n"
+            f"Agent ID: {agent_id}\n"
+            f"KRA Name: {body.kra_name}\n"
+            f"Weight: {body.weight}\n\n"
+            f"Check your agent's live dashboard for performance tracking.\n"
+            f"--- DPI-LS Platform ---"
+        )
+        
+        all_emails = []
+        if onboarding.business_owner_email:
+            all_emails.extend([e.strip() for e in onboarding.business_owner_email.split(',') if e.strip()])
+        if onboarding.technical_owner_email:
+            all_emails.append(onboarding.technical_owner_email.strip())
+            
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        smtp_user = os.environ.get("SMTP_USER", "")
+        smtp_pass = os.environ.get("SMTP_PASS", "")
+
+        if smtp_user and smtp_pass and all_emails:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            try:
+                for recipient in all_emails:
+                    msg = MIMEMultipart()
+                    msg['From'] = smtp_user
+                    msg['To'] = recipient
+                    msg['Subject'] = email_subject
+                    msg.attach(MIMEText(email_body, 'plain'))
+                    
+                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, recipient, msg.as_string())
+                    server.quit()
+                    print(f"\n[DPI-LS SMTP] SUCCESS: KRA Email sent successfully to {recipient}")
+            except Exception as e:
+                print(f"\n[DPI-LS SMTP] ERROR: Failed to send KRA email: {e}")
+
     s.commit()
     return AgentKRAOut(
         id=row.id,
@@ -802,19 +949,62 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
         raise HTTPException(status_code=403, detail="Unauthorized: Only the assigned manager can rate this agent.")
     
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
+    
+    if onboarding:
+        email_subject = f"DPI-LS: Manager Review Submitted for {agent_id}"
+        email_body = (
+            f"Hello {onboarding.business_owner_name or 'Business Owner'},\n\n"
+            f"A Manager Performance Review has just been submitted for your AI Digital Worker.\n\n"
+            f"=========================================\n"
+            f" AGENT NAME / ID :  {agent_id}\n"
+            f"=========================================\n"
+            f" Review Period   :  {body.review_period}\n"
+            f" Overall Rating  :  {body.rating} / 5\n"
+            f" Comments        :  {body.comments}\n"
+            f" Submitted By    :  {body.manager_id}\n"
+            f"=========================================\n\n"
+            f"This review will impact the agent's Governance and Execution parameters.\n"
+            f"Check your agent's live dashboard to see the updated scorecard.\n\n"
+            f"--- DPI-LS Platform ---"
+        )
+        
+        all_emails = []
+        if onboarding.business_owner_email:
+            all_emails.extend([e.strip() for e in onboarding.business_owner_email.split(',') if e.strip()])
+        if onboarding.technical_owner_email:
+            all_emails.append(onboarding.technical_owner_email.strip())
+            
+        import os, smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        smtp_user = os.environ.get("SMTP_USER", "")
+        smtp_pass = os.environ.get("SMTP_PASS", "")
+
+        if smtp_user and smtp_pass and all_emails:
+            try:
+                for recipient in all_emails:
+                    msg = MIMEMultipart()
+                    msg['From'] = smtp_user
+                    msg['To'] = recipient
+                    msg['Subject'] = email_subject
+                    msg.attach(MIMEText(email_body, 'plain'))
+                    
+                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, recipient, msg.as_string())
+                    server.quit()
+                    print(f"\n[DPI-LS SMTP] SUCCESS: Review Email sent successfully to {recipient}")
+            except Exception as e:
+                print(f"\n[DPI-LS SMTP] ERROR: Failed to send Review email: {e}")
+                
     s.commit()
 
     agent_row = s.get(store.models.AgentRow, agent_id)
     agent_name = agent_row.name if agent_row else agent_id
-
-    configs = store.repo.list_agent_configurations(s, agent_id)
-    human_baseline = "1"
-    for c in configs:
-        if c.configuration_key == "human_baseline":
-            human_baseline = c.configuration_value
-            break
-
-    logs = run_agent_telemetry_task(agent_id, agent_name, human_baseline)
 
     return {
         "id": row.id,
@@ -824,7 +1014,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
         "comments": row.comments,
         "review_period": row.review_period,
         "created_at": row.submitted_at,
-        "logs": logs
+        "logs": ""
     }
 
 @app.get("/api/agents/{agent_id}/manager-rating", response_model=list[ManagerRatingOut])
@@ -874,6 +1064,67 @@ def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> li
 @app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
 def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentConfigurationOut:
     row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
+    
+    # Fetch onboarding info to get emails
+    onboarding = store.repo.get_agent_onboarding(s, agent_id)
+    if onboarding:
+        email_subject = f"DPI-LS: Static Data Configured for {agent_id}"
+        email_body = (
+            f"Hello {onboarding.business_owner_name or 'Business Owner'},\n\n"
+            f"Static Data Configuration has been added/updated for your AI Digital Worker.\n\n"
+            f"=========================================\n"
+            f" AGENT NAME / ID :  {agent_id}\n"
+            f"=========================================\n"
+            f" Config Key      :  {body.configuration_key}\n"
+            f" Config Value    :  {body.configuration_value}\n"
+            f" Source          :  {body.source or 'System'}\n"
+            f"=========================================\n\n"
+            f"This baseline data will be used to calculate relative AI performance.\n"
+            f"Check your agent's live dashboard to see it on the table.\n\n"
+            f"--- DPI-LS Platform ---"
+        )
+        
+        all_emails = []
+        if onboarding.business_owner_email:
+            all_emails.extend([e.strip() for e in onboarding.business_owner_email.split(',') if e.strip()])
+        if onboarding.technical_owner_email:
+            all_emails.append(onboarding.technical_owner_email.strip())
+            
+        smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
+        smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+        smtp_user = os.environ.get("SMTP_USER", "")
+        smtp_pass = os.environ.get("SMTP_PASS", "")
+
+        if smtp_user and smtp_pass and all_emails:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            try:
+                for recipient in all_emails:
+                    msg = MIMEMultipart()
+                    msg['From'] = smtp_user
+                    msg['To'] = recipient
+                    msg['Subject'] = email_subject
+                    msg.attach(MIMEText(email_body, 'plain'))
+                    
+                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, recipient, msg.as_string())
+                    server.quit()
+                    print(f"\n[DPI-LS SMTP] SUCCESS: Config Email sent successfully to {recipient}")
+            except Exception as e:
+                print(f"\n[DPI-LS SMTP] ERROR: Failed to send Config email: {e}")
+
+    # Trigger agent telemetry run in a background thread to prevent blocking /ingest
+    human_baseline = body.configuration_value if body.configuration_key.lower().replace(" ", "_") == "human_baseline" else "1"
+    agent_name = onboarding.agent_id if onboarding else agent_id
+    
+    import threading
+    def background_run():
+        run_agent_telemetry_task(agent_id, agent_name, human_baseline)
+    threading.Thread(target=background_run).start()
+
     s.commit()
     return AgentConfigurationOut(
         id=row.id,
