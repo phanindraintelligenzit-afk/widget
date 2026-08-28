@@ -241,18 +241,40 @@ document.addEventListener("DOMContentLoaded", () => {
     function processQuery(query) {
         const q = query.toLowerCase();
         setTimeout(() => {
-            if (q.includes('risk') || q.includes('red')) {
-                appendMessage("Risk scores below 50 are colored Red and indicate a safety or compliance violation. DPI-LS heavily weights Risk (R^2 penalty) to ensure unsafe agents are immediately flagged.", false);
-            } else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
+            // Dashboard Related
+            if (q.includes('dashboard') || q.includes('leaderboard') || q.includes('green') || q.includes('red') || q.includes('yellow')) {
+                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI-LS score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
+            } 
+            // Onboard Agent Related
+            else if (q.includes('onboard') || q.includes('onboarding') || q.includes('register') || q.includes('new agent')) {
+                appendMessage("The Onboard Agent section allows you to register a new Digital Worker. You must provide an Agent ID, description, business owner details, and technical owner details. Upon submission, the platform tracks this agent globally.", false);
+            }
+            // Configuration Related
+            else if (q.includes('config') || q.includes('weight') || q.includes('parameter') || q.includes('baseline')) {
+                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI-LS parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
+            }
+            // Rating Related
+            else if (q.includes('rating') || q.includes('manager') || q.includes('review') || q.includes('score')) {
+                appendMessage("The Rating section is where human managers can submit a 1 to 5 star rating for an agent. This Subjective Matter Expert (SME) feedback is injected directly into the agent's telemetry matrix to influence the overall Quality and Execution score.", false);
+            }
+            // Profile Related
+            else if (q.includes('profile') || q.includes('history') || q.includes('details')) {
+                appendMessage("The Profile section provides a detailed view of a specific agent. It displays their exact score breakdown and metadata over time. You can search for an agent ID to jump directly to their profile.", false);
+            }
+            // Resources Related
+            else if (q.includes('resource') || q.includes('manual') || q.includes('guide')) {
+                appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI-LS ecosystem and how to integrate your own custom frameworks.", false);
+            }
+            // Formula / DPI-LS Related
+            else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
                 appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
-            } else if (q.includes('search') || q.includes('find')) {
-                appendMessage("You can use the search bar at the top of the screen to quickly jump to a specific agent's profile (e.g., 'agent-001') or filter dashboard metrics.", false);
-            } else if (q.includes('configure') || q.includes('weight')) {
-                appendMessage("You can adjust metric weights and baselines on the Configuration page. The total weight distribution must equal exactly 100%.", false);
-            } else if (q.includes('hello') || q.includes('hi')) {
-                appendMessage("Hello! How can I assist you with your Digital Workforce today?", false);
-            } else {
-                appendMessage("I'm the AI assistant for the DPI-LS platform. I can explain scoring formulas, help you interpret metrics, or guide you through platform features. Try asking 'How is Risk calculated?' or 'How do I change weights?'", false);
+            } 
+            else if (q.includes('hello') || q.includes('hi')) {
+                appendMessage("Hello! How can I assist you with your Digital Workforce today? You can ask me about Dashboard, Onboarding, Configuration, Rating, Profile, or Resources.", false);
+            } 
+            // Fallback
+            else {
+                appendMessage("I am fully integrated into all 6 platform sections (Dashboard, Onboarding, Configuration, Rating, Profile, Resources). Just ask me how any section works, or ask how to calculate a score, and I'll explain its exact functionality!", false);
             }
         }, 600);
     }
@@ -315,11 +337,50 @@ document.addEventListener("DOMContentLoaded", () => {
                     agents = await res.json();
                 }
 
-                // Hardcode metrics
+                // Hardcode sections and metrics
                 const metrics = ['Risk', 'Productivity', 'Quality', 'Efficiency', 'Governance', 'Cost', 'Validation'];
+                const sections = [
+                    {name: 'Dashboard', url: '/widget/demo.html'},
+                    {name: 'Onboard Agent', url: '/widget/onboarding.html'},
+                    {name: 'Configuration', url: '/widget/agent-config.html'},
+                    {name: 'Rating (Manager Review)', url: '/widget/score.html'},
+                    {name: 'Profile', url: '/widget/agent-profile.html'},
+                    {name: 'Resources', url: '/widget/resources.html'}
+                ];
 
                 dropdown.innerHTML = '';
                 let hasResults = false;
+
+                // Filter Sections
+                const matchedSections = sections.filter(s => s.name.toLowerCase().includes(query) || s.url.toLowerCase().includes(query));
+                if (matchedSections.length > 0) {
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.padding = '8px 12px';
+                    groupTitle.style.fontSize = '11px';
+                    groupTitle.style.color = '#94a3b8';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.textTransform = 'uppercase';
+                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.textContent = 'Platform Sections';
+                    dropdown.appendChild(groupTitle);
+
+                    matchedSections.forEach(s => {
+                        hasResults = true;
+                        const item = document.createElement('div');
+                        item.style.padding = '10px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.fontSize = '13px';
+                        item.style.color = '#a78bfa';
+                        item.style.transition = 'background 0.2s';
+                        item.innerHTML = '&#128270; Navigate to: ' + s.name;
+                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
+                        item.onmouseout = () => item.style.background = 'transparent';
+                        item.onclick = () => {
+                            window.location.href = s.url;
+                        };
+                        dropdown.appendChild(item);
+                    });
+                }
 
                 // Filter Agents
                 const matchedAgents = agents.filter(a => (a.agent_id && a.agent_id.toLowerCase().includes(query)) || (a.agent_name && a.agent_name.toLowerCase().includes(query)));
@@ -340,6 +401,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     groupTitle.style.fontWeight = 'bold';
                     groupTitle.style.textTransform = 'uppercase';
                     groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
                     groupTitle.textContent = 'Agents';
                     dropdown.appendChild(groupTitle);
 
@@ -355,7 +417,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = /widget/agent-profile.html?id=;
+                            window.location.href = `/widget/agent-profile.html?id=${a.agent_id}`;
                         };
                         dropdown.appendChild(item);
                     });
@@ -371,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     groupTitle.style.fontWeight = 'bold';
                     groupTitle.style.textTransform = 'uppercase';
                     groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    groupTitle.style.marginTop = uniqueAgents.length > 0 ? '5px' : '0';
+                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
                     groupTitle.textContent = 'Metrics';
                     dropdown.appendChild(groupTitle);
 
@@ -387,7 +449,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = /widget/demo.html?filter=;
+                            window.location.href = `/widget/demo.html?filter=${encodeURIComponent(m.toLowerCase())}`;
                         };
                         dropdown.appendChild(item);
                     });
