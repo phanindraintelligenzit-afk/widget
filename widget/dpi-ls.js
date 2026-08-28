@@ -2130,7 +2130,7 @@
       const body = `
       <div style="background:#020617;border-radius:10px;border:2px solid #334155;overflow:hidden;font-family:'Courier New',Courier,monospace;">
         <div style="background:linear-gradient(135deg,#1e293b,#0f172a);padding:14px 24px;text-align:center;border-bottom:2px solid #334155;">
-          <span style="color:#facc15;font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">AGENT SCORING DASHBOARD</span>
+          <span style="color:#facc15;font-size:16px;font-weight:800;letter-spacing:3px;text-transform:uppercase;">AGENT DEPARTURES</span>
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <thead>
