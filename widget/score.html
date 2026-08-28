@@ -127,10 +127,13 @@
           <td>${a.metrics.R?.toFixed(2) || '0'}</td>
           <td>${a.metrics.V?.toFixed(2) || '0'}</td>
           <td>${a.metrics.C?.toFixed(2) || '0'}</td>
-          <td>
-            <button onclick="editAgent('${a.agent_id}')">Edit</button>
-            <button onclick="deleteAgent('${a.agent_id}')">Delete</button>
-          </td>
+          <td style="min-width:120px;">
+              <span style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="this.style.color='#facc15'" onmouseout="this.style.color='#475569'" onclick="submitStar('${a.agent_id}', 1)">?</span>
+              <span style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="this.style.color='#facc15'" onmouseout="this.style.color='#475569'" onclick="submitStar('${a.agent_id}', 2)">?</span>
+              <span style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="this.style.color='#facc15'" onmouseout="this.style.color='#475569'" onclick="submitStar('${a.agent_id}', 3)">?</span>
+              <span style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="this.style.color='#facc15'" onmouseout="this.style.color='#475569'" onclick="submitStar('${a.agent_id}', 4)">?</span>
+              <span style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="this.style.color='#facc15'" onmouseout="this.style.color='#475569'" onclick="submitStar('${a.agent_id}', 5)">?</span>
+            </td>
         </tr>`;
         body.innerHTML += row;
       });
