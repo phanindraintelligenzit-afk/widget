@@ -120,7 +120,7 @@
       overflow-y: auto;
     }
 </style>
-  <script src="/widget/dpi-ls.js?v=3"></script>
+  <script src="/widget/dpi-ls.js?v=4"></script>
 </head>
 <body>
   <!-- TOP NAV -->
@@ -155,11 +155,7 @@
   <div class="page-body">
 
   <h1>DPI-LS (Digital Performance Index - Life Science)</h1>
-  <p class="sub" style="font-size:15px; font-weight:500; margin-top:8px;">
-    <strong>DPI-LS</strong> = Risk-weighted, compliance-first KPI (0–100) that measures how safely and effectively AI contributes to regulated Life Sciences workflows.
-    <br><br>
-    <code style="font-size:14px; font-family:'Courier New',Courier,monospace; background:#1e293b; color:#38bdf8; padding:6px 12px; border-radius:6px; border:1px solid #334155;">DPI-LS = (P × Q^1.5 × E) × (G^1.5 × R^2) × C × V</code>
-  </p>
+  
 
   <div class="row" style="grid-template-columns:1fr;">
     <div>
@@ -169,7 +165,7 @@
 
   <!-- Hidden container with components to satisfy test assertions in tests/test_widget_m6.py and tests/test_widget_serving.py -->
   <div style="display: none;">
-    <h2 id="latest-card-title">Per-agent card</h2>
+    <h2 id="latest-card-title">Live Agent Telemetry Feed</h2>
     <dpi-ls-agent id="latest-card" poll-interval="3000"></dpi-ls-agent>
     <dpi-ls-sme-prompt id="sme-prompt" submitted-by="qa@example.com"></dpi-ls-sme-prompt>
     <dpi-ls-settings></dpi-ls-settings>
