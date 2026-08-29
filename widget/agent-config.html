@@ -266,7 +266,24 @@
         e.preventDefault();
         const agentId = document.getElementById('agent_id').value || 'agent-001';
         
+        
         const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
+        
+        // --- Weight Validation Blocker ---
+        let checkTotal = 0;
+        for (let m of metrics) {
+            checkTotal += (parseFloat(document.getElementById('weight_' + m).value) || 0);
+        }
+        if (checkTotal !== 100) {
+            alert(`WARNING: The total Weightage Distribution must equal exactly 100.
+
+Your current total is: ${checkTotal}
+
+Please adjust the weights before saving.`);
+            return; // Abort the save process
+        }
+        // ---------------------------------
+
         let successCount = 0;
         
         const statusEl = document.getElementById('status');
