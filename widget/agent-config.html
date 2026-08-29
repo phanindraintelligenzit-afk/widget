@@ -156,7 +156,16 @@
           <div class="form-group"><label>Validation (V)</label><input type="number" class="weight-input" id="weight_V" value="10" required></div>
       </div>
 
-      <button type="submit" style="margin-top:20px;">Save Configuration</button>
+      
+        <div style="margin-top: 30px; background: #020617; border: 2px solid #334155; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-family: 'Courier New', Courier, monospace;">
+                <h4 style="margin: 0; color: #64748b; font-size: 13px; text-transform: uppercase;">Live DPI-LS Projection</h4>
+                <div style="color: #38bdf8; font-size: 12px; margin-top: 5px;">(P * Q^1.5 * E) * (G^1.5 * R^2) * C * V</div>
+            </div>
+            <div style="font-size: 32px; font-weight: 800; color: #facc15;" id="live_dpi_score">0.00</div>
+        </div>
+        <button type="submit" style="margin-top: 20px;">Save Configuration</button>
+
       <div id="status" class="status-msg"></div>
     </form>
 
@@ -218,6 +227,41 @@
     calculateDPI(); // initial run
 
     
+    
+    function calculateDPI() {
+        const P = parseFloat(document.getElementById('base_P').value) || 0;
+        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
+        const E = parseFloat(document.getElementById('base_E').value) || 0;
+        const G = parseFloat(document.getElementById('base_G').value) || 0;
+        const R = parseFloat(document.getElementById('base_R').value) || 0;
+        const C = parseFloat(document.getElementById('base_C').value) || 0;
+        const V = parseFloat(document.getElementById('base_V').value) || 0;
+        
+        let dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
+        dpi = dpi * 100; // Assuming it calculates to a ~1.0 scale
+        if (dpi > 100) dpi = 100;
+        
+        const liveScoreEl = document.getElementById('live_dpi_score');
+        if (liveScoreEl) liveScoreEl.innerText = dpi.toFixed(2);
+        
+        let wTotal = 0;
+        document.querySelectorAll('.weight-input').forEach(inp => wTotal += (parseFloat(inp.value)||0));
+        const wTotalEl = document.getElementById('weightTotal');
+        if (wTotalEl) {
+            wTotalEl.innerText = "Total: " + wTotal;
+            if(wTotal !== 100) {
+                wTotalEl.style.color = "#ef4444";
+            } else {
+                wTotalEl.style.color = "var(--muted)";
+            }
+        }
+    }
+    
+    // Attach event listeners
+    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
+    calculateDPI(); // initial run
+
+    
     document.getElementById('configForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const agentId = document.getElementById('agent_id').value || 'agent-001';
@@ -225,14 +269,53 @@
         const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
         let successCount = 0;
         
-        // Save Base Values
-        for (let m of metrics) {
-            let val = document.getElementById('base_' + m).value;
-            await fetch(`/api/agents/${agentId}/config`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
-            });
+        const statusEl = document.getElementById('status');
+        if (statusEl) {
+            statusEl.textContent = 'Saving...';
+            statusEl.className = 'status-msg';
+        }
+        
+        try {
+            // Save Base Values
+            for (let m of metrics) {
+                let val = document.getElementById('base_' + m).value;
+                await fetch(`/api/agents/${agentId}/config`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                    body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
+                });
+                successCount++;
+            }
+            
+            // Save Weights
+            for (let m of metrics) {
+                let val = document.getElementById('weight_' + m).value;
+                await fetch(`/api/agents/${agentId}/config`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                    body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
+                });
+                successCount++;
+            }
+            
+            if (statusEl) {
+                statusEl.textContent = 'Configurations successfully synchronized with Dashboard!';
+                statusEl.className = 'status-msg success';
+            }
+            
+            // Redirect to Dashboard after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = '/widget/demo.html';
+            }, 1500);
+            
+        } catch (e) {
+            if (statusEl) {
+                statusEl.textContent = 'Network error while saving configurations.';
+                statusEl.className = 'status-msg error';
+            }
+        }
+    });
+
             successCount++;
         }
         
