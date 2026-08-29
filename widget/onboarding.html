@@ -61,7 +61,7 @@
       overflow-y: auto;
       box-sizing: border-box;
     }
-    .page-body { max-width: 1200px; width: 100%; }
+    .page-body { max-width: 800px; }
     h1 { font-size: 24px; margin-bottom: 24px; }
     .form-group { margin-bottom: 16px; }
     label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--muted); }
@@ -118,8 +118,7 @@
     <div class="page-body">
     
     <h2 style="margin-top: 0; color: var(--accent); font-size: 18px; margin-bottom: 25px;">Onboard Digital Worker</h2>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start;">
-      <form id="onboardingForm">
+    <form id="onboardingForm">
       <div class="form-group">
         <label>Agent ID (e.g. agent-001)</label>
         <input type="text" id="agent_id" required placeholder="agent-001">
@@ -159,12 +158,6 @@
       <button type="submit">Submit Onboarding</button>
       <div id="status" class="status-msg"></div>
     </form>
-      
-      <div id="onboarding-preview" style="background:#020617; border-radius:10px; border:2px solid #334155; padding: 24px; font-family:'Courier New',Courier,monospace; display: none; height: 100%; box-sizing: border-box;">
-         <h3 style="color:#facc15; margin-top:0; font-size: 16px; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 16px; letter-spacing: 1px;">AGENT ONBOARDED</h3>
-         <div id="preview-content" style="color: #e2e8f0; font-size: 13px; line-height: 1.8;"></div>
-      </div>
-      </div>
   </div>
 
   <script>
@@ -182,35 +175,9 @@
       const roleVal = document.getElementById('digital_worker_role').value;
       
       const statusEl = document.getElementById('status');
-      statusEl.textContent = 'Agent Onboarded Successfully!';
-      statusEl.className = 'status-msg success';
+      statusEl.textContent = 'Submitting...';
+      statusEl.className = 'status-msg';
 
-      // 1. Synchronously Render the Right-Side Table Box
-      const previewBox = document.getElementById('onboarding-preview');
-      const previewContent = document.getElementById('preview-content');
-      
-      let htmlStr = `
-        <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
-          <tbody>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b; width: 40%;">Agent ID</th><td style="padding: 10px 0; color: #38bdf8; font-weight: bold;">${agentIdVal}</td></tr>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b;">Type</th><td style="padding: 10px 0;">${typeVal}</td></tr>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b;">Environment</th><td style="padding: 10px 0; color: #4ade80;">${envVal}</td></tr>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b;">Role</th><td style="padding: 10px 0;">${roleVal}</td></tr>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b;">Business Owner</th><td style="padding: 10px 0;">${bizOwnerName}<br><span style="color:#94a3b8; font-size:11px;">${bizEmail}</span></td></tr>
-            <tr style="border-bottom: 1px solid #1e293b;"><th style="padding: 10px 0; color: #64748b;">Technical Owner</th><td style="padding: 10px 0;">${techOwnerName}<br><span style="color:#94a3b8; font-size:11px;">${techEmail}</span></td></tr>
-            <tr><th style="padding: 10px 0; color: #64748b; vertical-align: top;">Description</th><td style="padding: 10px 0;">${descVal}</td></tr>
-          </tbody>
-        </table>
-        
-        <div style="margin-top: 25px; text-align: center;">
-          <a href="/widget/agent-config.html" style="display: inline-block; background: #facc15; color: #000; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold;">Proceed to Configurations &rarr;</a>
-        </div>
-      `;
-      
-      previewContent.innerHTML = htmlStr;
-      previewBox.style.display = 'block';
-
-      // 2. Perform the actual backend fetch in the background
       const payload = {
         description: descVal, agent_type: typeVal, environment: envVal,
         business_owner_name: bizOwnerName, business_owner_email: bizEmail,
@@ -224,16 +191,12 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'') },
           body: JSON.stringify(payload)
         });
-  </script>
-  </main>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginTime = localStorage.getItem('loginTime');
-      if (loginTime) {
-        const el = document.getElementById('login-time-display');
-        if (el) { el.style.display = 'inline-block'; el.innerHTML = '&#128340; <strong style="color:var(--text);">Session Started:</strong> ' + loginTime; }
+      } catch (e) {
+        console.error("Backend sync failed:", e);
       }
+      
+      // Instantly redirect to the configurations page and pass the agent ID
+      window.location.href = `/widget/agent-config.html?agent_id=${encodeURIComponent(agentIdVal)}`;
     });
   </script>
 

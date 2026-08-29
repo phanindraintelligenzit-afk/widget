@@ -180,6 +180,14 @@
     });
 
     
+    
+    // Pre-fill Agent ID from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const passedAgentId = urlParams.get('agent_id');
+    if (passedAgentId) {
+        document.getElementById('agent_id').value = passedAgentId;
+    }
+    
     function calculateDPI() {
         const P = parseFloat(document.getElementById('base_P').value) || 0;
         const Q = parseFloat(document.getElementById('base_Q').value) || 0;
