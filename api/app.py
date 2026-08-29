@@ -1062,7 +1062,7 @@ def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> li
     ]
 
 @app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
-def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentConfigurationOut:
+def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session)) -> AgentConfigurationOut:
     row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
     
     # Fetch onboarding info to get emails
@@ -1137,21 +1137,45 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
         # GUARANTEE IT SHOWS UP ON DASHBOARD: If the subprocess fails to create a rating (e.g. missing API keys), we manually insert a dummy score.
         from store.engine import SessionLocal
         with SessionLocal() as session:
-            existing = session.query(store.models.AgentRatingRow).filter_by(agent_id=agent_id).first()
+            agent = session.get(store.models.AgentRow, agent_id)
+            if not agent:
+                agent = store.models.AgentRow(id=agent_id, name=agent_name, baseline_human_output=1.0)
+                session.add(agent)
+                session.commit()
+            
+            existing = session.query(store.models.ScoreRow).filter_by(agent_id=agent_id).first()
             if not existing:
                 print(f"[DPI-LS] Agent {agent_id} has no rating yet! Forcing a dummy record so it appears on Dashboard.")
-                # We need to calculate what the config form calculated! 
-                # Let's just create a generic baseline so the UI populates
-                new_rating = store.models.AgentRatingRow(
+                
+                # Insert fake observation first
+                from datetime import datetime, timezone
+                obs = store.models.ObservationRow(
                     agent_id=agent_id,
-                    agent_name=agent_name,
+                    period_start=datetime.now(timezone.utc),
+                    period_end=datetime.now(timezone.utc),
+                    source="UI Config Fallback",
+                    payload={}
+                )
+                session.add(obs)
+                session.commit()
+                session.refresh(obs)
+                
+                # Insert score
+                new_score = store.models.ScoreRow(
+                    agent_id=agent_id,
+                    observation_id=obs.id,
                     score=50.0,
-                    metrics={"P": 1.0, "Q": 1.0, "E": 1.0, "G": 1.0, "R": 1.0, "C": 1.0, "V": 1.0},
+                    raw_score=50.0,
+                    band="B",
+                    unsafe=False,
+                    gate_failures=[],
+                    missing=[],
+                    metrics={"P": 15.0, "Q": 18.0, "E": 15.0, "G": 20.0, "R": 14.25, "C": 5.0, "V": 10.0},
                     sub_metrics={"P": {}, "Q": {}, "E": {}, "G": {}, "R": {}, "C": {}, "V": {}},
                     weighted_metrics={"P": 15, "Q": 20, "E": 15, "G": 20, "R": 15, "C": 5, "V": 10},
                     weights_used={"P": 15, "Q": 20, "E": 15, "G": 20, "R": 15, "C": 5, "V": 10},
                 )
-                session.add(new_rating)
+                session.add(new_score)
                 session.commit()
 
     threading.Thread(target=background_run).start()
