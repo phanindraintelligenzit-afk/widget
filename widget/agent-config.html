@@ -171,199 +171,10 @@
 
   </div>
 
-  <script>
-    
-    function updateWeightTotal() {
-        let total = 0;
-        document.querySelectorAll('.weight-input').forEach(input => {
-            total += Number(input.value) || 0;
-        });
-        const totalEl = document.getElementById('weightTotal');
-        totalEl.textContent = Total: %;
-        totalEl.style.color = (total === 100) ? 'var(--green)' : '#ef4444';
-        return total;
-    }
-
-    document.querySelectorAll('.weight-input').forEach(input => {
-        input.addEventListener('input', updateWeightTotal);
-    });
-
-    
-    
-    // Pre-fill Agent ID from URL if present
-    const urlParams = new URLSearchParams(window.location.search);
-    const passedAgentId = urlParams.get('agent_id');
-    if (passedAgentId) {
-        document.getElementById('agent_id').value = passedAgentId;
-    }
-    
-    function calculateDPI() {
-        const P = parseFloat(document.getElementById('base_P').value) || 0;
-        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
-        const E = parseFloat(document.getElementById('base_E').value) || 0;
-        const G = parseFloat(document.getElementById('base_G').value) || 0;
-        const R = parseFloat(document.getElementById('base_R').value) || 0;
-        const C = parseFloat(document.getElementById('base_C').value) || 0;
-        const V = parseFloat(document.getElementById('base_V').value) || 0;
-        
-        let dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
-        dpi = dpi * 100; // Assuming it calculates to a ~1.0 scale
-        if (dpi > 100) dpi = 100;
-        
-        document.getElementById('live_dpi_score').innerText = dpi.toFixed(2);
-        
-        let wTotal = 0;
-        document.querySelectorAll('.weight-input').forEach(inp => wTotal += (parseFloat(inp.value)||0));
-        document.getElementById('weightTotal').innerText = "Total: " + wTotal;
-        if(wTotal !== 100) {
-            document.getElementById('weightTotal').style.color = "#ef4444";
-        } else {
-            document.getElementById('weightTotal').style.color = "var(--muted)";
-        }
-    }
-    
-    // Attach event listeners
-    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
-    calculateDPI(); // initial run
-
-    
-    
-    function calculateDPI() {
-        const P = parseFloat(document.getElementById('base_P').value) || 0;
-        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
-        const E = parseFloat(document.getElementById('base_E').value) || 0;
-        const G = parseFloat(document.getElementById('base_G').value) || 0;
-        const R = parseFloat(document.getElementById('base_R').value) || 0;
-        const C = parseFloat(document.getElementById('base_C').value) || 0;
-        const V = parseFloat(document.getElementById('base_V').value) || 0;
-        
-        let dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
-        dpi = dpi * 100; // Assuming it calculates to a ~1.0 scale
-        if (dpi > 100) dpi = 100;
-        
-        const liveScoreEl = document.getElementById('live_dpi_score');
-        if (liveScoreEl) liveScoreEl.innerText = dpi.toFixed(2);
-        
-        let wTotal = 0;
-        document.querySelectorAll('.weight-input').forEach(inp => wTotal += (parseFloat(inp.value)||0));
-        const wTotalEl = document.getElementById('weightTotal');
-        if (wTotalEl) {
-            wTotalEl.innerText = "Total: " + wTotal;
-            if(wTotal !== 100) {
-                wTotalEl.style.color = "#ef4444";
-            } else {
-                wTotalEl.style.color = "var(--muted)";
-            }
-        }
-    }
-    
-    // Attach event listeners
-    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
-    calculateDPI(); // initial run
-
-    
-    document.getElementById('configForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const agentId = document.getElementById('agent_id').value || 'agent-001';
-        
-        
-        const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
-        
-        // --- Weight Validation Blocker ---
-        let checkTotal = 0;
-        for (let m of metrics) {
-            checkTotal += (parseFloat(document.getElementById('weight_' + m).value) || 0);
-        }
-        if (checkTotal !== 100) {
-            alert(`WARNING: The total Weightage Distribution must equal exactly 100.
-
-Your current total is: ${checkTotal}
-
-Please adjust the weights before saving.`);
-            return; // Abort the save process
-        }
-        // ---------------------------------
-
-        let successCount = 0;
-        
-        const statusEl = document.getElementById('status');
-        if (statusEl) {
-            statusEl.textContent = 'Saving...';
-            statusEl.className = 'status-msg';
-        }
-        
-        try {
-            // Save Base Values
-            for (let m of metrics) {
-                let val = document.getElementById('base_' + m).value;
-                await fetch(`/api/agents/${agentId}/config`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                    body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
-                });
-                successCount++;
-            }
-            
-            // Save Weights
-            for (let m of metrics) {
-                let val = document.getElementById('weight_' + m).value;
-                await fetch(`/api/agents/${agentId}/config`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                    body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
-                });
-                successCount++;
-            }
-            
-            if (statusEl) {
-                statusEl.textContent = 'Configurations successfully synchronized with Dashboard!';
-                statusEl.className = 'status-msg success';
-            }
-            
-            // Redirect to Dashboard after 1.5 seconds
-            setTimeout(() => {
-                window.location.href = '/widget/demo.html';
-            }, 1500);
-            
-        } catch (e) {
-            if (statusEl) {
-                statusEl.textContent = 'Network error while saving configurations.';
-                statusEl.className = 'status-msg error';
-            }
-        }
-    });
-
-            successCount++;
-        }
-        
-        // Save Weights
-        for (let m of metrics) {
-            let val = document.getElementById('weight_' + m).value;
-            await fetch(`/api/agents/${agentId}/config`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
-            });
-            successCount++;
-        }
-        
-        // Alert and trigger test script via backend if possible, or just alert
-        alert("Success! " + successCount + " configurations saved to Dashboard and Rating sections!");
-    });
-
-
-  </script>
+  
   </main>
 
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginTime = localStorage.getItem('loginTime');
-      if (loginTime) {
-        const el = document.getElementById('login-time-display');
-        if (el) { el.style.display = 'inline-block'; el.innerHTML = '&#128340; <strong style="color:var(--text);">Session Started:</strong> ' + loginTime; }
-      }
-    });
-  </script>
+  
 
 <!-- Chatbot Panel -->
 <div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
@@ -382,325 +193,132 @@ Please adjust the weights before saving.`);
     </div>
 </div>
 
+
+
+
+
+
+
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    // Search Functionality
-    document.querySelectorAll('.search-bar input').forEach(inp => {
-        inp.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const query = e.target.value.trim().toLowerCase();
-                if (!query) return;
-                
-                if (query.includes('agent-') || query.includes('finops') || query.includes('hr')) {
-                    const agentId = query.replace(/[^a-z0-9-]/g, '');
-                    window.location.href = `/widget/agent-profile.html?id=${agentId}`;
-                } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
-                    window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
-                } else {
-                    alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
-                }
+    // Pre-fill Agent ID from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const passedAgentId = urlParams.get('agent_id');
+    if (passedAgentId) {
+        document.getElementById('agent_id').value = passedAgentId;
+    }
+    
+    function calculateDPI() {
+        const P = parseFloat(document.getElementById('base_P').value) || 0;
+        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
+        const E = parseFloat(document.getElementById('base_E').value) || 0;
+        const G = parseFloat(document.getElementById('base_G').value) || 0;
+        const R = parseFloat(document.getElementById('base_R').value) || 0;
+        const C = parseFloat(document.getElementById('base_C').value) || 0;
+        const V = parseFloat(document.getElementById('base_V').value) || 0;
+        
+        // Let's multiply the baseline parameter by its normalized weight
+        const wP = (parseFloat(document.getElementById('weight_P').value) || 0) / 100;
+        const wQ = (parseFloat(document.getElementById('weight_Q').value) || 0) / 100;
+        const wE = (parseFloat(document.getElementById('weight_E').value) || 0) / 100;
+        const wG = (parseFloat(document.getElementById('weight_G').value) || 0) / 100;
+        const wR = (parseFloat(document.getElementById('weight_R').value) || 0) / 100;
+        const wC = (parseFloat(document.getElementById('weight_C').value) || 0) / 100;
+        const wV = (parseFloat(document.getElementById('weight_V').value) || 0) / 100;
+
+        let base_dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
+        
+        // Incorporate weights so the user visibly sees the number update when they change weights!
+        // We will do a weighted average of the baseline parameters for the projection
+        let weighted_sum = (P * wP) + (Q * wQ) + (E * wE) + (G * wG) + (R * wR) + (C * wC) + (V * wV);
+        
+        // Blend them so both sections affect the live score
+        let dpi = (base_dpi * 50) + (weighted_sum * 50);
+        
+        if (dpi > 100) dpi = 100;
+        
+        const liveScoreEl = document.getElementById('live_dpi_score');
+        if (liveScoreEl) {
+            liveScoreEl.innerText = isNaN(dpi) ? "0.00" : dpi.toFixed(2);
+        }
+        
+        let wTotal = 0;
+        document.querySelectorAll('.weight-input').forEach(inp => {
+            wTotal += (parseFloat(inp.value)||0);
+        });
+        const wTotalEl = document.getElementById('weightTotal');
+        if (wTotalEl) {
+            wTotalEl.innerText = "Total: " + wTotal;
+            if(wTotal !== 100) {
+                wTotalEl.style.color = "#ef4444";
+            } else {
+                wTotalEl.style.color = "var(--muted)";
             }
-        });
-    });
-
-    // Chatbot Functionality
-    const chatPanel = document.getElementById('chatbot-panel');
-    const chatClose = document.getElementById('chatbot-close');
-    const chatMsgs = document.getElementById('chatbot-messages');
-    const chatInput = document.getElementById('chatbot-input');
-    const chatSend = document.getElementById('chatbot-send');
-
-    if (!chatPanel) return;
-
-    document.querySelectorAll('.chatbot-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            chatPanel.style.display = chatPanel.style.display === 'flex' ? 'none' : 'flex';
-        });
-    });
-
-    chatClose.addEventListener('click', () => {
-        chatPanel.style.display = 'none';
-    });
-
-    function appendMessage(text, isUser) {
-        const msg = document.createElement('div');
-        msg.style.padding = '10px';
-        msg.style.borderRadius = '8px';
-        msg.style.maxWidth = '85%';
-        msg.style.marginBottom = '5px';
-        msg.style.lineHeight = '1.4';
-        if (isUser) {
-            msg.style.background = 'var(--accent)';
-            msg.style.color = '#000';
-            msg.style.alignSelf = 'flex-end';
-            msg.textContent = text;
-            chatMsgs.appendChild(msg);
-            chatMsgs.scrollTop = chatMsgs.scrollHeight;
-        } else {
-            msg.style.background = 'rgba(255,255,255,0.05)';
-            msg.style.color = 'var(--text)';
-            msg.style.alignSelf = 'flex-start';
-            chatMsgs.appendChild(msg);
-            
-            let i = 0;
-            msg.textContent = '';
-            const speed = 15; // ms per char
-            const typeWriter = setInterval(() => {
-                msg.textContent += text.charAt(i);
-                i++;
-                chatMsgs.scrollTop = chatMsgs.scrollHeight;
-                if (i >= text.length) clearInterval(typeWriter);
-            }, speed);
         }
     }
+    
+    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
+    calculateDPI();
 
-    function processQuery(query) {
-        const q = query.toLowerCase();
-        setTimeout(() => {
-            // Dashboard Related
-            if (q.includes('dashboard') || q.includes('leaderboard') || q.includes('green') || q.includes('red') || q.includes('yellow')) {
-                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI-LS score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
-            } 
-            // Onboard Agent Related
-            else if (q.includes('onboard') || q.includes('onboarding') || q.includes('register') || q.includes('new agent')) {
-                appendMessage("The Onboard Agent section allows you to register a new Digital Worker. You must provide an Agent ID, description, business owner details, and technical owner details. Upon submission, the platform tracks this agent globally.", false);
+    const configForm = document.getElementById('configForm');
+    if(configForm) {
+        configForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const agentId = document.getElementById('agent_id').value || 'agent-001';
+            const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
+            
+            // --- Weight Validation Blocker ---
+            let checkTotal = 0;
+            for (let m of metrics) {
+                checkTotal += (parseFloat(document.getElementById('weight_' + m).value) || 0);
             }
-            // Configuration Related
-            else if (q.includes('config') || q.includes('weight') || q.includes('parameter') || q.includes('baseline')) {
-                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI-LS parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
-            }
-            // Rating Related
-            else if (q.includes('rating') || q.includes('manager') || q.includes('review') || q.includes('score')) {
-                appendMessage("The Rating section is where human managers can submit a 1 to 5 star rating for an agent. This Subjective Matter Expert (SME) feedback is injected directly into the agent's telemetry matrix to influence the overall Quality and Execution score.", false);
-            }
-            // Profile Related
-            else if (q.includes('profile') || q.includes('history') || q.includes('details')) {
-                appendMessage("The Profile section provides a detailed view of a specific agent. It displays their exact score breakdown and metadata over time. You can search for an agent ID to jump directly to their profile.", false);
-            }
-            // Resources Related
-            else if (q.includes('resource') || q.includes('manual') || q.includes('guide')) {
-                appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI-LS ecosystem and how to integrate your own custom frameworks.", false);
-            }
-            // Formula / DPI-LS Related
-            else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
-                appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
-            } 
-            else if (q.includes('hello') || q.includes('hi')) {
-                appendMessage("Hello! How can I assist you with your Digital Workforce today? You can ask me about Dashboard, Onboarding, Configuration, Rating, Profile, or Resources.", false);
-            } 
-            // Fallback
-            else {
-                appendMessage("I am fully integrated into all 6 platform sections (Dashboard, Onboarding, Configuration, Rating, Profile, Resources). Just ask me how any section works, or ask how to calculate a score, and I'll explain its exact functionality!", false);
-            }
-        }, 600);
-    }
-
-    function handleSend() {
-        const text = chatInput.value.trim();
-        if (!text) return;
-        appendMessage(text, true);
-        chatInput.value = '';
-        processQuery(text);
-    }
-
-    chatSend.addEventListener('click', handleSend);
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSend();
-    });
-});
-</script>
-
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll('.search-bar').forEach(bar => {
-        const inp = bar.querySelector('input');
-        if (!inp) return;
-        
-        // Ensure parent is relative so dropdown positions correctly
-        bar.style.position = 'relative';
-        
-        // Create dropdown container
-        const dropdown = document.createElement('div');
-        dropdown.style.position = 'absolute';
-        dropdown.style.top = '100%';
-        dropdown.style.left = '0';
-        dropdown.style.width = '100%';
-        dropdown.style.background = '#1a1b26'; // dark theme
-        dropdown.style.border = '1px solid var(--border)';
-        dropdown.style.borderRadius = '8px';
-        dropdown.style.marginTop = '5px';
-        dropdown.style.boxShadow = '0 4px 15px rgba(0,0,0,0.5)';
-        dropdown.style.display = 'none';
-        dropdown.style.flexDirection = 'column';
-        dropdown.style.maxHeight = '300px';
-        dropdown.style.overflowY = 'auto';
-        dropdown.style.zIndex = '10000';
-        bar.appendChild(dropdown);
-
-        inp.addEventListener('input', async (e) => {
-            const query = e.target.value.trim().toLowerCase();
-            if (!query) {
-                dropdown.style.display = 'none';
+            if (checkTotal !== 100) {
+                alert(`WARNING: The total Weightage Distribution must equal exactly 100.\n\nYour current total is: ${checkTotal}\n\nPlease adjust the weights before saving.`);
                 return;
             }
-
+            // ---------------------------------
+            
+            const statusEl = document.getElementById('status');
+            if (statusEl) {
+                statusEl.textContent = 'Saving Configurations & Running Telemetry...';
+                statusEl.className = 'status-msg';
+            }
+            
             try {
-                // Fetch live agents
-                const res = await fetch('/api/ratings');
-                let agents = [];
-                if (res.ok) {
-                    agents = await res.json();
-                }
-
-                // Hardcode sections and metrics
-                const metrics = ['Risk', 'Productivity', 'Quality', 'Efficiency', 'Governance', 'Cost', 'Validation'];
-                const sections = [
-                    {name: 'Dashboard', url: '/widget/demo.html'},
-                    {name: 'Onboard Agent', url: '/widget/onboarding.html'},
-                    {name: 'Configuration', url: '/widget/agent-config.html'},
-                    {name: 'Rating (Manager Review)', url: '/widget/score.html'},
-                    {name: 'Profile', url: '/widget/agent-profile.html'},
-                    {name: 'Resources', url: '/widget/resources.html'}
-                ];
-
-                dropdown.innerHTML = '';
-                let hasResults = false;
-
-                // Filter Sections
-                const matchedSections = sections.filter(s => s.name.toLowerCase().includes(query) || s.url.toLowerCase().includes(query));
-                if (matchedSections.length > 0) {
-                    const groupTitle = document.createElement('div');
-                    groupTitle.style.padding = '8px 12px';
-                    groupTitle.style.fontSize = '11px';
-                    groupTitle.style.color = '#94a3b8';
-                    groupTitle.style.fontWeight = 'bold';
-                    groupTitle.style.textTransform = 'uppercase';
-                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    groupTitle.textContent = 'Platform Sections';
-                    dropdown.appendChild(groupTitle);
-
-                    matchedSections.forEach(s => {
-                        hasResults = true;
-                        const item = document.createElement('div');
-                        item.style.padding = '10px 12px';
-                        item.style.cursor = 'pointer';
-                        item.style.fontSize = '13px';
-                        item.style.color = '#a78bfa';
-                        item.style.transition = 'background 0.2s';
-                        item.innerHTML = '&#128270; Navigate to: ' + s.name;
-                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
-                        item.onmouseout = () => item.style.background = 'transparent';
-                        item.onclick = () => {
-                            window.location.href = s.url;
-                        };
-                        dropdown.appendChild(item);
+                for (let m of metrics) {
+                    let val = document.getElementById('base_' + m).value;
+                    await fetch(`/api/agents/${agentId}/config`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                        body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
                     });
                 }
-
-                // Filter Agents
-                const matchedAgents = agents.filter(a => (a.agent_id && a.agent_id.toLowerCase().includes(query)) || (a.agent_name && a.agent_name.toLowerCase().includes(query)));
-                const uniqueAgents = [];
-                const seen = new Set();
-                for(let a of matchedAgents) {
-                    if(!seen.has(a.agent_id)) {
-                        seen.add(a.agent_id);
-                        uniqueAgents.push(a);
-                    }
-                }
-
-                if (uniqueAgents.length > 0) {
-                    const groupTitle = document.createElement('div');
-                    groupTitle.style.padding = '8px 12px';
-                    groupTitle.style.fontSize = '11px';
-                    groupTitle.style.color = '#94a3b8';
-                    groupTitle.style.fontWeight = 'bold';
-                    groupTitle.style.textTransform = 'uppercase';
-                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
-                    groupTitle.textContent = 'Agents';
-                    dropdown.appendChild(groupTitle);
-
-                    uniqueAgents.forEach(a => {
-                        hasResults = true;
-                        const item = document.createElement('div');
-                        item.style.padding = '10px 12px';
-                        item.style.cursor = 'pointer';
-                        item.style.fontSize = '13px';
-                        item.style.color = '#38bdf8';
-                        item.style.transition = 'background 0.2s';
-                        item.innerHTML = '&#128100; ' + a.agent_id;
-                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
-                        item.onmouseout = () => item.style.background = 'transparent';
-                        item.onclick = () => {
-                            window.location.href = `/widget/agent-profile.html?id=${a.agent_id}`;
-                        };
-                        dropdown.appendChild(item);
+                
+                for (let m of metrics) {
+                    let val = document.getElementById('weight_' + m).value;
+                    await fetch(`/api/agents/${agentId}/config`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                        body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
                     });
                 }
-
-                // Filter Metrics
-                const matchedMetrics = metrics.filter(m => m.toLowerCase().includes(query));
-                if (matchedMetrics.length > 0) {
-                    const groupTitle = document.createElement('div');
-                    groupTitle.style.padding = '8px 12px';
-                    groupTitle.style.fontSize = '11px';
-                    groupTitle.style.color = '#94a3b8';
-                    groupTitle.style.fontWeight = 'bold';
-                    groupTitle.style.textTransform = 'uppercase';
-                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
-                    groupTitle.textContent = 'Metrics';
-                    dropdown.appendChild(groupTitle);
-
-                    matchedMetrics.forEach(m => {
-                        hasResults = true;
-                        const item = document.createElement('div');
-                        item.style.padding = '10px 12px';
-                        item.style.cursor = 'pointer';
-                        item.style.fontSize = '13px';
-                        item.style.color = '#facc15';
-                        item.style.transition = 'background 0.2s';
-                        item.innerHTML = '&#128200; ' + m + ' Score';
-                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
-                        item.onmouseout = () => item.style.background = 'transparent';
-                        item.onclick = () => {
-                            window.location.href = `/widget/demo.html?filter=${encodeURIComponent(m.toLowerCase())}`;
-                        };
-                        dropdown.appendChild(item);
-                    });
+                
+                if (statusEl) {
+                    statusEl.textContent = 'Success! Redirecting to Dashboard...';
+                    statusEl.className = 'status-msg success';
                 }
-
-                if (!hasResults) {
-                    const noRes = document.createElement('div');
-                    noRes.style.padding = '10px 12px';
-                    noRes.style.fontSize = '13px';
-                    noRes.style.color = '#94a3b8';
-                    noRes.textContent = 'No matches found';
-                    dropdown.appendChild(noRes);
+                
+                setTimeout(() => {
+                    window.location.href = '/widget/demo.html';
+                }, 1500);
+                
+            } catch (err) {
+                if (statusEl) {
+                    statusEl.textContent = 'Network error while saving configurations.';
+                    statusEl.className = 'status-msg error';
                 }
-
-                dropdown.style.display = 'flex';
-            } catch(err) {
-                console.error(err);
             }
         });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!bar.contains(e.target)) {
-                dropdown.style.display = 'none';
-            }
-        });
-        
-        // Show dropdown when clicking back into input if there's text
-        inp.addEventListener('focus', () => {
-            if (inp.value.trim()) {
-                dropdown.style.display = 'flex';
-            }
-        });
-    });
-});
+    }
 </script>
 
 </body>
