@@ -1497,11 +1497,11 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
                     if (matchedAgent) {
-                        window.location.href = /widget/agent-profile.html?id= + matchedAgent.agent_id;
+                        window.location.href = '/widget/agent-profile.html?id=' + matchedAgent.agent_id;
                     } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
-                        window.location.href = /widget/demo.html?filter= + encodeURIComponent(query);
+                        window.location.href = '/widget/demo.html?filter=' + encodeURIComponent(query);
                     } else {
-                        alert(No direct match found for " + query + ". Try searching an Agent ID or a Metric.);
+                        alert('No direct match found for "' + query + '". Try searching an Agent ID or a Metric.');
                     }
                 } catch (err) {
                     console.error(err);
