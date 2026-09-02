@@ -194,11 +194,17 @@
     const agentId = urlParams.get('id');
 
     async function loadData() {
-      if (!agentId) return;
+      if (!agentId) {
+        document.getElementById('agent-name').innerHTML = "<span style='color:#f87171'>No Agent Selected. Please click on an agent from the Dashboard or Rating page to view their profile.</span>";
+        return;
+      }
       
       // Update the button links with the correct agentId
-      document.getElementById('btn-manager-review').href = `/widget/manager-review.html?agent_id=${agentId}`;
-      document.getElementById('btn-customer-feedback').href = `/widget/customer-feedback.html?agent_id=${agentId}`;
+      const btn1 = document.getElementById('btn-manager-review');
+      if (btn1) btn1.href = `/widget/manager-review.html?agent_id=${agentId}`;
+      
+      const btn2 = document.getElementById('btn-customer-feedback');
+      if (btn2) btn2.href = `/widget/customer-feedback.html?agent_id=${agentId}`;
 
       document.getElementById('agent-id').innerText = agentId;
 

@@ -302,9 +302,19 @@
                     });
                 }
                 
+                // Trigger telemetry calculation once for all configs!
+                if (statusEl) {
+                    statusEl.textContent = 'Configurations saved! Generating Telemetry...';
+                    statusEl.className = 'status-msg success';
+                }
+                
+                await fetch(`/api/agents/${agentId}/run_telemetry`, {
+                    method: 'POST',
+                    headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
+                });
+                
                 if (statusEl) {
                     statusEl.textContent = 'Success! Redirecting to Dashboard...';
-                    statusEl.className = 'status-msg success';
                 }
                 
                 setTimeout(() => {

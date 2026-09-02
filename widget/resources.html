@@ -511,7 +511,8 @@
     <span class="sum-pill" style="background:rgba(16,185,129,0.12);color:#34d399" id="total-detected-pill">— metrics detected</span>
     <span class="sum-pill" style="background:rgba(250,204,21,0.12);color:#818cf8" id="total-evals-pill">— evaluations</span>
   </div>
-</div>
+<button id="run-eval-btn" class="run-btn" onclick="runEvaluation()" style="margin-left: 16px;">&#9654; Run Evaluations</button>
+  </div>
 
 <!-- RESOURCES GRID -->
 <div class="resources-grid" id="resources-grid">
@@ -613,11 +614,12 @@ async function loadUrls() {
       if (r.ok) {
         const raw = await r.json();
         for (const [name, val] of Object.entries(raw)) {
-          if (val && typeof val === 'object' && 'url' in val) {
-            dashboardUrls[name] = { url: val.url, online: val.online };
-          } else {
-            dashboardUrls[name] = { url: String(val), online: false };
+          let u = (val && typeof val === 'object' && 'url' in val) ? val.url : String(val);
+          let online = (val && typeof val === 'object' && 'online' in val) ? val.online : false;
+          if ((!u || u === '#') && RESOURCE_META[name] && RESOURCE_META[name].dashboard_url) {
+              u = RESOURCE_META[name].dashboard_url;
           }
+          dashboardUrls[name] = { url: u, online: online };
         }
       }
     };

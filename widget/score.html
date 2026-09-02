@@ -130,7 +130,7 @@
       body.innerHTML = '';
       agents.forEach(a => {
         const row = `<tr style="border-bottom:1px solid #1e293b; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
-            <td style="padding:12px 14px; color:#38bdf8; font-weight:700;">${a.agent_name}</td>
+            <td style="padding:12px 14px; color:#38bdf8; font-weight:700;"><a href="/widget/agent-profile.html?id=${a.agent_id}" style="color:#38bdf8; text-decoration:underline;">${a.agent_name}</a></td>
             <td style="padding:12px; text-align:center; color:#e2e8f0; font-weight:700;">${a.score.toFixed(2)}</td>
             <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.P?.toFixed(2) || '0'}</td>
             <td style="padding:12px; text-align:center; color:#4ade80;">${a.metrics.Q?.toFixed(2) || '0'}</td>
@@ -185,14 +185,15 @@
           };
           
           try {
-              const res = await fetch('/api/ratings', {
+              const res = await fetch(`/api/agents/${agentId}/manager-rating`, {
                   method: 'POST',
                   headers: {'Content-Type': 'application/json'},
                   body: JSON.stringify(payload)
               });
               
               if(res.ok) {
-                  // alert("Success! You gave " + agentId + " a " + rating + "-star rating.");
+                  // Refresh the board to show the new Governance and Execution multipliers in action
+                  await fetchAgents();
               }
           } catch(e) {
               console.error("Backend error:", e);

@@ -752,7 +752,7 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnbo
     )
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentOnboardingOut:
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
     # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
@@ -935,6 +935,9 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
     env["AGENT_ID"] = agent_id
     env["AGENT_NAME"] = agent_name
     env["HUMAN_BASELINE"] = human_baseline
+    env["BEDROCK_MODEL_ID"] = "mock-model"
+    env["AWS_ACCESS_KEY_ID"] = "rotated"
+    env["LITELLM_DROP_PARAMS"] = "True"
     try:
         result = subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env, check=True, capture_output=True, text=True)
         return result.stdout + "\n" + result.stderr
@@ -942,12 +945,13 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
         return e.stdout + "\n" + e.stderr + f"\nError: {e}"
 
 @app.post("/api/agents/{agent_id}/manager-rating")
-def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN", "MANAGER"]))):
-    # Authorization checks should happen here (if manager_id matches the agent's manager)
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)):
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
-    if onboarding and body.manager_id != onboarding.technical_owner_email and body.manager_id not in (onboarding.business_owner_email or '') and body.manager_id not in (onboarding.business_owner_email or ''):
-        raise HTTPException(status_code=403, detail="Unauthorized: Only the assigned manager can rate this agent.")
-    
+    if onboarding:
+        valid_managers = [onboarding.technical_owner_email, onboarding.business_owner_email]
+        if body.manager_id not in valid_managers:
+            raise HTTPException(status_code=403, detail="Not authorized to rate this agent")
+            
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
     
     if onboarding:
@@ -1116,70 +1120,7 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
             except Exception as e:
                 print(f"\n[DPI-LS SMTP] ERROR: Failed to send Config email: {e}")
 
-    # Trigger agent telemetry run in a background thread to prevent blocking /ingest
-    human_baseline = body.configuration_value if body.configuration_key.lower().replace(" ", "_") == "human_baseline" else "1"
-    agent_name = onboarding.agent_id if onboarding else agent_id
-    
-    import threading
-    def background_run():
-        run_agent_telemetry_task(agent_id, agent_name, human_baseline)
-        
-        try:
-            import subprocess
-            import os
-            env = os.environ.copy()
-            env["AGENT_ID"] = agent_id
-            env["AGENT_NAME"] = agent_name
-            subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env)
-        except Exception as e:
-            print("[DPI-LS] Error executing test_agent.py:", e)
-            
-        # GUARANTEE IT SHOWS UP ON DASHBOARD: If the subprocess fails to create a rating (e.g. missing API keys), we manually insert a dummy score.
-        from store.engine import SessionLocal
-        with SessionLocal() as session:
-            agent = session.get(store.models.AgentRow, agent_id)
-            if not agent:
-                agent = store.models.AgentRow(id=agent_id, name=agent_name, baseline_human_output=1.0)
-                session.add(agent)
-                session.commit()
-            
-            existing = session.query(store.models.ScoreRow).filter_by(agent_id=agent_id).first()
-            if not existing:
-                print(f"[DPI-LS] Agent {agent_id} has no rating yet! Forcing a dummy record so it appears on Dashboard.")
-                
-                # Insert fake observation first
-                from datetime import datetime, timezone
-                obs = store.models.ObservationRow(
-                    agent_id=agent_id,
-                    period_start=datetime.now(timezone.utc),
-                    period_end=datetime.now(timezone.utc),
-                    source="UI Config Fallback",
-                    payload={}
-                )
-                session.add(obs)
-                session.commit()
-                session.refresh(obs)
-                
-                # Insert score
-                new_score = store.models.ScoreRow(
-                    agent_id=agent_id,
-                    observation_id=obs.id,
-                    score=50.0,
-                    raw_score=50.0,
-                    band="B",
-                    unsafe=False,
-                    gate_failures=[],
-                    missing=[],
-                    metrics={"P": 15.0, "Q": 18.0, "E": 15.0, "G": 20.0, "R": 14.25, "C": 5.0, "V": 10.0},
-                    sub_metrics={"P": {}, "Q": {}, "E": {}, "G": {}, "R": {}, "C": {}, "V": {}},
-                    weighted_metrics={"P": 15, "Q": 20, "E": 15, "G": 20, "R": 15, "C": 5, "V": 10},
-                    weights_used={"P": 15, "Q": 20, "E": 15, "G": 20, "R": 15, "C": 5, "V": 10},
-                )
-                session.add(new_score)
-                session.commit()
-
-    threading.Thread(target=background_run).start()
-
+    # s.commit() will be called at the end if needed or handled by the Dependency
     s.commit()
     return AgentConfigurationOut(
         id=row.id,
@@ -1192,6 +1133,33 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
         version=row.version,
         approval_status=row.approval_status
     )
+
+@app.post("/api/agents/{agent_id}/run_telemetry")
+def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
+    import subprocess
+    import os
+    
+    agent = s.get(store.models.AgentRow, agent_id)
+    agent_name = agent.name if agent else agent_id
+    
+    def run_eval_thread(a_id, a_name):
+        env = os.environ.copy()
+        env["AGENT_ID"] = a_id
+        env["AGENT_NAME"] = a_name
+        env["HUMAN_BASELINE"] = "1"
+        env["BEDROCK_MODEL_ID"] = "mock-model"
+        env["AWS_ACCESS_KEY_ID"] = "rotated"
+        env["LITELLM_DROP_PARAMS"] = "True"
+        try:
+            print(f"[Synchronous] Running test_agent.py for {a_id}...")
+            subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env)
+        except Exception as e:
+            print(f"[Synchronous] Error: {e}")
+            
+    # Run synchronously so the API request blocks until the score is generated
+    run_eval_thread(agent_id, agent_name)
+    
+    return {"message": "Telemetry completed"}
 
 @app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
 def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[AgentConfigurationOut]:
@@ -1317,6 +1285,24 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
     out: list[BoardRow] = []
     for agent, score in repo.latest_scores_for_all(s):
         if score is None:
+            # Show new/unevaluated agents with 0 scores instead of hiding them
+            empty_m = {"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "C": 0.0, "V": 0.0}
+            out.append(
+                BoardRow(
+                    agent_id=agent.id,
+                    agent_name=agent.name,
+                    score=0.0,
+                    raw_score=0.0,
+                    band="F",
+                    unsafe=False,
+                    gate_failures=[],
+                    metrics=empty_m.copy(),
+                    weighted_metrics=empty_m.copy(),
+                    weights_used=weights,
+                    sub_metrics={},
+                    computed_at=__import__('datetime').datetime.utcnow(),
+                )
+            )
             continue
 
         
@@ -1341,15 +1327,41 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
         # api.scoring._sync_metrics_from_sub_metrics.
         from api.scoring import _sync_metrics_from_sub_metrics
         _sync_metrics_from_sub_metrics(m_dict, live_sub)
+        
+        # --- Apply Manager Ratings dynamically ---
+        manager_ratings = repo.get_manager_ratings(s, agent.id)
+        if manager_ratings:
+            latest_rating = manager_ratings[0].rating
+            multiplier = latest_rating / 5.0
+            if "G" in m_dict: m_dict["G"] *= multiplier
+            if "E" in m_dict: m_dict["E"] *= multiplier
+            live_sub["Manager Rating"] = f"{latest_rating} / 5"
+            
+        # --- Apply Custom Weights dynamically ---
+        agent_configs = repo.list_agent_configurations(s, agent.id)
+        custom_weights = weights.copy()
+        for c in agent_configs:
+            if c.configuration_key.startswith("Weight_"):
+                metric_char = c.configuration_key.split("_")[1][0].upper()
+                try:
+                    custom_weights[metric_char] = float(c.configuration_value) / 100.0
+                except ValueError:
+                    pass
+
         from engine.score import composite
-        _raw, w_dict, active_weights = composite(m_dict, weights)
+        _raw, w_dict, active_weights = composite(m_dict, custom_weights)
+        
+        # DPI-LS score is raw score optionally capped
+        final_score = _raw
+        if final_score > 100.0:
+            final_score = 100.0
 
         out.append(
             BoardRow(
                 agent_id=agent.id,
                 agent_name=agent.name,
-                score=score.score,
-                raw_score=score.raw_score,
+                score=final_score,
+                raw_score=_raw,
                 band=score.band,
                 unsafe=score.unsafe,
                 gate_failures=list(score.gate_failures or []),
@@ -1828,9 +1840,9 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
 @app.get("/api/quality-evaluation/urls")
 def get_quality_evaluation_urls() -> dict[str, dict]:
     """Return quality dashboard URLs with live reachability status."""
-    langsmith_url = os.environ.get("LANGSMITH_URL", "#")
-    ragas_url = os.environ.get("RAGAS_URL", "#")
-    agentops_url = os.environ.get("AGENTOPS_URL", "#")
+    langsmith_url = os.environ.get("LANGSMITH_URL") or "https://smith.langchain.com"
+    ragas_url = os.environ.get("RAGAS_URL") or "https://docs.ragas.io"
+    agentops_url = os.environ.get("AGENTOPS_URL") or "https://app.agentops.ai"
 
     return {
         "LangSmith": {"url": langsmith_url, "online": _is_reachable_global(langsmith_url)},

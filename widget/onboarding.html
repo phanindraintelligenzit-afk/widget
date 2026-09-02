@@ -161,7 +161,26 @@
   </div>
 
   <script>
+    
+    // --- Form Persistence ---
+    const formFields = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+    
+    // Restore saved data
+    formFields.forEach(field => {
+        const savedVal = sessionStorage.getItem('onboard_' + field);
+        if (savedVal) {
+            document.getElementById(field).value = savedVal;
+        }
+        
+        // Save data on change
+        document.getElementById(field).addEventListener('input', (e) => {
+            sessionStorage.setItem('onboard_' + field, e.target.value);
+        });
+    });
+    // -------------------------
+
     document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
+
       e.preventDefault();
       
       const agentIdVal = document.getElementById('agent_id').value;

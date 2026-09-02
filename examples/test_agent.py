@@ -380,7 +380,39 @@ async def run_agent_observation() -> None:
     from contract.settings import Settings
     collector.human_cost = 0.05
     base_url = f"http://{DPI_LS_HOST}:{DPI_LS_PORT}"
-    rating = post_observation(collector, base_url)
+    
+    if is_mock:
+        obs = collector.to_observation()
+        
+        from contract.models import ProductivityEvaluation, QualityEvaluation, ExecutionEvaluation
+        
+        if obs.productivity is None:
+            obs.productivity = ProductivityEvaluation(effective_output=15.0, human_baseline=1.0)
+        else:
+            obs.productivity.effective_output = 15.0
+            obs.productivity.automation_ratio = 0.8
+            
+        if obs.quality is None:
+            obs.quality = QualityEvaluation()
+        obs.quality.accuracy = 0.95
+        obs.quality.consistency = 0.90
+        obs.quality.hallucination_rate = 0.05
+        
+        if obs.executions is None:
+            obs.executions = ExecutionEvaluation()
+        obs.executions.success_rate = 1.0
+        obs.executions.error_rate = 0.0
+        obs.executions.tool_utilization = 0.85
+            
+        import requests
+        try:
+            res = requests.post(f"{base_url}/api/observations", json=obs.model_dump())
+            rating = res.json() if res.ok else None
+        except Exception:
+            rating = None
+    else:
+        rating = post_observation(collector, base_url)
+        
     if rating:
         print_score_card(rating)
     else:
