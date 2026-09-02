@@ -1479,18 +1479,32 @@ loadUrls().then(() => {
 document.addEventListener("DOMContentLoaded", () => {
     // Search Functionality
     document.querySelectorAll('.search-bar input').forEach(inp => {
-        inp.addEventListener('keypress', (e) => {
+                inp.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
                 const query = e.target.value.trim().toLowerCase();
                 if (!query) return;
-                
-                if (query.includes('agent-') || query.includes('finops') || query.includes('hr')) {
-                    const agentId = query.replace(/[^a-z0-9-]/g, '');
-                    window.location.href = `/widget/agent-profile.html?id=${agentId}`;
-                } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
-                    window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
-                } else {
-                    alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+
+                try {
+                    const res = await fetch('/ratings');
+                    let agents = [];
+                    if (res.ok) {
+                        agents = await res.json();
+                    }
+
+                    const matchedAgent = agents.find(a => 
+                        (a.agent_id && a.agent_id.toLowerCase().includes(query)) || 
+                        (a.agent_name && a.agent_name.toLowerCase().includes(query))
+                    );
+
+                    if (matchedAgent) {
+                        window.location.href = /widget/agent-profile.html?id= + matchedAgent.agent_id;
+                    } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
+                        window.location.href = /widget/demo.html?filter= + encodeURIComponent(query);
+                    } else {
+                        alert(No direct match found for " + query + ". Try searching an Agent ID or a Metric.);
+                    }
+                } catch (err) {
+                    console.error(err);
                 }
             }
         });
@@ -1640,7 +1654,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 // Fetch live agents
-                const res = await fetch('/api/ratings');
+                const res = await fetch('/ratings');
                 let agents = [];
                 if (res.ok) {
                     agents = await res.json();
