@@ -48,6 +48,8 @@ dependencies = [
     "pyjwt>=2.13.0",
     "passlib>=1.7.4",
     "bcrypt>=5.0.0",
+    "celery>=5.6.3",
+    "redis>=8.1.0",
 ]
 
 [project.optional-dependencies]

@@ -1,6 +1,26 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dpi-ls-postgres
+    environment:
+      POSTGRES_USER: dpi_user
+      POSTGRES_PASSWORD: dpi_password
+      POSTGRES_DB: dpi_ls
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: dpi-ls-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     container_name: dpi-ls-prometheus
@@ -102,3 +122,6 @@ services:
     ports:
       - "9003:80"
     restart: unless-stopped
+
+volumes:
+  postgres_data:

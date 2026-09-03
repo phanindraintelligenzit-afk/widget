@@ -1,6 +1,0 @@
-c = open('d:/DPI-LS/widget/widget/dpi-ls.js', 'r', encoding='utf-8').read()
-c = c.replace('headers: { "Accept"', 'headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Accept"')
-c = c.replace('headers: { "Content-Type"', 'headers: { "Authorization": "Bearer " + localStorage.getItem("token"), "Content-Type"')
-c = c.replace('fetch(`${apiBase(this)}/settings`)', 'fetch(`${apiBase(this)}/settings`, { headers: { "Authorization": "Bearer " + localStorage.getItem("token") } })')
-open('d:/DPI-LS/widget/widget/dpi-ls.js', 'w', encoding='utf-8').write(c)
-print("Patched dpi-ls.js")

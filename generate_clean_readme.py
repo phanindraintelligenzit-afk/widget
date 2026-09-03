@@ -1,4 +1,5 @@
-<div align="center">
+with open('README.md', 'w', encoding='utf-8') as f:
+    f.write("""<div align="center">
 
 # DPI-LS Technical Architecture & Implementation Documentation
 
@@ -126,3 +127,5 @@ docker compose up -d
 
 Website: https://intelligenzit.com/  
 LinkedIn: https://www.linkedin.com/company/intelligenz-it/
+""")
+print("Fixed README.md formatting!")

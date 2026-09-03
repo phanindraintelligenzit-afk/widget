@@ -16,10 +16,15 @@
       font-family: 'Inter', sans-serif;
       margin: 0; padding: 0;
       color: var(--text); background: var(--bg);
-      display: flex; min-height: 100vh;
+      display: flex; height: 100vh; overflow: hidden;
     }
     .sidebar {
       width: 260px;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      overflow-y: auto;
       background: var(--bg); /* Teal-blue sidebar from mock */
       border-right: 1px solid var(--border);
       display: flex; flex-direction: column;
@@ -30,23 +35,31 @@
       gap: 16px; margin-top: 40px;
     }
     .sidebar-link {
-      padding: 12px 32px;
-      color: var(--text);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 18px;
-      transition: background 0.2s;
-    }
-    .sidebar-link:hover {
-      background: rgba(255,255,255,0.1);
-    }
-    .sidebar-link.active {
-      font-weight: 700;
-    }
+        display: block;
+        padding: 14px 32px;
+        color: var(--text);
+        text-decoration: none;
+        font-weight: 500;
+        font-size: 16px;
+        transition: all 0.2s;
+        border-left: 4px solid transparent;
+      }
+      .sidebar-link:hover {
+        background: rgba(255,255,255,0.05);
+        border-left: 4px solid var(--accent);
+      }
+      .sidebar-link.active {
+        font-weight: 700;
+        background: rgba(255,255,255,0.1);
+        border-left: 4px solid var(--accent);
+      }
     .main-content {
       flex: 1;
       padding: 40px;
+      margin-left: 260px;
+      height: 100vh;
       overflow-y: auto;
+      box-sizing: border-box;
     }
     .page-body { max-width: 800px; }
     h1 { font-size: 24px; margin-bottom: 24px; }
@@ -76,8 +89,8 @@
 <body>
   <aside class="sidebar">
     <div style="padding: 0 32px; display: flex; align-items: center; justify-content: center;">
-      <!-- Using placeholder or icon for logo if needed -->
-    </div>
+        <img src="intelligenz-logo.png" alt="Intelligenz IT Logo" style="max-width: 180px;">
+      </div>
                 <nav class="sidebar-nav">
       <a href="/widget/demo.html" class="sidebar-link">Dashboard</a>
       <a href="/widget/onboarding.html" class="sidebar-link active">Onboard Agent</a>
@@ -89,8 +102,10 @@
     </nav>
   </aside>
   <main class="main-content">
-    <header class="top-header" style="display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
-      <div style="margin-right: auto;"><span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
+    <header class="top-header" style="position: sticky; top: -40px; background: var(--bg); z-index: 1000; padding-top: 40px; margin-top: -40px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
+      <div style="margin-right: auto; display: flex; align-items: center; gap: 20px;">
+          <h1 style="margin: 0; font-size: 22px;">DPI-LS (Digital Performance Index - Life Science)</h1>
+          <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
       <div class="search-bar" style="position: relative;">
         <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
         <span style="position: absolute; right: 12px; top: 9px; opacity: 0.6; font-size: 14px;">??</span>
@@ -102,7 +117,7 @@
 
     <div class="page-body">
     
-    <h1 style="margin-top: 0;">Onboard Digital Worker</h1>
+    <h2 style="margin-top: 0; color: var(--accent); font-size: 18px; margin-bottom: 25px;">Onboard Digital Worker</h2>
     <form id="onboardingForm">
       <div class="form-group">
         <label>Agent ID (e.g. agent-001)</label>
@@ -146,105 +161,61 @@
   </div>
 
   <script>
+    
+    // --- Form Persistence ---
+    const formFields = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+    
+    // Restore saved data
+    formFields.forEach(field => {
+        const savedVal = sessionStorage.getItem('onboard_' + field);
+        if (savedVal) {
+            document.getElementById(field).value = savedVal;
+        }
+        
+        // Save data on change
+        document.getElementById(field).addEventListener('input', (e) => {
+            sessionStorage.setItem('onboard_' + field, e.target.value);
+        });
+    });
+    // -------------------------
+
     document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
+
       e.preventDefault();
-      const agentId = document.getElementById('agent_id').value;
-      const payload = {
-        description: document.getElementById('description').value,
-        agent_type: document.getElementById('agent_type').value,
-        environment: document.getElementById('environment').value,
-        business_owner_name: document.getElementById('business_owner_name').value,
-        business_owner_email: document.getElementById('business_owner_email').value,
-        technical_owner_name: document.getElementById('technical_owner_name').value,
-        technical_owner_email: document.getElementById('technical_owner_email').value,
-        digital_worker_role: document.getElementById('digital_worker_role').value,
-      };
+      
+      const agentIdVal = document.getElementById('agent_id').value;
+      const descVal = document.getElementById('description').value;
+      const typeVal = document.getElementById('agent_type').value;
+      const envVal = document.getElementById('environment').value;
+      const bizOwnerName = document.getElementById('business_owner_name').value;
+      const bizEmail = document.getElementById('business_owner_email').value;
+      const techOwnerName = document.getElementById('technical_owner_name').value;
+      const techEmail = document.getElementById('technical_owner_email').value;
+      const roleVal = document.getElementById('digital_worker_role').value;
       
       const statusEl = document.getElementById('status');
       statusEl.textContent = 'Submitting...';
       statusEl.className = 'status-msg';
 
+      const payload = {
+        description: descVal, agent_type: typeVal, environment: envVal,
+        business_owner_name: bizOwnerName, business_owner_email: bizEmail,
+        technical_owner_name: techOwnerName, technical_owner_email: techEmail,
+        digital_worker_role: roleVal
+      };
+      
       try {
-        const res = await fetch(`/api/agents/${agentId}/onboard`, {
+        await fetch(`/api/agents/${agentIdVal}/onboard`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'') },
           body: JSON.stringify(payload)
         });
-        if (res.ok) {
-          let agentIdVal = document.getElementById('agent_id').value;
-          let descVal = document.getElementById('description').value;
-          let typeVal = document.getElementById('agent_type').value;
-          let envVal = document.getElementById('environment').value;
-          let bizOwnerName = document.getElementById('business_owner_name').value;
-          let bizEmail = document.getElementById('business_owner_email').value;
-          let techOwnerName = document.getElementById('technical_owner_name').value;
-          let techEmail = document.getElementById('technical_owner_email').value;
-          let roleVal = document.getElementById('digital_worker_role').value;
-          
-          let successMsg = 'Onboarding submitted successfully!';
-          
-          
-          // Simple validation (though 'required' on inputs handles most of this)
-          if (!bizOwnerName || !bizEmail || !techOwnerName || !techEmail) {
-             statusEl.textContent = 'Please fill out all Owner fields.';
-             statusEl.classList.add('error');
-             return;
-          }
-
-          let emails_to_notify = [];
-          if (bizEmail) {
-             let emails = bizEmail.split(',');
-             for (let e of emails) {
-                if (e.trim() !== '') emails_to_notify.push(e.trim());
-             }
-          }
-          if (techEmail) {
-             emails_to_notify.push(techEmail.trim());
-          }
-          
-          let emails_str = emails_to_notify.join(', ');
-
-          successMsg += '<br><br><div style="background:#1a1b26; padding:15px; border-radius:8px; border:1px solid #2f334d; font-size:14px; text-align:left;">';
-          successMsg += '<span style="color:#4ade80;">&#10003; <b>Welcome to our Intelligenz IT Pvt Limited.</b><br>Notification has been dispatched to ' + emails_str + ' via SMTP!</span><br>';
-          successMsg += 'Check our Intelligenz IT related dimensions: <a href="https://intelligenzit.com/" target="_blank" style="color:var(--accent); text-decoration:underline;">Intelligenz IT | Leading Enterprise Technology Consulting & Transformation Partner</a><br><br>';
-          successMsg += '<hr style="border:1px solid #2f334d; margin: 10px 0;">';
-          successMsg += '<b>Hi ' + bizOwnerName + ',</b><br><br>';
-          successMsg += 'DPI-LS is a platform that monitors AI digital workers like human employees. Here are the details of your newly onboarded digital worker:<br><br>';
-          successMsg += '<b>Agent ID:</b> ' + agentIdVal + '<br>';
-          successMsg += '<b>Description:</b> ' + descVal + '<br>';
-          successMsg += '<b>Agent Type:</b> ' + typeVal + '<br>';
-          successMsg += '<b>Environment:</b> ' + envVal + '<br>';
-          successMsg += '<b>Business Owner Name:</b> ' + bizOwnerName + '<br>';
-          successMsg += '<b>Business Owner (Email):</b> ' + bizEmail + '<br>';
-          successMsg += '<b>Technical Owner Name:</b> ' + techOwnerName + '<br>';
-          successMsg += '<b>Technical Owner (Email):</b> ' + techEmail + '<br>';
-          successMsg += '<b>Digital Worker Role:</b> ' + roleVal + '<br>';
-          successMsg += '</div>';
-
-          
-          successMsg += '<br><a href="/widget/agent-config.html" style="color:var(--accent); text-decoration:underline;">Continue to Agent Configuration &rarr;</a>';
-          statusEl.innerHTML = successMsg;
-          statusEl.classList.add('success');
-        } else {
-          const err = await res.json();
-          statusEl.textContent = 'Error: ' + (err.detail || 'Unknown error');
-          statusEl.classList.add('error');
-        }
-      } catch (err) {
-        statusEl.textContent = 'Network Error';
-        statusEl.classList.add('error');
+      } catch (e) {
+        console.error("Backend sync failed:", e);
       }
-    });
-  </script>
-  </main>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const loginTime = localStorage.getItem('loginTime');
-      if (loginTime) {
-        const el = document.getElementById('login-time-display');
-        if (el) { el.style.display = 'inline-block'; el.innerHTML = '&#128340; <strong style="color:var(--text);">Session Started:</strong> ' + loginTime; }
-      }
+      
+      // Instantly redirect to the configurations page and pass the agent ID
+      window.location.href = `/widget/agent-config.html?agent_id=${encodeURIComponent(agentIdVal)}`;
     });
   </script>
 
@@ -269,18 +240,32 @@
 document.addEventListener("DOMContentLoaded", () => {
     // Search Functionality
     document.querySelectorAll('.search-bar input').forEach(inp => {
-        inp.addEventListener('keypress', (e) => {
+                inp.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
                 const query = e.target.value.trim().toLowerCase();
                 if (!query) return;
-                
-                if (query.includes('agent-') || query.includes('finops') || query.includes('hr')) {
-                    const agentId = query.replace(/[^a-z0-9-]/g, '');
-                    window.location.href = `/widget/agent-profile.html?id=${agentId}`;
-                } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
-                    window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
-                } else {
-                    alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+
+                try {
+                    const res = await fetch('/ratings');
+                    let agents = [];
+                    if (res.ok) {
+                        agents = await res.json();
+                    }
+
+                    const matchedAgent = agents.find(a => 
+                        (a.agent_id && a.agent_id.toLowerCase().includes(query)) || 
+                        (a.agent_name && a.agent_name.toLowerCase().includes(query))
+                    );
+
+                    if (matchedAgent) {
+                        window.location.href = '/widget/agent-profile.html?id=' + matchedAgent.agent_id;
+                    } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
+                        window.location.href = '/widget/demo.html?filter=' + encodeURIComponent(query);
+                    } else {
+                        alert('No direct match found for "' + query + '". Try searching an Agent ID or a Metric.');
+                    }
+                } catch (err) {
+                    console.error(err);
                 }
             }
         });
@@ -340,18 +325,40 @@ document.addEventListener("DOMContentLoaded", () => {
     function processQuery(query) {
         const q = query.toLowerCase();
         setTimeout(() => {
-            if (q.includes('risk') || q.includes('red')) {
-                appendMessage("Risk scores below 50 are colored Red and indicate a safety or compliance violation. DPI-LS heavily weights Risk (R^2 penalty) to ensure unsafe agents are immediately flagged.", false);
-            } else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
+            // Dashboard Related
+            if (q.includes('dashboard') || q.includes('leaderboard') || q.includes('green') || q.includes('red') || q.includes('yellow')) {
+                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI-LS score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
+            } 
+            // Onboard Agent Related
+            else if (q.includes('onboard') || q.includes('onboarding') || q.includes('register') || q.includes('new agent')) {
+                appendMessage("The Onboard Agent section allows you to register a new Digital Worker. You must provide an Agent ID, description, business owner details, and technical owner details. Upon submission, the platform tracks this agent globally.", false);
+            }
+            // Configuration Related
+            else if (q.includes('config') || q.includes('weight') || q.includes('parameter') || q.includes('baseline')) {
+                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI-LS parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
+            }
+            // Rating Related
+            else if (q.includes('rating') || q.includes('manager') || q.includes('review') || q.includes('score')) {
+                appendMessage("The Rating section is where human managers can submit a 1 to 5 star rating for an agent. This Subjective Matter Expert (SME) feedback is injected directly into the agent's telemetry matrix to influence the overall Quality and Execution score.", false);
+            }
+            // Profile Related
+            else if (q.includes('profile') || q.includes('history') || q.includes('details')) {
+                appendMessage("The Profile section provides a detailed view of a specific agent. It displays their exact score breakdown and metadata over time. You can search for an agent ID to jump directly to their profile.", false);
+            }
+            // Resources Related
+            else if (q.includes('resource') || q.includes('manual') || q.includes('guide')) {
+                appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI-LS ecosystem and how to integrate your own custom frameworks.", false);
+            }
+            // Formula / DPI-LS Related
+            else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
                 appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
-            } else if (q.includes('search') || q.includes('find')) {
-                appendMessage("You can use the search bar at the top of the screen to quickly jump to a specific agent's profile (e.g., 'agent-001') or filter dashboard metrics.", false);
-            } else if (q.includes('configure') || q.includes('weight')) {
-                appendMessage("You can adjust metric weights and baselines on the Configuration page. The total weight distribution must equal exactly 100%.", false);
-            } else if (q.includes('hello') || q.includes('hi')) {
-                appendMessage("Hello! How can I assist you with your Digital Workforce today?", false);
-            } else {
-                appendMessage("I'm the AI assistant for the DPI-LS platform. I can explain scoring formulas, help you interpret metrics, or guide you through platform features. Try asking 'How is Risk calculated?' or 'How do I change weights?'", false);
+            } 
+            else if (q.includes('hello') || q.includes('hi')) {
+                appendMessage("Hello! How can I assist you with your Digital Workforce today? You can ask me about Dashboard, Onboarding, Configuration, Rating, Profile, or Resources.", false);
+            } 
+            // Fallback
+            else {
+                appendMessage("I am fully integrated into all 6 platform sections (Dashboard, Onboarding, Configuration, Rating, Profile, Resources). Just ask me how any section works, or ask how to calculate a score, and I'll explain its exact functionality!", false);
             }
         }, 600);
     }
@@ -408,17 +415,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
             try {
                 // Fetch live agents
-                const res = await fetch('/api/ratings');
+                const res = await fetch('/ratings');
                 let agents = [];
                 if (res.ok) {
                     agents = await res.json();
                 }
 
-                // Hardcode metrics
+                // Hardcode sections and metrics
                 const metrics = ['Risk', 'Productivity', 'Quality', 'Efficiency', 'Governance', 'Cost', 'Validation'];
+                const sections = [
+                    {name: 'Dashboard', url: '/widget/demo.html'},
+                    {name: 'Onboard Agent', url: '/widget/onboarding.html'},
+                    {name: 'Configuration', url: '/widget/agent-config.html'},
+                    {name: 'Rating (Manager Review)', url: '/widget/score.html'},
+                    {name: 'Profile', url: '/widget/agent-profile.html'},
+                    {name: 'Resources', url: '/widget/resources.html'}
+                ];
 
                 dropdown.innerHTML = '';
                 let hasResults = false;
+
+                // Filter Sections
+                const matchedSections = sections.filter(s => s.name.toLowerCase().includes(query) || s.url.toLowerCase().includes(query));
+                if (matchedSections.length > 0) {
+                    const groupTitle = document.createElement('div');
+                    groupTitle.style.padding = '8px 12px';
+                    groupTitle.style.fontSize = '11px';
+                    groupTitle.style.color = '#94a3b8';
+                    groupTitle.style.fontWeight = 'bold';
+                    groupTitle.style.textTransform = 'uppercase';
+                    groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.textContent = 'Platform Sections';
+                    dropdown.appendChild(groupTitle);
+
+                    matchedSections.forEach(s => {
+                        hasResults = true;
+                        const item = document.createElement('div');
+                        item.style.padding = '10px 12px';
+                        item.style.cursor = 'pointer';
+                        item.style.fontSize = '13px';
+                        item.style.color = '#a78bfa';
+                        item.style.transition = 'background 0.2s';
+                        item.innerHTML = '&#128270; Navigate to: ' + s.name;
+                        item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
+                        item.onmouseout = () => item.style.background = 'transparent';
+                        item.onclick = () => {
+                            window.location.href = s.url;
+                        };
+                        dropdown.appendChild(item);
+                    });
+                }
 
                 // Filter Agents
                 const matchedAgents = agents.filter(a => (a.agent_id && a.agent_id.toLowerCase().includes(query)) || (a.agent_name && a.agent_name.toLowerCase().includes(query)));
@@ -439,6 +485,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     groupTitle.style.fontWeight = 'bold';
                     groupTitle.style.textTransform = 'uppercase';
                     groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
                     groupTitle.textContent = 'Agents';
                     dropdown.appendChild(groupTitle);
 
@@ -454,7 +501,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = /widget/agent-profile.html?id=;
+                            window.location.href = `/widget/agent-profile.html?id=${a.agent_id}`;
                         };
                         dropdown.appendChild(item);
                     });
@@ -470,7 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     groupTitle.style.fontWeight = 'bold';
                     groupTitle.style.textTransform = 'uppercase';
                     groupTitle.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
-                    groupTitle.style.marginTop = uniqueAgents.length > 0 ? '5px' : '0';
+                    groupTitle.style.marginTop = hasResults ? '5px' : '0';
                     groupTitle.textContent = 'Metrics';
                     dropdown.appendChild(groupTitle);
 
@@ -486,7 +533,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = /widget/demo.html?filter=;
+                            window.location.href = `/widget/demo.html?filter=${encodeURIComponent(m.toLowerCase())}`;
                         };
                         dropdown.appendChild(item);
                     });
