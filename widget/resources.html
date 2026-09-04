@@ -550,16 +550,14 @@ let currentFilter = 'all';
 // dashboardUrls stores {url, online} objects keyed by resource name
 let dashboardUrls = {
   Langfuse:        { url: 'https://cloud.langfuse.com', online: false },
-  Prometheus:      { url: 'http://localhost:9090', online: false },
-  Grafana:         { url: 'http://localhost:3000', online: false },
-  'DeepEval':      { url: 'https://deepeval.com', online: true },
+      'DeepEval':      { url: 'https://deepeval.com', online: true },
   'Jaeger':        { url: 'http://localhost:16686', online: false },
   'Zipkin':        { url: 'http://localhost:9411', online: false },
   'LangSmith':     { url: 'https://smith.langchain.com', online: true },
   'Ragas':         { url: 'https://ragas.io', online: true },
   'AgentOps':      { url: 'https://app.agentops.ai', online: true },
   'OpenTelemetry': { url: 'http://localhost:16686', online: false },
-  'Grafana Tempo': { url: 'http://localhost:3200', online: false },
+  : { url: 'http://localhost:3200', online: false },
   'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
   'Keycloak':      { url: 'https://www.keycloak.org/documentation', online: true },
   'OpenMetadata':  { url: 'https://docs.open-metadata.org', online: true },
@@ -767,7 +765,7 @@ const RESOURCE_META = {
     color: '#6366f1',
     sdk: 'langfuse',
   },
-  'Prometheus': {
+  : {
     icon: '📊', category: 'Infrastructure Metrics',
     dpi_status: 'recommended',
     description: 'Live Prometheus-format metrics for Chandra FinOps agent — token costs, model cost, TCO, quality scores, and utilization. Exposed by DPI-LS at /metrics/.',
@@ -776,7 +774,7 @@ const RESOURCE_META = {
     color: '#e6522c',
     sdk: 'prometheus_client',
   },
-  'Grafana': {
+  : {
     icon: '📈', category: 'Metrics Visualization',
     dpi_status: 'recommended',
     description: 'Visualization of cost and utilization metrics. Import grafana_dashboard.json from the widget folder to see DPI-LS dashboards.',
@@ -866,7 +864,7 @@ const RESOURCE_META = {
     color: '#3498db',
     sdk: 'opentelemetry',
   },
-  'Grafana Tempo': {
+  : {
     icon: '⏱️', category: 'Distributed Tracing',
     dpi_status: 'primary',
     description: 'Tracks API calls, execution duration, and resolution velocity across asynchronous LLM tasks.',
@@ -1002,7 +1000,7 @@ function renderResourceTable(metrics, name) {
     liveMetrics[m.metric] = m.current_value;
   });
 
-  if (['Grafana', 'OpenCost', 'OpenLIT'].includes(name)) {
+  if (['OpenCost', 'OpenLIT'].includes(name)) {
     if (typeof window.renderCostTableHtml === 'function') {
       const mergedSub = { ...chandraCostSub, ...liveMetrics };
       return window.renderCostTableHtml(mergedSub, settingsObj, chandraCostValue, name);
@@ -1012,7 +1010,7 @@ function renderResourceTable(metrics, name) {
       const mergedSub = { ...chandraQualitySub, ...liveMetrics };
       return window.renderQualityTableHtml(mergedSub, settingsObj, chandraQualityValue, name);
     }
-  } else if (['Langfuse', 'Prometheus', 'OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(name)) {
+  } else if (['Langfuse', 'OpenTelemetry', 'Apache SkyWalking'].includes(name)) {
     if (typeof window.renderProductivityTableHtml === 'function') {
       const mergedSub = { ...chandraProductivitySub, ...liveMetrics };
       return window.renderProductivityTableHtml(mergedSub, settingsObj, chandraProductivityValue, name);
@@ -1114,8 +1112,8 @@ function renderResourceCard(name, metrics = []) {
 
   const DOCS = {
     "Langfuse": "https://langfuse.com/docs",
-    "Grafana": "https://grafana.com/docs/",
-    "Prometheus": "https://prometheus.io/docs/",
+    : "https://grafana.com/docs/",
+    : "https://prometheus.io/docs/",
     "OpenLIT": "https://docs.openlit.io/",
     "OpenCost": "https://opencost.io/docs/",
     "DeepEval": "https://docs.confident-ai.com/",
@@ -1266,9 +1264,9 @@ function showToast(msg, type='info') {
 
 async function verifyDashboard(resourceName) {
   try {
-    const isCost = ['Prometheus', 'Grafana'].includes(resourceName);
+    const isCost = [].includes(resourceName);
     const isQual = ['LangSmith', 'Ragas', 'AgentOps'].includes(resourceName);
-    const isProd = ['OpenTelemetry', 'Grafana Tempo', 'Apache SkyWalking'].includes(resourceName);
+    const isProd = ['OpenTelemetry', 'Apache SkyWalking'].includes(resourceName);
     const isExec = ['Langfuse', 'Phoenix', 'Traceloop'].includes(resourceName);
     
     let endpoint = '/api/validation-evaluation/verify-dashboard';
@@ -1309,12 +1307,12 @@ async function runEvaluation() {
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok) throw new Error(`HTTP Error during evaluation`);
     await loadChandraData();
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
-    const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
+    const costResources = ["Langfuse", "OpenLIT", "OpenCost"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
-    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus", "Workflow Layer"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Workflow Layer"];
     const execResources = ["Langfuse", "Phoenix", "Traceloop", "OpenTelemetry", "Jaeger"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", ];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
@@ -1358,11 +1356,11 @@ async function loadData() {
     ]);
     if (!r1.ok || !r2.ok || !r3.ok || !r4.ok || !r5.ok || !r6.ok || !r7.ok) throw new Error(`HTTP Error loading results`);
     const [costData, valData, qualData, prodData, execData, riskData, govData] = await Promise.all([r1.json(), r2.json(), r3.json(), r4.json(), r5.json(), r6.json(), r7.json()]);
-    const costResources = ["Langfuse", "Grafana", "Prometheus", "OpenLIT", "OpenCost"];
+    const costResources = ["Langfuse", "OpenLIT", "OpenCost"];
     const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
-    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus", "Workflow Layer"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"];
+    const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Workflow Layer"];
+    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", ];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData

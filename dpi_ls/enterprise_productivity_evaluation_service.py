@@ -1,4 +1,4 @@
-"""Enterprise Productivity Dimension (P) — runtime telemetry from Langfuse and Prometheus.
+"""Enterprise Productivity Dimension (P) — runtime telemetry from Langfuse .
 
 Extends the existing DPI-LS Productivity dimension, providing a unified dashboard
 for enterprise productivity metrics without disturbing the original pipelines.
@@ -31,7 +31,7 @@ from store import repo
 @dataclass
 class ProductivityEvent:
     """One runtime productivity metric evaluation attempt from an adapter."""
-    adapter: str                        # "Langfuse" | "Prometheus"
+    adapter: str                        # "Langfuse"
     metric_name: str                    # Native metric kind
     value: Optional[float] = None       # The numerical value (e.g. counts, counts per second)
     expected: Optional[Any] = None      # Expected behavior/output/baseline
@@ -70,20 +70,6 @@ class LangfuseAdapter(EnterpriseProductivityAdapter):
     )
 
 
-class PrometheusAdapter(EnterpriseProductivityAdapter):
-    name = "Prometheus"
-    sdk_modules = ("prometheus_client", "prometheus_api_client")
-    documentation_url = "https://prometheus.io/docs"
-    metrics_supported = (
-        "CPU Usage", "Memory Usage", "Worker Utilization", "Pod Count",
-        "Replica Count", "Thread Count", "Queue Length", "Request Rate",
-        "Throughput", "Task Rate", "Completed Requests", "Failed Requests",
-        "Latency", "Response Time", "P95", "P99", "Network Throughput",
-        "Disk IO", "Autoscaling", "Worker Availability", "Node Health",
-        "Container Restarts", "Resource Saturation", "Infrastructure Health",
-        "Active Targets"
-    )
-
 class OpenTelemetryAdapter(EnterpriseProductivityAdapter):
     name = "OpenTelemetry"
     sdk_modules = ("opentelemetry",)
@@ -108,47 +94,47 @@ class WorkflowLayerAdapter(EnterpriseProductivityAdapter):
 PRODUCTIVITY_CANONICAL_MAP: dict[str, dict[str, str]] = {
     "Task Throughput": {
         "Langfuse": "Completed Tasks",
-        "Prometheus": "Throughput",
+        # "Prometheus": "Throughput",
     },
     "Latency": {
         "Langfuse": "Latency",
-        "Prometheus": "Latency",
+        # "Prometheus": "Latency",
     },
     "Execution Duration": {
         "Langfuse": "Execution Duration",
-        "Prometheus": "Response Time",
+        # "Prometheus": "Response Time",
     },
     "Worker Activity": {
         "Langfuse": "Agent Sessions",
-        "Prometheus": "Worker Utilization",
+        # "Prometheus": "Worker Utilization",
     },
     "Concurrency": {
         "Langfuse": "Concurrency",
-        "Prometheus": "Thread Count",
+        # "Prometheus": "Thread Count",
     },
     "Success Rate": {
         "Langfuse": "Success Rate",
-        "Prometheus": "Completed Requests",
+        # "Prometheus": "Completed Requests",
     },
     "Failure Rate": {
         "Langfuse": "Failure Rate",
-        "Prometheus": "Failed Requests",
+        # "Prometheus": "Failed Requests",
     },
     "Runtime Health": {
         "Langfuse": "Agent Runtime",
-        "Prometheus": "Worker Availability",
+        # "Prometheus": "Worker Availability",
     },
     "Infrastructure Health": {
-        "Prometheus": "Infrastructure Health",
+        # "Prometheus": "Infrastructure Health",
     },
     "CPU": {
-        "Prometheus": "CPU Usage",
+        # "Prometheus": "CPU Usage",
     },
     "Memory": {
-        "Prometheus": "Memory Usage",
+        # "Prometheus": "Memory Usage",
     },
     "Queue Length": {
-        "Prometheus": "Queue Length",
+        # "Prometheus": "Queue Length",
     },
     "Trace Count": {
         "Langfuse": "Total Traces",
@@ -374,7 +360,7 @@ def _import_productivity_row_types():
 
 ADAPTERS: tuple[EnterpriseProductivityAdapter, ...] = (
     LangfuseAdapter(),
-    PrometheusAdapter(),
+    
     OpenTelemetryAdapter(),
     ApacheSkyWalkingAdapter(),
     WorkflowLayerAdapter(),

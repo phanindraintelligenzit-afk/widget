@@ -18,11 +18,10 @@ def test_enterprise_productivity_endpoints(client):
     resp = client.get("/api/enterprise-productivity/resources")
     assert resp.status_code == 200
     resources = resp.json()
-    assert len(resources) == 5
+    assert len(resources) == 4
     names = {r["resource_name"] for r in resources}
     assert "Langfuse" in names
-    assert "Prometheus" in names
-
+    
     # 3. Check results before any pushes
     resp = client.get("/api/enterprise-productivity/results")
     assert resp.status_code == 200
@@ -46,13 +45,7 @@ def test_enterprise_productivity_endpoints(client):
     assert push_resp.status_code == 200
     assert push_resp.json()["recorded"] is True
 
-    push_resp = client.post("/api/enterprise-productivity/push", json={
-        "adapter": "Prometheus",
-        "metric_name": "Thread Count",
-        "value": 5.0,
-        "passed": True,
-    })
-    assert push_resp.status_code == 200
+
 
     # 5. Check results after push
     resp = client.get("/api/enterprise-productivity/results")
@@ -62,9 +55,7 @@ def test_enterprise_productivity_endpoints(client):
     assert tasks["agent_executed"] is True
     assert tasks["status"] == "SUCCESS"
 
-    concurrency = next(r for r in results if r["resource_name"] == "Prometheus" and r["metric"] == "Thread Count")
-    assert concurrency["current_value"] == "5.0"
-    assert concurrency["agent_executed"] is True
+
 
     # 6. Check Dashboard
     resp = client.get("/api/enterprise-productivity/agent-dashboard")
@@ -84,7 +75,7 @@ def test_enterprise_productivity_endpoints(client):
     assert dash["band"] == "Critical Failure"
     
     match_analysis = dash["match_analysis"]
-    assert len(match_analysis) == 2
+    assert len(match_analysis) == 1
     
     # 7. Reset for test isolation
     reset_enterprise_productivity_collector()

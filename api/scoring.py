@@ -49,7 +49,7 @@ def _sync_metrics_from_sub_metrics(
         and ((g_sub.get("Total Actions") or 0) > 0 or (g_sub.get("Policy Violations") or 0) > 0)
     ):
         try:
-            metrics["G"] = float(g_sub["Formula Output"])
+            print(f"SYNCING G: {metrics.get('G')} -> {g_sub['Formula Output']}"); metrics["G"] = float(g_sub["Formula Output"])
         except (TypeError, ValueError):
             pass
 
@@ -157,7 +157,6 @@ def score_and_persist(
     rating.sub_metrics = sub_metrics
     obs_row = repo.save_observation(s, obs)
     repo.save_score(s, obs.agent_id, obs_row.id, rating)
-    update_prometheus_metrics(obs.agent_id, rating)
     push_langfuse_trace(obs.agent_id, obs, rating)
     return rating
 
@@ -230,7 +229,6 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
             "rescore_from_partials: no partial row found for agent '%s'; "
             "score not persisted.", agent_id,
         )
-    update_prometheus_metrics(agent_id, rating)
     return rating
 
 
@@ -293,16 +291,16 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
             pass
         return 0.0
             
-    # Extract complexity metrics from Langfuse & Prometheus
-    t_d = safe_float(p_eval_map.get("Langfuse:token_usage"), p_eval_map.get("Apache SkyWalking:token_depth"))
-    a_c = safe_float(p_eval_map.get("Langfuse:prompt_executions"), p_eval_map.get("Grafana Tempo:api_calls"))
-    d_b = safe_float(p_eval_map.get("Prometheus:queue_length"), p_eval_map.get("OpenTelemetry:decision_branches"))
+    # Extract complexity metrics from current resources
+    t_d = safe_float(p_eval_map.get("Apache SkyWalking:token_depth"), p_eval_map.get("Langfuse:token_usage"))
+    a_c = safe_float(p_eval_map.get("Langfuse:api_calls"), p_eval_map.get("Langfuse:prompt_executions"))
+    d_b = safe_float(p_eval_map.get("OpenTelemetry:decision_branches"), 0.0)
     
     alpha1, alpha2, alpha3 = 0.001, 2.5, 5.0
     N_AI = completed_tasks
     
     e_c_ai = ((alpha1 * t_d) + (alpha2 * a_c) + (alpha3 * d_b)) / max(N_AI, 1)
-    e_c_human = safe_float(p_eval_map.get("Prometheus:human_complexity"), 10.0)
+    e_c_human = safe_float(p_eval_map.get("Workflow Layer:human_complexity"), 10.0)
     
     gamma = e_c_ai / max(e_c_human, 0.0001) if e_c_ai > 0 else 1.0
     effective_output = completed_tasks * gamma
@@ -318,7 +316,7 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "token_depth": t_d,
         "api_calls": a_c,
         "decision_branches": d_b,
-        "worker_concurrency": safe_float(p_eval_map.get("Prometheus:concurrency"), 1.0),
+        "worker_concurrency": safe_float(p_eval_map.get("Workflow Layer:worker_concurrency"), 1.0),
         "execution_duration": safe_float(p_eval_map.get("Langfuse:execution_duration"), 0.0),
         "throughput": safe_float(p_eval_map.get("Langfuse:task_throughput"), 0.0),
         "cpu_usage": safe_float(p_eval_map.get("Prometheus:cpu"), 0.0),
@@ -326,7 +324,7 @@ def enrich_productivity_sub_metrics(s: Session, sub_metrics: dict) -> dict:
         "infrastructure_health": p_eval_map.get("Prometheus:infrastructure_health", "Healthy"),
         "success_rate": safe_float(p_eval_map.get("Langfuse:success_rate"), 100.0),
         "failure_rate": safe_float(p_eval_map.get("Langfuse:failure_rate"), 0.0),
-        "resolution_velocity": safe_float(p_eval_map.get("Grafana Tempo:resolution_velocity"), 0.0),
+        "resolution_velocity": safe_float(p_eval_map.get("Langfuse:resolution_velocity"), 0.0),
         "human_baseline": h_base,
         "normalization_factor": gamma,
     })
@@ -350,13 +348,15 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
 
     accuracy_str = sub_metrics["Q"].get("QA Accuracy") or q_eval_map.get("Ragas:semantic_accuracy", "Unavailable")
     consistency_str = sub_metrics["Q"].get("Consistency") or q_eval_map.get("AgentOps:consistency_measurement", "Unavailable")
-    hallucination_str = sub_metrics["Q"].get("Hallucination Rate") or q_eval_map.get("LangSmith:hallucination_analysis", "Unavailable")
+    hallucination_str = sub_metrics["Q"].get("Hallucination Rate") or q_eval_map.get("DeepEval:Hallucination Score") or q_eval_map.get("Confident AI:hallucination") or "Unavailable"
     
     try:
-        if "Unavailable" not in (accuracy_str, consistency_str, hallucination_str) and "" not in (accuracy_str, consistency_str, hallucination_str):
-            acc = float(accuracy_str)
-            cons = float(consistency_str)
-            hall = float(hallucination_str)
+        acc = float(accuracy_str) if accuracy_str not in ("Unavailable", "") else 0.0
+        cons = float(consistency_str) if consistency_str not in ("Unavailable", "") else 0.0
+        hall = float(hallucination_str) if hallucination_str not in ("Unavailable", "") else 0.0
+        
+        # Determine if we have at least one valid metric
+        if accuracy_str not in ("Unavailable", "") or consistency_str not in ("Unavailable", "") or hallucination_str not in ("Unavailable", ""):
             q_score = (0.7 * acc) + (0.2 * cons) + (0.1 * (1.0 - hall))
             q_score = round(q_score, 4)
             status = "COMPLETED"
@@ -713,7 +713,6 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict, agent_id: str = None) ->
     # three governance telemetry sources (no hardcoded denominators).
     total_actions = (
         (opa.get("Policies Executed") or 0)
-        + (presidio.get("PII Entities Detected") or 0)
         + (secrets.get("Secrets Found") or 0)
         + (secrets.get("Files Scanned") or 0)
         + (keycloak.get("Authentication Events") or 0)
@@ -723,6 +722,13 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict, agent_id: str = None) ->
     )
     # Policy Violations = total observed governance incident frequency.
     policy_violations = sum(inc["frequency"] for inc in incidents)
+
+    if total_actions == 0 and policy_violations == 0:
+        total_actions = sub_metrics.get("G", {}).get("total_actions", 0)
+        
+        # Count actual violations (excluding rule="none") just like in metrics_from_observation
+        raw_violations = sub_metrics.get("G", {}).get("violations", [])
+        policy_violations = len(set(v.get("when") for v in raw_violations if v.get("rule") and v.get("rule") != "none"))
 
     if total_actions <= 0:
         g_formula_output = 1.0 if policy_violations == 0 else 0.0
@@ -790,31 +796,49 @@ def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dic
     if obs.validation:
         v_raw = obs.validation.model_dump(mode="json")
 
+        
+        res["V"] = {}
+        res = enrich_validation_sub_metrics(s, res)
+
+        validation_fields = [
+            "answer_relevancy", "faithfulness", "hallucination", "correctness",
+            "structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed",
+            "type_safe_parsing", "validation_errors", "schema_validation",
+            "structured_output_validation", "schema_mapping", "instructor_passed"
+        ]
+
         req = 0
         val = 0
-        eval_map = {}
-        if s is not None:
-            evals = repo.list_latest_validation_resource_evaluations(s)
-            eval_map = {f"{r.resource_name}:{r.metric}": r.current_value for r in evals}
-            for r in evals:
-                if not r.metric.endswith("_evidence"):
-                    req += 1
-                    if r.status == "SUCCESS":
+        v_sub = res["V"]
+
+        for field in validation_fields:
+            field_val = v_sub.get(field)
+            if field_val is not None:
+                req += 1
+                if field_val in ("Unavailable", ""):
+                    pass
+                elif field_val in ("0", 0, "0.0", 0.0):
+                    if field in ("hallucination", "validation_errors", "guardrails_failed"):
                         val += 1
-        
-        # Fallback to static if no runtime evaluations exist (e.g., tests without bootstrap)
+                elif field_val in ("Active", "Validated", "Success", "True"):
+                    val += 1
+                else:
+                    try:
+                        num = float(field_val)
+                        if num > 0:
+                            val += 1
+                    except (ValueError, TypeError):
+                        pass
+
         if req == 0:
-            req = v_raw.get("required_components") or 6
-            val = v_raw.get("validated_components") or 0
+            req = 14
 
-        v_score = (val / max(req, 1)) * 100
+        v_score = (val / req) * 100 if req > 0 else 0
 
-        res["V"] = {
-            "Required Components": req,
-            "Validated Components": val,
-            "Validation Score": v_score,
-        }
-        res = enrich_validation_sub_metrics(s, res)
+        res["V"]["Required Components"] = req
+        res["V"]["Validated Components"] = val
+        res["V"]["Validation Score"] = v_score
+
     if obs.cost:
         c_raw = obs.cost.model_dump(mode="json")
         in_t = c_raw.get("input_tokens", 0) or 0

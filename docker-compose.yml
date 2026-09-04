@@ -21,32 +21,6 @@ services:
       - "6379:6379"
     restart: unless-stopped
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: dpi-ls-prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: dpi-ls-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
-    restart: unless-stopped
-
   tempo:
     image: grafana/tempo:2.6.1
     container_name: dpi-ls-tempo
@@ -92,36 +66,3 @@ services:
     depends_on:
       - skywalking-oap
     restart: unless-stopped
-
-  phoenix:
-    image: arizephoenix/phoenix:latest
-    container_name: dpi-ls-phoenix
-    ports:
-      - "6006:6006"
-
-    restart: unless-stopped
-
-  jaeger:
-    image: jaegertracing/all-in-one:latest
-    container_name: dpi-ls-jaeger
-    ports:
-      - "16686:16686"
-      - "14268:14268"
-    restart: unless-stopped
-
-  zipkin:
-    image: openzipkin/zipkin:latest
-    container_name: dpi-ls-zipkin
-    ports:
-      - "9411:9411"
-    restart: unless-stopped
-
-  opencost:
-    image: nginx:alpine
-    container_name: dpi-ls-opencost
-    ports:
-      - "9003:80"
-    restart: unless-stopped
-
-volumes:
-  postgres_data:

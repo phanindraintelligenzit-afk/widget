@@ -16,13 +16,11 @@ def test_seeding_and_evaluation(client):
 
         stmt = select(ValidationResourceRegistryRow)
         resources = list(session.scalars(stmt))
-        assert len(resources) == 6
+        assert len(resources) == 4
 
         resource_names = {r.name for r in resources}
         expected_names = {
             "DeepEval",
-            "Jaeger",
-            "Zipkin",
             "Guardrails AI",
             "Pydantic AI",
             "Instructor",
@@ -36,7 +34,7 @@ def test_api_endpoints_validation_evaluation(client):
     r_res = client.get("/api/validation-evaluation/resources")
     assert r_res.status_code == 200
     resources = r_res.json()
-    assert len(resources) == 6
+    assert len(resources) == 4
 
     # 2. POST /api/validation-evaluation/evaluate
     os.environ["DPI_LS_TEST_MOCK_EVAL"] = "1"
@@ -44,13 +42,13 @@ def test_api_endpoints_validation_evaluation(client):
     assert r_eval.status_code == 200
     eval_results = r_eval.json()
     # 6 resources: DeepEval (6 metrics), Jaeger (8 metrics), Zipkin (7 metrics), Guardrails (4), Pydantic (3), Instructor (3) = 31 total results
-    assert len(eval_results) == 31
+    assert len(eval_results) == 16
 
     # 3. GET /api/validation-evaluation/results
     r_results = client.get("/api/validation-evaluation/results")
     assert r_results.status_code == 200
     latest_results = r_results.json()
-    assert len(latest_results) == 31
+    assert len(latest_results) == 16
 
     # Check that DeepEval answer_relevancy is detected
     deepeval_accuracy = [

@@ -228,7 +228,7 @@
     const outputTokenPrice = getNum(sub, 'output_token_price', getNum(settings, 'output_token_price'));
     const completedOutputs = getNum(sub, 'completed_outputs', 1);
     const utilization = getNum(sub, 'utilization', getNum(settings, 'utilization'));
-    const humanCostPerOutput = getNum(sub, 'Human Cost / Output', getNum(settings, 'human_cost_per_output'));
+    const humanCostPerOutput = 200.0;
     
     const promptCost = getNum(sub, 'Prompt Cost (USD)', (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null));
     const completionCost = getNum(sub, 'Completion Cost (USD)', (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null));
@@ -254,15 +254,12 @@
     let metricsMap = {
       input_tokens: { val: inputTokens, calc: inputTokens, disp: inputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
       output_tokens: { val: outputTokens, calc: outputTokens, disp: outputTokens, formula: "Langfuse Trace Payload", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 0 },
-      prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens × Price", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
-      completion_cost: { val: completionCost, calc: calcCompletionCost, disp: completionCost, formula: "Output Tokens × Price", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
+      prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
+      completion_cost: { val: completionCost, calc: calcCompletionCost, disp: completionCost, formula: "Output Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
       model_cost: { val: modelCost, calc: calcModelCost, disp: modelCost, formula: "Prompt Cost + Completion Cost", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
-      ai_cost_per_output: { val: aiCostPerOutput, calc: calcAiCostPerOutput, disp: aiCostPerOutput, formula: "Model Cost ÷ Outputs", src: "Prometheus (runtime telemetry)", resource: "Prometheus", dec: 6 },
-      human_cost_per_output: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: "Config Baseline", src: "Grafana (runtime settings)", resource: "Grafana", dec: 0 },
-      utilization: { val: utilization, calc: utilization, disp: utilization, formula: "Runtime Usage", src: "Prometheus (runtime telemetry)", resource: "Prometheus", dec: 0 },
-      efficiency_ratio: { val: efficiencyRatio, calc: calcEfficiencyRatio, disp: efficiencyRatio, formula: "Human ÷ AI Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 2 },
-      cost_score: { val: calcCostScore, calc: calcCostScore, disp: calcCostScore, formula: "min(1, Human ÷ AI) × Utilization", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 },
-      tco: { val: tco, calc: calcTco, disp: tco, formula: "Human Cost + Model Cost", src: "Grafana (runtime settings)", resource: "Grafana", dec: 6 }
+        human_cost: { val: 200.0, calc: 200.0, disp: 200.0, formula: "Hardcoded Baseline", src: "DPI-LS Settings", resource: "Baseline", dec: 2 },
+        ai_cost_per_output: { val: calcAiCostPerOutput, calc: calcAiCostPerOutput, disp: calcAiCostPerOutput, formula: "Total Model Cost / Completed Outputs", src: "DPI-LS Engine", resource: "Calculation", dec: 6 },
+        efficiency_ratio: { val: calcEfficiencyRatio, calc: calcEfficiencyRatio, disp: calcEfficiencyRatio, formula: "Human Cost / AI Cost", src: "DPI-LS Engine", resource: "Calculation", dec: 2 },
     };
 
     // Dynamically append OpenLIT and OpenCost metrics
@@ -299,13 +296,49 @@
     sub = sub || {};
     settings = settings || {};
     
-    const req = sub["Required Components"] !== undefined ? sub["Required Components"] : 0;
-    const val = sub["Validated Components"] !== undefined ? sub["Validated Components"] : 0;
-    let calcVScore = 0;
-    if (req > 0) {
-      calcVScore = Math.min(1.0, val / req);
-    }
-    const vScoreVal = calcVScore;
+    
+      const validationFields = [
+        "answer_relevancy", "faithfulness", "hallucination", "correctness",
+        "structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed",
+        "type_safe_parsing", "validation_errors", "schema_validation",
+        "structured_output_validation", "schema_mapping", "instructor_passed"
+      ];
+
+      let req = 0;
+      let val = 0;
+
+      for (const field of validationFields) {
+        const fieldVal = sub[field];
+        if (fieldVal !== undefined && fieldVal !== null) {
+          req++; 
+          if (fieldVal === "Unavailable" || fieldVal === "") {
+            // Not validated
+          } else if (fieldVal === "0" || fieldVal === 0 || fieldVal === "0.0" || fieldVal === 0.0) {
+            // If it's 0 for hallucination, validation_errors, guardrails_failed, that is a GOOD thing!
+            if (["hallucination", "validation_errors", "guardrails_failed"].includes(field)) {
+                val++;
+            }
+          } else if (["Active", "Validated", "Success", "True"].includes(fieldVal)) {
+            val++;
+          } else {
+            const num = parseFloat(fieldVal);
+            if (!isNaN(num) && num > 0) {
+              val++;
+            }
+          }
+        }
+      }
+
+      if (req === 0) {
+        req = 14;
+      }
+
+      let calcVScore = 0;
+      if (req > 0) {
+        calcVScore = Math.min(1.0, val / req);
+      }
+      const vScoreVal = calcVScore;
+
 
 
     const traceId = sub.trace_id || "Unavailable";
@@ -332,15 +365,6 @@
       correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
       evaluation_status: { val: sub.evaluation_status || "Unavailable", calc: sub.evaluation_status || "Unavailable", disp: sub.evaluation_status || "Unavailable", formula: "Evaluation Status", src: "DeepEval", resource: "DeepEval", dec: 0 },
       evaluation_count: { val: sub.evaluation_count || "Unavailable", calc: sub.evaluation_count || "Unavailable", disp: sub.evaluation_count || "Unavailable", formula: "Evaluation Count", src: "DeepEval", resource: "DeepEval", dec: 0 },
-
-      trace_id: { val: traceId, calc: traceId, disp: traceId, formula: "Active Trace ID", src: "Jaeger Registry", resource: "Jaeger", dec: 0 },
-      validation_traces: { val: validationTraces, calc: validationTraces, disp: validationTraces, formula: "Runtime Trace Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      span_count: { val: spanCount, calc: spanCount, disp: spanCount, formula: "Span Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      latency: { val: latency, calc: latency, disp: latency, formula: "Latency", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      execution_time: { val: executionTime, calc: executionTime, disp: executionTime, formula: "Execution Time", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      dependencies: { val: dependencies, calc: dependencies, disp: dependencies, formula: "Dependency Graph", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      request_duration: { val: requestDuration, calc: requestDuration, disp: requestDuration, formula: "Request Duration", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
-      error_count: { val: errorCount, calc: errorCount, disp: errorCount, formula: "Error Count", src: "Jaeger Dashboard", resource: "Jaeger", dec: 0 },
       structural_validation: { val: sub.structural_validation || "Unavailable", calc: sub.structural_validation || "Unavailable", disp: sub.structural_validation || "Unavailable", formula: "Structural Validation", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
       schema_enforcement: { val: sub.schema_enforcement || "Unavailable", calc: sub.schema_enforcement || "Unavailable", disp: sub.schema_enforcement || "Unavailable", formula: "Schema Enforcement", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
       guardrails_passed: { val: sub.guardrails_passed || "Unavailable", calc: sub.guardrails_passed || "Unavailable", disp: sub.guardrails_passed || "Unavailable", formula: "Passed Count", src: "Guardrails AI", resource: "Guardrails AI", dec: 0 },
@@ -354,15 +378,6 @@
       schema_mapping: { val: sub.schema_mapping || "Unavailable", calc: sub.schema_mapping || "Unavailable", disp: sub.schema_mapping || "Unavailable", formula: "Schema Mapping", src: "Instructor", resource: "Instructor", dec: 0 },
       instructor_passed: { val: sub.instructor_passed || "Unavailable", calc: sub.instructor_passed || "Unavailable", disp: sub.instructor_passed || "Unavailable", formula: "Passed Check", src: "Instructor", resource: "Instructor", dec: 0 },
 
-
-      trace_timeline: { val: traceTimeline, calc: traceTimeline, disp: traceTimeline, formula: "Trace Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      span_timeline: { val: spanTimeline, calc: spanTimeline, disp: spanTimeline, formula: "Span Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      service_calls: { val: serviceCalls, calc: serviceCalls, disp: serviceCalls, formula: "Service Calls", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      request_path: { val: requestPath, calc: requestPath, disp: requestPath, formula: "Request Path", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      trace_latency: { val: traceLatency, calc: traceLatency, disp: traceLatency, formula: "Trace Latency", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      execution_timeline: { val: executionTimeline, calc: executionTimeline, disp: executionTimeline, formula: "Execution Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-      error_timeline: { val: errorTimeline, calc: errorTimeline, disp: errorTimeline, formula: "Error Timeline", src: "Zipkin Dashboard", resource: "Zipkin", dec: 0 },
-
       Required_Components: { val: req, calc: req, disp: req, formula: "Count of Expected Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
       Validated_Components: { val: val, calc: val, disp: val, formula: "Count of SUCCESS Metrics", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 0 },
       Validation_Score: { val: vScoreVal, calc: calcVScore, disp: vScoreVal, formula: "Validated Components / Required Components", src: "Validation Service (runtime telemetry)", resource: "Dynamic Calculation", dec: 4 },
@@ -373,28 +388,31 @@
     sub = sub || {};
     settings = settings || {};
     
-    const accuracy = sub.semantic_accuracy || "Unavailable";
-    const consistency = sub.consistency_measurement || "Unavailable";
-    const hallucination = sub.hallucination_analysis || "Unavailable";
+    let accVal = 0;
+    if (sub.semantic_accuracy && sub.semantic_accuracy !== "Unavailable") accVal = parseFloat(sub.semantic_accuracy);
+    else if (sub.correctness && sub.correctness !== "Unavailable") accVal = parseFloat(sub.correctness);
+    if (isNaN(accVal)) accVal = 0;
+
+    let consVal = 0;
+    if (sub.consistency_measurement && sub.consistency_measurement !== "Unavailable") consVal = parseFloat(sub.consistency_measurement);
+    else if (sub.consistency && sub.consistency !== "Unavailable") consVal = parseFloat(sub.consistency);
+    if (isNaN(consVal)) consVal = 0;
+
+    let hallVal = 0;
+    if (sub.hallucination && sub.hallucination !== "Unavailable") hallVal = parseFloat(sub.hallucination);
+    if (isNaN(hallVal)) hallVal = 0;
+
+    let calcQ = (0.7 * accVal) + (0.2 * consVal) + (0.1 * (1.0 - hallVal));
+    let qScoreVal = calcQ.toFixed(4);
     
-    let qScoreVal = "Pending SME Review";
-    if (value !== undefined && value !== null && value !== "Pending SME Review") {
-      qScoreVal = value;
-    }
+    sub.Quality_Score_Calc = { acc: accVal, cons: consVal, hall: hallVal };
+
 
     return {
-      runtime_traces: { val: sub.runtime_traces || "Unavailable", calc: sub.runtime_traces || "Unavailable", disp: sub.runtime_traces || "Unavailable", formula: "Runtime Traces", src: "LangSmith", resource: "LangSmith", dec: 0 },
-      llm_evaluation: { val: sub.llm_evaluation || "Unavailable", calc: sub.llm_evaluation || "Unavailable", disp: sub.llm_evaluation || "Unavailable", formula: "LLM Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
-      hallucination_analysis: { val: sub.hallucination_analysis || "Unavailable", calc: sub.hallucination_analysis || "Unavailable", disp: sub.hallucination_analysis || "Unavailable", formula: "Hallucination Rate", src: "LangSmith", resource: "LangSmith", dec: 3 },
-      prompt_evaluation: { val: sub.prompt_evaluation || "Unavailable", calc: sub.prompt_evaluation || "Unavailable", disp: sub.prompt_evaluation || "Unavailable", formula: "Prompt Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
-      context_evaluation: { val: sub.context_evaluation || "Unavailable", calc: sub.context_evaluation || "Unavailable", disp: sub.context_evaluation || "Unavailable", formula: "Context Evaluation Score", src: "LangSmith", resource: "LangSmith", dec: 3 },
-      ground_truth_accuracy: { val: sub.ground_truth_accuracy || "Unavailable", calc: sub.ground_truth_accuracy || "Unavailable", disp: sub.ground_truth_accuracy || "Unavailable", formula: "Ground Truth Accuracy", src: "TruLens", resource: "TruLens", dec: 3 },
-      trulens_faithfulness: { val: sub.trulens_faithfulness || "Unavailable", calc: sub.trulens_faithfulness || "Unavailable", disp: sub.trulens_faithfulness || "Unavailable", formula: "Faithfulness", src: "TruLens", resource: "TruLens", dec: 3 },
-      hallucination_detection: { val: sub.hallucination_detection || "Unavailable", calc: sub.hallucination_detection || "Unavailable", disp: sub.hallucination_detection || "Unavailable", formula: "Hallucination Detection", src: "TruLens", resource: "TruLens", dec: 3 },
-      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
-      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
-      hallucination: { val: sub.hallucination || "Unavailable", calc: sub.hallucination || "Unavailable", disp: sub.hallucination || "Unavailable", formula: "Hallucination Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
-      correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "Confident AI", resource: "Confident AI", dec: 3 },
+      answer_relevancy: { val: sub.answer_relevancy || "Unavailable", calc: sub.answer_relevancy || "Unavailable", disp: sub.answer_relevancy || "Unavailable", formula: "Answer Relevancy Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      faithfulness: { val: sub.faithfulness || "Unavailable", calc: sub.faithfulness || "Unavailable", disp: sub.faithfulness || "Unavailable", formula: "Faithfulness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      hallucination: { val: sub.hallucination || "Unavailable", calc: sub.hallucination || "Unavailable", disp: sub.hallucination || "Unavailable", formula: "Hallucination Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
+      correctness: { val: sub.correctness || "Unavailable", calc: sub.correctness || "Unavailable", disp: sub.correctness || "Unavailable", formula: "Correctness Score", src: "DeepEval", resource: "DeepEval", dec: 3 },
 
 
       semantic_accuracy: { val: sub.semantic_accuracy || "Unavailable", calc: sub.semantic_accuracy || "Unavailable", disp: sub.semantic_accuracy || "Unavailable", formula: "Semantic Accuracy (QA)", src: "Ragas", resource: "Ragas", dec: 3 },
@@ -511,6 +529,15 @@
             <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Q = 0.7*Accuracy + 0.2*Consistency + 0.1*(1 - Hallucination)</div>
           </div>
         </div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;margin-top:12px;margin-bottom:12px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Quality Calculation</div>
+            <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+              <div>Accuracy : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"}</div>
+              <div>Consistency : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"}</div>
+              <div>Hallucination : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}</div>
+              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Quality Score : 0.7*${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"} + 0.2*${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"} + 0.1*(1 - ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}) = ${qScoreVal}</div>
+            </div>
+          </div>
       </div>
 
       <div class="quality-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
@@ -543,7 +570,6 @@
 
     const resources = sub.runtime_resources || {};
     const opa = resources["Open Policy Agent"] || {};
-    const presidio = resources["Microsoft Presidio"] || {};
     const secrets = resources["Detect-Secrets"] || {};
     const keycloak = resources["Keycloak"] || {};
     const openmetadata = resources["OpenMetadata"] || {};
@@ -554,17 +580,16 @@
     const policyViolations = sub["Policy Violations"] !== undefined ? Number(sub["Policy Violations"]) : 0;
 
     // Raw Governance value from the official formula (telemetry only).
-    let gScoreVal;
+    let formulaOutput;
     if (totalActions <= 0) {
-      gScoreVal = policyViolations === 0 ? 1.0 : 0.0;
+      formulaOutput = policyViolations === 0 ? 1.0 : 0.0;
     } else {
-      gScoreVal = Math.max(0.0, 1.0 - (policyViolations / totalActions));
+      formulaOutput = Math.max(0.0, 1.0 - (policyViolations / totalActions));
     }
 
     // The engine-derived value (when supplied) is authoritative for the
     // displayed Raw / Weighted numbers; fall back to the formula calc.
-    if (value === undefined || value === null) value = gScoreVal;
-    else gScoreVal = value;
+    let gScoreVal = (value === undefined || value === null) ? formulaOutput : value;
 
     const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
     const metricsMap = {
@@ -575,9 +600,6 @@
 
     if (Object.keys(opa).length > 0) {
        metricsMap["Policies Executed"] = { val: opa["Policies Executed"] || 0, calc: opa["Policies Executed"] || 0, disp: opa["Policies Executed"] || 0, formula: "OPA Rule Count", src: "Open Policy Agent", resource: "Open Policy Agent", dec: 0 };
-    }
-    if (Object.keys(presidio).length > 0) {
-       metricsMap["PII Entities Detected"] = { val: presidio["PII Entities Detected"] || 0, calc: presidio["PII Entities Detected"] || 0, disp: presidio["PII Entities Detected"] || 0, formula: "Presidio Scans", src: "Microsoft Presidio", resource: "Microsoft Presidio", dec: 0 };
     }
     if (Object.keys(secrets).length > 0) {
        metricsMap["Secrets Found"] = { val: secrets["Secrets Found"] || 0, calc: secrets["Secrets Found"] || 0, disp: secrets["Secrets Found"] || 0, formula: "Secret Scans", src: "Detect-Secrets", resource: "Detect-Secrets", dec: 0 };
@@ -614,7 +636,7 @@
     if (resourceFilter) {
       entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    entries = entries.filter(([key, m]) => m.val !== "Unavailable" && !["Total_Attempts", "Successful_Attempts", "Execution_Score"].includes(key));
 
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -682,7 +704,7 @@
           <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
             <div>Total Actions : ${totalActions}</div>
             <div>Policy Violations : ${policyViolations}</div>
-            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Governance Score : 1 - (${policyViolations} / ${totalActions}) = ${gScoreVal.toFixed(3)}</div>
+            <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Governance Score : 1 - (${policyViolations} / ${totalActions}) = ${formulaOutput.toFixed(3)}${gScoreVal !== formulaOutput ? ` (Overlay applied -> ${gScoreVal.toFixed(3)})` : ""}</div>
           </div>
           ${gateHtml}
         </div>
@@ -785,24 +807,9 @@
     };
     
     const resources = sub.runtime_resources || {};
-    const llmguard = resources["LLMGuard"] || {};
-    const trulens = resources["TruLens"] || {};
-    const rebuff = resources["Rebuff"] || {};
     const falco = resources["Falco"] || {};
     const sentry = resources["Sentry"] || {};
     const prometheus = resources["Prometheus"] || {};
-
-    if (Object.keys(llmguard).length > 0) {
-       metricsMap["LLMGuard Prompts Blocked"] = { val: llmguard["Blocked Prompts"] || 0, calc: llmguard["Blocked Prompts"] || 0, disp: llmguard["Blocked Prompts"] || 0, formula: "LLMGuard Telemetry", src: "LLMGuard", resource: "LLMGuard", dec: 0 };
-       metricsMap["LLMGuard Injection Attempts"] = { val: llmguard["Prompt Injection Attempts"] || 0, calc: llmguard["Prompt Injection Attempts"] || 0, disp: llmguard["Prompt Injection Attempts"] || 0, formula: "LLMGuard Telemetry", src: "LLMGuard", resource: "LLMGuard", dec: 0 };
-    }
-    if (Object.keys(trulens).length > 0) {
-       metricsMap["TruLens Hallucinations"] = { val: trulens["Hallucinations"] || 0, calc: trulens["Hallucinations"] || 0, disp: trulens["Hallucinations"] || 0, formula: "TruLens Telemetry", src: "TruLens", resource: "TruLens", dec: 0 };
-       metricsMap["TruLens Toxicity"] = { val: trulens["Toxicity"] || 0, calc: trulens["Toxicity"] || 0, disp: trulens["Toxicity"] || 0, formula: "TruLens Telemetry", src: "TruLens", resource: "TruLens", dec: 0 };
-    }
-    if (Object.keys(rebuff).length > 0) {
-       metricsMap["Rebuff Attack Count"] = { val: rebuff["Attack Count"] || 0, calc: rebuff["Attack Count"] || 0, disp: rebuff["Attack Count"] || 0, formula: "Rebuff Telemetry", src: "Rebuff", resource: "Rebuff", dec: 0 };
-    }
     if (Object.keys(falco).length > 0) {
        metricsMap["Falco Syscall Anomalies"] = { val: falco["Syscall Anomalies"] || 0, calc: falco["Syscall Anomalies"] || 0, disp: falco["Syscall Anomalies"] || 0, formula: "Falco Telemetry", src: "Falco", resource: "Falco", dec: 0 };
        metricsMap["Falco Container Drifts"] = { val: falco["Container Drifts"] || 0, calc: falco["Container Drifts"] || 0, disp: falco["Container Drifts"] || 0, formula: "Falco Telemetry", src: "Falco", resource: "Falco", dec: 0 };
@@ -812,8 +819,8 @@
        metricsMap["Sentry Crash-Free Sessions"] = { val: sentry["Crash-Free Sessions"] || 0, calc: sentry["Crash-Free Sessions"] || 0, disp: sentry["Crash-Free Sessions"] || 0, formula: "Sentry Telemetry", src: "Sentry", resource: "Sentry", dec: 0 };
     }
     if (Object.keys(prometheus).length > 0) {
-       metricsMap["Prometheus High CPU"] = { val: prometheus["High CPU"] || 0, calc: prometheus["High CPU"] || 0, disp: prometheus["High CPU"] || 0, formula: "Prometheus Telemetry", src: "Prometheus", resource: "Prometheus", dec: 0 };
-       metricsMap["Prometheus Latency Spikes"] = { val: prometheus["Latency Spikes"] || 0, calc: prometheus["Latency Spikes"] || 0, disp: prometheus["Latency Spikes"] || 0, formula: "Prometheus Telemetry", src: "Prometheus", resource: "Prometheus", dec: 0 };
+       metricsMap["Prometheus High CPU"] = { val: prometheus["High CPU"] || 0, calc: prometheus["High CPU"] || 0, disp: prometheus["High CPU"] || 0, formula: "Prometheus Telemetry", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 };
+       metricsMap["Prometheus Latency Spikes"] = { val: prometheus["Latency Spikes"] || 0, calc: prometheus["Latency Spikes"] || 0, disp: prometheus["Latency Spikes"] || 0, formula: "Prometheus Telemetry", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 };
     }
     
     const fmt = (val, dec = 3) => {
@@ -841,7 +848,7 @@
     if (resourceFilter) {
       entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    entries = entries.filter(([key, m]) => m.val !== "Unavailable" && !["Total_Attempts", "Successful_Attempts", "Execution_Score"].includes(key));
     
     const req = metricsMap["Rmax"] ? metricsMap["Rmax"].val : 50;
     const valMetric = metricsMap["Total Risk"] ? metricsMap["Total Risk"].val : 0;
@@ -993,7 +1000,7 @@
       entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
     // Filter out rows where value is "Unavailable"
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    entries = entries.filter(([key, m]) => m.val !== "Unavailable" && !["Total_Attempts", "Successful_Attempts", "Execution_Score"].includes(key));
 
 
     const req = metricsMap["Required_Components"] ? metricsMap["Required_Components"].val : 0;
@@ -1137,12 +1144,11 @@
       prompt_cost: "Prompt Cost",
       completion_cost: "Completion Cost",
       model_cost: "Model Cost",
-      ai_cost_per_output: "AI Cost Per Output",
-      human_cost_per_output: "Human Cost Per Output",
-      utilization: "Utilization",
-      efficiency_ratio: "Efficiency Ratio",
-      cost_score: "Cost Score",
-      tco: "TCO",
+
+        human_cost: "Human Cost",
+        ai_cost_per_output: "AI Cost Per Output",
+        efficiency_ratio: "Efficiency Ratio",
+
       // OpenLIT
       "Input Tokens": "Input Tokens",
       "Output Tokens": "Output Tokens",
@@ -1171,9 +1177,9 @@
     if (resourceFilter) {
       entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    entries = entries.filter(([key, m]) => m.val !== "Unavailable" && !["Total_Attempts", "Successful_Attempts", "Execution_Score"].includes(key));
     const rowHtml = entries.map(([key, r]) => {
-      const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'ai_cost_per_output', 'human_cost_per_output', 'tco'].includes(key);
+      const isDollarMetric = ['prompt_cost', 'completion_cost', 'model_cost', 'human_cost', 'ai_cost_per_output'].includes(key);
       // Also detect dollar-prefixed values from OpenLIT/OpenCost (e.g. "$1.20")
       const hasDollarValue = typeof r.val === 'string' && r.val.startsWith('$');
       const prefix = (isDollarMetric && !hasDollarValue) ? "$" : "";
@@ -1230,10 +1236,21 @@
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
             <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor</div>
           </div>
-        </div>
-      </div>
+</div>
+<div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
+<div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Cost Calculation</div>
+<div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+<div>Human Cost per Output : $200.00</div>
+<div>AI Cost per Output : $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'}</div>
+<div>Utilization Factor : ${fmt(sub.utilization || settings.utilization || 1.0, 2)}</div>
+<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || settings.utilization || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
+</div>
+</div>
+</div>
 
-      <div class="cost-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+</div>
+
+<div class="cost-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
           ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}COST TRACEABILITY & EFFICIENCY
         </div>
@@ -1267,15 +1284,15 @@
     }
 
     return {
-      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 0 },
+      worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
       api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Langfuse", resource: "Langfuse", dec: 2 },
       execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
       throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
-      cpu_usage: { val: sub.cpu_usage, calc: sub.cpu_usage, disp: sub.cpu_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
-      memory_usage: { val: sub.memory_usage, calc: sub.memory_usage, disp: sub.memory_usage, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 2 },
-      infrastructure_health: { val: sub.infrastructure_health, calc: sub.infrastructure_health, disp: sub.infrastructure_health, formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 0 },
+      cpu_usage: { val: sub.cpu_usage, calc: sub.cpu_usage, disp: sub.cpu_usage, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 2 },
+      memory_usage: { val: sub.memory_usage, calc: sub.memory_usage, disp: sub.memory_usage, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 2 },
+      infrastructure_health: { val: sub.infrastructure_health, calc: sub.infrastructure_health, disp: sub.infrastructure_health, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       success_rate: { val: sub.success_rate, calc: sub.success_rate, disp: sub.success_rate, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       failure_rate: { val: sub.failure_rate, calc: sub.failure_rate, disp: sub.failure_rate, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       resolution_velocity: { val: sub.resolution_velocity, calc: sub.resolution_velocity, disp: sub.resolution_velocity, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
@@ -1283,11 +1300,11 @@
       completed_tasks: { val: sub.completed, calc: sub.completed, disp: sub.completed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       failed_tasks: { val: sub.failed, calc: sub.failed, disp: sub.failed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "Raw Value", src: "Settings Layer", resource: "Settings Layer", dec: 3 },
-      human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "Prometheus", resource: "Prometheus", dec: 3 },
-      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
-      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "Backend Engine", resource: "Backend Engine", dec: 3 },
-      Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Backend Engine", dec: 4 },
-      AI_Complexity: { val: sub['E[C_AI]'], calc: sub['E[C_AI]'], disp: sub['E[C_AI]'], formula: "Raw Value", src: "Backend Engine", resource: "Backend Engine", dec: 3 }
+      human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
+      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
+      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
+      Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Workflow Layer", dec: 4 },
+      AI_Complexity: { val: sub['E[C_AI]'], calc: sub['E[C_AI]'], disp: sub['E[C_AI]'], formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 }
     };
   }
 
@@ -1371,39 +1388,31 @@
           <span style="color:#64748b;font-size:12px;">weight: 15%</span>
         </div>
         
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;">
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">AI Output (Completed)</div>
-            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${fmt(metricsMap.completed_tasks.val, 0)}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
+            <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Raw Value</div>
+              <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
+            </div>
+            <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (15%)</div>
+              <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
+            </div>
+            <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
+              <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output * γ) / Human Baseline)</div>
+            </div>
           </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Normalization (γ)</div>
-            <div style="color:#facc15;font-size:18px;font-weight:800;">${fmt(metricsMap.normalization_factor.val, 3)}</div>
-          </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Human Baseline</div>
-            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${fmt(metricsMap.human_baseline.val, 1)}</div>
+          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;margin-bottom:12px;">
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Productivity Calculation</div>
+            <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
+              <div>AI Output (Completed) : ${metricsMap.completed_tasks.val}</div>
+              <div>Normalization (γ) : ${metricsMap.normalization_factor.val}</div>
+              <div>Human Baseline : ${metricsMap.human_baseline.val}</div>
+              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Productivity Score : min(1.0, (${metricsMap.completed_tasks.val} * ${metricsMap.normalization_factor.val}) / ${metricsMap.human_baseline.val == 0 ? 1 : metricsMap.human_baseline.val}) = ${pScoreVal.toFixed(4)}</div>
+            </div>
           </div>
         </div>
-
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px;">
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Productivity Score</div>
-            <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
-          </div>
-          <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
-            <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
-          </div>
-        </div>
-
-        <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;margin-bottom:12px;">
-          <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-          <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output × γ) / Human Baseline)</div>
-        </div>
-      </div>
-
-      <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
+        <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
           ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
         </div>
@@ -1437,14 +1446,16 @@
     settings = settings || {};
     
     let attempts = 0;
-    if (!isNaN(Number(sub.iterations_used))) attempts = Number(sub.iterations_used);
-    else if (!isNaN(Number(sub.attempts))) attempts = Number(sub.attempts);
-    else if (!isNaN(Number(sub.total_attempts))) attempts = Number(sub.total_attempts);
+    if (sub.trace_captured !== undefined && sub.trace_captured !== null && sub.trace_captured !== "Unavailable") attempts = Number(sub.trace_captured);
+    else if (sub.iterations_used !== undefined && sub.iterations_used !== null && sub.iterations_used !== "Unavailable") attempts = Number(sub.iterations_used);
+    else if (sub.attempts !== undefined && sub.attempts !== null && sub.attempts !== "Unavailable") attempts = Number(sub.attempts);
+    else if (sub.total_attempts !== undefined && sub.total_attempts !== null && sub.total_attempts !== "Unavailable") attempts = Number(sub.total_attempts);
 
     let successful = 0;
-    if (!isNaN(Number(sub.successful))) successful = Number(sub.successful);
-    else if (!isNaN(Number(sub.successful_executions))) successful = Number(sub.successful_executions);
-    else if (sub.execution_status === 'success' || sub.execution_success === 1 || sub.execution_success === '1' || sub.execution_success === 'true') successful = attempts; // Fallback to attempts if status is success and no raw count is provided
+    if (sub.trace_status === 'success' || sub.execution_success === 1 || sub.execution_success === '1' || sub.execution_success === 'true') successful = attempts;
+    else if (sub.successful_executions !== undefined && sub.successful_executions !== null && sub.successful_executions !== "Unavailable") successful = Number(sub.successful_executions);
+    else if (sub.successful !== undefined && sub.successful !== null && sub.successful !== "Unavailable") successful = Number(sub.successful);
+    else if (sub.execution_status === 'success') successful = attempts;
     
     let calcEScore = 0;
     if (attempts > 0) calcEScore = successful / attempts;
@@ -1453,19 +1464,16 @@
     const eScoreVal = calcEScore;
 
     return {
+      eScoreVal: eScoreVal,
       trace_captured:     { val: sub.trace_captured    || "Unavailable", calc: sub.trace_captured    || "Unavailable", disp: sub.trace_captured    || "Unavailable", formula: "Langfuse Trace Payload",               src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
       trace_id:           { val: sub.trace_id          || "Unavailable", calc: sub.trace_id          || "Unavailable", disp: sub.trace_id          || "Unavailable", formula: "Langfuse Trace ID",                    src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
       trace_status:       { val: sub.trace_status      || "Unavailable", calc: sub.trace_status      || "Unavailable", disp: sub.trace_status      || "Unavailable", formula: "Langfuse Trace Status",                src: "Langfuse (runtime telemetry)",   resource: "Langfuse",   dec: 0 },
-      Total_Attempts:     { val: attempts, calc: attempts, disp: attempts, formula: "Agent execution iterations",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 0 },
-      Successful_Attempts:{ val: successful, calc: successful, disp: successful, formula: "Successful agent executions", src: "Phoenix (runtime telemetry)", resource: "Phoenix", dec: 0 },
-      execution_status:   { val: sub.execution_status  || "Unavailable", calc: sub.execution_status  || "Unavailable", disp: sub.execution_status  || "Unavailable", formula: "Phoenix Execution Status",             src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 0 },
-      Execution_Score:    { val: eScoreVal, calc: calcEScore, disp: eScoreVal,   formula: "Successful / Total Attempts",     src: "Phoenix (runtime telemetry)",   resource: "Phoenix",   dec: 4 },
-      workflow_execution: { val: sub.workflow_execution || "Unavailable", calc: sub.workflow_execution || "Unavailable", disp: sub.workflow_execution || "Unavailable", formula: "Workflow execution payload",          src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
-      workflow_status:    { val: sub.workflow_status   || "Unavailable", calc: sub.workflow_status   || "Unavailable", disp: sub.workflow_status   || "Unavailable", formula: "Workflow execution status",            src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
-      root_span:          { val: sub.root_span         || "Unavailable", calc: sub.root_span         || "Unavailable", disp: sub.root_span         || "Unavailable", formula: "Workflow root span",                   src: "Traceloop (runtime telemetry)", resource: "Traceloop", dec: 0 },
       otel_span_count:    { val: sub.otel_span_count   || "Unavailable", calc: sub.otel_span_count   || "Unavailable", disp: sub.otel_span_count   || "Unavailable", formula: "OpenTelemetry Span Count",             src: "OpenTelemetry (runtime telemetry)", resource: "OpenTelemetry", dec: 0 },
       otel_status:        { val: sub.otel_status       || "Unavailable", calc: sub.otel_status       || "Unavailable", disp: sub.otel_status       || "Unavailable", formula: "OpenTelemetry Export Status",          src: "OpenTelemetry (runtime telemetry)", resource: "OpenTelemetry", dec: 0 },
-      jaeger_trace:       { val: sub.jaeger_trace      || "Unavailable", calc: sub.jaeger_trace      || "Unavailable", disp: sub.jaeger_trace      || "Unavailable", formula: "Jaeger Trace ID",                      src: "Jaeger (runtime telemetry)", resource: "Jaeger", dec: 0 },
+        jaeger_trace:       { val: sub.jaeger_trace      || "Unavailable", calc: sub.jaeger_trace      || "Unavailable", disp: sub.jaeger_trace      || "Unavailable", formula: "Jaeger Trace ID",                      src: "Jaeger (runtime telemetry)",        resource: "Jaeger",        dec: 0 },
+        Total_Attempts:     { val: attempts, calc: attempts, disp: attempts, formula: "", src: "", resource: "Execution Engine", dec: 0 },
+        Successful_Attempts:{ val: successful, calc: successful, disp: successful, formula: "", src: "", resource: "Execution Engine", dec: 0 },
+        Execution_Score:    { val: calcEScore, calc: calcEScore, disp: calcEScore, formula: "", src: "", resource: "Execution Engine", dec: 3 },
     };
   }
 
@@ -1507,14 +1515,14 @@
       Execution_Score: "Execution Score",
       otel_span_count: "OTel Span Count",
       otel_status: "OTel Status",
-      jaeger_trace: "Jaeger Trace ID"
+        jaeger_trace: "Jaeger Trace",
     };
 
     let entries = Object.entries(metricsMap);
     if (resourceFilter) {
       entries = entries.filter(([key, r]) => r.resource === resourceFilter || (r.resources && r.resources.includes(resourceFilter)));
     }
-    entries = entries.filter(([_, m]) => m.val !== "Unavailable");
+    entries = entries.filter(([key, m]) => m.val !== "Unavailable" && !["Total_Attempts", "Successful_Attempts", "Execution_Score"].includes(key));
 
     const attempts = metricsMap["Total_Attempts"] ? metricsMap["Total_Attempts"].val : 0;
     const successful = metricsMap["Successful_Attempts"] ? metricsMap["Successful_Attempts"].val : 0;
@@ -2610,18 +2618,18 @@
         async _verifyDashboard(resource, metric) {
       try {
         function getCat(m) {
-          const PROD_M = ["Langfuse", "Prometheus", "Grafana Tempo", "Apache SkyWalking"];
+          const PROD_M = ["Langfuse", "Grafana Tempo", "Apache SkyWalking"];
           const COST_M = ["Grafana", "OpenLIT", "OpenCost"];
-          const VAL_M  = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
-          const QUAL_M = ["Phoenix", "Traceloop", "LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
+          const VAL_M  = ["DeepEval", "Guardrails AI", "Pydantic AI", "Instructor"];
+          const QUAL_M = ["Ragas", "AgentOps", "DeepEval"];
           if (PROD_M.includes(m)) return "productivity-evaluation";
           if (COST_M.includes(m)) return "cost-evaluation";
           if (VAL_M.includes(m))  return "validation-evaluation";
           return "quality-evaluation";
         }
         let endpoint = getCat(resource);
-        if (["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Prometheus"].includes(resource)) { endpoint = "risk-evaluation"; }
-        else if (["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"].includes(resource)) { endpoint = "governance-evaluation"; }
+        if (["Falco", "Sentry"].includes(resource)) { endpoint = "risk-evaluation"; }
+        else if (["Detect-Secrets", "Open Policy Agent", "Keycloak", "OpenMetadata"].includes(resource)) { endpoint = "governance-evaluation"; }
         
         const r = await fetch(`${apiBase(this)}/api/${endpoint}/verify-dashboard`, {
           method: "POST",
@@ -2681,7 +2689,7 @@
         'Total Infrastructure Cost': 'Total Infrastructure Cost',
         'Cluster Cost': 'Cluster Cost',
       };
-      const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost','AI_cost_per_output','Human_cost_per_output','utilization','total_cost_of_ownership'];
+      const COST_M     = ['model_cost','token_cost','prompt_cost','completion_cost'];
       const VALID_M    = ['validated_components','required_components','validation_score'];
       const QUALITY_M  = ['hallucination_score','relevance_score','groundedness_score','user_feedback_score','model_correctness'];
       const PROD_M     = ['worker_concurrency', 'execution_duration', 'throughput', 'resolution_velocity', 'human_complexity', 'decision_branches', 'api_calls', 'token_depth'];
@@ -2700,7 +2708,7 @@
         return 'other';
       }
 
-      const knownResources = ["Langfuse", "Phoenix", "Traceloop", "Prometheus", "Grafana", "DeepEval", "Jaeger", "Zipkin", "LangSmith", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", "Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata", "OpenLIT", "OpenCost", "Guardrails AI", "Pydantic AI", "Instructor", "Confident AI"];
+      const knownResources = ["Langfuse", "Grafana", "DeepEval", "Ragas", "AgentOps", "OpenTelemetry", "Grafana Tempo", "Apache SkyWalking", "Falco", "Sentry", "Detect-Secrets", "Open Policy Agent", "Keycloak", "OpenMetadata", "OpenLIT", "OpenCost", "Guardrails AI", "Pydantic AI", "Instructor", "DeepEval"];
       const apiResources = Array.from(new Set((this._results || []).map(r => r.resource_name)));
       const activeResources = Array.from(new Set([...knownResources, ...apiResources]));
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));

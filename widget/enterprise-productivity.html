@@ -260,7 +260,7 @@
     const API = "";
     const DOC_ICONS = {
       "Langfuse": "📊",
-      "Prometheus":  "📈",
+      :  "📈",
     };
 
     function h(tag, attrs, ...children) {
@@ -350,7 +350,7 @@
       return ({
         "Langfuse":
           "Evaluation framework for detailed tracing, telemetry, and tracking agent task completions, velocity, and blocks.",
-        "Prometheus":
+        :
           "Infrastructure monitoring for tracking parallel thread count, concurrency limits, and system latencies.",
       })[name] || "";
     }
@@ -492,11 +492,11 @@
 
     function renderComparison(agent, results) {
       const canonicalMap = {
-        "Completed Tasks":     { "Langfuse": true, "Prometheus": false },
-        "Failed Tasks":        { "Langfuse": true, "Prometheus": false },
-        "Blocked/Pending":     { "Langfuse": true, "Prometheus": true },
-        "Concurrency":         { "Langfuse": false, "Prometheus": true },
-        "Velocity":            { "Langfuse": true, "Prometheus": true },
+        "Completed Tasks":     { "Langfuse": true, : false },
+        "Failed Tasks":        { "Langfuse": true, : false },
+        "Blocked/Pending":     { "Langfuse": true, : true },
+        "Concurrency":         { "Langfuse": false, : true },
+        "Velocity":            { "Langfuse": true, : true },
       };
       const wrap = document.getElementById("compare-table-wrap");
       wrap.innerHTML = "";
@@ -504,12 +504,12 @@
         h("thead", null, h("tr", null,
           h("th", null, "Canonical DPI-LS Metric"),
           h("th", null, "Langfuse"),
-          h("th", null, "Prometheus"),
+          h("th", null, ),
         )),
         h("tbody", null, ...Object.keys(canonicalMap).map(k => h("tr", null,
           h("td", null, k),
           h("td", null, canonicalMap[k]["Langfuse"] ? h("span", { class: "check" }, "✓") : "—"),
-          h("td", null, canonicalMap[k]["Prometheus"]   ? h("span", { class: "check" }, "✓") : "—"),
+          h("td", null, canonicalMap[k][]   ? h("span", { class: "check" }, "✓") : "—"),
         ))),
       );
       wrap.appendChild(tbl);
