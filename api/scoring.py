@@ -730,8 +730,6 @@ def enrich_governance_sub_metrics(s, sub_metrics: dict, agent_id: str = None) ->
         "Total Active Incidents": len(incidents),
         "runtime_resources": {
             "Open Policy Agent": opa,
-            "Microsoft Presidio": presidio,
-            "Detect-Secrets": secrets,
             "Keycloak": keycloak,
             "OpenMetadata": openmetadata
         }

@@ -1917,7 +1917,7 @@ def run_productivity_evaluations(s: Session = Depends(db_session)) -> list[dict[
     service = ProductivityResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"}
+    active_resources = {"OpenTelemetry", "Apache SkyWalking", "Langfuse"}
     return [
         {
             "id": r.id,
@@ -1944,7 +1944,7 @@ def get_productivity_evaluation_results(s: Session = Depends(db_session)) -> lis
         service.run_evaluations()
         s.commit()
         eval_rows = repo.list_latest_productivity_resource_evaluations(s)
-    active_resources = {"OpenTelemetry", "Apache SkyWalking", "Langfuse", "Prometheus"}
+    active_resources = {"OpenTelemetry", "Apache SkyWalking", "Langfuse"}
     return [
         {
             "id": r.id,
@@ -2106,7 +2106,7 @@ def run_execution_evaluations(s: Session = Depends(db_session)) -> list[dict[str
     service = ExecutionResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Langfuse"}
+    active_resources = {"Langfuse", "OpenTelemetry", "Jaeger"}
     return [
         {
             "id": r.id,
@@ -2133,7 +2133,7 @@ def get_execution_evaluation_results(s: Session = Depends(db_session)) -> list[d
         service.run_evaluations()
         s.commit()
         eval_rows = list_latest_execution_resource_evaluations(s)
-    active_resources = {"Langfuse"}
+    active_resources = {"Langfuse", "OpenTelemetry", "Jaeger"}
     return [
         {
             "id": r.id,
