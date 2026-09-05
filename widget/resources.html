@@ -557,7 +557,7 @@ let dashboardUrls = {
   'Ragas':         { url: 'https://ragas.io', online: true },
   'AgentOps':      { url: 'https://app.agentops.ai', online: true },
   'OpenTelemetry': { url: 'http://localhost:16686', online: false },
-  : { url: 'http://localhost:3200', online: false },
+
   'Apache SkyWalking': { url: 'http://localhost:8080', online: false },
   'Keycloak':      { url: 'https://www.keycloak.org/documentation', online: true },
   'OpenMetadata':  { url: 'https://docs.open-metadata.org', online: true },
@@ -1312,7 +1312,7 @@ async function runEvaluation() {
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
     const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Workflow Layer"];
     const execResources = ["Langfuse", "Phoenix", "Traceloop", "OpenTelemetry", "Jaeger"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", ];
+    const riskResources = ["Falco", "Sentry", "Prometheus"];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData
@@ -1360,7 +1360,7 @@ async function loadData() {
     const valResources = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"];
     const qualResources = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"];
     const prodResources = ["OpenTelemetry", "Apache SkyWalking", "Langfuse", "Workflow Layer"];
-    const riskResources = ["Rebuff", "LLMGuard", "TruLens", "Falco", "Sentry", ];
+    const riskResources = ["Falco", "Sentry", "Prometheus"];
     const govResources = ["Detect-Secrets", "Microsoft Presidio", "Open Policy Agent", "Keycloak", "OpenMetadata"];
     // Tag Langfuse cost rows so they can be distinguished from execution rows
     const langfuseCostRows = costData

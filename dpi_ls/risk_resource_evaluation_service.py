@@ -108,6 +108,7 @@ class RiskResourceEvaluationService:
         resources = [
             ("Falco", True, True, False, True),
             ("Sentry", True, True, False, True),
+            ("Prometheus", True, True, False, True),
             
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
@@ -160,24 +161,19 @@ class RiskResourceEvaluationService:
     _SDK_IMPORT_PATHS = {
         "Falco": ("falco",),
         "Sentry": ("sentry_sdk",),
+        "Prometheus": ("prometheus_client",),
     }
 
     # Owned metrics per resource — kept in sync with register_resources.
     _OWNED_METRICS = {
-            "prompt_injection", "unsafe_prompt", "blocked_prompt",
-            "prompt_sanitization", "jailbreak_detection", "prompt_risk_score",
-        ],
-            "prompt_injection", "attack_count", "blocked_requests",
-            "allowed_requests", "injection_confidence", "injection_severity",
-        ],
-            "hallucination", "groundedness", "safety_score", "toxicity",
-            "feedback_score", "evaluation_status",
-        ],
         "Falco": [
             "syscall_anomaly", "container_drift", "unauthorized_access", "privilege_escalation"
         ],
         "Sentry": [
             "exception_rate", "crash_free_sessions", "unhandled_exceptions", "issue_count"
+        ],
+        "Prometheus": [
+            "high_cpu", "memory_leaks", "latency_spikes", "error_anomalies"
         ],
     }
 

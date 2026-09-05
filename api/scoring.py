@@ -525,15 +525,12 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, agent_id: str = None,
             })
             
     total_risk = sum(i["contribution"] for i in incidents)
-    r_max = settings.r_max if hasattr(settings, "r_max") else 50.0
+    r_max = 50.0
     risk_score = max(0.0, 1.0 - (total_risk / r_max))
 
     total_freq = sum(i["frequency"] for i in incidents)
     avg_severity = sum(i["severity_weight"] for i in incidents) / len(incidents) if incidents else 0.0
 
-    llmguard = {"Prompt Injection Attempts": 0, "Unsafe Prompts": 0, "Blocked Prompts": 0, "Jailbreaks": 0, "Sanitized Prompts": 0}
-    rebuff = {"Attack Count": 0, "Injection Attempts": 0, "Blocked Requests": 0, "Allowed Requests": 0, "Injection Confidence": 0}
-    trulens = {"Hallucinations": 0, "Groundedness": 0, "Toxicity": 0, "Safety Score": 0, "Feedback Score": 0}
     falco = {"Syscall Anomalies": 0, "Container Drifts": 0, "Unauthorized Access": 0, "Privilege Escalations": 0}
     sentry = {"Exception Rate": 0, "Crash-Free Sessions": 0, "Unhandled Exceptions": 0, "Issues": 0}
     prometheus = {"High CPU": 0, "Memory Leaks": 0, "Latency Spikes": 0, "Error Anomalies": 0}
@@ -547,14 +544,6 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, agent_id: str = None,
             elif "Unsafe" in inc["name"]: llmguard["Unsafe Prompts"] += inc["frequency"]
             elif "Jailbreak" in inc["name"]: llmguard["Jailbreaks"] += inc["frequency"]
             else: llmguard["Blocked Prompts"] += inc["frequency"]
-        elif src == "Rebuff":
-            if "Injection" in inc["name"]: rebuff["Injection Attempts"] += inc["frequency"]
-            elif "Attack" in inc["name"]: rebuff["Attack Count"] += inc["frequency"]
-            else: rebuff["Blocked Requests"] += inc["frequency"]
-        elif src == "TruLens":
-            if "Hallucination" in inc["name"]: trulens["Hallucinations"] += inc["frequency"]
-            elif "Toxic" in inc["name"]: trulens["Toxicity"] += inc["frequency"]
-            else: trulens["Safety Score"] += inc["frequency"]
         elif src == "Falco":
             if "anomaly" in inc["name"].lower() or "syscall" in inc["name"].lower(): falco["Syscall Anomalies"] += inc["frequency"]
             elif "drift" in inc["name"].lower(): falco["Container Drifts"] += inc["frequency"]
@@ -589,9 +578,6 @@ def enrich_risk_sub_metrics(s: Session, sub_metrics: dict, agent_id: str = None,
         "medium_incidents": sum(1 for i in incidents if 2.0 <= i.get("severity_weight", 0) < 5.0 or i.get("severity") == "MEDIUM"),
         "low_incidents": sum(1 for i in incidents if i.get("severity_weight", 0) < 2.0 or i.get("severity") == "LOW"),
         "runtime_resources": {
-            "LLMGuard": llmguard,
-            "Rebuff": rebuff,
-            "TruLens": trulens,
             "Falco": falco,
             "Sentry": sentry,
             "Prometheus": prometheus

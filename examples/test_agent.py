@@ -67,6 +67,8 @@ logging.getLogger("agentops").setLevel(logging.CRITICAL)
 logging.getLogger("langsmith").setLevel(logging.CRITICAL)
 logging.getLogger("traceloop").setLevel(logging.CRITICAL)
 logging.getLogger("litellm").setLevel(logging.CRITICAL)
+logging.getLogger("agents").setLevel(logging.CRITICAL)
+logging.getLogger("dpi_ls.evaluator").setLevel(logging.CRITICAL)
 logging.getLogger("opentelemetry").setLevel(logging.CRITICAL)
 logging.getLogger("dpi_ls.cost_calculator").setLevel(logging.CRITICAL)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
@@ -363,7 +365,12 @@ async def run_agent_observation() -> None:
     collector._capture_output(final_output)
     
     # Run the SDK evaluations synchronously before script exit to avoid ThreadPool errors in atexit
-    collector.finalize()
+    import sys, os
+    sys.stdout = open(os.devnull, "w")
+    try:
+        collector.finalize()
+    finally:
+        sys.stdout = sys.__stdout__
     if is_mock:
         # Clear incidents triggered by missing API keys (AgentOps/DeepEval) so G and R don't artificially fail
         collector.incidents.clear()

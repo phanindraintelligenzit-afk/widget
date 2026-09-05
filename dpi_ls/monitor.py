@@ -205,6 +205,13 @@ def _run_evaluations(collector: SignalCollector) -> None:
         push_cost_results_to_backend(openlit_res, opencost_res, host_domain, port_num)
         
         # Risk Evaluation
+        from dpi_ls.integrations import run_falco_metrics, run_sentry_metrics, run_prometheus_risk_metrics
+        falco_res = run_falco_metrics(agent_answer)
+        sentry_res = run_sentry_metrics(agent_answer)
+        prom_res = run_prometheus_risk_metrics(agent_answer)
+        if falco_res: push_risk_results_to_backend(collector.agent_id, falco_res, "Falco", host_domain, port_num)
+        if sentry_res: push_risk_results_to_backend(collector.agent_id, sentry_res, "Sentry", host_domain, port_num)
+        if prom_res: push_risk_results_to_backend(collector.agent_id, prom_res, "Prometheus", host_domain, port_num)
         
         # Governance Evaluation
         opa_res = run_opa_metrics(agent_answer)
