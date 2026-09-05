@@ -25,7 +25,7 @@ class CostResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the active cost resources and delete the others."""
         from sqlalchemy import delete
-        allowed = ["Langfuse", "Prometheus", "Grafana", "OpenLIT", "OpenCost"]
+        allowed = ["Langfuse", "OpenLIT", "OpenCost"]
         self.session.execute(delete(CostResourceRegistryRow).where(CostResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(CostResourceEvaluationRow).where(CostResourceEvaluationRow.resource_name.not_in(allowed)))
         
@@ -33,8 +33,6 @@ class CostResourceEvaluationService:
         # OpenLIT and OpenCost are intentionally omitted here to allow dynamic metrics detection
         resource_metrics = {
             "Langfuse": ["input_tokens", "output_tokens", "prompt_cost", "completion_cost", "model_cost"],
-            "Prometheus": ["ai_cost_per_output", "utilization"],
-            "Grafana": ["human_cost_per_output", "efficiency_ratio", "cost_score", "tco"]
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(
@@ -46,8 +44,6 @@ class CostResourceEvaluationService:
 
         resources = [
             ("Langfuse", True, True, True, True),
-            ("Prometheus", True, True, False, True),
-            ("Grafana", False, True, False, True),
             ("OpenLIT", True, True, False, True),
             ("OpenCost", True, True, False, True),
         ]
@@ -67,8 +63,6 @@ class CostResourceEvaluationService:
         """Helper to check if python SDK is importable for a given resource name."""
         sdk_map = {
             "Langfuse": ["langfuse"],
-            "Prometheus": ["prometheus_client"],
-            "Grafana": ["opentelemetry"],
             "OpenLIT": ["openlit"],
             "OpenCost": ["requests"],
         }
@@ -82,8 +76,6 @@ class CostResourceEvaluationService:
         """Check if the service port is open and listening locally."""
         port_map = {
             "Langfuse": 4000,
-            "Prometheus": 9090,
-            "Grafana": 3000,
             "OpenLIT": 3000,
             "OpenCost": 9003,
         }
@@ -164,8 +156,6 @@ class CostResourceEvaluationService:
 
         resource_metrics = {
             "Langfuse": langfuse_keys,
-            "Prometheus": prom_keys,
-            "Grafana": grafana_keys,
             "OpenLIT": openlit_keys,
             "OpenCost": opencost_keys,
         }
@@ -310,8 +300,6 @@ class CostResourceEvaluationService:
     def _get_env_keys(self, name: str) -> list[str]:
         keys_map = {
             "Langfuse": ["LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"],
-            "Prometheus": ["PROMETHEUS_URL"],
-            "Grafana": ["GRAFANA_URL"],
             "OpenLIT": ["OPENLIT_URL", "OPENLIT_API_KEY"],
             "OpenCost": ["OPENCOST_URL"],
         }
@@ -387,8 +375,6 @@ class CostResourceEvaluationService:
         """Map resource names to adapter sources stored in observations."""
         mapping = {
             "Langfuse": ["langfuse"],
-            "Prometheus": ["prometheus"],
-            "Grafana": ["grafana", "prometheus", "langfuse"],
         }
         return mapping.get(name, [name.lower().replace(" ", "_")])
 
@@ -435,8 +421,6 @@ class CostResourceEvaluationService:
         """Map static capability matrices (which resource can technical detect which metric)."""
         capabilities = {
             "Langfuse": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "total_cost_of_ownership", "utilization", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
-            "Prometheus": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
-            "Grafana": ["model_cost", "token_cost", "prompt_cost", "completion_cost", "AI_cost_per_output", "utilization", "total_cost_of_ownership", "validated_components", "required_components", "validation_score", "hallucination_score", "relevance_score", "groundedness_score", "user_feedback_score", "model_correctness"],
         }
         return metric in capabilities.get(resource_name, [])
 

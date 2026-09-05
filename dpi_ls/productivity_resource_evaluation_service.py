@@ -26,14 +26,13 @@ class ProductivityResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the 3 productivity resources: OpenTelemetry, Grafana Tempo, and Apache SkyWalking."""
         from sqlalchemy import delete
-        allowed = ["Langfuse", "Prometheus", "OpenTelemetry", "Apache SkyWalking", "Workflow Layer"]
+        allowed = ["Langfuse", "OpenTelemetry", "Apache SkyWalking", "Workflow Layer"]
         self.session.execute(delete(ProductivityResourceRegistryRow).where(ProductivityResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ProductivityResourceEvaluationRow).where(ProductivityResourceEvaluationRow.resource_name.not_in(allowed)))
 
         # Define owned metrics per resource
         resource_metrics = {
             "Langfuse": ["task_throughput", "latency", "execution_duration", "worker_activity", "concurrency", "success_rate", "failure_rate", "trace_count", "prompt_executions", "token_usage"],
-            "Prometheus": ["cpu", "memory", "queue_length", "infrastructure_health"],
             "OpenTelemetry": ["trace_count", "latency", "execution_duration", "concurrency"],
             "Apache SkyWalking": ["task_throughput", "worker_activity", "success_rate", "failure_rate"],
             "Workflow Layer": ["completed_tasks", "assigned_tasks", "failed_tasks"]
@@ -48,7 +47,7 @@ class ProductivityResourceEvaluationService:
 
         resources = [
             ("Langfuse", True, True, False, True),
-            ("Prometheus", True, True, False, True),
+            (True, True, False, True),
             ("OpenTelemetry", True, True, False, True),
             ("Apache SkyWalking", True, True, False, True),
             ("Workflow Layer", True, True, False, True),
@@ -68,7 +67,6 @@ class ProductivityResourceEvaluationService:
         """Helper to check if python SDK is importable for a given productivity resource name."""
         sdk_map = {
             "Langfuse": ["langfuse"],
-            "Prometheus": ["prometheus_client"],
             "OpenTelemetry": ["opentelemetry"],
             "Apache SkyWalking": ["skywalking"],
             "Workflow Layer": ["asyncio"],
@@ -122,7 +120,7 @@ class ProductivityResourceEvaluationService:
         ).first()
 
         # Extract real values from DB for Productivity resources
-        real_values = {"Langfuse": {}, "Prometheus": {}}
+        real_values = {"Langfuse": {}, : {}}
         for r_name in real_values.keys():
             try:
                 rows = self.session.scalars(
@@ -143,7 +141,6 @@ class ProductivityResourceEvaluationService:
         # The exact required metrics per the specification
         resource_metrics = {
             "Langfuse": ["task_throughput", "latency", "execution_duration", "worker_activity", "concurrency", "success_rate", "failure_rate", "trace_count", "prompt_executions", "token_usage"],
-            "Prometheus": ["cpu", "memory", "queue_length", "infrastructure_health"]
         }
 
         results = []

@@ -10,14 +10,12 @@ class ExecutionResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        allowed = ["Langfuse", "Phoenix", "Traceloop", "OpenTelemetry", "Jaeger"]
+        allowed = ["Langfuse", "OpenTelemetry", "Jaeger"]
         self.session.execute(delete(ExecutionResourceRegistryRow).where(ExecutionResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ExecutionResourceEvaluationRow).where(ExecutionResourceEvaluationRow.resource_name.not_in(allowed)))
 
         resource_metrics = {
             "Langfuse": ["trace_captured", "execution_success"],
-            "Phoenix": ["iterations_used", "execution_status"],
-            "Traceloop": ["workflow_execution"],
             "OpenTelemetry": ["span_count", "export_status"],
             "Jaeger": ["trace_id"]
         }
@@ -31,8 +29,6 @@ class ExecutionResourceEvaluationService:
 
         resources = [
             ("Langfuse", True, True, False, True),
-            ("Phoenix", True, True, False, True),
-            ("Traceloop", True, True, False, True),
             ("OpenTelemetry", True, True, False, True),
             ("Jaeger", True, True, False, True),
         ]
@@ -51,8 +47,6 @@ class ExecutionResourceEvaluationService:
         
         resource_metrics = {
             "Langfuse": ["trace_captured", "execution_success"],
-            "Phoenix": ["iterations_used", "execution_status"],
-            "Traceloop": ["workflow_execution"],
             "OpenTelemetry": ["span_count", "export_status"],
             "Jaeger": ["trace_id"]
         }

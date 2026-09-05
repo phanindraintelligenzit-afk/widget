@@ -24,19 +24,17 @@ class QualityResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        """Register the 3 quality resources: LangSmith, Ragas, and AgentOps."""
+        """Register the 3 quality resources: Ragas, AgentOps, and DeepEval."""
         from sqlalchemy import delete
-        allowed = ["LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"]
+        allowed = ["Ragas", "AgentOps", "DeepEval"]
         self.session.execute(delete(QualityResourceRegistryRow).where(QualityResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(QualityResourceEvaluationRow).where(QualityResourceEvaluationRow.resource_name.not_in(allowed)))
 
         # Define owned metrics per resource
         resource_metrics = {
-            "LangSmith": ["runtime_traces", "llm_evaluation", "hallucination_analysis", "prompt_evaluation", "context_evaluation"],
             "Ragas": ["semantic_accuracy", "faithfulness", "answer_relevancy", "context_precision", "context_recall"],
             "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"],
-            "Confident AI": ["answer_relevancy", "faithfulness", "hallucination", "correctness"],
-            "TruLens": ["ground_truth_accuracy", "trulens_faithfulness", "hallucination_detection"]
+            "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness"],
         }
         for res_name, owned in resource_metrics.items():
             self.session.execute(
@@ -47,11 +45,9 @@ class QualityResourceEvaluationService:
         self.session.flush()
 
         resources = [
-            ("LangSmith", True, True, True, True),
-            ("Ragas", True, True, False, True),
+                        ("Ragas", True, True, False, True),
             ("AgentOps", True, True, True, True),
-            ("Confident AI", True, True, False, True),
-            ("TruLens", True, True, False, True),
+            ("DeepEval", True, True, False, True),
         ]
         for name, sdk_avail, api_avail, api_key_req, implemented in resources:
             sdk_ok = self._check_sdk_avail(name)
@@ -67,11 +63,9 @@ class QualityResourceEvaluationService:
     def _check_sdk_avail(self, name: str) -> bool:
         """Helper to check if python SDK is importable for a given quality resource name."""
         sdk_map = {
-            "LangSmith": ["langsmith"],
             "Ragas": ["ragas"],
             "AgentOps": ["agentops"],
-            "Confident AI": ["deepeval"],
-            "TruLens": ["trulens_eval"],
+            "DeepEval": ["deepeval"],
         }
         module_names = sdk_map.get(name, [])
         if not module_names:
@@ -128,7 +122,7 @@ class QualityResourceEvaluationService:
         ).first()
 
         # Extract real values from DB for all three Quality resources
-        real_values = {"LangSmith": {}, "Ragas": {}, "AgentOps": {}}
+        real_values = {"Ragas": {}, "AgentOps": {}, "DeepEval": {}}
         for r_name in real_values.keys():
             try:
                 rows = self.session.scalars(
@@ -148,7 +142,6 @@ class QualityResourceEvaluationService:
 
         # The exact required metrics per the specification
         resource_metrics = {
-            "LangSmith": ["runtime_traces", "llm_evaluation", "hallucination_analysis", "prompt_evaluation", "context_evaluation"],
             "Ragas": ["semantic_accuracy", "faithfulness", "answer_relevancy", "context_precision", "context_recall"],
             "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"]
         }

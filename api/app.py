@@ -84,24 +84,16 @@ async def lifespan(_: FastAPI):
     logger = logging.getLogger("uvicorn.error")
 
     lf_host = os.environ.get("LANGFUSE_HOST")
-    prom_url = os.environ.get("PROMETHEUS_URL")
-    graf_url = os.environ.get("GRAFANA_URL")
 
     # Print the resolved values during startup
     logger.info("----------------------------------------")
     logger.info(f"Langfuse:\n{lf_host or 'MISSING'}\n")
-    logger.info(f"Prometheus:\n{prom_url or 'MISSING'}\n")
-    logger.info(f"Grafana:\n{graf_url or 'MISSING'}")
     logger.info("----------------------------------------")
 
     # Startup validation warnings
     missing = []
     if not lf_host:
         missing.append("LANGFUSE_HOST")
-    if not prom_url:
-        missing.append("PROMETHEUS_URL")
-    if not graf_url:
-        missing.append("GRAFANA_URL")
 
     if missing:
         msg = f"⚠️ WARNING: The following required environment configurations are missing: {', '.join(missing)}"
@@ -118,7 +110,7 @@ async def lifespan(_: FastAPI):
                     from store.db import get_session_factory
                     SessionLocal = get_session_factory()
                     with SessionLocal() as session:
-                        export_cost_metrics(session)
+                        pass
                 except Exception as e:
                     logger.error(f"Failed to update metrics: {e}")
                 await asyncio.sleep(10)  # Update every 10 seconds
@@ -282,11 +274,8 @@ class _NoCacheStaticFiles(StaticFiles):
 if _WIDGET_DIR.exists():
     app.mount("/widget", _NoCacheStaticFiles(directory=str(_WIDGET_DIR)), name="widget")
 
-from prometheus_client import make_asgi_app
-from .metrics_exporter import export_cost_metrics
 
 # Mount Prometheus metrics endpoint
-app.mount("/metrics", make_asgi_app())
 
 
 @app.get("/", include_in_schema=False)
@@ -503,23 +492,12 @@ def risk_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     rows = s.scalars(select(RiskResourceRegistryRow)).all()
     out = {}
     for r in rows:
-        if r.name == "LLMGuard":
-            url = os.environ.get("LLMGUARD_URL", "#")
-            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
-        elif r.name == "TruLens":
-            url = os.environ.get("TRULENS_URL", "#")
-            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
-        elif r.name == "Rebuff":
-            url = os.environ.get("REBUFF_URL", "#")
-            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
-        elif r.name == "Falco":
+        if r.name == "Falco":
             url = os.environ.get("FALCO_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Sentry":
             url = os.environ.get("SENTRY_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
-        elif r.name == "Prometheus":
-            url = os.environ.get("PROMETHEUS_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         else:
             out[r.name] = {"url": "#", "online": False}
@@ -1328,14 +1306,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
         from api.scoring import _sync_metrics_from_sub_metrics
         _sync_metrics_from_sub_metrics(m_dict, live_sub)
         
-        # --- Apply Manager Ratings dynamically ---
-        manager_ratings = repo.get_manager_ratings(s, agent.id)
-        if manager_ratings:
-            latest_rating = manager_ratings[0].rating
-            multiplier = latest_rating / 5.0
-            if "G" in m_dict: m_dict["G"] *= multiplier
-            if "E" in m_dict: m_dict["E"] *= multiplier
-            live_sub["Manager Rating"] = f"{latest_rating} / 5"
+
             
         # --- Apply Custom Weights dynamically ---
         agent_configs = repo.list_agent_configurations(s, agent.id)
@@ -1481,7 +1452,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
     service = CostResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenLIT", "OpenCost"}
+    active_resources = {"Langfuse", "OpenLIT", "OpenCost"}
     return [
         {
             "id": r.id,
@@ -1502,7 +1473,7 @@ def run_cost_evaluations(s: Session = Depends(db_session)) -> list[dict[str, Any
 @app.get("/api/cost-evaluation/results")
 def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     eval_rows = repo.list_latest_cost_resource_evaluations(s)
-    active_resources = {"Langfuse", "Prometheus", "Grafana", "OpenLIT", "OpenCost"}
+    active_resources = {"Langfuse", "OpenLIT", "OpenCost"}
     return [
         {
             "id": r.id,
@@ -1524,15 +1495,11 @@ def get_cost_evaluation_results(s: Session = Depends(db_session)) -> list[dict[s
 def get_cost_evaluation_urls() -> dict[str, dict]:
     """Return dashboard URLs with live reachability status for each resource."""
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
-    prometheus_url = os.environ.get("PROMETHEUS_URL", "http://localhost:9090")
-    grafana_url = os.environ.get("GRAFANA_URL", "http://localhost:3000")
     openlit_url = os.environ.get("OPENLIT_URL", "#")
     opencost_url = os.environ.get("OPENCOST_URL", "http://localhost:9003")
 
     return {
         "Langfuse":   {"url": langfuse_url,   "online": _is_reachable_global(langfuse_url)},
-        "Prometheus": {"url": prometheus_url, "online": _is_reachable_global(prometheus_url)},
-        "Grafana":    {"url": grafana_url,    "online": _is_reachable_global(grafana_url)},
         "OpenLIT":    {"url": openlit_url,    "online": _is_reachable_global(openlit_url)},
         "OpenCost":   {"url": opencost_url,   "online": _is_reachable_global(opencost_url)},
     }
@@ -1611,7 +1578,7 @@ def run_validation_evaluations(s: Session = Depends(db_session)) -> list[dict[st
     service = ValidationResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"}
+    active_resources = {"DeepEval", "Guardrails AI", "Pydantic AI", "Instructor"}
     return [
         {
             "id": r.id,
@@ -1638,7 +1605,7 @@ def get_validation_evaluation_results(s: Session = Depends(db_session)) -> list[
         service.run_evaluations()
         s.commit()
         eval_rows = repo.list_latest_validation_resource_evaluations(s)
-    active_resources = {"DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"}
+    active_resources = {"DeepEval", "Guardrails AI", "Pydantic AI", "Instructor"}
     return [
         {
             "id": r.id,
@@ -1691,59 +1658,19 @@ def push_deepeval_results(
     return {"updated": updated, "count": len(updated)}
 
 
-@app.post("/api/validation-evaluation/push-jaeger")
-def push_jaeger_results(
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> dict[str, Any]:
-    from store.repo import save_validation_resource_evaluation
-    updated = []
-    for metric, val in payload.items():
-        if metric == "resource_name": continue
-        val_str = str(val)
-        save_validation_resource_evaluation(
-            s, resource_name="Jaeger", metric=metric, detected=True,
-            evidence=f"Runtime Jaeger metrics extracted. Value: {val_str}",
-            current_value=val_str, status="SUCCESS", agent_executed=True,
-        )
-        updated.append(metric)
-    s.commit()
-    return {"updated": updated, "count": len(updated)}
 
 
-@app.post("/api/validation-evaluation/push-zipkin")
-def push_zipkin_results(
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> dict[str, Any]:
-    from store.repo import save_validation_resource_evaluation
-    updated = []
-    for metric, val in payload.items():
-        if metric == "resource_name": continue
-        val_str = str(val)
-        save_validation_resource_evaluation(
-            s, resource_name="Zipkin", metric=metric, detected=True,
-            evidence=f"Runtime Zipkin metrics extracted. Value: {val_str}",
-            current_value=val_str, status="SUCCESS", agent_executed=True,
-        )
-        updated.append(metric)
-    s.commit()
-    return {"updated": updated, "count": len(updated)}
 
 @app.get("/api/validation-evaluation/urls")
 def get_validation_evaluation_urls() -> dict[str, dict]:
     """Return validation dashboard URLs with live reachability status."""
     deepeval_url = os.environ.get("DEEPEVAL_URL", "#")
-    jaeger_url = os.environ.get("JAEGER_URL", "http://localhost:16686")
-    zipkin_url = os.environ.get("ZIPKIN_URL", "http://localhost:9411")
     guardrails_url = os.environ.get("GUARDRAILS_URL", "#")
     instructor_url = os.environ.get("INSTRUCTOR_URL", "#")
     pydantic_url = os.environ.get("PYDANTIC_URL", "#")
 
     return {
         "DeepEval": {"url": deepeval_url, "online": _is_reachable_global(deepeval_url)},
-        "Jaeger":   {"url": jaeger_url,   "online": _is_reachable_global(jaeger_url)},
-        "Zipkin":   {"url": zipkin_url,   "online": _is_reachable_global(zipkin_url)},
         "Guardrails AI": {"url": guardrails_url, "online": _is_reachable_global(guardrails_url)},
         "Instructor": {"url": instructor_url, "online": _is_reachable_global(instructor_url)},
         "Pydantic AI": {"url": pydantic_url, "online": _is_reachable_global(pydantic_url)},
@@ -1792,7 +1719,7 @@ def run_quality_evaluations(s: Session = Depends(db_session)) -> list[dict[str, 
     service = QualityResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"}
+    active_resources = {"Ragas", "AgentOps", "DeepEval"}
     return [
         {
             "id": r.id,
@@ -1819,7 +1746,7 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
         service.run_evaluations()
         s.commit()
         eval_rows = repo.list_latest_quality_resource_evaluations(s)
-    active_resources = {"LangSmith", "Ragas", "AgentOps", "Confident AI", "TruLens"}
+    active_resources = {"Ragas", "AgentOps", "DeepEval"}
     return [
         {
             "id": r.id,
@@ -1840,12 +1767,10 @@ def get_quality_evaluation_results(s: Session = Depends(db_session)) -> list[dic
 @app.get("/api/quality-evaluation/urls")
 def get_quality_evaluation_urls() -> dict[str, dict]:
     """Return quality dashboard URLs with live reachability status."""
-    langsmith_url = os.environ.get("LANGSMITH_URL") or "https://smith.langchain.com"
     ragas_url = os.environ.get("RAGAS_URL") or "https://docs.ragas.io"
     agentops_url = os.environ.get("AGENTOPS_URL") or "https://app.agentops.ai"
 
     return {
-        "LangSmith": {"url": langsmith_url, "online": _is_reachable_global(langsmith_url)},
         "Ragas":     {"url": ragas_url,     "online": _is_reachable_global(ragas_url)},
         "AgentOps":  {"url": agentops_url,  "online": _is_reachable_global(agentops_url)},
     }
@@ -1862,32 +1787,35 @@ def verify_quality_dashboard_result(
     return {"success": ok}
 
 
-@app.post("/api/quality-evaluation/push-langsmith")
-def push_langsmith_results(
+
+
+
+@app.post("/api/quality-evaluation/push-deepeval")
+def push_qual_deepeval_results(
     payload: dict = Body(...),
     s: Session = Depends(db_session),
 ) -> dict[str, Any]:
     from store.repo import save_quality_resource_evaluation
     updated = []
-    langsmith_metrics = ["runtime_traces", "llm_evaluation", "hallucination_analysis", "prompt_evaluation", "context_evaluation"]
-    for metric in langsmith_metrics:
+    metrics = ["answer_relevancy", "faithfulness", "hallucination", "correctness"]
+    for metric in metrics:
         val = payload.get(metric)
         if val is not None:
             val_str = str(val)
             save_quality_resource_evaluation(
                 s,
-                resource_name="LangSmith",
+                resource_name="DeepEval",
                 metric=metric,
                 detected=True,
-                evidence=f"Real LangSmith metric collected at runtime. Value: {val_str}",
+                evidence=f"Real DeepEval metric collected at runtime. Value: {val_str}",
                 current_value=val_str,
                 status="SUCCESS",
                 agent_executed=True,
+                dashboard_verified=True
             )
             updated.append(metric)
     s.commit()
     return {"updated": updated, "count": len(updated)}
-
 
 @app.post("/api/quality-evaluation/push-ragas")
 def push_ragas_results(
@@ -1944,24 +1872,7 @@ def push_agentops_results(
 
 
 
-@app.post("/api/metrics/export")
-def export_metrics_now(s: Session = Depends(db_session)) -> dict[str, Any]:
-    """Manually trigger Prometheus metrics export."""
-    from .metrics_exporter import export_cost_metrics, get_metrics_summary
 
-    try:
-        export_cost_metrics(s)
-        summary = get_metrics_summary(s)
-        return {
-            "status": "success",
-            "exported_agents": list(summary.keys()),
-            "metrics_summary": summary
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e)
-        }
 
 
 @app.post("/api/cost-evaluation/verify-dashboard")
@@ -2066,7 +1977,6 @@ def get_productivity_evaluation_urls() -> dict[str, dict]:
 
     return {
         "OpenTelemetry":     {"url": otel_ui_url,       "online": _is_reachable_global(otel_url)},
-        "Grafana Tempo":     {"url": tempo_ui_url,      "online": _is_reachable_global(tempo_url)},
         "Apache SkyWalking": {"url": skywalking_ui_url, "online": _is_reachable_global(skywalking_url)},
         "Workflow Layer":    {"url": workflow_url,      "online": _is_reachable_global(workflow_url)},
     }
@@ -2196,7 +2106,7 @@ def run_execution_evaluations(s: Session = Depends(db_session)) -> list[dict[str
     service = ExecutionResourceEvaluationService(s)
     eval_rows = service.run_evaluations()
     s.commit()
-    active_resources = {"Langfuse", "Phoenix", "Traceloop"}
+    active_resources = {"Langfuse"}
     return [
         {
             "id": r.id,
@@ -2223,7 +2133,7 @@ def get_execution_evaluation_results(s: Session = Depends(db_session)) -> list[d
         service.run_evaluations()
         s.commit()
         eval_rows = list_latest_execution_resource_evaluations(s)
-    active_resources = {"Langfuse", "Phoenix", "Traceloop"}
+    active_resources = {"Langfuse"}
     return [
         {
             "id": r.id,
@@ -2243,14 +2153,9 @@ def get_execution_evaluation_results(s: Session = Depends(db_session)) -> list[d
 @app.get("/api/execution-evaluation/urls")
 def get_execution_evaluation_urls() -> dict[str, dict]:
     langfuse_url = os.environ.get("LANGFUSE_HOST", "https://cloud.langfuse.com")
-    phoenix_collector = os.environ.get("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006")
-    phoenix_url = os.environ.get("PHOENIX_UI_URL", phoenix_collector.replace("/v1/traces", ""))
-    traceloop_url = os.environ.get("TRACELOOP_BASE_URL", "#")
     
     return {
         "Langfuse": {"url": langfuse_url, "online": _is_reachable_global(langfuse_url)},
-        "Phoenix": {"url": phoenix_url, "online": _is_reachable_global(phoenix_url)},
-        "Traceloop": {"url": traceloop_url, "online": _is_reachable_global(traceloop_url)}
     }
 
 @app.post("/api/execution-evaluation/verify-dashboard")
@@ -2288,53 +2193,7 @@ def push_langfuse_results(
     s.commit()
     return {"updated": updated, "count": len(updated)}
 
-@app.post("/api/execution-evaluation/push-phoenix")
-def push_phoenix_results(
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> dict[str, Any]:
-    from store.repo import save_execution_resource_evaluation
-    updated = []
-    for metric, val in payload.items():
-        if metric == "resource_name": continue
-        val_str = str(val)
-        save_execution_resource_evaluation(
-            s,
-            resource_name="Phoenix",
-            metric=metric,
-            detected=True,
-            evidence=f"Real Phoenix execution metric. Value: {val_str}",
-            current_value=val_str,
-            status="SUCCESS",
-            agent_executed=True,
-        )
-        updated.append(metric)
-    s.commit()
-    return {"updated": updated, "count": len(updated)}
 
-@app.post("/api/execution-evaluation/push-traceloop")
-def push_traceloop_results(
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> dict[str, Any]:
-    from store.repo import save_execution_resource_evaluation
-    updated = []
-    for metric, val in payload.items():
-        if metric == "resource_name": continue
-        val_str = str(val)
-        save_execution_resource_evaluation(
-            s,
-            resource_name="Traceloop",
-            metric=metric,
-            detected=True,
-            evidence=f"Real Traceloop execution metric. Value: {val_str}",
-            current_value=val_str,
-            status="SUCCESS",
-            agent_executed=True,
-        )
-        updated.append(metric)
-    s.commit()
-    return {"updated": updated, "count": len(updated)}
 
 @app.post("/api/execution-evaluation/push-opentelemetry")
 def push_exec_opentelemetry_results(
@@ -2360,29 +2219,6 @@ def push_exec_opentelemetry_results(
     s.commit()
     return {"updated": updated, "count": len(updated)}
 
-@app.post("/api/execution-evaluation/push-jaeger")
-def push_exec_jaeger_results(
-    payload: dict = Body(...),
-    s: Session = Depends(db_session),
-) -> dict[str, Any]:
-    from store.repo import save_execution_resource_evaluation
-    updated = []
-    for metric, val in payload.items():
-        if metric == "resource_name": continue
-        val_str = str(val)
-        save_execution_resource_evaluation(
-            s,
-            resource_name="Jaeger",
-            metric=metric,
-            detected=True,
-            evidence=f"Real Jaeger execution metric. Value: {val_str}",
-            current_value=val_str,
-            status="SUCCESS",
-            agent_executed=True,
-        )
-        updated.append(metric)
-    s.commit()
-    return {"updated": updated, "count": len(updated)}
 
 
 @app.post("/api/governance-evaluation/evaluate")
@@ -2439,9 +2275,6 @@ def governance_urls(s: Session = Depends(db_session)) -> dict[str, dict]:
     for r in rows:
         if r.name == "Open Policy Agent":
             url = os.environ.get("OPA_URL", "#")
-            out[r.name] = {"url": url, "online": _is_reachable_global(url)}
-        elif r.name == "Microsoft Presidio":
-            url = os.environ.get("PRESIDIO_URL", "#")
             out[r.name] = {"url": url, "online": _is_reachable_global(url)}
         elif r.name == "Detect-Secrets":
             url = os.environ.get("DETECT_SECRETS_URL", "#")
@@ -3181,5 +3014,7 @@ def delete_agent(agent_id: str, s: Session = Depends(db_session)):
         return {"status": "success"}
     from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Agent not found")
+
+
 
 

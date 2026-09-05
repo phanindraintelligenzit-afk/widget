@@ -95,14 +95,13 @@ class GovernanceResourceEvaluationService:
         or ``/api/governance-evaluation/push`` for live incidents). The
         resource *catalog* (registry) is preserved.
         """
-        allowed = ["Open Policy Agent", "Microsoft Presidio", "Detect-Secrets", "Keycloak", "OpenMetadata"]
+        allowed = ["Open Policy Agent", "Detect-Secrets", "Keycloak", "OpenMetadata"]
         self.session.execute(delete(GovernanceResourceRegistryRow).where(GovernanceResourceRegistryRow.name.not_in(allowed)))
         # Wipe all seeded governance telemetry — runtime only.
         self.session.execute(delete(GovernanceResourceEvaluationRow))
 
         resource_metrics = {
             "Open Policy Agent": ["Policies Executed", "Policies Passed", "Policies Failed", "Denied Requests", "Allowed Requests", "Policy Compliance", "Critical Violations", "Policy Evaluation Time", "Policy Decision Logs", "Bundle Version", "Policy ID", "Decision ID", "Trace ID", "Timestamp"],
-            "Microsoft Presidio": ["PII Entities Detected", "Entity Types", "Masked Entities", "Mask Success", "Mask Failure", "Detection Confidence", "Recognizer Used", "Compliance Status", "Processing Time", "Trace ID", "Timestamp"],
             "Detect-Secrets": ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"],
             "Keycloak": ["Users", "Groups", "Roles", "Authentication Events", "Authorization Events", "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", "Permission Grants", "Permission Denials", "Token Events", "Realm Events", "Admin Events", "Security Events", "Audit Events"],
             "OpenMetadata": ["Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", "Owners", "Domains", "Business Glossary", "Classifications", "Tags", "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"]
@@ -118,7 +117,6 @@ class GovernanceResourceEvaluationService:
 
         resources = [
             ("Open Policy Agent", True, True, False, True),
-            ("Microsoft Presidio", True, True, False, True),
             ("Detect-Secrets", True, True, False, True),
             ("Keycloak", True, True, False, True),
             ("OpenMetadata", True, True, False, True),
@@ -152,7 +150,6 @@ class GovernanceResourceEvaluationService:
 
         # Categorize incidents by source
         opa_incidents = [i for i in incidents if i.source_resource == "Open Policy Agent"]
-        presidio_incidents = [i for i in incidents if i.source_resource == "Microsoft Presidio"]
         secrets_incidents = [i for i in incidents if i.source_resource == "Detect-Secrets"]
         keycloak_incidents = [i for i in incidents if i.source_resource == "Keycloak"]
         openmetadata_incidents = [i for i in incidents if i.source_resource == "OpenMetadata"]
@@ -174,23 +171,6 @@ class GovernanceResourceEvaluationService:
                 dashboard_verified=has_opa,
                 agent_executed=has_opa
             )
-
-        # Evaluate Microsoft Presidio
-        presidio_freq = sum(i.frequency for i in presidio_incidents)
-        has_presidio = presidio_freq > 0 or is_test_env
-        metrics_presidio = ["PII Entities Detected", "Entity Types", "Masked Entities", "Mask Success", "Mask Failure", "Detection Confidence", "Recognizer Used", "Compliance Status", "Processing Time", "Trace ID", "Timestamp"]
-        for m in metrics_presidio:
-            save_governance_resource_evaluation(
-                self.session, "Microsoft Presidio", m,
-                detected=has_presidio,
-                evidence=f"{presidio_freq} records detected in runtime" if has_presidio else "No incidents",
-                current_value=str(presidio_freq),
-                status="SUCCESS" if has_presidio else "FAILED",
-                dashboard_verified=has_presidio,
-                agent_executed=has_presidio
-            )
-
-        # Evaluate Detect-Secrets
         secrets_freq = sum(i.frequency for i in secrets_incidents)
         has_secrets = secrets_freq > 0 or is_test_env
         metrics_secrets = ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"]
@@ -246,7 +226,6 @@ class GovernanceResourceEvaluationService:
 
     _SDK_IMPORT_PATHS = {
         "Open Policy Agent": ("opa_python_client", "opa"),  # any Python OPA client
-        "Microsoft Presidio": ("presidio_analyzer",),
         "Detect-Secrets": ("detect_secrets",),
         "Keycloak": ("keycloak",),
         "OpenMetadata": ("metadata",),
@@ -259,12 +238,6 @@ class GovernanceResourceEvaluationService:
             "Critical Violations", "Policy Evaluation Time",
             "Policy Decision Logs", "Bundle Version", "Policy ID",
             "Decision ID", "Trace ID", "Timestamp",
-        ],
-        "Microsoft Presidio": [
-            "PII Entities Detected", "Entity Types", "Masked Entities",
-            "Mask Success", "Mask Failure", "Detection Confidence",
-            "Recognizer Used", "Compliance Status", "Processing Time",
-            "Trace ID", "Timestamp",
         ],
         "Detect-Secrets": [
             "Secrets Found", "Secrets Blocked", "Critical Secrets",

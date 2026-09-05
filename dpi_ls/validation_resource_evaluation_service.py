@@ -25,15 +25,13 @@ class ValidationResourceEvaluationService:
     def register_resources(self) -> None:
         """Register the 3 validation resources: DeepEval, Jaeger, and Zipkin."""
         from sqlalchemy import delete
-        allowed = ["DeepEval", "Jaeger", "Zipkin", "Guardrails AI", "Pydantic AI", "Instructor"]
+        allowed = ["DeepEval", "Guardrails AI", "Pydantic AI", "Instructor"]
         self.session.execute(delete(ValidationResourceRegistryRow).where(ValidationResourceRegistryRow.name.not_in(allowed)))
         self.session.execute(delete(ValidationResourceEvaluationRow).where(ValidationResourceEvaluationRow.resource_name.not_in(allowed)))
 
         # Define owned metrics per resource
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"],
-            "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"],
-            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"],
             "Guardrails AI": ["structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed"],
             "Pydantic AI": ["type_safe_parsing", "validation_errors", "schema_validation"],
             "Instructor": ["structured_output_validation", "schema_mapping", "instructor_passed"]
@@ -48,8 +46,6 @@ class ValidationResourceEvaluationService:
 
         resources = [
             ("DeepEval", True, True, False, True),
-            ("Jaeger", True, True, False, True),
-            ("Zipkin", True, True, False, True),
             ("Guardrails AI", True, True, False, True),
             ("Pydantic AI", True, True, False, True),
             ("Instructor", True, True, False, True),
@@ -69,8 +65,6 @@ class ValidationResourceEvaluationService:
         """Helper to check if python SDK is importable for a given validation resource name."""
         sdk_map = {
             "DeepEval": ["deepeval"],
-            "Jaeger": ["opentelemetry"],
-            "Zipkin": ["opentelemetry"],
             "Guardrails AI": ["guardrails"],
             "Pydantic AI": ["pydantic_ai", "pydantic"],
             "Instructor": ["instructor"],
@@ -96,8 +90,6 @@ class ValidationResourceEvaluationService:
         """
         port_map = {
             "DeepEval": None,
-            "Jaeger": 14268,  # Jaeger HTTP collector port
-            "Zipkin": 9411,   # Zipkin HTTP collector port
         }
         port = port_map.get(name)
         if not port:
@@ -156,8 +148,6 @@ class ValidationResourceEvaluationService:
         try:
             for resource_name, target_dict in [
                 ("DeepEval", deepeval_real_values),
-                ("Jaeger", jaeger_real_values),
-                ("Zipkin", zipkin_real_values)
             ]:
                 rows = self.session.scalars(
                     select(ValidationResourceEvaluationRow)
@@ -182,8 +172,6 @@ class ValidationResourceEvaluationService:
         is_test_env = os.environ.get("DPI_LS_TEST_MOCK_EVAL") == "1"
         resource_metrics = {
             "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness", "evaluation_status", "evaluation_count"] if is_test_env else list(deepeval_real_values.keys()),
-            "Jaeger": ["trace_id", "span_count", "latency", "execution_time", "dependencies", "request_duration", "error_count", "validation_traces"] if is_test_env else [k for k in jaeger_metrics.keys() if not k.endswith("_evidence")],
-            "Zipkin": ["trace_timeline", "span_timeline", "service_calls", "request_path", "trace_latency", "execution_timeline", "error_timeline"] if is_test_env else [k for k in zipkin_metrics.keys() if not k.endswith("_evidence")],
             "Guardrails AI": ["structural_validation", "schema_enforcement", "guardrails_passed", "guardrails_failed"],
             "Pydantic AI": ["type_safe_parsing", "validation_errors", "schema_validation"],
             "Instructor": ["structured_output_validation", "schema_mapping", "instructor_passed"]

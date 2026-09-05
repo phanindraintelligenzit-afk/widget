@@ -67,6 +67,8 @@ logging.getLogger("agentops").setLevel(logging.CRITICAL)
 logging.getLogger("langsmith").setLevel(logging.CRITICAL)
 logging.getLogger("traceloop").setLevel(logging.CRITICAL)
 logging.getLogger("litellm").setLevel(logging.CRITICAL)
+logging.getLogger("agents").setLevel(logging.CRITICAL)
+logging.getLogger("dpi_ls.evaluator").setLevel(logging.CRITICAL)
 logging.getLogger("opentelemetry").setLevel(logging.CRITICAL)
 logging.getLogger("dpi_ls.cost_calculator").setLevel(logging.CRITICAL)
 logging.getLogger("botocore.credentials").setLevel(logging.CRITICAL)
@@ -363,7 +365,12 @@ async def run_agent_observation() -> None:
     collector._capture_output(final_output)
     
     # Run the SDK evaluations synchronously before script exit to avoid ThreadPool errors in atexit
-    collector.finalize()
+    import sys, os
+    sys.stdout = open(os.devnull, "w")
+    try:
+        collector.finalize()
+    finally:
+        sys.stdout = sys.__stdout__
     if is_mock:
         # Clear incidents triggered by missing API keys (AgentOps/DeepEval) so G and R don't artificially fail
         collector.incidents.clear()
@@ -384,29 +391,12 @@ async def run_agent_observation() -> None:
     if is_mock:
         obs = collector.to_observation()
         
-        from contract.models import ProductivityEvaluation, QualityEvaluation, ExecutionEvaluation
+        from contract.models import Productivity, Quality, Executions
         
-        if obs.productivity is None:
-            obs.productivity = ProductivityEvaluation(effective_output=15.0, human_baseline=1.0)
-        else:
-            obs.productivity.effective_output = 15.0
-            obs.productivity.automation_ratio = 0.8
-            
-        if obs.quality is None:
-            obs.quality = QualityEvaluation()
-        obs.quality.accuracy = 0.95
-        obs.quality.consistency = 0.90
-        obs.quality.hallucination_rate = 0.05
-        
-        if obs.executions is None:
-            obs.executions = ExecutionEvaluation()
-        obs.executions.success_rate = 1.0
-        obs.executions.error_rate = 0.0
-        obs.executions.tool_utilization = 0.85
-            
+                    
         import requests
         try:
-            res = requests.post(f"{base_url}/api/observations", json=obs.model_dump())
+            res = requests.post(f"{base_url}/ingest", json=obs)
             rating = res.json() if res.ok else None
         except Exception:
             rating = None
@@ -429,3 +419,8 @@ async def run_agent_observation() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
+
+
+
+
+
