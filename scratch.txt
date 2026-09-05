@@ -1,0 +1,40 @@
+651:                     except (TypeError, ValueError):
+652:                         pass
+653:             elif r.resource_name == "Keycloak":
+654:                 if r.metric in keycloak and r.current_value is not None:
+655:                     try:
+656:                         keycloak[r.metric] = int(r.current_value)
+657:                     except (TypeError, ValueError):
+658:                         pass
+659:             elif r.resource_name == "OpenMetadata":
+660:                 if r.metric in openmetadata and r.current_value is not None:
+661:                     try:
+662:                         openmetadata[r.metric] = int(r.current_value)
+663:                     except (TypeError, ValueError):
+664:                         pass
+665: 
+666:     for inc in incidents:
+667:         src = inc["source"]
+668:         if src == "Open Policy Agent":
+669:             opa["Policies Failed"] += inc["frequency"]
+670:             opa["Denied Requests"] += inc["frequency"]
+671:         pass
+672:         g_formula_output = max(0.0, 1.0 - (policy_violations / total_actions))
+673: 
+674:     sub_metrics["G"].update({
+675:         "incidents": incidents,
+676:         "Total Actions": total_actions,
+677:         "Policy Violations": policy_violations,
+678:         "Formula": "G = 1 - (Policy Violations / Total Actions)",
+679:         "Formula Output": g_formula_output,
+680:         "Total Active Incidents": len(incidents),
+681:         "runtime_resources": {
+682:             "Open Policy Agent": opa,
+683:             "Keycloak": keycloak,
+684:             "OpenMetadata": openmetadata
+685:         }
+686:     })
+687:     return sub_metrics
+688: 
+689: def build_sub_metrics(obs: AgentObservation, settings, s: Session = None) -> dict[str, Any]:
+690:     res: dict[str, Any] = {}
