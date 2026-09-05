@@ -116,7 +116,7 @@ Supported integrations via POST /api/metrics/export:
 
 Deploy using Uvicorn (Development) or Docker Compose (Production):
 `ash
-uv run uvicorn api.app:app --host 127.0.0.1 --port 8000
+uv run uvicorn api.app:app --host 0.0.0.0 --port 8000
 `
 `ash
 docker compose up -d

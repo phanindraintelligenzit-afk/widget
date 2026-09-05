@@ -1,15 +1,18 @@
-import re
+with open('.env.template', 'r', encoding='utf-8') as f:
+    c = f.read()
 
-for filepath in ['.env', '.env.example', '.env.template']:
-    try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            c = f.read()
-        
-        c = re.sub(r'^.*GRAFANA.*$\n', '', c, flags=re.MULTILINE|re.IGNORECASE)
-        c = re.sub(r'^.*PROMETHEUS.*$\n', '', c, flags=re.MULTILINE|re.IGNORECASE)
-        c = re.sub(r'^.*TEMPO.*$\n', '', c, flags=re.MULTILINE|re.IGNORECASE)
+c = c.replace('localhost:5432', 'postgres:5432  # Use postgres container name or AWS RDS endpoint')
+c = c.replace('localhost:6379', 'redis:6379     # Use redis container name or AWS ElastiCache endpoint')
+c = c.replace('localhost:3000', '127.0.0.1:3000 # Use external host URL for Langfuse if hosted elsewhere')
 
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(c)
-    except FileNotFoundError:
-        pass
+c += """
+# OTel / Tracing Endpoints
+JAEGER_ENDPOINT=http://otel-collector:14268
+PROMETHEUS_URL=http://prometheus:9090
+
+# Frontend Configuration
+WIDGET_ALLOWED_ORIGINS=*
+"""
+
+with open('.env.template', 'w', encoding='utf-8') as f:
+    f.write(c)

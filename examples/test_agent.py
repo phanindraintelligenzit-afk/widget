@@ -27,6 +27,9 @@ Two-line integration (the whole point of dpi_ls):
 """
 
 from __future__ import annotations
+import sys
+import os
+
 
 import asyncio
 import io
@@ -365,7 +368,6 @@ async def run_agent_observation() -> None:
     collector._capture_output(final_output)
     
     # Run the SDK evaluations synchronously before script exit to avoid ThreadPool errors in atexit
-    import sys, os
     sys.stdout = open(os.devnull, "w")
     try:
         collector.finalize()

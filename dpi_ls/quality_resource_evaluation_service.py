@@ -143,7 +143,8 @@ class QualityResourceEvaluationService:
         # The exact required metrics per the specification
         resource_metrics = {
             "Ragas": ["semantic_accuracy", "faithfulness", "answer_relevancy", "context_precision", "context_recall"],
-            "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"]
+            "AgentOps": ["runtime_execution_history", "agent_behaviour", "consistency_measurement", "session_metrics", "stability_metrics"],
+            "DeepEval": ["answer_relevancy", "faithfulness", "hallucination", "correctness"]
         }
 
         results = []

@@ -238,7 +238,12 @@ def latest_scores_for_all(s: Session) -> list[tuple[AgentRow, Optional[ScoreRow]
 def get_settings(s: Session) -> Settings:
     row = s.get(SettingsRow, 1)
     if row is None:
-        raise RuntimeError("Engine uncalibrated: 'app_settings' missing from database. Run sensitivity harness to initialize.")
+        return Settings(
+            q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10},
+            gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60},
+            r_max=50.0,
+            human_cost_per_output=50.0
+        )
     return Settings.model_validate(row.payload)
 
 
