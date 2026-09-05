@@ -1,12 +1,21 @@
-with open('store/repo.py', 'r', encoding='utf-8') as f:
-    c = f.read()
+﻿import re
+from pathlib import Path
 
-import re
-c = re.sub(
-    r'def get_settings\(s: Session\) -> Settings:\s+row = s.get\(SettingsRow, 1\)\s+if row is None:\s+raise RuntimeError\("Engine uncalibrated: \'app_settings\' missing from database\. Run sensitivity harness to initialize\."\)\s+return Settings\.model_validate\(row\.payload\)',
-    'def get_settings(s: Session) -> Settings:\n    row = s.get(SettingsRow, 1)\n    if row is None:\n        return Settings(\n            q_sub_weights={"accuracy": 0.70, "consistency": 0.20, "hallucination": 0.10},\n            gate_thresholds={"G": 0.60, "R": 0.50, "V": 0.60},\n            r_max=50.0,\n            human_cost_per_output=50.0\n        )\n    return Settings.model_validate(row.payload)',
-    c
-)
+repo_path = Path('store/repo.py')
+content = repo_path.read_text(encoding='utf-8')
 
-with open('store/repo.py', 'w', encoding='utf-8') as f:
-    f.write(c)
+old_code = '''        row = AgentRow(
+            id=agent_id,
+            name=agent_name,
+            baseline_human_output=baseline if baseline is not None else 1.0,
+        )'''
+        
+new_code = '''        row = AgentRow(
+            id=agent_id,
+            name=agent_name,
+            baseline_human_output=baseline if baseline is not None else 1.0,
+            owner_id=owner_id,
+        )'''
+
+content = content.replace(old_code, new_code)
+repo_path.write_text(content, encoding='utf-8')

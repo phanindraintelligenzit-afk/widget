@@ -57,6 +57,7 @@ def upsert_agent(
     agent_id: str,
     agent_name: str,
     baseline: Optional[float] = None,
+    owner_id: Optional[str] = None,
 ) -> AgentRow:
     row = s.get(AgentRow, agent_id)
     if row is None:
@@ -68,6 +69,7 @@ def upsert_agent(
             id=agent_id,
             name=agent_name,
             baseline_human_output=baseline if baseline is not None else 1.0,
+            owner_id=owner_id,
         )
         s.add(row)
     else:

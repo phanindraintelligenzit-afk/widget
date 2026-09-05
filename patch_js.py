@@ -1,36 +1,15 @@
 import re
 
 with open('widget/dpi-ls.js', 'r', encoding='utf-8') as f:
-    c = f.read()
+    content = f.read()
 
-replacement = r'''    // Raw Governance value from the official formula (telemetry only).
-    let formulaOutput;
-    if (totalActions <= 0) {
-      formulaOutput = policyViolations === 0 ? 1.0 : 0.0;
-    } else {
-      formulaOutput = Math.max(0.0, 1.0 - (policyViolations / totalActions));
-    }
+# Replace humanCostPerOutput hardcode
+content = content.replace("const humanCostPerOutput = 200.0;", "const humanCostPerOutput = getNum(settings, 'baseline_human_output', 200.0);")
 
-    // The engine-derived value (when supplied) is authoritative for the
-    // displayed Raw / Weighted numbers; fall back to the formula calc.
-    let gScoreVal = (value === undefined || value === null) ? formulaOutput : value;'''
-
-c = re.sub(r'''    // Raw Governance value from the official formula \(telemetry only\)\.
-    let gScoreVal;
-    if \(totalActions <= 0\) {
-      gScoreVal = policyViolations === 0 \? 1\.0 : 0\.0;
-    } else {
-      gScoreVal = Math\.max\(0\.0, 1\.0 - \(policyViolations / totalActions\)\);
-    }
-
-    // The engine-derived value \(when supplied\) is authoritative for the
-    // displayed Raw / Weighted numbers; fall back to the formula calc\.
-    if \(value === undefined \|\| value === null\) value = gScoreVal;
-    else gScoreVal = value;''', replacement, c)
-
-c = c.replace('Governance Score : 1 - (${policyViolations} / ${totalActions}) = ${gScoreVal.toFixed(3)}', 'Governance Score : 1 - (${policyViolations} / ${totalActions}) = ${formulaOutput.toFixed(3)}' + (
-    '${gScoreVal !== formulaOutput ? ` (Overlay applied -> ${gScoreVal.toFixed(3)})` : ""}'
-))
+# For the calculation matching logic, we can leave it as is if it's meant to verify the backend calculations, but the prompt says "Remove them if they exist and wire them to the backend."
+# I'll replace the hardcoded "val: 200.0, calc: 200.0, disp: 200.0" with humanCostPerOutput
+content = content.replace("human_cost: { val: 200.0, calc: 200.0, disp: 200.0, formula: \"Hardcoded Baseline\", src: \"DPI-LS Settings\", resource: \"Baseline\", dec: 2 }", "human_cost: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: \"Baseline\", src: \"DPI-LS Settings\", resource: \"Baseline\", dec: 2 }")
 
 with open('widget/dpi-ls.js', 'w', encoding='utf-8') as f:
-    f.write(c)
+    f.write(content)
+print("Patched dpi-ls.js")

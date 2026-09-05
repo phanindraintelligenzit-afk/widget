@@ -79,9 +79,20 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
 
     import httpx
     info = _state.get_server_info()
-    r = httpx.get(f"{info.base_url}/agents/e2e-agent/score", timeout=5.0)
+    import jwt
+    from datetime import datetime, timedelta, timezone
+    
+    token = jwt.encode(
+        {"sub": "admin", "role": "ADMIN", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
+        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS",
+        algorithm="HS256"
+    )
+    headers = {"Authorization": f"Bearer {token}"}
+    r = httpx.get(f"{info.base_url}/agents/e2e-agent/score", timeout=5.0, headers=headers)
     pass  # Skip score assert for mock
     rating = r.json()
+    print(f"DEBUG RATING: {rating}")
+    if r.status_code != 200: print(f"DEBUG STATUS: {r.status_code}")
     assert rating["metrics"]["E"] is not None
     # Either the G gate fires (PII email in the output) or the
     # observation looks fine. Both are valid scenarios — we just

@@ -174,6 +174,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+def check_agent_ownership(agent_id: str, s: Session, current_user: dict):
+    if current_user["role"] == "ADMIN":
+        return
+    agent = s.get(store.models.AgentRow, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if agent.owner_id and agent.owner_id != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this agent")
+
 def get_current_user(token: str = Depends(oauth2_scheme)):
     if os.environ.get("TESTING") == "1" and token == "testtoken":
         # For tests that explicitly pass a fake token to avoid parsing
@@ -672,8 +682,9 @@ def list_all_agents(
 
 
 @app.post("/api/agents", response_model=AgentSummary)
-def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSummary:
-    row = repo.upsert_agent(s, body.agent_id, body.agent_name, baseline=body.baseline_human_output)
+
+def create_agent(body: AgentCreate, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentSummary:
+    row = repo.upsert_agent(s, body.agent_id, body.agent_name, baseline=body.baseline_human_output, owner_id=current_user["username"])
     s.commit()
     return AgentSummary(
         agent_id=row.id,
@@ -686,6 +697,7 @@ def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSu
 
 @app.put("/api/agents/{agent_id}", response_model=AgentSummary)
 def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentSummary:
+    check_agent_ownership(agent_id, s, current_user)
     row = s.get(store.models.AgentRow, agent_id)
     if not row:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -705,7 +717,8 @@ def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_sessi
 # ---- Task 1 APIs ----
 
 @app.get("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+def get_onboarding(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentOnboardingOut:
+    check_agent_ownership(agent_id, s, current_user)
     row = store.repo.get_agent_onboarding(s, agent_id)
     if not row:
         raise HTTPException(status_code=404, detail="Agent onboarding not found")
@@ -884,7 +897,8 @@ def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)
     )
 
 @app.get("/api/agents/{agent_id}/kra", response_model=list[AgentKRAOut])
-def get_kras(agent_id: str, s: Session = Depends(db_session)) -> list[AgentKRAOut]:
+def get_kras(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[AgentKRAOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.list_agent_kras(s, agent_id)
     return [
         AgentKRAOut(
@@ -1000,7 +1014,8 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
     }
 
 @app.get("/api/agents/{agent_id}/manager-rating", response_model=list[ManagerRatingOut])
-def list_manager_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[ManagerRatingOut]:
+def list_manager_ratings(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[ManagerRatingOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.get_manager_ratings(s, agent_id)
     return [
         ManagerRatingOut(
@@ -1029,7 +1044,8 @@ def add_customer_rating(agent_id: str, body: CustomerRatingIn, s: Session = Depe
     )
 
 @app.get("/api/agents/{agent_id}/customer-rating", response_model=list[CustomerRatingOut])
-def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[CustomerRatingOut]:
+def list_customer_ratings(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[CustomerRatingOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.get_customer_ratings(s, agent_id)
     return [
         CustomerRatingOut(
@@ -1113,7 +1129,8 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
     )
 
 @app.post("/api/agents/{agent_id}/run_telemetry")
-def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
+def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    
     import subprocess
     import os
     
@@ -1140,7 +1157,9 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
     return {"message": "Telemetry completed"}
 
 @app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
-def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[AgentConfigurationOut]:
+def get_agent_configs(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[AgentConfigurationOut]:
+    check_agent_ownership(agent_id, s, current_user)
+    
     rows = store.repo.list_agent_configurations(s, agent_id)
     return [
         AgentConfigurationOut(
@@ -1160,6 +1179,7 @@ def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[A
 
 @app.delete("/api/agents/{agent_id}")
 def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> dict[str, str]:
+    check_agent_ownership(agent_id, s, current_user)
     from store.models import AgentRow
     row = s.get(AgentRow, agent_id)
     if not row:
@@ -1231,7 +1251,8 @@ def _score_row_to_rating(s: Session, row) -> Rating:
 
 
 @app.get("/agents/{agent_id}/score", response_model=Rating)
-def agent_score(agent_id: str, s: Session = Depends(db_session)) -> Rating:
+def agent_score(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> Rating:
+    check_agent_ownership(agent_id, s, current_user)
     row = repo.latest_score(s, agent_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"No score for agent '{agent_id}'")
@@ -1243,7 +1264,8 @@ def agent_history(
     agent_id: str,
     limit: int = 100,
     s: Session = Depends(db_session),
-) -> list[HistoryPoint]:
+    current_user: dict = Depends(get_current_user)) -> list[HistoryPoint]:
+    check_agent_ownership(agent_id, s, current_user)
     return [
         HistoryPoint(
             score=r.score,
@@ -1262,6 +1284,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
     weights = settings.weights
     out: list[BoardRow] = []
     for agent, score in repo.latest_scores_for_all(s):
+        
         if score is None:
             # Show new/unevaluated agents with 0 scores instead of hiding them
             empty_m = {"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "C": 0.0, "V": 0.0}
@@ -1413,7 +1436,8 @@ def submit_sme_rating(
     agent_id: str,
     body: SMERatingIn,
     s: Session = Depends(db_session),
-) -> dict[str, Any]:
+    current_user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    check_agent_ownership(agent_id, s, current_user)
     if body.agent_id != agent_id:
         raise HTTPException(status_code=400, detail="agent_id mismatch")
     row = repo.save_sme_rating(
@@ -2617,6 +2641,7 @@ def _stringify(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
+        
         import json as _json
         try:
             return _json.dumps(value, default=str)[:200]
@@ -2983,7 +3008,7 @@ def enterprise_productivity_agent_dashboard(
 
 
 @app.get("/trace/{run_id}")
-def get_run_trace(run_id: str, session: Session = Depends(db_session)):
+def get_run_trace(run_id: str, session: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
     from store.models import ScoreTraceRow
     from fastapi import HTTPException
     row = session.query(ScoreTraceRow).filter(ScoreTraceRow.run_id == run_id).first()
@@ -3001,11 +3026,13 @@ def login_page():
     return FileResponse("widget/admin-login.html")
 
 @app.get("/agent-profile.html", include_in_schema=False)
-def agent_profile_page():
+def agent_profile_page(request: Request, agent_id: str):
     return FileResponse("widget/agent-profile.html")
 
 @app.delete("/agents/{agent_id}")
-def delete_agent(agent_id: str, s: Session = Depends(db_session)):
+def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    check_agent_ownership(agent_id, s, current_user)
+    
     from store.models import AgentRow
     agent = s.get(AgentRow, agent_id)
     if agent:
@@ -3018,3 +3045,102 @@ def delete_agent(agent_id: str, s: Session = Depends(db_session)):
 
 
 
+
+from fastapi import BackgroundTasks
+
+@app.post("/agents/{agent_id}/execute")
+async def execute_agent(agent_id: str, background_tasks: BackgroundTasks, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    
+    import subprocess, os, uuid, time
+    from store.models import ExecutionRow, AgentRow
+    
+    agent = s.get(AgentRow, agent_id)
+    agent_name = agent.name if agent else agent_id
+    
+    execution_id = str(uuid.uuid4())
+    exec_row = ExecutionRow(
+        id=execution_id,
+        agent_id=agent_id,
+        status="running",
+        start_time=time.time()
+    )
+    s.add(exec_row)
+    s.commit()
+    
+    def run_eval_background(a_id, a_name, ex_id):
+        from api.app import engine
+        from sqlalchemy.orm import Session
+        env = os.environ.copy()
+        env["AGENT_ID"] = a_id
+        env["AGENT_NAME"] = a_name
+        env["HUMAN_BASELINE"] = "1"
+        env["BEDROCK_MODEL_ID"] = "mock-model"
+        env["AWS_ACCESS_KEY_ID"] = "rotated"
+        env["LITELLM_DROP_PARAMS"] = "True"
+        
+        try:
+            res = subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env, capture_output=True, text=True)
+            with Session(engine) as session:
+                ex = session.get(ExecutionRow, ex_id)
+                if ex:
+                    ex.status = "completed" if res.returncode == 0 else "failed"
+                    ex.end_time = time.time()
+                    ex.exit_code = res.returncode
+                    ex.error = res.stderr if res.returncode != 0 else None
+                    session.commit()
+        except Exception as e:
+            with Session(engine) as session:
+                ex = session.get(ExecutionRow, ex_id)
+                if ex:
+                    ex.status = "failed"
+                    ex.end_time = time.time()
+                    ex.error = str(e)
+                    session.commit()
+                    
+    background_tasks.add_task(run_eval_background, agent_id, agent_name, execution_id)
+    return {"status": "running", "execution_id": execution_id, "agent_id": agent_id}
+
+
+@app.post("/api/agents/{agent_id}/score/preview")
+async def score_preview(agent_id: str, request: Request, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    
+    import engine.score
+    import json
+    
+    body = await request.json()
+    metrics = {
+        "P": float(body.get("P", 1.0)),
+        "Q": float(body.get("Q", 1.0)),
+        "E": float(body.get("E", 1.0)),
+        "G": float(body.get("G", 1.0)),
+        "R": float(body.get("R", 1.0)),
+        "V": float(body.get("V", 1.0)),
+        "C": float(body.get("C", 1.0)),
+    }
+    
+    weights = {
+        "P": float(body.get("wP", 15.0)),
+        "Q": float(body.get("wQ", 20.0)),
+        "E": float(body.get("wE", 15.0)),
+        "G": float(body.get("wG", 20.0)),
+        "R": float(body.get("wR", 15.0)),
+        "V": float(body.get("wV", 10.0)),
+        "C": float(body.get("wC", 5.0)),
+    }
+    
+    raw, weighted_metrics, active_weights = engine.score.composite(metrics, weights)
+    
+    score = 0.0
+    for k, v in weighted_metrics.items():
+        if k in ["P","Q","E","G","R","V","C"]:
+            score += v
+    score *= 100.0
+    
+    return {"preview_score": min(100.0, max(0.0, score))}
+
+@app.post("/api/agents/{agent_id}/test_connection")
+async def test_connection(agent_id: str, current_user: dict = Depends(get_current_user)):
+    check_agent_ownership(agent_id, s, current_user)
+    
+    # Simulated safe health check / Stub. User requirement: Do NOT return CONNECTED from a stub.
+    return {"status": "BLOCKED", "error": "External credentials unavailable in current environment"}

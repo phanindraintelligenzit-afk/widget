@@ -1,19 +1,8 @@
-import re
+﻿import re
+from pathlib import Path
 
-with open('tests/test_enterprise_productivity.py', 'r', encoding='utf-8') as f:
-    c = f.read()
+test_path = Path('tests/test_dpi_ls_end_to_end.py')
+content = test_path.read_text(encoding='utf-8')
 
-c = re.sub(r'''    push_resp = client\.post\("/api/enterprise-productivity/push", json=\{
-        "adapter": "Prometheus",
-        "metric_name": "Thread Count",
-        "value": 5\.0,
-        "passed": True,
-    \}\)
-    assert push_resp\.status_code == 200''', '', c)
-
-c = re.sub(r'''    concurrency = next\(r for r in results if r\["resource_name"\] == "Prometheus" and r\["metric"\] == "Thread Count"\)
-    assert concurrency\["current_value"\] == "5\.0"
-    assert concurrency\["agent_executed"\] is True''', '', c)
-
-with open('tests/test_enterprise_productivity.py', 'w', encoding='utf-8') as f:
-    f.write(c)
+content = content.replace('rating = r.json()', 'rating = r.json()\n    print(f"DEBUG RATING: {rating}")\n    if r.status_code != 200: print(f"DEBUG STATUS: {r.status_code}")')
+test_path.write_text(content, encoding='utf-8')

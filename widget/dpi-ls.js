@@ -228,7 +228,7 @@
     const outputTokenPrice = getNum(sub, 'output_token_price', getNum(settings, 'output_token_price'));
     const completedOutputs = getNum(sub, 'completed_outputs', 1);
     const utilization = getNum(sub, 'utilization', getNum(settings, 'utilization'));
-    const humanCostPerOutput = 200.0;
+    const humanCostPerOutput = getNum(settings, 'baseline_human_output', 200.0);
     
     const promptCost = getNum(sub, 'Prompt Cost (USD)', (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null));
     const completionCost = getNum(sub, 'Completion Cost (USD)', (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null));
@@ -257,7 +257,7 @@
       prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
       completion_cost: { val: completionCost, calc: calcCompletionCost, disp: completionCost, formula: "Output Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
       model_cost: { val: modelCost, calc: calcModelCost, disp: modelCost, formula: "Prompt Cost + Completion Cost", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
-        human_cost: { val: 200.0, calc: 200.0, disp: 200.0, formula: "Hardcoded Baseline", src: "DPI-LS Settings", resource: "Baseline", dec: 2 },
+        human_cost: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: "Baseline", src: "DPI-LS Settings", resource: "Baseline", dec: 2 },
         ai_cost_per_output: { val: calcAiCostPerOutput, calc: calcAiCostPerOutput, disp: calcAiCostPerOutput, formula: "Total Model Cost / Completed Outputs", src: "DPI-LS Engine", resource: "Calculation", dec: 6 },
         efficiency_ratio: { val: calcEfficiencyRatio, calc: calcEfficiencyRatio, disp: calcEfficiencyRatio, formula: "Human Cost / AI Cost", src: "DPI-LS Engine", resource: "Calculation", dec: 2 },
     };

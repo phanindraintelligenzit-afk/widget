@@ -25,6 +25,7 @@ class AgentRow(Base):
     name: Mapped[str] = mapped_column(String(256))
     status: Mapped[str] = mapped_column(String(64), default="ACTIVE")
     baseline_human_output: Mapped[float] = mapped_column(Float, default=100.0)
+    owner_id: Mapped[str] = mapped_column(String(256), nullable=True)  # RBAC ownership
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -581,3 +582,16 @@ class UserRow(Base):
     password_hash: Mapped[str] = mapped_column(String(256))
     role: Mapped[str] = mapped_column(String(64), default="VIEWER")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+from sqlalchemy import Column
+
+class ExecutionRow(Base):
+    __tablename__ = "executions"
+    id = Column(String, primary_key=True)
+    agent_id = Column(String, index=True)
+    status = Column(String)  # pending, running, completed, failed
+    start_time = Column(Float)
+    end_time = Column(Float, nullable=True)
+    exit_code = Column(Integer, nullable=True)
+    error = Column(String, nullable=True)

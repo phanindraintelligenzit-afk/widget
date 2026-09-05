@@ -207,7 +207,7 @@
         document.getElementById('agent_id').value = passedAgentId;
     }
     
-    function calculateDPI() {
+    async function calculateDPI() {
         const P = parseFloat(document.getElementById('base_P').value) || 0;
         const Q = parseFloat(document.getElementById('base_Q').value) || 0;
         const E = parseFloat(document.getElementById('base_E').value) || 0;
@@ -215,34 +215,29 @@
         const R = parseFloat(document.getElementById('base_R').value) || 0;
         const C = parseFloat(document.getElementById('base_C').value) || 0;
         const V = parseFloat(document.getElementById('base_V').value) || 0;
-        
-        // Let's multiply the baseline parameter by its normalized weight
-        const wP = (parseFloat(document.getElementById('weight_P').value) || 0) / 100;
-        const wQ = (parseFloat(document.getElementById('weight_Q').value) || 0) / 100;
-        const wE = (parseFloat(document.getElementById('weight_E').value) || 0) / 100;
-        const wG = (parseFloat(document.getElementById('weight_G').value) || 0) / 100;
-        const wR = (parseFloat(document.getElementById('weight_R').value) || 0) / 100;
-        const wC = (parseFloat(document.getElementById('weight_C').value) || 0) / 100;
-        const wV = (parseFloat(document.getElementById('weight_V').value) || 0) / 100;
-
-        let base_dpi = (P * Math.pow(Q, 1.5) * E) * (Math.pow(G, 1.5) * Math.pow(R, 2)) * C * V;
-        
-        // Incorporate weights so the user visibly sees the number update when they change weights!
-        // We will do a weighted average of the baseline parameters for the projection
-        let weighted_sum = (P * wP) + (Q * wQ) + (E * wE) + (G * wG) + (R * wR) + (C * wC) + (V * wV);
-        
-        // Blend them so both sections affect the live score
-        let dpi = (base_dpi * 50) + (weighted_sum * 50);
-        
-        if (dpi > 100) dpi = 100;
-        
-        const liveScoreEl = document.getElementById('live_dpi_score');
-        if (liveScoreEl) {
-            liveScoreEl.innerText = isNaN(dpi) ? "0.00" : dpi.toFixed(2);
+        const wP = parseFloat(document.getElementById('weight_P').value) || 0;
+        const wQ = parseFloat(document.getElementById('weight_Q').value) || 0;
+        const wE = parseFloat(document.getElementById('weight_E').value) || 0;
+        const wG = parseFloat(document.getElementById('weight_G').value) || 0;
+        const wR = parseFloat(document.getElementById('weight_R').value) || 0;
+        const wC = parseFloat(document.getElementById('weight_C').value) || 0;
+        const wV = parseFloat(document.getElementById('weight_V').value) || 0;
+        const agentId = new URLSearchParams(window.location.search).get('agent_id') || 'agent-001';
+        try {
+            const res = await fetch(/api/agents/+agentId+/score/preview, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ P, Q, E, G, R, V, C, wP, wQ, wE, wG, wR, wV, wC })
+            });
+            if(res.ok) {
+                const data = await res.json();
+                document.getElementById('dpi-projection').textContent = data.preview_score.toFixed(1);
+            }
+        } catch(e) {
+            console.error(e);
         }
-        
-        let wTotal = 0;
-        document.querySelectorAll('.weight-input').forEach(inp => {
+    }
+    document.querySelectorAll('.weight-input').forEach(inp => {
             wTotal += (parseFloat(inp.value)||0);
         });
         const wTotalEl = document.getElementById('weightTotal');
