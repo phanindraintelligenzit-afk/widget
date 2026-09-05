@@ -87,7 +87,7 @@ class GovernanceResourceEvaluationService:
         self.session = session
 
     def register_resources(self) -> None:
-        """Register the 3 governance resources: Open Policy Agent, Microsoft Presidio, and Detect-Secrets.
+        """Register the 3 governance resources: Open Policy Agent, Keycloak, and OpenMetadata.
 
         Telemetry evaluation rows are cleared on every registration so the
         dashboards never show stale seeded values — they are repopulated
@@ -95,15 +95,13 @@ class GovernanceResourceEvaluationService:
         or ``/api/governance-evaluation/push`` for live incidents). The
         resource *catalog* (registry) is preserved.
         """
-        allowed = ["Open Policy Agent", "Detect-Secrets", "Keycloak", "OpenMetadata"]
+        allowed = ["Open Policy Agent", "Keycloak", "OpenMetadata"]
         self.session.execute(delete(GovernanceResourceRegistryRow).where(GovernanceResourceRegistryRow.name.not_in(allowed)))
         # Wipe all seeded governance telemetry — runtime only.
         self.session.execute(delete(GovernanceResourceEvaluationRow))
 
         resource_metrics = {
             "Open Policy Agent": ["Policies Executed", "Policies Passed", "Policies Failed", "Denied Requests", "Allowed Requests", "Policy Compliance", "Critical Violations", "Policy Evaluation Time", "Policy Decision Logs", "Bundle Version", "Policy ID", "Decision ID", "Trace ID", "Timestamp"],
-            "Detect-Secrets": ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"],
-            "Keycloak": ["Users", "Groups", "Roles", "Authentication Events", "Authorization Events", "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", "Permission Grants", "Permission Denials", "Token Events", "Realm Events", "Admin Events", "Security Events", "Audit Events"],
             "OpenMetadata": ["Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", "Owners", "Domains", "Business Glossary", "Classifications", "Tags", "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"]
         }
 
@@ -117,7 +115,6 @@ class GovernanceResourceEvaluationService:
 
         resources = [
             ("Open Policy Agent", True, True, False, True),
-            ("Detect-Secrets", True, True, False, True),
             ("Keycloak", True, True, False, True),
             ("OpenMetadata", True, True, False, True),
         ]
@@ -150,7 +147,6 @@ class GovernanceResourceEvaluationService:
 
         # Categorize incidents by source
         opa_incidents = [i for i in incidents if i.source_resource == "Open Policy Agent"]
-        secrets_incidents = [i for i in incidents if i.source_resource == "Detect-Secrets"]
         keycloak_incidents = [i for i in incidents if i.source_resource == "Keycloak"]
         openmetadata_incidents = [i for i in incidents if i.source_resource == "OpenMetadata"]
 
@@ -171,80 +167,6 @@ class GovernanceResourceEvaluationService:
                 dashboard_verified=has_opa,
                 agent_executed=has_opa
             )
-        secrets_freq = sum(i.frequency for i in secrets_incidents)
-        has_secrets = secrets_freq > 0 or is_test_env
-        metrics_secrets = ["Secrets Found", "Secrets Blocked", "Critical Secrets", "Files Scanned", "Repositories Scanned", "Secret Types", "Scan Duration", "Scan Result", "Compliance Status", "Trace ID", "Timestamp"]
-        for m in metrics_secrets:
-            save_governance_resource_evaluation(
-                self.session, "Detect-Secrets", m,
-                detected=has_secrets,
-                evidence=f"{secrets_freq} records detected in runtime" if has_secrets else "No incidents",
-                current_value=str(secrets_freq),
-                status="SUCCESS" if has_secrets else "FAILED",
-                dashboard_verified=has_secrets,
-                agent_executed=has_secrets
-            )
-
-        # Evaluate Keycloak
-        keycloak_freq = sum(i.frequency for i in keycloak_incidents)
-        has_keycloak = keycloak_freq > 0 or is_test_env
-        metrics_keycloak = ["Users", "Groups", "Roles", "Authentication Events", "Authorization Events", "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", "Permission Grants", "Permission Denials", "Token Events", "Realm Events", "Admin Events", "Security Events", "Audit Events"]
-        for m in metrics_keycloak:
-            save_governance_resource_evaluation(
-                self.session, "Keycloak", m,
-                detected=has_keycloak,
-                evidence=f"{keycloak_freq} records detected in runtime" if has_keycloak else "No incidents",
-                current_value=str(keycloak_freq),
-                status="SUCCESS" if has_keycloak else "FAILED",
-                dashboard_verified=has_keycloak,
-                agent_executed=has_keycloak
-            )
-
-        # Evaluate OpenMetadata
-        openmetadata_freq = sum(i.frequency for i in openmetadata_incidents)
-        has_openmetadata = openmetadata_freq > 0 or is_test_env
-        metrics_openmetadata = ["Metadata Assets", "Tables", "Schemas", "Data Products", "Lineage", "Owners", "Domains", "Business Glossary", "Classifications", "Tags", "Stewardship", "Schema Changes", "Metadata Health", "Governance Coverage"]
-        for m in metrics_openmetadata:
-            save_governance_resource_evaluation(
-                self.session, "OpenMetadata", m,
-                detected=has_openmetadata,
-                evidence=f"{openmetadata_freq} records detected in runtime" if has_openmetadata else "No incidents",
-                current_value=str(openmetadata_freq),
-                status="SUCCESS" if has_openmetadata else "FAILED",
-                dashboard_verified=has_openmetadata,
-                agent_executed=has_openmetadata
-            )
-        self.session.commit()
-
-    # ------------------------------------------------------------------
-    # Bootstrap-time SDK check — flips a resource to SUCCESS the moment
-    # its Python package is importable, so the resources.html cards
-    # don't render "FAILED / Service Offline" before any policy events
-    # have been observed. Same pattern as
-    # CostResourceEvaluationService.run_evaluations() and its Risk sibling.
-    # ------------------------------------------------------------------
-
-    _SDK_IMPORT_PATHS = {
-        "Open Policy Agent": ("opa_python_client", "opa"),  # any Python OPA client
-        "Detect-Secrets": ("detect_secrets",),
-        "Keycloak": ("keycloak",),
-        "OpenMetadata": ("metadata",),
-    }
-
-    _OWNED_METRICS = {
-        "Open Policy Agent": [
-            "Policies Executed", "Policies Passed", "Policies Failed",
-            "Denied Requests", "Allowed Requests", "Policy Compliance",
-            "Critical Violations", "Policy Evaluation Time",
-            "Policy Decision Logs", "Bundle Version", "Policy ID",
-            "Decision ID", "Trace ID", "Timestamp",
-        ],
-        "Detect-Secrets": [
-            "Secrets Found", "Secrets Blocked", "Critical Secrets",
-            "Files Scanned", "Repositories Scanned", "Secret Types",
-            "Scan Duration", "Scan Result", "Compliance Status",
-            "Trace ID", "Timestamp",
-        ],
         "Keycloak": [
             "Users", "Groups", "Roles", "Authentication Events", "Authorization Events", 
             "Active Sessions", "Failed Logins", "Successful Logins", "MFA Status", 
