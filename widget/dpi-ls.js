@@ -209,9 +209,10 @@
     `;
   }
 
-  function calculateCostMetrics(sub, settings, value) {
+  function calculateCostMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     const getNum = (obj, key, fallback) => {
       if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
@@ -292,9 +293,10 @@
     return metricsMap;
   }
 
-  function calculateValidationMetrics(sub, settings, value) {
+  function calculateValidationMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     
       const validationFields = [
@@ -384,9 +386,10 @@
     };
   }
 
-  function calculateQualityMetrics(sub, settings, value) {
+  function calculateQualityMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let accVal = 0;
     if (sub.semantic_accuracy && sub.semantic_accuracy !== "Unavailable") accVal = parseFloat(sub.semantic_accuracy);
@@ -432,7 +435,8 @@
   }
 
   function renderQualityTableHtml(sub, row, value, resourceFilter) {
-    const metricsMap = calculateQualityMetrics(sub, settings, value);
+    let settings = {};
+    const metricsMap = calculateQualityMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined || val === "Unavailable" || val === "Pending SME Review") return val;
@@ -566,6 +570,7 @@
 
   
   function renderGovernanceTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
 
     const resources = sub.runtime_resources || {};
@@ -783,15 +788,16 @@
   }
 
   function renderRiskTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Risk telemetry available.</div>`;
     
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     const incidents = sub.incidents || [];
     const totalFreq = sub["Total Frequency"] !== undefined ? sub["Total Frequency"] : "Unavailable";
     const totalRisk = sub["Total Risk"] !== undefined ? sub["Total Risk"] : "Unavailable";
-    const rmax = sub.Rmax || settings.r_max || 50;
+    const rmax = sub.Rmax || (row && row.sub_metrics && row.sub_metrics.r_max) || 50;
     
     let calcRScore = 1.0;
     if (typeof totalRisk === "number") {
@@ -954,7 +960,8 @@
   }
 
   function renderValidationTableHtml(sub, row, value, resourceFilter) {
-    const metricsMap = calculateValidationMetrics(sub, settings, value);
+    let settings = {};
+    const metricsMap = calculateValidationMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1113,7 +1120,8 @@
   }
 
   function renderCostTableHtml(sub, row, value, resourceFilter) {
-    const metricsMap = calculateCostMetrics(sub, settings, value);
+    let settings = {};
+    const metricsMap = calculateCostMetrics(sub, row, value);
     
     const fmt = (val, dec = 6) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1242,8 +1250,8 @@
 <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
 <div>Human Cost per Output : $200.00</div>
 <div>AI Cost per Output : $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'}</div>
-<div>Utilization Factor : ${fmt(sub.utilization || settings.utilization || 1.0, 2)}</div>
-<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || settings.utilization || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
+<div>Utilization Factor : ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)}</div>
+<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
 </div>
 </div>
 </div>
@@ -1274,9 +1282,10 @@
     `;
   }
 
-  function calculateProductivityMetrics(sub, settings, value) {
+  function calculateProductivityMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let pScoreVal = 1.0;
     if (value !== undefined && value !== null) {
@@ -1309,7 +1318,8 @@
   }
 
   function renderProductivityTableHtml(sub, row, value, resourceFilter) {
-    const metricsMap = calculateProductivityMetrics(sub, settings, value);
+    let settings = {};
+    const metricsMap = calculateProductivityMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined || val === "Unavailable") return val;
@@ -1441,9 +1451,10 @@
    * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
    */
   
-  function calculateExecutionMetrics(sub, settings, value) {
+  function calculateExecutionMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let attempts = 0;
     if (sub.trace_captured !== undefined && sub.trace_captured !== null && sub.trace_captured !== "Unavailable") attempts = Number(sub.trace_captured);
@@ -1478,7 +1489,8 @@
   }
 
   function renderExecutionTableHtml(sub, row, value, resourceFilter) {
-    const metricsMap = calculateExecutionMetrics(sub, settings, value);
+    let settings = {};
+    const metricsMap = calculateExecutionMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1990,7 +2002,7 @@
           if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], this.rating);
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
           const detailTr = document.createElement("tr");
           detailTr.className = "detail-row";
           detailTr.dataset.expandedKey = key;
