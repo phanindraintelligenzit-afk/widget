@@ -119,6 +119,18 @@ async def lifespan(_: FastAPI):
             metrics_task = asyncio.create_task(update_metrics_periodically())
             logger.info("Started Prometheus metrics export task")
 
+        # Start the durable execution worker as a daemon thread.
+        # In production, run `uv run python -m worker.runner` as a separate
+        # process instead. This thread is a convenience for single-process dev.
+        _worker_thread = None
+        if not os.environ.get("TESTING") and not os.environ.get("DISABLE_WORKER"):
+            try:
+                from worker.runner import start_worker_thread
+                _worker_thread = start_worker_thread(poll_interval=2.0)
+                logger.info("Started durable execution worker thread (PID=%d)", os.getpid())
+            except Exception as _we:
+                logger.warning("Could not start worker thread: %s", _we)
+
         yield
 
     finally:
@@ -3044,61 +3056,103 @@ def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: 
 
 
 
-
-
-from fastapi import BackgroundTasks
+# ---------------------------------------------------------------------------
+# Durable Execution — DB-backed task queue (Phase 2)
+# ---------------------------------------------------------------------------
+# The worker runs as a separate process (uv run python -m worker.runner)
+# or as a daemon thread started at app startup.  Jobs are stored in the
+# executions table; a server restart does NOT lose queued work.
+# ---------------------------------------------------------------------------
 
 @app.post("/agents/{agent_id}/execute")
-async def execute_agent(agent_id: str, background_tasks: BackgroundTasks, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
-    
-    import subprocess, os, uuid, time
-    from store.models import ExecutionRow, AgentRow
-    
-    agent = s.get(AgentRow, agent_id)
-    agent_name = agent.name if agent else agent_id
-    
-    execution_id = str(uuid.uuid4())
-    exec_row = ExecutionRow(
-        id=execution_id,
-        agent_id=agent_id,
-        status="running",
-        start_time=time.time()
+async def execute_agent(
+    agent_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Enqueue a durable execution job and return execution_id immediately.
+
+    Lifecycle: QUEUED → RUNNING → SUCCESS | FAILED | TIMEOUT
+    """
+    check_agent_ownership(agent_id, s, current_user)
+
+    from worker.queue import enqueue
+
+    # Duplicate-guard: if a QUEUED or RUNNING job already exists, return it
+    from store.models import ExecutionRow as _ER
+    existing = (
+        s.query(_ER)
+        .filter(_ER.agent_id == agent_id, _ER.status.in_(["QUEUED", "RUNNING"]))
+        .order_by(_ER.queued_at.desc())
+        .first()
     )
-    s.add(exec_row)
-    s.commit()
-    
-    def run_eval_background(a_id, a_name, ex_id):
-        from api.app import engine
-        from sqlalchemy.orm import Session
-        env = os.environ.copy()
-        env["AGENT_ID"] = a_id
-        env["AGENT_NAME"] = a_name
-        env["HUMAN_BASELINE"] = "1"
-        env["BEDROCK_MODEL_ID"] = "mock-model"
-        env["AWS_ACCESS_KEY_ID"] = "rotated"
-        env["LITELLM_DROP_PARAMS"] = "True"
-        
-        try:
-            res = subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env, capture_output=True, text=True)
-            with Session(engine) as session:
-                ex = session.get(ExecutionRow, ex_id)
-                if ex:
-                    ex.status = "completed" if res.returncode == 0 else "failed"
-                    ex.end_time = time.time()
-                    ex.exit_code = res.returncode
-                    ex.error = res.stderr if res.returncode != 0 else None
-                    session.commit()
-        except Exception as e:
-            with Session(engine) as session:
-                ex = session.get(ExecutionRow, ex_id)
-                if ex:
-                    ex.status = "failed"
-                    ex.end_time = time.time()
-                    ex.error = str(e)
-                    session.commit()
-                    
-    background_tasks.add_task(run_eval_background, agent_id, agent_name, execution_id)
-    return {"status": "running", "execution_id": execution_id, "agent_id": agent_id}
+    if existing:
+        return {
+            "execution_id": existing.id,
+            "agent_id": agent_id,
+            "status": existing.status,
+            "message": "Existing active execution returned (duplicate guard)",
+        }
+
+    execution_id = enqueue(s, agent_id)
+    return {"execution_id": execution_id, "agent_id": agent_id, "status": "QUEUED"}
+
+
+@app.get("/agents/{agent_id}/executions")
+def list_agent_executions(
+    agent_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """List all executions for this agent (newest first)."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import list_executions
+    return list_executions(s, agent_id)
+
+
+@app.get("/agents/{agent_id}/executions/{execution_id}")
+def get_agent_execution(
+    agent_id: str,
+    execution_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get the current status of a specific execution."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import get_execution
+    result = get_execution(s, execution_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Execution '{execution_id}' not found")
+    if result["agent_id"] != agent_id:
+        raise HTTPException(status_code=403, detail="Execution does not belong to this agent")
+    return result
+
+
+@app.post("/agents/{agent_id}/executions/{execution_id}/cancel")
+def cancel_agent_execution(
+    agent_id: str,
+    execution_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Cancel a QUEUED execution. Returns 409 if already past QUEUED."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import cancel, get_execution
+
+    exec_data = get_execution(s, execution_id)
+    if exec_data is None:
+        raise HTTPException(status_code=404, detail=f"Execution '{execution_id}' not found")
+    if exec_data["agent_id"] != agent_id:
+        raise HTTPException(status_code=403, detail="Execution does not belong to this agent")
+
+    cancelled = cancel(s, execution_id, cancelled_by=current_user["username"])
+    if not cancelled:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot cancel execution in status '{exec_data['status']}' — only QUEUED executions can be cancelled",
+        )
+    return {"execution_id": execution_id, "status": "CANCELLED"}
+
 
 
 @app.post("/api/agents/{agent_id}/score/preview")

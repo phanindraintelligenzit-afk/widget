@@ -584,14 +584,39 @@ class UserRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
 
-from sqlalchemy import Column
+from sqlalchemy import Column, Text
 
 class ExecutionRow(Base):
+    """Durable execution record — survives API/worker restarts.
+
+    Lifecycle: QUEUED → RUNNING → SUCCESS | FAILED | TIMEOUT
+               QUEUED → CANCELLED
+    """
     __tablename__ = "executions"
-    id = Column(String, primary_key=True)
+
+    # Identity
+    id = Column(String, primary_key=True)           # UUID
     agent_id = Column(String, index=True)
-    status = Column(String)  # pending, running, completed, failed
-    start_time = Column(Float)
-    end_time = Column(Float, nullable=True)
+
+    # Lifecycle state (uppercase matches spec)
+    status = Column(String, default="QUEUED")       # QUEUED|RUNNING|SUCCESS|FAILED|TIMEOUT|CANCELLED
+
+    # Timestamps
+    queued_at = Column(Float, nullable=True)        # epoch seconds — when enqueued
+    start_time = Column(Float, nullable=True)       # legacy alias = started_at
+    started_at = Column(Float, nullable=True)       # epoch seconds — when worker claimed
+    end_time = Column(Float, nullable=True)         # legacy alias = completed_at
+    completed_at = Column(Float, nullable=True)     # epoch seconds — when finished
+
+    # Execution config
+    timeout_seconds = Column(Integer, default=300)  # default 5-min timeout
+
+    # Results
     exit_code = Column(Integer, nullable=True)
-    error = Column(String, nullable=True)
+    error = Column(Text, nullable=True)             # Text for long stack traces
+    result = Column(Text, nullable=True)            # JSON-encoded result payload
+
+    # Audit
+    cancelled_by = Column(String, nullable=True)    # username who cancelled
+    worker_pid = Column(Integer, nullable=True)     # PID of worker that ran this
+    retry_count = Column(Integer, default=0)
