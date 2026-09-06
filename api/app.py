@@ -395,7 +395,7 @@ def ingest_observation(
             smtp_user = os.environ.get("SMTP_USER", "")
             smtp_pass = os.environ.get("SMTP_PASS", "")
 
-            if smtp_user and smtp_pass and all_emails:
+            if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
                 try:
                     for recipient in all_emails:
                         msg = MIMEMultipart()
@@ -755,13 +755,15 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session), current_user
     )
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentOnboardingOut:
     # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
-        agent = store.models.AgentRow(id=agent_id, name=agent_id)
+        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id=current_user["username"])
         s.add(agent)
         s.flush()
+    else:
+        check_agent_ownership(agent_id, s, current_user)
         
     payload = body.model_dump(exclude_unset=True)
     row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
@@ -796,7 +798,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
 
-    if smtp_user and smtp_pass and all_emails:
+    if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
@@ -877,7 +879,7 @@ def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             import smtplib
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
@@ -991,7 +993,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             try:
                 for recipient in all_emails:
                     msg = MIMEMultipart()
@@ -1072,7 +1074,8 @@ def list_customer_ratings(agent_id: str, s: Session = Depends(db_session), curre
     ]
 
 @app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
-def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session)) -> AgentConfigurationOut:
+def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentConfigurationOut:
+    check_agent_ownership(agent_id, s, current_user)
     row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
     
     # Fetch onboarding info to get emails
@@ -1105,7 +1108,7 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             import smtplib
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart

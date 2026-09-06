@@ -224,7 +224,7 @@
         const wV = parseFloat(document.getElementById('weight_V').value) || 0;
         const agentId = new URLSearchParams(window.location.search).get('agent_id') || 'agent-001';
         try {
-            const res = await fetch(/api/agents/+agentId+/score/preview, {
+            const res = await fetch(`/api/agents/${agentId}/score/preview`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ P, Q, E, G, R, V, C, wP, wQ, wE, wG, wR, wV, wC })
@@ -236,8 +236,9 @@
         } catch(e) {
             console.error(e);
         }
-    }
-    document.querySelectorAll('.weight-input').forEach(inp => {
+        
+        let wTotal = 0;
+        document.querySelectorAll('.weight-input').forEach(inp => {
             wTotal += (parseFloat(inp.value)||0);
         });
         const wTotalEl = document.getElementById('weightTotal');
@@ -279,23 +280,23 @@
             }
             
             try {
-                for (let m of metrics) {
-                    let val = document.getElementById('base_' + m).value;
-                    await fetch(`/api/agents/${agentId}/config`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                        body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
-                    });
-                }
-                
-                for (let m of metrics) {
-                    let val = document.getElementById('weight_' + m).value;
-                    await fetch(`/api/agents/${agentId}/config`, {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                        body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
-                    });
-                }
+                  for (let m of metrics) {
+                      let val = document.getElementById('base_' + m).value;
+                      await fetch(`/api/agents/${agentId}/config`, {
+                          method: 'POST',
+                          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                          body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
+                      });
+                  }
+                  
+                  for (let m of metrics) {
+                      let val = document.getElementById('weight_' + m).value;
+                      await fetch(`/api/agents/${agentId}/config`, {
+                          method: 'POST',
+                          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                          body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
+                      });
+                  }
                 
                 // Trigger telemetry calculation once for all configs!
                 if (statusEl) {

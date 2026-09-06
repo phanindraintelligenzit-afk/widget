@@ -191,7 +191,7 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const agentId = urlParams.get('id');
+    const agentId = urlParams.get('id') || urlParams.get('agent_id');
 
     async function loadData() {
       if (!agentId) {
