@@ -406,7 +406,7 @@
     if (isNaN(hallVal)) hallVal = 0;
 
     let calcQ = (0.7 * accVal) + (0.2 * consVal) + (0.1 * (1.0 - hallVal));
-    let qScoreVal = calcQ.toFixed(4);
+      let qScoreVal = (value !== undefined && value !== null) ? value : calcQ.toFixed(4);
     
     sub.Quality_Score_Calc = { acc: accVal, cons: consVal, hall: hallVal };
 
