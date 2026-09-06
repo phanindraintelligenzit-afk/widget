@@ -26,13 +26,13 @@
   };
 
   const METRIC_LABELS = {
-    P: "Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)",
-    Q: "Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)",
-    E: "Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)",
-    G: "Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)",
-    R: "Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)",
-    V: "Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)",
-    C: "Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)",
+    P: "Productivity",
+    Q: "Quality",
+    E: "Execution",
+    G: "Governance",
+    R: "Risk",
+    V: "Validation",
+    C: "Cost",
   };
 
   const SHARED_CSS = `
@@ -2146,13 +2146,13 @@
               <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#38bdf8;">DPI-LS</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)">P</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)">Q</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)">E</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)">G</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)">R</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)">V</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)">C</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="P">P</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Q">Q</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="E">E</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="G">G</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="R">R</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="V">V</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="C">C</th>
             </tr>
           </thead>
           <tbody>
