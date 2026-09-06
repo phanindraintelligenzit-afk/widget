@@ -398,9 +398,11 @@ async def run_agent_observation() -> None:
                     
         import requests
         try:
-            res = requests.post(f"{base_url}/ingest", json=obs)
+            payload = obs.model_dump(mode="json")
+            res = requests.post(f"{base_url}/ingest", json=payload)
             rating = res.json() if res.ok else None
-        except Exception:
+        except Exception as e:
+            print("Failed to post:", e)
             rating = None
     else:
         rating = post_observation(collector, base_url)

@@ -16,7 +16,8 @@ def start_server():
     env.pop("DISABLE_WORKER", None)
     env["DISABLE_SMTP"] = "1"
     env.pop("SMTP_USER", None)
-    env.pop("SMTP_PASS", None)
+    port = 8124
+    env["DPI_LS_PORT"] = str(port)
     
     # Initialize DB and create users Alice and Bob
     import store.db as _db
@@ -92,14 +93,32 @@ def test_full_browser_journey(page: Page, start_server):
     assert exec_data["status"] == "QUEUED"
     
     # Wait for execution to finish (the worker will run the mock test_agent.py)
-    time.sleep(6)
+    time.sleep(15)
     
     # 5. Dashboard / Profile / 7 Dimensions / Score
     page.goto(f"{base_url}/widget/agent-profile.html?agent_id={agent_id}")
-    
-    # Check that score is visible by verifying the overall-score text isn't empty
-    # For now, just ensure the profile loads without error and we can see the Agent Name
     expect(page.locator(f"text=browser-e2e-agent")).to_be_visible(timeout=5000)
+    
+    # Check that score is visible (not just TBD)
+    score_locator = page.locator("#agent-score")
+    expect(score_locator).not_to_have_text("TBD", timeout=5000)
+    
+    # 6. Rating Page
+    page.goto(f"{base_url}/widget/score.html")
+    expect(page.locator("text=Agent Scores (Raw Values)")).to_be_visible(timeout=5000)
+    
+    # 7. Dashboard (demo.html)
+    page.goto(f"{base_url}/widget/demo.html")
+    expect(page.locator("text=AGENT SCORING DASHBOARD")).to_be_visible(timeout=5000)
+    
+    # 8. Check History/Audit (via API since it renders in the profile page)
+    history_res = page.request.get(
+        f"{base_url}/agents/{agent_id}/history",
+        headers={"Authorization": f"Bearer " + page.evaluate("localStorage.getItem('token')")}
+    )
+    assert history_res.status == 200
+    history_data = history_res.json()
+    assert len(history_data) > 0, "Score Snapshot History should be recorded"
     
     # 6. Test another user (User B) -> 403
     page.goto(f"{base_url}/widget/admin-login.html")
