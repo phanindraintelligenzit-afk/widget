@@ -26,13 +26,13 @@
   };
 
   const METRIC_LABELS = {
-    P: "Productivity (15%)",
-    Q: "Quality (20%)",
-    E: "Execution (15%)",
-    G: "Governance (20%)",
-    R: "Risk (15%)",
-    V: "Validation (10%)",
-    C: "Cost (5%)",
+    P: "Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)",
+    Q: "Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)",
+    E: "Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)",
+    G: "Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)",
+    R: "Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)",
+    V: "Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)",
+    C: "Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)",
   };
 
   const SHARED_CSS = `
@@ -196,7 +196,7 @@
       const display = (w_m[k] !== null && w_m[k] !== undefined)
         ? (w_m[k] * 100).toFixed(2)
         : "\u2014";
-      return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details">${display}</td>`;
+      return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details" data-weight="${(w_m[k] !== null && w_m[k] !== undefined) ? Math.round(w_m[k]*100) : ''}">${display}</td>`;
     }).join("");
     
     return `
@@ -431,7 +431,7 @@
     };
   }
 
-  function renderQualityTableHtml(sub, settings, value, resourceFilter) {
+  function renderQualityTableHtml(sub, row, value, resourceFilter) {
     const metricsMap = calculateQualityMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
@@ -505,15 +505,15 @@
     }
     let finalWeightedVal = "N/A";
     if (qScoreVal !== "Pending SME Review") {
-      finalWeightedVal = (qScoreRaw * 20.0).toFixed(2);
+      finalWeightedVal = (qScoreRaw * (row && row.weights_used && row.weights_used["Q"] !== undefined ? row.weights_used["Q"]*100 : 20.0)).toFixed(2);
     }
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">Q</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (20%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -565,7 +565,7 @@
   }
 
   
-  function renderGovernanceTableHtml(sub, settings, value, resourceFilter) {
+  function renderGovernanceTableHtml(sub, row, value, resourceFilter) {
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
 
     const resources = sub.runtime_resources || {};
@@ -591,7 +591,7 @@
     // displayed Raw / Weighted numbers; fall back to the formula calc.
     let gScoreVal = (value === undefined || value === null) ? formulaOutput : value;
 
-    const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
+    const finalWeightedVal = (gScoreVal * (row && row.weights_used && row.weights_used["G"] !== undefined ? row.weights_used["G"]*100 : 20.0)).toFixed(2);
     const metricsMap = {
       "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
       "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
@@ -682,8 +682,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">G</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (20%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -782,7 +782,7 @@
     `;
   }
 
-  function renderRiskTableHtml(sub, settings, value, resourceFilter) {
+  function renderRiskTableHtml(sub, row, value, resourceFilter) {
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Risk telemetry available.</div>`;
     
     sub = sub || {};
@@ -859,7 +859,7 @@
     }
     if (value === undefined || value === null) value = rScoreToUse;
     
-    const finalWeightedVal = (rScoreToUse * (settings?.weights?.R || 15.0)).toFixed(2);
+    const finalWeightedVal = (rScoreToUse * (row && row.weights_used && row.weights_used["R"] !== undefined ? row.weights_used["R"]*100 : 15.0)).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -901,8 +901,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">R</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -953,7 +953,7 @@
     `;
   }
 
-  function renderValidationTableHtml(sub, settings, value, resourceFilter) {
+  function renderValidationTableHtml(sub, row, value, resourceFilter) {
     const metricsMap = calculateValidationMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
@@ -1010,7 +1010,7 @@
     if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
       vScoreVal = metricsMap["Validation_Score"].val;
     }
-    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
+    const finalWeightedVal = (vScoreVal * (row && row.weights_used && row.weights_used["V"] !== undefined ? row.weights_used["V"]*100 : 10.0)).toFixed(2);
     
     let gateHtml = "";
     if (vScoreVal < 0.60) {
@@ -1058,8 +1058,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (10%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 10%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1112,7 +1112,7 @@
     `;
   }
 
-  function renderCostTableHtml(sub, settings, value, resourceFilter) {
+  function renderCostTableHtml(sub, row, value, resourceFilter) {
     const metricsMap = calculateCostMetrics(sub, settings, value);
     
     const fmt = (val, dec = 6) => {
@@ -1214,14 +1214,14 @@
     // Retrieve final values for the formula widget
     // Value represents the raw Cost metric (0.0 to 1.0)
     const costScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (costScoreVal * 5.0).toFixed(2);
+    const finalWeightedVal = (costScoreVal * (row && row.weights_used && row.weights_used["C"] !== undefined ? row.weights_used["C"]*100 : 5.0)).toFixed(2);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">C</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (5%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 5%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1308,7 +1308,7 @@
     };
   }
 
-  function renderProductivityTableHtml(sub, settings, value, resourceFilter) {
+  function renderProductivityTableHtml(sub, row, value, resourceFilter) {
     const metricsMap = calculateProductivityMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
@@ -1378,14 +1378,14 @@
     }).join("");
 
     let pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (pScoreVal * 15.0).toFixed(2);
+    const finalWeightedVal = (pScoreVal * (row && row.weights_used && row.weights_used["P"] !== undefined ? row.weights_used["P"]*100 : 15.0)).toFixed(2);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
@@ -1477,7 +1477,7 @@
     };
   }
 
-  function renderExecutionTableHtml(sub, settings, value, resourceFilter) {
+  function renderExecutionTableHtml(sub, row, value, resourceFilter) {
     const metricsMap = calculateExecutionMetrics(sub, settings, value);
     
     const fmt = (val, dec = 3) => {
@@ -1531,7 +1531,7 @@
     if (metricsMap["Execution_Score"] && metricsMap["Execution_Score"].val !== undefined) {
       eScoreVal = metricsMap["Execution_Score"].val;
     }
-    const finalWeightedVal = (eScoreVal * 15.0).toFixed(2);
+    const finalWeightedVal = (eScoreVal * (row && row.weights_used && row.weights_used["E"] !== undefined ? row.weights_used["E"]*100 : 15.0)).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -1556,8 +1556,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">E</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1607,14 +1607,14 @@
     `;
   }
 
-  function metricDetailHtml(key, value, sub, rating) {
-    if (key === "C") return renderCostTableHtml(sub, null, value);
-    if (key === "V") return renderValidationTableHtml(sub, null, value);
-    if (key === "G") return renderGovernanceTableHtml(sub, null, value);
-    if (key === "R") return renderRiskTableHtml(sub, null, value);
-    if (key === "Q") return renderQualityTableHtml(sub, null, value);
-    if (key === "E") return renderExecutionTableHtml(sub, null, value);
-    if (key === "P") return renderProductivityTableHtml(sub, null, value);
+  function metricDetailHtml(key, value, sub, row) {
+    if (key === "C") return renderCostTableHtml(sub, row, value);
+    if (key === "V") return renderValidationTableHtml(sub, row, value);
+    if (key === "G") return renderGovernanceTableHtml(sub, row, value);
+    if (key === "R") return renderRiskTableHtml(sub, row, value);
+    if (key === "Q") return renderQualityTableHtml(sub, row, value);
+    if (key === "E") return renderExecutionTableHtml(sub, row, value);
+    if (key === "P") return renderProductivityTableHtml(sub, row, value);
 
     const label  = METRIC_LABELS[key]  || key;
     const w_m = rating && rating.weighted_metrics ? rating.weighted_metrics : {};
@@ -1952,7 +1952,7 @@
           if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], this._settings || {});
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
           const detailTr = document.createElement("tr");
           detailTr.className = "cost-detail-row";
           detailTr.dataset.expandedKey = key;
@@ -2146,13 +2146,13 @@
               <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#38bdf8;">DPI-LS</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (20%)">G</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (15%)">R</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (10%)">V</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (5%)">C</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)">P</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)">Q</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)">E</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)">G</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)">R</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)">V</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)">C</th>
             </tr>
           </thead>
           <tbody>

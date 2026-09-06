@@ -271,8 +271,16 @@
 
     async function deleteAgent() {
       if(confirm('Are you sure you want to retire this agent?')) {
-        const res = await fetch(`/agents/${agentId}`, {method: 'DELETE'});
-        if(res.ok) window.location.href = '/';
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/agents/${agentId}`, {
+          method: 'DELETE',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        });
+        if(res.ok) {
+          window.location.href = '/widget/demo.html';
+        } else {
+          alert('Failed to retire agent.');
+        }
       }
     }
 

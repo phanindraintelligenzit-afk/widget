@@ -951,12 +951,12 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
         return e.stdout + "\n" + e.stderr + f"\nError: {e}"
 
 @app.post("/api/agents/{agent_id}/manager-rating")
-def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)):
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    check_agent_ownership(agent_id, s, current_user)
+    # Automatically override manager_id to the logged-in user to prevent mismatch errors
+    body.manager_id = current_user["username"]
+    
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
-    if onboarding:
-        valid_managers = [onboarding.technical_owner_email, onboarding.business_owner_email]
-        if body.manager_id not in valid_managers:
-            raise HTTPException(status_code=403, detail="Not authorized to rate this agent")
             
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
     
