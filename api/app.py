@@ -3193,8 +3193,62 @@ async def score_preview(agent_id: str, request: Request, s: Session = Depends(db
     return {"preview_score": min(100.0, max(0.0, score))}
 
 @app.post("/api/agents/{agent_id}/test_connection")
-async def test_connection(agent_id: str, current_user: dict = Depends(get_current_user)):
+async def test_connection(
+    agent_id: str,
+    request: Request,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user)
+):
     check_agent_ownership(agent_id, s, current_user)
     
-    # Simulated safe health check / Stub. User requirement: Do NOT return CONNECTED from a stub.
-    return {"status": "BLOCKED", "error": "External credentials unavailable in current environment"}
+    body = await request.json()
+    resource_name = body.get("resource_name", "").lower()
+    
+    import os
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    
+    if "langfuse" in resource_name:
+        pk = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
+        sk = os.environ.get("LANGFUSE_SECRET_KEY", "")
+        host = os.environ.get("LANGFUSE_HOST", "")
+        if not pk or not sk or not host:
+            return {"status": "NOT_CONFIGURED", "error": "Missing Langfuse environment variables."}
+        if "rotated" in pk.lower() or "rotated" in sk.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        
+        # If we have real keys, try a real ping
+        import httpx
+        try:
+            r = httpx.get(f"{host.rstrip('/')}/api/public/health", timeout=5.0)
+            if r.status_code == 200:
+                return {"status": "REAL", "message": "Connection successful"}
+            return {"status": "FAILED", "error": f"HTTP {r.status_code}: {r.text}"}
+        except Exception as e:
+            return {"status": "FAILED", "error": str(e)}
+
+    if "sentry" in resource_name:
+        dsn = os.environ.get("SENTRY_DSN", "")
+        if not dsn:
+            return {"status": "NOT_CONFIGURED", "error": "Missing SENTRY_DSN."}
+        if "rotated" in dsn.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for Sentry verification."}
+        
+    if "agentops" in resource_name:
+        key = os.environ.get("AGENTOPS_API_KEY", "")
+        if not key:
+            return {"status": "NOT_CONFIGURED", "error": "Missing AGENTOPS_API_KEY."}
+        if "rotated" in key.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for AgentOps verification."}
+        
+    if "aws" in resource_name or "bedrock" in resource_name:
+        key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+        if not key:
+            return {"status": "NOT_CONFIGURED", "error": "Missing AWS_ACCESS_KEY_ID."}
+        if "rotated" in key.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for AWS verification."}
+
+    return {"status": "NOT_CONFIGURED", "error": f"Integration {resource_name} not recognized or not implemented for health check."}
