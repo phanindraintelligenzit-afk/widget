@@ -116,6 +116,7 @@
           <th style="padding:10px;border:1px solid #1e293b;text-align:center;">V</th>
           <th style="padding:10px;border:1px solid #1e293b;text-align:center;">C</th>
           <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">SME Rating</th>
+          <th style="padding:10px 14px;border:1px solid #1e293b;text-align:center;">Action</th>
         </tr>
       </thead>
       <tbody id="agent-body"></tbody>
@@ -146,6 +147,9 @@
               <span id="star-${a.agent_id}-4" style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="hoverStars('${a.agent_id}', 4)" onclick="submitStar('${a.agent_id}', 4)">&#9733;</span>
               <span id="star-${a.agent_id}-5" style="cursor:pointer; color:#475569; font-size:22px; transition:color 0.2s;" onmouseover="hoverStars('${a.agent_id}', 5)" onclick="submitStar('${a.agent_id}', 5)">&#9733;</span>
               <span id="score-text-${a.agent_id}" style="margin-left: 10px; font-weight: bold; color: var(--accent);"></span>
+            </td>
+            <td style="padding:12px; text-align:center;">
+              <button onclick="openReviewModal('${a.agent_id}')" style="background:var(--accent); border:none; color:black; padding:6px 12px; border-radius:4px; font-weight:bold; cursor:pointer; font-size:12px;">Add Review</button>
             </td>
         </tr>`;
         body.innerHTML += row;
@@ -213,6 +217,83 @@
       }
     });
   </script>
+
+<!-- Manager Review Modal -->
+<div id="review-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
+    <div style="background:var(--surface); padding:20px; border-radius:12px; width:400px; border:1px solid var(--border);">
+        <h3 style="margin-top:0;">Submit Manager Review</h3>
+        <input type="hidden" id="modal-agent-id">
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; color:var(--muted);">Manager Email</label>
+            <input type="email" id="modal-email" style="width:100%; padding:8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); color:var(--text);">
+        </div>
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; color:var(--muted);">Review Period (e.g. Q1 2026)</label>
+            <input type="text" id="modal-period" style="width:100%; padding:8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); color:var(--text);">
+        </div>
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; color:var(--muted);">Rating (1-5)</label>
+            <select id="modal-rating" style="width:100%; padding:8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); color:var(--text);">
+                <option value="5">5 - Outstanding</option>
+                <option value="4">4 - Exceeds Expectations</option>
+                <option value="3">3 - Meets Expectations</option>
+                <option value="2">2 - Needs Improvement</option>
+                <option value="1">1 - Unacceptable</option>
+            </select>
+        </div>
+        <div style="margin-bottom:15px;">
+            <label style="display:block; margin-bottom:5px; color:var(--muted);">Comments</label>
+            <textarea id="modal-comments" style="width:100%; padding:8px; border-radius:6px; background:var(--bg); border:1px solid var(--border); color:var(--text); height:80px;"></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button onclick="document.getElementById('review-modal').style.display='none'" style="background:transparent; border:1px solid var(--border); color:white; padding:8px 16px; border-radius:6px; cursor:pointer;">Cancel</button>
+            <button onclick="submitManagerReview()" style="background:var(--accent); border:none; color:black; padding:8px 16px; border-radius:6px; font-weight:bold; cursor:pointer;">Submit</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openReviewModal(agentId) {
+        document.getElementById('modal-agent-id').value = agentId;
+        document.getElementById('modal-email').value = '';
+        document.getElementById('modal-period').value = '';
+        document.getElementById('modal-comments').value = '';
+        document.getElementById('review-modal').style.display = 'flex';
+    }
+
+    async function submitManagerReview() {
+        const agentId = document.getElementById('modal-agent-id').value;
+        const payload = {
+            manager_id: document.getElementById('modal-email').value,
+            review_period: document.getElementById('modal-period').value,
+            rating: parseInt(document.getElementById('modal-rating').value),
+            comments: document.getElementById('modal-comments').value
+        };
+
+        if (!payload.manager_id || !payload.review_period) {
+            alert("Please fill out Email and Review Period.");
+            return;
+        }
+
+        const res = await fetch(`/api/agents/${agentId}/manager-rating`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('token') 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+            alert("Manager Review submitted successfully! Redirecting to profile...");
+            document.getElementById('review-modal').style.display = 'none';
+            window.location.href = '/widget/agent-profile.html?id=' + encodeURIComponent(agentId);
+        } else {
+            const err = await res.json();
+            alert("Error: " + (err.detail || "Unknown error"));
+        }
+    }
+</script>
 
 <!-- Chatbot Panel -->
 <div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
