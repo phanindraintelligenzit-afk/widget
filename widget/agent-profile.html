@@ -185,7 +185,11 @@
 
     <div class="card">
       <h2>Actions</h2>
-      <button class="btn btn-danger" onclick="deleteAgent()">Retire Agent</button>
+      <div style="display: flex; gap: 10px;">
+        <a id="btn-manager-review" class="btn" style="text-decoration: none; display: inline-block; text-align: center;">Submit Manager Review</a>
+        <a id="btn-customer-feedback" class="btn" style="text-decoration: none; display: inline-block; text-align: center; background: #64748b; color: white;">Submit Customer Feedback</a>
+        <button class="btn btn-danger" onclick="deleteAgent()">Retire Agent</button>
+      </div>
     </div>
   </div>
 
