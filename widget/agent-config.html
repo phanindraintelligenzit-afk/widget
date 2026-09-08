@@ -226,7 +226,10 @@
         try {
             const res = await fetch(`/api/agents/${agentId}/score/preview`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                },
                 body: JSON.stringify({ P, Q, E, G, R, V, C, wP, wQ, wE, wG, wR, wV, wC })
             });
             if(res.ok) {
