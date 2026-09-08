@@ -231,7 +231,7 @@
             });
             if(res.ok) {
                 const data = await res.json();
-                document.getElementById('dpi-projection').textContent = data.preview_score.toFixed(1);
+                document.getElementById('live_dpi_score').textContent = data.preview_score.toFixed(1);
             }
         } catch(e) {
             console.error(e);
