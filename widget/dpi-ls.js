@@ -525,7 +525,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${qScoreVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -696,7 +696,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${gScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -916,7 +916,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${rScoreToUse.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1074,7 +1074,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${vScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×10%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1237,7 +1237,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${costScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×5%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1404,7 +1404,7 @@
               <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (15%)</div>
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (*${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</div>
               <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1577,7 +1577,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${eScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -2895,3 +2895,6 @@
     customElements.define("dpi-ls-cost-evaluation", DpiLsCostEvaluation);
   }
 })();
+
+
+
