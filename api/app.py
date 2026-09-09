@@ -953,10 +953,21 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
 @app.post("/api/agents/{agent_id}/manager-rating")
 def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
     check_agent_ownership(agent_id, s, current_user)
-    # Automatically override manager_id to the logged-in user to prevent mismatch errors
-    body.manager_id = current_user["username"]
     
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
+    if not onboarding:
+        raise HTTPException(status_code=404, detail="Agent onboarding record not found.")
+        
+    # Security Authorization Check:
+    # The email entered in the Manager Review modal MUST match the Business Owner Email from Onboarding.
+    registered_email = (onboarding.business_owner_email or "").strip().lower()
+    provided_email = (body.manager_id or "").strip().lower()
+    
+    if provided_email != registered_email:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Authorization Failed: You entered '{provided_email}', but only the registered Business Owner ('{registered_email}') is authorized to submit a Manager Review for this agent."
+        )
             
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
     
