@@ -1,0 +1,389 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPI-LS Presentation</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --text: #f8fafc;
+            --accent: #facc15;
+            --muted: #94a3b8;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* Hide scrollbars for presentation */
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 40px;
+            background: var(--surface);
+            border-bottom: 2px solid var(--accent);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 1000;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: 900;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .logo-icon {
+            color: #ea580c; /* Orange brain color */
+            font-size: 28px;
+        }
+        .nav-links a {
+            color: var(--accent);
+            text-decoration: none;
+            margin-left: 20px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            transition: all 0.3s;
+        }
+        .nav-links a:hover {
+            background: var(--accent);
+            color: #000;
+        }
+        .slides-container {
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            padding-top: 70px; /* offset for header */
+            box-sizing: border-box;
+        }
+        .slide {
+            position: absolute;
+            top: 70px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 150px);
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            display: flex;
+            flex-direction: row;
+            padding: 40px;
+            box-sizing: border-box;
+            pointer-events: none;
+            gap: 40px;
+        }
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .content-half {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .image-half {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .image-half img {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid var(--surface);
+        }
+        h1 {
+            color: var(--accent);
+            font-size: 42px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: white;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+        .script-box {
+            background: rgba(255,255,255,0.05);
+            padding: 30px;
+            border-left: 4px solid var(--accent);
+            font-size: 24px;
+            line-height: 1.6;
+            color: #cbd5e1;
+            border-radius: 0 12px 12px 0;
+            margin-bottom: 30px;
+        }
+        .bullet-points {
+            font-size: 20px;
+            line-height: 1.8;
+            color: var(--text);
+        }
+        .bullet-points li {
+            margin-bottom: 12px;
+        }
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 20px;
+            z-index: 1000;
+        }
+        .btn {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--muted);
+            padding: 12px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: bold;
+        }
+        .btn:hover {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+        .btn-live {
+            background: var(--accent);
+            color: #000;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 22px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(250, 204, 21, 0.3);
+        }
+        .btn-live:hover {
+            background: #eab308;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo">
+            <span class="logo-icon">&#129504;</span> Intelligenz IT
+        </div>
+        <div class="nav-links">
+            <a href="http://127.0.0.1:8000/widget/admin-login.html" target="_blank">Live Login Page</a>
+            <a href="http://127.0.0.1:8000/widget/demo.html" target="_blank">Live Dashboard</a>
+        </div>
+    </div>
+
+    <div class="slides-container" id="slides-container">
+        
+        <!-- Slide 1: Welcome -->
+        <div class="slide active">
+            <div class="content-half" style="flex:100%; text-align:center; align-items:center;">
+                <h1 style="font-size: 64px;">DPI-LS</h1>
+                <h2>Digital Performance Index &ndash; Life Science</h2>
+                <div class="script-box" style="border:none; text-align:left; max-width: 800px; margin: 40px auto; border-radius: 12px; background: var(--surface);">
+                    "Good afternoon everyone. Today I am going to present DPI-LS. First, I will explain what DPI-LS is and why we built it."
+                </div>
+            </div>
+        </div>
+
+        <!-- Slide 2: What and Why -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>What is DPI-LS?</h2>
+                <div class="script-box">
+                    "DPI-LS stands for Digital Performance Index &ndash; Life Science. It is a measurement engine that measures AI-agent performance."
+                </div>
+                <ul class="bullet-points">
+                    <li><strong>What it is:</strong> A specialized platform to track and score Digital Workers (AI Agents).</li>
+                    <li><strong>Why we built it:</strong> Life Science companies need strict proof that AI is safe, compliant, and actually productive before using it.</li>
+                </ul>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/dpils_intro_concept_1789016723022.jpg" alt="DPI-LS Concept">
+            </div>
+        </div>
+
+        <!-- Slide 3: Benefits & Advantages -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>Benefits & Advantages</h2>
+                <div class="script-box">
+                    "It helps us understand performance, quality, risk, governance, validation, and cost before we trust and scale an AI agent."
+                </div>
+                <ul class="bullet-points">
+                    <li><strong>Trust & Safety:</strong> Strict governance rules block unsafe AI actions automatically.</li>
+                    <li><strong>Clear Measurement:</strong> Replaces guesswork with hard numbers across 7 specific categories (P, Q, E, G, R, V, C).</li>
+                    <li><strong>Human Oversight:</strong> Managers can easily review AI decisions and rate them.</li>
+                    <li><strong>Scalability:</strong> Safely deploy hundreds of agents with a central dashboard to monitor them all.</li>
+                </ul>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/dpils_benefits_concept_1789016750004.jpg" alt="Benefits Shield">
+            </div>
+        </div>
+
+        <!-- Slide 4: Flow Intro -->
+        <div class="slide">
+            <div class="content-half" style="flex:100%; text-align:center; align-items:center;">
+                <h2>The Application Flow</h2>
+                <div class="script-box" style="border:none; max-width: 800px; text-align:center; background: var(--surface); border-radius: 12px;">
+                    "Now, let me explain how DPI-LS works."
+                </div>
+                <h2 style="color: var(--accent); margin-top: 40px; font-size: 28px;">
+                    Login &rarr; Dashboard &rarr; Onboard Agent &rarr; Configuration &rarr; Rating &rarr; Profile &rarr; Resources &rarr; Sign Out
+                </h2>
+            </div>
+        </div>
+
+        <!-- Slide 5: Login -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>1. Secure Login</h2>
+                <div class="script-box">
+                    "First, the user logs in using their username and password."
+                </div>
+                <a href="http://127.0.0.1:8000/widget/admin-login.html" target="_blank" class="btn-live">Open Live Login Page</a>
+            </div>
+        </div>
+
+        <!-- Slide 6: Dashboard -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>2. The Dashboard</h2>
+                <div class="script-box">
+                    "After login, the DPI-LS dashboard is displayed. On the left side, we have seven main sections: Dashboard, Onboard Agent, Configuration, Rating, Profile, Resources, and Sign Out."
+                </div>
+                <a href="http://127.0.0.1:8000/widget/demo.html" target="_blank" class="btn-live" style="font-size: 16px; padding: 10px 20px;">Open Live Dashboard</a>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/.user_uploaded/media_1788870836049.png" alt="Dashboard">
+            </div>
+        </div>
+
+        <!-- Slide 7: Onboard & Configuration -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>3. Onboarding & Configuration</h2>
+                <div class="script-box">
+                    "The user can onboard an AI agent, and provide its configuration."
+                </div>
+                <ul class="bullet-points">
+                    <li>Register a new AI with Business and Technical owner details.</li>
+                    <li>Configure the exact weight (percentages) for each performance metric to match business goals.</li>
+                </ul>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/.user_uploaded/media_1788932739738.png" alt="Configuration">
+            </div>
+        </div>
+
+        <!-- Slide 8: Rating -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>4. Rating & Human Oversight</h2>
+                <div class="script-box">
+                    "...check its rating and score..."
+                </div>
+                <ul class="bullet-points">
+                    <li>Managers can submit performance reviews securely.</li>
+                    <li>SME (Subject Matter Experts) can provide 1-to-5 star ratings that directly impact the AI's Quality score.</li>
+                </ul>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/.user_uploaded/media_1788872588935.png" alt="Rating">
+            </div>
+        </div>
+
+        <!-- Slide 9: Profile & Resources -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>5. Profile & Resources</h2>
+                <div class="script-box">
+                    "...view the agent profile, and check the connected resources."
+                </div>
+                <ul class="bullet-points">
+                    <li><strong>Profile:</strong> See historical execution scores, bands, and the full Manager Review timeline.</li>
+                    <li><strong>Resources:</strong> Access architectural manuals and operational guidelines.</li>
+                </ul>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/.user_uploaded/media_1788872710278.png" alt="Profile">
+            </div>
+        </div>
+
+        <!-- Slide 10: Search & Help -->
+        <div class="slide">
+            <div class="content-half">
+                <h2>Search & AI Chatbot</h2>
+                <div class="script-box">
+                    "The dashboard also provides a search option to quickly find agents or metrics, and a chatbot/help option to assist the user."
+                </div>
+            </div>
+            <div class="image-half">
+                <img src="file:///C:/Users/User/.gemini/antigravity/brain/92a8bc58-10d4-4ff6-b9dc-6e7f48d6f5a2/.user_uploaded/media_1788933515125.png" alt="Search and Chatbot">
+            </div>
+        </div>
+
+        <!-- Slide 11: Sign Out -->
+        <div class="slide">
+            <div class="content-half" style="flex:100%; text-align:center; align-items:center;">
+                <h2>Sign Out</h2>
+                <div class="script-box" style="border:none; max-width: 800px; text-align:center; background: var(--surface); border-radius: 12px;">
+                    "Finally, the user can sign out from the application."
+                </div>
+                <br><br>
+                <h1 style="font-size: 50px;">Thank You!</h1>
+                <a href="http://127.0.0.1:8000/widget/demo.html" target="_blank" class="btn-live">Go to Live Platform Demo</a>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="controls">
+        <button class="btn" onclick="prevSlide()">&#8592; Previous</button>
+        <button class="btn" onclick="nextSlide()">Next &#8594;</button>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+
+        function showSlide(index) {
+            slides.forEach(s => s.classList.remove('active'));
+            if(index < 0) currentSlide = 0;
+            else if(index >= slides.length) currentSlide = slides.length - 1;
+            else currentSlide = index;
+            slides[currentSlide].classList.add('active');
+        }
+
+        function nextSlide() {
+            showSlide(currentSlide + 1);
+        }
+
+        function prevSlide() {
+            showSlide(currentSlide - 1);
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'ArrowRight' || e.key === 'Space') nextSlide();
+            if(e.key === 'ArrowLeft') prevSlide();
+        });
+    </script>
+</body>
+</html>
