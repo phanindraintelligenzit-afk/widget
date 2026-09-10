@@ -1186,8 +1186,8 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
             band="Pending",
             unsafe=False,
             gate_failures=[],
-            metrics={"P": {"val": 0}, "Q": {"val": 0}, "E": {"val": 0}, "G": {"val": 0}, "R": {"val": 0}, "V": {"val": 0}, "C": {"val": 0}},
-            weighted_metrics={},
+            metrics={"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "V": 0.0, "C": 0.0},
+            weighted_metrics={"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "V": 0.0, "C": 0.0},
             weights_used={"P": 0.15, "Q": 0.20, "E": 0.15, "G": 0.20, "R": 0.15, "V": 0.10, "C": 0.05},
             sub_metrics={},
             missing=["Evaluating... Please refresh soon"]
@@ -1213,6 +1213,7 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
     threading.Thread(target=run_eval_thread, args=(agent_id, agent_name), daemon=True).start()
     
     return {"message": "Telemetry queued"}
+
 
 
 
