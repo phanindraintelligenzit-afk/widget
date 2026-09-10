@@ -1156,13 +1156,33 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
 
 @app.post("/api/agents/{agent_id}/run_telemetry")
 def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
-    
     import subprocess
     import os
+    import threading
+    import datetime
+    import json
     
     agent = s.get(store.models.AgentRow, agent_id)
     agent_name = agent.name if agent else agent_id
     
+    # 1. Insert a Pending Telemetry row instantly so it shows on the dashboard
+    existing = s.query(store.models.TelemetryRow).filter(store.models.TelemetryRow.agent_id == agent_id).first()
+    if not existing:
+        dummy = store.models.TelemetryRow(
+            agent_id=agent_id,
+            timestamp=datetime.datetime.utcnow().isoformat() + "Z",
+            raw_score=0.0,
+            score=0.0,
+            metrics=json.dumps({"P": {"val": 0}, "Q": {"val": 0}, "E": {"val": 0}, "G": {"val": 0}, "R": {"val": 0}, "V": {"val": 0}, "C": {"val": 0}}),
+            weighted_metrics=json.dumps({}),
+            weighted_contribution=0.0,
+            missing=json.dumps(["Evaluating... Please refresh soon"]),
+            gates=json.dumps([])
+        )
+        s.add(dummy)
+        s.commit()
+    
+    # 2. Run the actual evaluation in a background thread to prevent Uvicorn Deadlock
     def run_eval_thread(a_id, a_name):
         env = os.environ.copy()
         env["AGENT_ID"] = a_id
@@ -1172,15 +1192,15 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
         env["AWS_ACCESS_KEY_ID"] = "rotated"
         env["LITELLM_DROP_PARAMS"] = "True"
         try:
-            print(f"[Synchronous] Running test_agent.py for {a_id}...")
+            print(f"[Background] Running test_agent.py for {a_id}...")
             subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env)
         except Exception as e:
-            print(f"[Synchronous] Error: {e}")
+            print(f"[Background] Error: {e}")
             
-    # Run synchronously so the API request blocks until the score is generated
-    run_eval_thread(agent_id, agent_name)
+    threading.Thread(target=run_eval_thread, args=(agent_id, agent_name), daemon=True).start()
     
-    return {"message": "Telemetry completed"}
+    return {"message": "Telemetry queued"}
+
 
 @app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
 def get_agent_configs(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[AgentConfigurationOut]:
