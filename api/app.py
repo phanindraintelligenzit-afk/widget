@@ -1165,19 +1165,32 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
     agent = s.get(store.models.AgentRow, agent_id)
     agent_name = agent.name if agent else agent_id
     
-    # 1. Insert a Pending Telemetry row instantly so it shows on the dashboard
-    existing = s.query(store.models.TelemetryRow).filter(store.models.TelemetryRow.agent_id == agent_id).first()
+    # 1. Insert a Pending Observation and Score instantly so it shows on the dashboard
+    existing = s.query(store.models.ScoreRow).filter(store.models.ScoreRow.agent_id == agent_id).first()
     if not existing:
-        dummy = store.models.TelemetryRow(
+        obs = store.models.ObservationRow(
             agent_id=agent_id,
-            timestamp=datetime.datetime.utcnow().isoformat() + "Z",
-            raw_score=0.0,
+            period_start=datetime.datetime.utcnow(),
+            period_end=datetime.datetime.utcnow(),
+            source="System",
+            payload={}
+        )
+        s.add(obs)
+        s.flush()
+        
+        dummy = store.models.ScoreRow(
+            agent_id=agent_id,
+            observation_id=obs.id,
             score=0.0,
-            metrics=json.dumps({"P": {"val": 0}, "Q": {"val": 0}, "E": {"val": 0}, "G": {"val": 0}, "R": {"val": 0}, "V": {"val": 0}, "C": {"val": 0}}),
-            weighted_metrics=json.dumps({}),
-            weighted_contribution=0.0,
-            missing=json.dumps(["Evaluating... Please refresh soon"]),
-            gates=json.dumps([])
+            raw_score=0.0,
+            band="Pending",
+            unsafe=False,
+            gate_failures=[],
+            metrics={"P": {"val": 0}, "Q": {"val": 0}, "E": {"val": 0}, "G": {"val": 0}, "R": {"val": 0}, "V": {"val": 0}, "C": {"val": 0}},
+            weighted_metrics={},
+            weights_used={"P": 0.15, "Q": 0.20, "E": 0.15, "G": 0.20, "R": 0.15, "V": 0.10, "C": 0.05},
+            sub_metrics={},
+            missing=["Evaluating... Please refresh soon"]
         )
         s.add(dummy)
         s.commit()
@@ -1200,6 +1213,7 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
     threading.Thread(target=run_eval_thread, args=(agent_id, agent_name), daemon=True).start()
     
     return {"message": "Telemetry queued"}
+
 
 
 @app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
