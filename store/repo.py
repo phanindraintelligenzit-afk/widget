@@ -59,25 +59,31 @@ def upsert_agent(
     baseline: Optional[float] = None,
     owner_id: Optional[str] = None,
 ) -> AgentRow:
+    import sqlalchemy.exc
     row = s.get(AgentRow, agent_id)
     if row is None:
-        # Explicitly set first_seen and last_seen at insert time.
-        # Relying solely on the column default can leave them None before
-        # the row is flushed/committed when autoflush=False.
-        now = _utcnow()
-        row = AgentRow(
-            id=agent_id,
-            name=agent_name,
-            baseline_human_output=baseline if baseline is not None else 1.0,
-            owner_id=owner_id,
-        )
-        s.add(row)
+        try:
+            now = _utcnow()
+            row = AgentRow(
+                id=agent_id,
+                name=agent_name,
+                baseline_human_output=baseline or 1.0,
+                owner_id=owner_id,
+                first_seen=now,
+                last_seen=now,
+            )
+            s.add(row)
+            s.flush()
+        except sqlalchemy.exc.IntegrityError:
+            s.rollback()
+            row = s.get(AgentRow, agent_id)
     else:
-        row.name = agent_name
-        row.last_seen = _utcnow()
         if baseline is not None:
             row.baseline_human_output = baseline
-    s.flush()
+        if owner_id is not None:
+            row.owner_id = owner_id
+        row.last_seen = _utcnow()
+        s.flush()
     return row
 
 
