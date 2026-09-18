@@ -26,13 +26,13 @@
   };
 
   const METRIC_LABELS = {
-    P: "Productivity (15%)",
-    Q: "Quality (20%)",
-    E: "Execution (15%)",
-    G: "Governance (20%)",
-    R: "Risk (15%)",
-    V: "Validation (10%)",
-    C: "Cost (5%)",
+    P: "Productivity",
+    Q: "Quality",
+    E: "Execution",
+    G: "Governance",
+    R: "Risk",
+    V: "Validation",
+    C: "Cost",
   };
 
   const SHARED_CSS = `
@@ -196,7 +196,7 @@
       const display = (w_m[k] !== null && w_m[k] !== undefined)
         ? (w_m[k] * 100).toFixed(2)
         : "\u2014";
-      return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details">${display}</td>`;
+      return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details" data-weight="${(w_m[k] !== null && w_m[k] !== undefined) ? Math.round(w_m[k]*100) : ''}">${display}</td>`;
     }).join("");
     
     return `
@@ -209,9 +209,10 @@
     `;
   }
 
-  function calculateCostMetrics(sub, settings, value) {
+  function calculateCostMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     const getNum = (obj, key, fallback) => {
       if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
@@ -228,7 +229,7 @@
     const outputTokenPrice = getNum(sub, 'output_token_price', getNum(settings, 'output_token_price'));
     const completedOutputs = getNum(sub, 'completed_outputs', 1);
     const utilization = getNum(sub, 'utilization', getNum(settings, 'utilization'));
-    const humanCostPerOutput = 200.0;
+    const humanCostPerOutput = getNum(settings, 'baseline_human_output', 200.0);
     
     const promptCost = getNum(sub, 'Prompt Cost (USD)', (inputTokens !== null && inputTokenPrice !== null ? inputTokens * inputTokenPrice : null));
     const completionCost = getNum(sub, 'Completion Cost (USD)', (outputTokens !== null && outputTokenPrice !== null ? outputTokens * outputTokenPrice : null));
@@ -257,7 +258,7 @@
       prompt_cost: { val: promptCost, calc: calcPromptCost, disp: promptCost, formula: "Input Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
       completion_cost: { val: completionCost, calc: calcCompletionCost, disp: completionCost, formula: "Output Tokens * Dollar", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
       model_cost: { val: modelCost, calc: calcModelCost, disp: modelCost, formula: "Prompt Cost + Completion Cost", src: "Langfuse (runtime telemetry)", resource: "Langfuse", dec: 6 },
-        human_cost: { val: 200.0, calc: 200.0, disp: 200.0, formula: "Hardcoded Baseline", src: "DPI-LS Settings", resource: "Baseline", dec: 2 },
+        human_cost: { val: humanCostPerOutput, calc: humanCostPerOutput, disp: humanCostPerOutput, formula: "Baseline", src: "DPI-LS Settings", resource: "Baseline", dec: 2 },
         ai_cost_per_output: { val: calcAiCostPerOutput, calc: calcAiCostPerOutput, disp: calcAiCostPerOutput, formula: "Total Model Cost / Completed Outputs", src: "DPI-LS Engine", resource: "Calculation", dec: 6 },
         efficiency_ratio: { val: calcEfficiencyRatio, calc: calcEfficiencyRatio, disp: calcEfficiencyRatio, formula: "Human Cost / AI Cost", src: "DPI-LS Engine", resource: "Calculation", dec: 2 },
     };
@@ -292,9 +293,10 @@
     return metricsMap;
   }
 
-  function calculateValidationMetrics(sub, settings, value) {
+  function calculateValidationMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     
       const validationFields = [
@@ -384,9 +386,10 @@
     };
   }
 
-  function calculateQualityMetrics(sub, settings, value) {
+  function calculateQualityMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let accVal = 0;
     if (sub.semantic_accuracy && sub.semantic_accuracy !== "Unavailable") accVal = parseFloat(sub.semantic_accuracy);
@@ -403,7 +406,7 @@
     if (isNaN(hallVal)) hallVal = 0;
 
     let calcQ = (0.7 * accVal) + (0.2 * consVal) + (0.1 * (1.0 - hallVal));
-    let qScoreVal = calcQ.toFixed(4);
+      let qScoreVal = (value !== undefined && value !== null) ? value : calcQ.toFixed(4);
     
     sub.Quality_Score_Calc = { acc: accVal, cons: consVal, hall: hallVal };
 
@@ -431,8 +434,9 @@
     };
   }
 
-  function renderQualityTableHtml(sub, settings, value, resourceFilter) {
-    const metricsMap = calculateQualityMetrics(sub, settings, value);
+  function renderQualityTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
+    const metricsMap = calculateQualityMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined || val === "Unavailable" || val === "Pending SME Review") return val;
@@ -505,15 +509,15 @@
     }
     let finalWeightedVal = "N/A";
     if (qScoreVal !== "Pending SME Review") {
-      finalWeightedVal = (qScoreRaw * 20.0).toFixed(2);
+      finalWeightedVal = (qScoreRaw * (row && row.weights_used && row.weights_used["Q"] !== undefined ? row.weights_used["Q"]*100 : 20.0)).toFixed(2);
     }
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">Q</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (20%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -521,7 +525,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${qScoreVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -565,7 +569,8 @@
   }
 
   
-  function renderGovernanceTableHtml(sub, settings, value, resourceFilter) {
+  function renderGovernanceTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
 
     const resources = sub.runtime_resources || {};
@@ -591,7 +596,7 @@
     // displayed Raw / Weighted numbers; fall back to the formula calc.
     let gScoreVal = (value === undefined || value === null) ? formulaOutput : value;
 
-    const finalWeightedVal = (gScoreVal * (settings?.weights?.G || 20.0)).toFixed(2);
+    const finalWeightedVal = (gScoreVal * (row && row.weights_used && row.weights_used["G"] !== undefined ? row.weights_used["G"]*100 : 20.0)).toFixed(2);
     const metricsMap = {
       "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
       "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
@@ -682,8 +687,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">G</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (20%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 20%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -691,7 +696,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${gScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×20%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -782,16 +787,17 @@
     `;
   }
 
-  function renderRiskTableHtml(sub, settings, value, resourceFilter) {
+  function renderRiskTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
     if (!sub) return `<div style="padding:15px;color:#64748b;">No Risk telemetry available.</div>`;
     
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     const incidents = sub.incidents || [];
     const totalFreq = sub["Total Frequency"] !== undefined ? sub["Total Frequency"] : "Unavailable";
     const totalRisk = sub["Total Risk"] !== undefined ? sub["Total Risk"] : "Unavailable";
-    const rmax = sub.Rmax || settings.r_max || 50;
+    const rmax = sub.Rmax || (row && row.sub_metrics && row.sub_metrics.r_max) || 50;
     
     let calcRScore = 1.0;
     if (typeof totalRisk === "number") {
@@ -859,7 +865,7 @@
     }
     if (value === undefined || value === null) value = rScoreToUse;
     
-    const finalWeightedVal = (rScoreToUse * (settings?.weights?.R || 15.0)).toFixed(2);
+    const finalWeightedVal = (rScoreToUse * (row && row.weights_used && row.weights_used["R"] !== undefined ? row.weights_used["R"]*100 : 15.0)).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -901,8 +907,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">R</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -910,7 +916,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${rScoreToUse.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -953,8 +959,9 @@
     `;
   }
 
-  function renderValidationTableHtml(sub, settings, value, resourceFilter) {
-    const metricsMap = calculateValidationMetrics(sub, settings, value);
+  function renderValidationTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
+    const metricsMap = calculateValidationMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1010,7 +1017,7 @@
     if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
       vScoreVal = metricsMap["Validation_Score"].val;
     }
-    const finalWeightedVal = (vScoreVal * 10.0).toFixed(2);
+    const finalWeightedVal = (vScoreVal * (row && row.weights_used && row.weights_used["V"] !== undefined ? row.weights_used["V"]*100 : 10.0)).toFixed(2);
     
     let gateHtml = "";
     if (vScoreVal < 0.60) {
@@ -1058,8 +1065,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (10%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 10%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1067,7 +1074,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${vScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×10%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1112,8 +1119,9 @@
     `;
   }
 
-  function renderCostTableHtml(sub, settings, value, resourceFilter) {
-    const metricsMap = calculateCostMetrics(sub, settings, value);
+  function renderCostTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
+    const metricsMap = calculateCostMetrics(sub, row, value);
     
     const fmt = (val, dec = 6) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1214,14 +1222,14 @@
     // Retrieve final values for the formula widget
     // Value represents the raw Cost metric (0.0 to 1.0)
     const costScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (costScoreVal * 5.0).toFixed(2);
+    const finalWeightedVal = (costScoreVal * (row && row.weights_used && row.weights_used["C"] !== undefined ? row.weights_used["C"]*100 : 5.0)).toFixed(2);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">C</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (5%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 5%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1229,7 +1237,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${costScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×5%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1242,8 +1250,8 @@
 <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
 <div>Human Cost per Output : $200.00</div>
 <div>AI Cost per Output : $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'}</div>
-<div>Utilization Factor : ${fmt(sub.utilization || settings.utilization || 1.0, 2)}</div>
-<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || settings.utilization || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
+<div>Utilization Factor : ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)}</div>
+<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
 </div>
 </div>
 </div>
@@ -1274,9 +1282,10 @@
     `;
   }
 
-  function calculateProductivityMetrics(sub, settings, value) {
+  function calculateProductivityMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let pScoreVal = 1.0;
     if (value !== undefined && value !== null) {
@@ -1308,8 +1317,9 @@
     };
   }
 
-  function renderProductivityTableHtml(sub, settings, value, resourceFilter) {
-    const metricsMap = calculateProductivityMetrics(sub, settings, value);
+  function renderProductivityTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
+    const metricsMap = calculateProductivityMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined || val === "Unavailable") return val;
@@ -1378,14 +1388,14 @@
     }).join("");
 
     let pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (pScoreVal * 15.0).toFixed(2);
+    const finalWeightedVal = (pScoreVal * (row && row.weights_used && row.weights_used["P"] !== undefined ? row.weights_used["P"]*100 : 15.0)).toFixed(2);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
@@ -1394,7 +1404,7 @@
               <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (15%)</div>
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (*${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</div>
               <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1441,9 +1451,10 @@
    * Called when the user clicks a metric column (P/Q/E/G/R/V/C) on a row.
    */
   
-  function calculateExecutionMetrics(sub, settings, value) {
+  function calculateExecutionMetrics(sub, row, value) {
+    let settings = {};
     sub = sub || {};
-    settings = settings || {};
+    row = row || {};
     
     let attempts = 0;
     if (sub.trace_captured !== undefined && sub.trace_captured !== null && sub.trace_captured !== "Unavailable") attempts = Number(sub.trace_captured);
@@ -1477,8 +1488,9 @@
     };
   }
 
-  function renderExecutionTableHtml(sub, settings, value, resourceFilter) {
-    const metricsMap = calculateExecutionMetrics(sub, settings, value);
+  function renderExecutionTableHtml(sub, row, value, resourceFilter) {
+    let settings = {};
+    const metricsMap = calculateExecutionMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
       if (val === null || val === undefined) return "Unavailable";
@@ -1531,7 +1543,7 @@
     if (metricsMap["Execution_Score"] && metricsMap["Execution_Score"].val !== undefined) {
       eScoreVal = metricsMap["Execution_Score"].val;
     }
-    const finalWeightedVal = (eScoreVal * 15.0).toFixed(2);
+    const finalWeightedVal = (eScoreVal * (row && row.weights_used && row.weights_used["E"] !== undefined ? row.weights_used["E"]*100 : 15.0)).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -1556,8 +1568,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">E</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (15%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: 15%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1565,7 +1577,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${eScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×15%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1607,14 +1619,14 @@
     `;
   }
 
-  function metricDetailHtml(key, value, sub, rating) {
-    if (key === "C") return renderCostTableHtml(sub, null, value);
-    if (key === "V") return renderValidationTableHtml(sub, null, value);
-    if (key === "G") return renderGovernanceTableHtml(sub, null, value);
-    if (key === "R") return renderRiskTableHtml(sub, null, value);
-    if (key === "Q") return renderQualityTableHtml(sub, null, value);
-    if (key === "E") return renderExecutionTableHtml(sub, null, value);
-    if (key === "P") return renderProductivityTableHtml(sub, null, value);
+  function metricDetailHtml(key, value, sub, row) {
+    if (key === "C") return renderCostTableHtml(sub, row, value);
+    if (key === "V") return renderValidationTableHtml(sub, row, value);
+    if (key === "G") return renderGovernanceTableHtml(sub, row, value);
+    if (key === "R") return renderRiskTableHtml(sub, row, value);
+    if (key === "Q") return renderQualityTableHtml(sub, row, value);
+    if (key === "E") return renderExecutionTableHtml(sub, row, value);
+    if (key === "P") return renderProductivityTableHtml(sub, row, value);
 
     const label  = METRIC_LABELS[key]  || key;
     const w_m = rating && rating.weighted_metrics ? rating.weighted_metrics : {};
@@ -1952,7 +1964,7 @@
           if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], this._settings || {});
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
           const detailTr = document.createElement("tr");
           detailTr.className = "cost-detail-row";
           detailTr.dataset.expandedKey = key;
@@ -1990,7 +2002,7 @@
           if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], this.rating);
+          const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
           const detailTr = document.createElement("tr");
           detailTr.className = "detail-row";
           detailTr.dataset.expandedKey = key;
@@ -2146,13 +2158,13 @@
               <th style="padding:10px 14px;border:1px solid #1e293b;text-align:left;">AGENT</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#facc15;">PI</th>
               <th style="padding:10px;border:1px solid #1e293b;text-align:center;color:#38bdf8;">DPI-LS</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Productivity (15%)">P</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Quality (20%)">Q</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Execution (15%)">E</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Governance (20%)">G</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Risk (15%)">R</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Validation (10%)">V</th>
-              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Cost (5%)">C</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="P">P</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="Q">Q</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="E">E</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="G">G</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="R">R</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="V">V</th>
+              <th style="padding:10px;border:1px solid #1e293b;text-align:center;cursor:pointer;" title="C">C</th>
             </tr>
           </thead>
           <tbody>
@@ -2883,3 +2895,6 @@
     customElements.define("dpi-ls-cost-evaluation", DpiLsCostEvaluation);
   }
 })();
+
+
+

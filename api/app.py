@@ -119,6 +119,18 @@ async def lifespan(_: FastAPI):
             metrics_task = asyncio.create_task(update_metrics_periodically())
             logger.info("Started Prometheus metrics export task")
 
+        # Start the durable execution worker as a daemon thread.
+        # In production, run `uv run python -m worker.runner` as a separate
+        # process instead. This thread is a convenience for single-process dev.
+        _worker_thread = None
+        if not os.environ.get("TESTING") and not os.environ.get("DISABLE_WORKER"):
+            try:
+                from worker.runner import start_worker_thread
+                _worker_thread = start_worker_thread(poll_interval=2.0)
+                logger.info("Started durable execution worker thread (PID=%d)", os.getpid())
+            except Exception as _we:
+                logger.warning("Could not start worker thread: %s", _we)
+
         yield
 
     finally:
@@ -173,6 +185,16 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
+
+
+def check_agent_ownership(agent_id: str, s: Session, current_user: dict):
+    if current_user["role"] == "ADMIN":
+        return
+    agent = s.get(store.models.AgentRow, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found")
+    if agent.owner_id and agent.owner_id != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not own this agent")
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     if os.environ.get("TESTING") == "1" and token == "testtoken":
@@ -373,7 +395,7 @@ def ingest_observation(
             smtp_user = os.environ.get("SMTP_USER", "")
             smtp_pass = os.environ.get("SMTP_PASS", "")
 
-            if smtp_user and smtp_pass and all_emails:
+            if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
                 try:
                     for recipient in all_emails:
                         msg = MIMEMultipart()
@@ -672,8 +694,9 @@ def list_all_agents(
 
 
 @app.post("/api/agents", response_model=AgentSummary)
-def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSummary:
-    row = repo.upsert_agent(s, body.agent_id, body.agent_name, baseline=body.baseline_human_output)
+
+def create_agent(body: AgentCreate, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentSummary:
+    row = repo.upsert_agent(s, body.agent_id, body.agent_name, baseline=body.baseline_human_output, owner_id=current_user["username"])
     s.commit()
     return AgentSummary(
         agent_id=row.id,
@@ -686,6 +709,7 @@ def create_agent(body: AgentCreate, s: Session = Depends(db_session)) -> AgentSu
 
 @app.put("/api/agents/{agent_id}", response_model=AgentSummary)
 def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> AgentSummary:
+    check_agent_ownership(agent_id, s, current_user)
     row = s.get(store.models.AgentRow, agent_id)
     if not row:
         raise HTTPException(status_code=404, detail="Agent not found")
@@ -705,7 +729,8 @@ def update_agent(agent_id: str, body: AgentUpdate, s: Session = Depends(db_sessi
 # ---- Task 1 APIs ----
 
 @app.get("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+def get_onboarding(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentOnboardingOut:
+    check_agent_ownership(agent_id, s, current_user)
     row = store.repo.get_agent_onboarding(s, agent_id)
     if not row:
         raise HTTPException(status_code=404, detail="Agent onboarding not found")
@@ -730,13 +755,15 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session)) -> AgentOnbo
     )
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentOnboardingOut:
     # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
-        agent = store.models.AgentRow(id=agent_id, name=agent_id)
+        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id=current_user["username"])
         s.add(agent)
         s.flush()
+    else:
+        check_agent_ownership(agent_id, s, current_user)
         
     payload = body.model_dump(exclude_unset=True)
     row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
@@ -771,7 +798,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
 
-    if smtp_user and smtp_pass and all_emails:
+    if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
@@ -852,7 +879,7 @@ def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             import smtplib
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
@@ -884,7 +911,8 @@ def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)
     )
 
 @app.get("/api/agents/{agent_id}/kra", response_model=list[AgentKRAOut])
-def get_kras(agent_id: str, s: Session = Depends(db_session)) -> list[AgentKRAOut]:
+def get_kras(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[AgentKRAOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.list_agent_kras(s, agent_id)
     return [
         AgentKRAOut(
@@ -923,12 +951,23 @@ def run_agent_telemetry_task(agent_id: str, agent_name: str, human_baseline: str
         return e.stdout + "\n" + e.stderr + f"\nError: {e}"
 
 @app.post("/api/agents/{agent_id}/manager-rating")
-def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session)):
+def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    check_agent_ownership(agent_id, s, current_user)
+    
     onboarding = store.repo.get_agent_onboarding(s, agent_id)
-    if onboarding:
-        valid_managers = [onboarding.technical_owner_email, onboarding.business_owner_email]
-        if body.manager_id not in valid_managers:
-            raise HTTPException(status_code=403, detail="Not authorized to rate this agent")
+    if not onboarding:
+        raise HTTPException(status_code=404, detail="Agent onboarding record not found.")
+        
+    # Security Authorization Check:
+    # The email entered in the Manager Review modal MUST match the Business Owner Email from Onboarding.
+    registered_email = (onboarding.business_owner_email or "").strip().lower()
+    provided_email = (body.manager_id or "").strip().lower()
+    
+    if provided_email != registered_email:
+        raise HTTPException(
+            status_code=403, 
+            detail=f"Authorization Failed: You entered '{provided_email}', but only the registered Business Owner ('{registered_email}') is authorized to submit a Manager Review for this agent."
+        )
             
     row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
     
@@ -965,7 +1004,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             try:
                 for recipient in all_emails:
                     msg = MIMEMultipart()
@@ -1000,7 +1039,8 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
     }
 
 @app.get("/api/agents/{agent_id}/manager-rating", response_model=list[ManagerRatingOut])
-def list_manager_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[ManagerRatingOut]:
+def list_manager_ratings(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[ManagerRatingOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.get_manager_ratings(s, agent_id)
     return [
         ManagerRatingOut(
@@ -1029,7 +1069,8 @@ def add_customer_rating(agent_id: str, body: CustomerRatingIn, s: Session = Depe
     )
 
 @app.get("/api/agents/{agent_id}/customer-rating", response_model=list[CustomerRatingOut])
-def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> list[CustomerRatingOut]:
+def list_customer_ratings(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[CustomerRatingOut]:
+    check_agent_ownership(agent_id, s, current_user)
     rows = store.repo.get_customer_ratings(s, agent_id)
     return [
         CustomerRatingOut(
@@ -1044,7 +1085,8 @@ def list_customer_ratings(agent_id: str, s: Session = Depends(db_session)) -> li
     ]
 
 @app.post("/api/agents/{agent_id}/config", response_model=AgentConfigurationOut)
-def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session)) -> AgentConfigurationOut:
+def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentConfigurationOut:
+    check_agent_ownership(agent_id, s, current_user)
     row = store.repo.upsert_agent_configuration(s, agent_id, body.configuration_key, body.configuration_value, body.source, body.created_by)
     
     # Fetch onboarding info to get emails
@@ -1077,7 +1119,7 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
         smtp_user = os.environ.get("SMTP_USER", "")
         smtp_pass = os.environ.get("SMTP_PASS", "")
 
-        if smtp_user and smtp_pass and all_emails:
+        if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
             import smtplib
             from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
@@ -1113,13 +1155,47 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
     )
 
 @app.post("/api/agents/{agent_id}/run_telemetry")
-def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
+def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
     import subprocess
     import os
+    import threading
+    import datetime
+    import json
     
     agent = s.get(store.models.AgentRow, agent_id)
     agent_name = agent.name if agent else agent_id
     
+    # 1. Insert a Pending Observation and Score instantly so it shows on the dashboard
+    existing = s.query(store.models.ScoreRow).filter(store.models.ScoreRow.agent_id == agent_id).first()
+    if not existing:
+        obs = store.models.ObservationRow(
+            agent_id=agent_id,
+            period_start=datetime.datetime.utcnow(),
+            period_end=datetime.datetime.utcnow(),
+            source="System",
+            payload={}
+        )
+        s.add(obs)
+        s.flush()
+        
+        dummy = store.models.ScoreRow(
+            agent_id=agent_id,
+            observation_id=obs.id,
+            score=0.0,
+            raw_score=0.0,
+            band="Pending",
+            unsafe=False,
+            gate_failures=[],
+            metrics={"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "V": 0.0, "C": 0.0},
+            weighted_metrics={"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "V": 0.0, "C": 0.0},
+            weights_used={"P": 0.15, "Q": 0.20, "E": 0.15, "G": 0.20, "R": 0.15, "V": 0.10, "C": 0.05},
+            sub_metrics={},
+            missing=["Evaluating... Please refresh soon"]
+        )
+        s.add(dummy)
+        s.commit()
+    
+    # 2. Run the actual evaluation in a background thread to prevent Uvicorn Deadlock
     def run_eval_thread(a_id, a_name):
         env = os.environ.copy()
         env["AGENT_ID"] = a_id
@@ -1129,18 +1205,22 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         env["AWS_ACCESS_KEY_ID"] = "rotated"
         env["LITELLM_DROP_PARAMS"] = "True"
         try:
-            print(f"[Synchronous] Running test_agent.py for {a_id}...")
+            print(f"[Background] Running test_agent.py for {a_id}...")
             subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env)
         except Exception as e:
-            print(f"[Synchronous] Error: {e}")
+            print(f"[Background] Error: {e}")
             
-    # Run synchronously so the API request blocks until the score is generated
-    run_eval_thread(agent_id, agent_name)
+    threading.Thread(target=run_eval_thread, args=(agent_id, agent_name), daemon=True).start()
     
-    return {"message": "Telemetry completed"}
+    return {"message": "Telemetry queued"}
+
+
+
 
 @app.get("/api/agents/{agent_id}/config", response_model=list[AgentConfigurationOut])
-def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[AgentConfigurationOut]:
+def get_agent_configs(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> list[AgentConfigurationOut]:
+    check_agent_ownership(agent_id, s, current_user)
+    
     rows = store.repo.list_agent_configurations(s, agent_id)
     return [
         AgentConfigurationOut(
@@ -1160,6 +1240,7 @@ def get_agent_configs(agent_id: str, s: Session = Depends(db_session)) -> list[A
 
 @app.delete("/api/agents/{agent_id}")
 def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> dict[str, str]:
+    check_agent_ownership(agent_id, s, current_user)
     from store.models import AgentRow
     row = s.get(AgentRow, agent_id)
     if not row:
@@ -1231,7 +1312,8 @@ def _score_row_to_rating(s: Session, row) -> Rating:
 
 
 @app.get("/agents/{agent_id}/score", response_model=Rating)
-def agent_score(agent_id: str, s: Session = Depends(db_session)) -> Rating:
+def agent_score(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> Rating:
+    check_agent_ownership(agent_id, s, current_user)
     row = repo.latest_score(s, agent_id)
     if row is None:
         raise HTTPException(status_code=404, detail=f"No score for agent '{agent_id}'")
@@ -1243,7 +1325,8 @@ def agent_history(
     agent_id: str,
     limit: int = 100,
     s: Session = Depends(db_session),
-) -> list[HistoryPoint]:
+    current_user: dict = Depends(get_current_user)) -> list[HistoryPoint]:
+    check_agent_ownership(agent_id, s, current_user)
     return [
         HistoryPoint(
             score=r.score,
@@ -1262,6 +1345,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
     weights = settings.weights
     out: list[BoardRow] = []
     for agent, score in repo.latest_scores_for_all(s):
+        
         if score is None:
             # Show new/unevaluated agents with 0 scores instead of hiding them
             empty_m = {"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "C": 0.0, "V": 0.0}
@@ -1413,7 +1497,8 @@ def submit_sme_rating(
     agent_id: str,
     body: SMERatingIn,
     s: Session = Depends(db_session),
-) -> dict[str, Any]:
+    current_user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    check_agent_ownership(agent_id, s, current_user)
     if body.agent_id != agent_id:
         raise HTTPException(status_code=400, detail="agent_id mismatch")
     row = repo.save_sme_rating(
@@ -2617,6 +2702,7 @@ def _stringify(value: Any) -> str:
     if value is None:
         return ""
     if isinstance(value, (dict, list)):
+        
         import json as _json
         try:
             return _json.dumps(value, default=str)[:200]
@@ -2983,7 +3069,7 @@ def enterprise_productivity_agent_dashboard(
 
 
 @app.get("/trace/{run_id}")
-def get_run_trace(run_id: str, session: Session = Depends(db_session)):
+def get_run_trace(run_id: str, session: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
     from store.models import ScoreTraceRow
     from fastapi import HTTPException
     row = session.query(ScoreTraceRow).filter(ScoreTraceRow.run_id == run_id).first()
@@ -3001,11 +3087,13 @@ def login_page():
     return FileResponse("widget/admin-login.html")
 
 @app.get("/agent-profile.html", include_in_schema=False)
-def agent_profile_page():
+def agent_profile_page(request: Request, agent_id: str):
     return FileResponse("widget/agent-profile.html")
 
 @app.delete("/agents/{agent_id}")
-def delete_agent(agent_id: str, s: Session = Depends(db_session)):
+def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    check_agent_ownership(agent_id, s, current_user)
+    
     from store.models import AgentRow
     agent = s.get(AgentRow, agent_id)
     if agent:
@@ -3017,4 +3105,199 @@ def delete_agent(agent_id: str, s: Session = Depends(db_session)):
 
 
 
+# ---------------------------------------------------------------------------
+# Durable Execution — DB-backed task queue (Phase 2)
+# ---------------------------------------------------------------------------
+# The worker runs as a separate process (uv run python -m worker.runner)
+# or as a daemon thread started at app startup.  Jobs are stored in the
+# executions table; a server restart does NOT lose queued work.
+# ---------------------------------------------------------------------------
 
+@app.post("/agents/{agent_id}/execute")
+async def execute_agent(
+    agent_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Enqueue a durable execution job and return execution_id immediately.
+
+    Lifecycle: QUEUED → RUNNING → SUCCESS | FAILED | TIMEOUT
+    """
+    check_agent_ownership(agent_id, s, current_user)
+
+    from worker.queue import enqueue
+
+    # Duplicate-guard: if a QUEUED or RUNNING job already exists, return it
+    from store.models import ExecutionRow as _ER
+    existing = (
+        s.query(_ER)
+        .filter(_ER.agent_id == agent_id, _ER.status.in_(["QUEUED", "RUNNING"]))
+        .order_by(_ER.queued_at.desc())
+        .first()
+    )
+    if existing:
+        return {
+            "execution_id": existing.id,
+            "agent_id": agent_id,
+            "status": existing.status,
+            "message": "Existing active execution returned (duplicate guard)",
+        }
+
+    execution_id = enqueue(s, agent_id)
+    return {"execution_id": execution_id, "agent_id": agent_id, "status": "QUEUED"}
+
+
+@app.get("/agents/{agent_id}/executions")
+def list_agent_executions(
+    agent_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """List all executions for this agent (newest first)."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import list_executions
+    return list_executions(s, agent_id)
+
+
+@app.get("/agents/{agent_id}/executions/{execution_id}")
+def get_agent_execution(
+    agent_id: str,
+    execution_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Get the current status of a specific execution."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import get_execution
+    result = get_execution(s, execution_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Execution '{execution_id}' not found")
+    if result["agent_id"] != agent_id:
+        raise HTTPException(status_code=403, detail="Execution does not belong to this agent")
+    return result
+
+
+@app.post("/agents/{agent_id}/executions/{execution_id}/cancel")
+def cancel_agent_execution(
+    agent_id: str,
+    execution_id: str,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user),
+):
+    """Cancel a QUEUED execution. Returns 409 if already past QUEUED."""
+    check_agent_ownership(agent_id, s, current_user)
+    from worker.queue import cancel, get_execution
+
+    exec_data = get_execution(s, execution_id)
+    if exec_data is None:
+        raise HTTPException(status_code=404, detail=f"Execution '{execution_id}' not found")
+    if exec_data["agent_id"] != agent_id:
+        raise HTTPException(status_code=403, detail="Execution does not belong to this agent")
+
+    cancelled = cancel(s, execution_id, cancelled_by=current_user["username"])
+    if not cancelled:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Cannot cancel execution in status '{exec_data['status']}' — only QUEUED executions can be cancelled",
+        )
+    return {"execution_id": execution_id, "status": "CANCELLED"}
+
+
+
+@app.post("/api/agents/{agent_id}/score/preview")
+async def score_preview(agent_id: str, request: Request, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+    
+    import engine.score
+    import json
+    
+    body = await request.json()
+    metrics = {
+        "P": float(body.get("P", 1.0)),
+        "Q": float(body.get("Q", 1.0)),
+        "E": float(body.get("E", 1.0)),
+        "G": float(body.get("G", 1.0)),
+        "R": float(body.get("R", 1.0)),
+        "V": float(body.get("V", 1.0)),
+        "C": float(body.get("C", 1.0)),
+    }
+    
+    weights = {
+        "P": float(body.get("wP", 15.0)),
+        "Q": float(body.get("wQ", 20.0)),
+        "E": float(body.get("wE", 15.0)),
+        "G": float(body.get("wG", 20.0)),
+        "R": float(body.get("wR", 15.0)),
+        "V": float(body.get("wV", 10.0)),
+        "C": float(body.get("wC", 5.0)),
+    }
+    
+    raw, weighted_metrics, active_weights = engine.score.composite(metrics, weights)
+    
+    score = 0.0
+    for k, v in weighted_metrics.items():
+        if k in ["P","Q","E","G","R","V","C"]:
+            score += v
+    score *= 100.0
+    
+    return {"preview_score": min(100.0, max(0.0, score))}
+
+@app.post("/api/agents/{agent_id}/test_connection")
+async def test_connection(
+    agent_id: str,
+    request: Request,
+    s: Session = Depends(db_session),
+    current_user: dict = Depends(get_current_user)
+):
+    check_agent_ownership(agent_id, s, current_user)
+    
+    body = await request.json()
+    resource_name = body.get("resource_name", "").lower()
+    
+    import os
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+    
+    if "langfuse" in resource_name:
+        pk = os.environ.get("LANGFUSE_PUBLIC_KEY", "")
+        sk = os.environ.get("LANGFUSE_SECRET_KEY", "")
+        host = os.environ.get("LANGFUSE_HOST", "")
+        if not pk or not sk or not host:
+            return {"status": "NOT_CONFIGURED", "error": "Missing Langfuse environment variables."}
+        if "rotated" in pk.lower() or "rotated" in sk.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        
+        # If we have real keys, try a real ping
+        import httpx
+        try:
+            r = httpx.get(f"{host.rstrip('/')}/api/public/health", timeout=5.0)
+            if r.status_code == 200:
+                return {"status": "REAL", "message": "Connection successful"}
+            return {"status": "FAILED", "error": f"HTTP {r.status_code}: {r.text}"}
+        except Exception as e:
+            return {"status": "FAILED", "error": str(e)}
+
+    if "sentry" in resource_name:
+        dsn = os.environ.get("SENTRY_DSN", "")
+        if not dsn:
+            return {"status": "NOT_CONFIGURED", "error": "Missing SENTRY_DSN."}
+        if "rotated" in dsn.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for Sentry verification."}
+        
+    if "agentops" in resource_name:
+        key = os.environ.get("AGENTOPS_API_KEY", "")
+        if not key:
+            return {"status": "NOT_CONFIGURED", "error": "Missing AGENTOPS_API_KEY."}
+        if "rotated" in key.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for AgentOps verification."}
+        
+    if "aws" in resource_name or "bedrock" in resource_name:
+        key = os.environ.get("AWS_ACCESS_KEY_ID", "")
+        if not key:
+            return {"status": "NOT_CONFIGURED", "error": "Missing AWS_ACCESS_KEY_ID."}
+        if "rotated" in key.lower():
+            return {"status": "BLOCKED", "error": "External credentials unavailable in current environment (using rotated keys)."}
+        return {"status": "FAILED", "error": "Active client required for AWS verification."}
+
+    return {"status": "NOT_CONFIGURED", "error": f"Integration {resource_name} not recognized or not implemented for health check."}

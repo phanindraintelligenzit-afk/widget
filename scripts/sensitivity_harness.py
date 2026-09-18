@@ -6,7 +6,7 @@ from sqlalchemy import select
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from store.db import get_session_factory
 from store.repo import get_settings, save_settings
-from store.models import ScoreRow, TelemetryRow
+from store.models import ScoreRow
 from contract.settings import Settings
 
 def dry_run_historical_scores(session, proposed_settings):

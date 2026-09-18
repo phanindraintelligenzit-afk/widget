@@ -25,6 +25,7 @@ class AgentRow(Base):
     name: Mapped[str] = mapped_column(String(256))
     status: Mapped[str] = mapped_column(String(64), default="ACTIVE")
     baseline_human_output: Mapped[float] = mapped_column(Float, default=100.0)
+    owner_id: Mapped[str] = mapped_column(String(256), nullable=True)  # RBAC ownership
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -581,3 +582,41 @@ class UserRow(Base):
     password_hash: Mapped[str] = mapped_column(String(256))
     role: Mapped[str] = mapped_column(String(64), default="VIEWER")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
+from sqlalchemy import Column, Text
+
+class ExecutionRow(Base):
+    """Durable execution record — survives API/worker restarts.
+
+    Lifecycle: QUEUED → RUNNING → SUCCESS | FAILED | TIMEOUT
+               QUEUED → CANCELLED
+    """
+    __tablename__ = "executions"
+
+    # Identity
+    id = Column(String, primary_key=True)           # UUID
+    agent_id = Column(String, index=True)
+
+    # Lifecycle state (uppercase matches spec)
+    status = Column(String, default="QUEUED")       # QUEUED|RUNNING|SUCCESS|FAILED|TIMEOUT|CANCELLED
+
+    # Timestamps
+    queued_at = Column(Float, nullable=True)        # epoch seconds — when enqueued
+    start_time = Column(Float, nullable=True)       # legacy alias = started_at
+    started_at = Column(Float, nullable=True)       # epoch seconds — when worker claimed
+    end_time = Column(Float, nullable=True)         # legacy alias = completed_at
+    completed_at = Column(Float, nullable=True)     # epoch seconds — when finished
+
+    # Execution config
+    timeout_seconds = Column(Integer, default=300)  # default 5-min timeout
+
+    # Results
+    exit_code = Column(Integer, nullable=True)
+    error = Column(Text, nullable=True)             # Text for long stack traces
+    result = Column(Text, nullable=True)            # JSON-encoded result payload
+
+    # Audit
+    cancelled_by = Column(String, nullable=True)    # username who cancelled
+    worker_pid = Column(Integer, nullable=True)     # PID of worker that ran this
+    retry_count = Column(Integer, default=0)
