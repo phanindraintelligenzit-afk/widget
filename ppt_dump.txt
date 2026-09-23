@@ -1,0 +1,384 @@
+--- Slide 1 ---
+
+BEYOND AI AGENTS
+The Measurable AI Enterprise
+From agent deployment to performance, efficiency, trust and accountable autonomy.
+MEASURE INTELLIGENCE BEFORE YOU SCALE AUTONOMY
+Speaker – PVR,  CEO & Managing Director.
+
+
+--- Slide 2 ---
+THE AI COST PARADOX
+AI Is Getting Cheaper.
+But Enterprise Intelligence Is Getting More Expensive.
+↓ COST PER UNIT OF INTELLIGENCE
+COMPUTATIONAL ACTIVITY PER TASK ↑
+
+280×
+Fall in the price of a fixed level of AI performance, in about 18 months
+320×
+Growth in reasoning-token consumption per organization over 12 months
+1,000×
+Token intensity of agentic coding tasks vs. code chat and reasoning
+73%
+Of organizations exceeded their AI budgets in the past year
+The problem is no longer the cost of intelligence. It is the cost of coordinating intelligence at scale.
+--- Slide 3 ---
+
+THE NEW OBSERVABILITY GAP
+Every agent produces activity.
+Proving performance remains a capability demonstrated by select enterprises.
+
+Task outcomes
+
+Tool calls
+
+LLM traces
+
+Token consumption
+
+Latency
+
+Quality evaluations
+
+Policy events
+
+Security incidents
+
+Cloud / AI cost
+
+Business outcomes
+→
+
+Engineering
+one version of agent health
+
+Security
+another
+
+Risk & Governance
+another
+
+Finance / FinOps
+another
+
+“So… is the agent healthy?”
+Telemetry is not the same as intelligence.
+--- Slide 4 ---
+
+FROM TELEMETRY TO AN AGENT HEALTH SCORE
+What if every enterprise agent had a performance score?
+
+CLAIMS AGENT
+AGENT HEALTH SCORE
+
+
+78
+
+The score is not the intelligence.
+The evidence behind the score is.
+
+PERFORMANCE
+Is the agent achieving the objective?
+
+QUALITY
+Can we trust the output?
+
+RELIABILITY
+Are actions and tools succeeding?
+
+ECONOMICS
+What does the outcome cost?
+Token efficiency · Compute cost · Cost per outcome · Cost trend
+
+SECURITY & RISK
+What exposure is being created?
+
+GOVERNANCE
+Is the agent operating within policy?
+
+VALIDATION
+Are required structures, rules and controls being satisfied?
+--- Slide 5 ---
+THE ENTERPRISE AGENT CONTROL TOWER
+One enterprise. One view of the AI workforce.
+Agent health should be observable before agent failure becomes visible.
+
+ENTERPRISE AI WORKFORCE
+128 Agents
+106 Healthy
+14 Watch
+6 Optimize
+2 Restricted
+
+
+Agent
+Health
+Perf.
+Quality
+Cost
+Security
+Gov.
+Trend
+
+Procurement Agent
+92
+94
+96
+87
+95
+97
+↑
+
+Cloud Operations Agent
+86
+91
+88
+71
+90
+92
+→
+
+
+
+Claims Agent
+78
+83
+74
+89
+72
+81
+↓
+
+Customer Agent
+69
+85
+68
+62
+74
+70
+↓
+
+
+84
+
+83
+
+81
+
+78
+LAST 30 DAYS · CLAIMS AGENT
+Token cost ↑ 18% · Validation failures ↑ · Business output stable
+The agent still works. But its efficiency and control are deteriorating.
+
+Claims Agent
+78
+
+Performance
+Strong
+
+Quality
+Watch
+
+Token efficiency
+Strong
+
+Execution
+Strong
+
+Security
+Watch
+
+Governance
+Healthy
+Validation
+Weak
+
+RECOMMENDED ACTION
+Improve validation before increasing autonomy.
+--- Slide 6 ---
+
+MEASURE → DECIDE → IMPROVE
+Measurement should shape agent behaviour and drive continuous improvement beyond dashboards.
+
+The purpose of scoring is not ranking agents.
+The purpose is deciding what responsibility an agent has earned.
+
+01 · OBSERVE
+Telemetry, outcomes, cost, security, quality, governance.
+
+02 · SCORE
+Convert evidence into comparable dimensions.
+
+03 · EXPLAIN
+Show what is driving the score.
+
+04 · DECIDE
+
+Scale
+
+Optimize
+
+Restrict
+
+Investigate
+
+Retrain / Reconfigure
+
+05 · IMPROVE
+Agent configuration changes.
+
+↻ Return to observe
+Continuous Agent Assurance
+--- Slide 7 ---
+
+APPENDIX · IMPLEMENTATION
+Where the scoring layer sits.
+
+Existing AI agents
+↓
+
+Existing orchestration / runtime
+↓
+
+API Interface
+↓
+
+AGENT SCORING LAYER
+↓
+
+Enterprise Agent Dashboard
+INGESTED EVIDENCE
+Tool calls, LLM traces, quality evaluations, policy events, incidents and cloud / AI cost.
+
+We are not proposing another observability stack.
+We are proposing an interpretation layer across the evidence enterprises already generate.
+Designed to work with existing observability, validation, security, governance and cost tooling rather than replacing it.
+--- Slide 8 ---
+
+APPENDIX · THE CONCEPTUAL INNOVATION
+The Agent Performance Contract
+Before an enterprise agent receives responsibility, define:
+
+01
+What outcome is expected?
+
+02
+What quality is acceptable?
+
+03
+What execution reliability is required?
+
+04
+What cost / token budget is acceptable?
+
+05
+What security thresholds apply?
+
+06
+Which governance policies are non-negotiable?
+
+07
+What conditions require human escalation?
+
+THEN
+The scoring engine measures the agent against the contract.
+We establish a measurable performance contract for every enterprise agent.
+--- Slide 9 ---
+
+APPENDIX · THREE IDEAS TO REMEMBER
+What the audience should take away.
+
+1
+Every agent needs a measurable performance contract.
+
+2
+Agent health must be visible at enterprise level, not buried inside technical telemetry.
+
+3
+Greater autonomy should be earned through evidence.
+--- Slide 10 ---
+
+The future of enterprise AI will not be measured by how many agents we deploy.
+It will be measured by how confidently we can decide which agents to trust, optimize, restrict and scale.
+BEYOND AGENTS
+Measure Intelligence Before You Scale Autonomy.
+
+THE MEASURABLE AI ENTERPRISE
+Every agent observable.
+Every score explainable.
+Every risk visible.
+Every optimization evidence-based.
+Every increase in autonomy deliberate.
+--- Slide 11 ---
+Thank You !
+--- Slide 12 ---
+
+We are building an AI workforce.
+Every workforce needs performance management.
+
+YESTERDAY
+Can AI do the work?
+
+TODAY
+Can agents execute the work?
+
+TOMORROW
+Can we prove they should?
+
+THE MEASURABLE AI ENTERPRISE
+Every agent observable.
+Every score explainable.
+Every risk visible.
+Every optimization evidence-based.
+Every increase in autonomy deliberate.
+--- Slide 13 ---
+
+Measure Intelligence Before You Scale Autonomy
+
+Speaker – PVR,  CEO & Managing Director | Intelligenz IT
+
+--- Slide 14 ---
+
+THE QUESTION AFTER AGENTIC AI
+We know how to build AI agents.
+The question is: do we know how to measure them?
+
+Deployment tells us the agent exists.
+Measurement tells us whether it deserves more responsibility.
+
+Finance Agent
+?
+
+Procurement Agent
+?
+
+Service Agent
+?
+
+Cloud Agent
+?
+
+HR Agent
+?
+
+Security Agent
+?
+
+Supply Chain Agent
+?
+
+Compliance Agent
+?
+
+Performing?
+
+Secure?
+
+Cost-efficient?
+
+Compliant?
+
+Reliable?
+
+Ready to scale?

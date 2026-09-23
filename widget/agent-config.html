@@ -112,7 +112,7 @@
   <main class="main-content">
     <header class="top-header" style="position: sticky; top: -40px; background: var(--bg); z-index: 1000; padding-top: 40px; margin-top: -40px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
       <div style="margin-right: auto; display: flex; align-items: center; gap: 20px;">
-          <h1 style="margin: 0; font-size: 22px;">DPI-LS (Digital Performance Index - Life Science)</h1>
+          <h1 style="margin: 0; font-size: 22px;">DPI (Digital Performance Index)</h1>
           <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
       <div class="search-bar" style="position: relative;">
         <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
@@ -134,7 +134,7 @@
         <input type="text" id="agent_id" required placeholder="e.g. agent-001">
       </div>
       
-      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">RAW-Score</h3>
+      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Baseline Parameter Values <span id="baselineTotal" style="float:right; color:#facc15; font-size:14px; font-weight:bold;">DPI = P + Q^1.5 + E + G^1.5 + R^2 + C + V</span></h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
           <div class="form-group"><label>Productivity (P)</label><input type="number" step="0.01" id="base_P" value="1.0" required></div>
           <div class="form-group"><label>Quality (Q)</label><input type="number" step="0.01" id="base_Q" value="0.99" required></div>
@@ -145,7 +145,7 @@
           <div class="form-group"><label>Validation (V)</label><input type="number" step="0.01" id="base_V" value="0.95" required></div>
       </div>
 
-      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Weightage Distribution <span id="weightTotal" style="float:right; color:var(--muted); font-size:14px;">Total: 100</span></h3>
+      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Weightage Distribution <span id="weightTotal" style="float:right; color:var(--muted); font-size:14px;">Total: 100%</span></h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
           <div class="form-group"><label>Productivity (P)</label><input type="number" class="weight-input" id="weight_P" value="15" required></div>
           <div class="form-group"><label>Quality (Q)</label><input type="number" class="weight-input" id="weight_Q" value="20" required></div>
@@ -157,13 +157,13 @@
       </div>
 
       
-        <div style="margin-top: 30px; background: #020617; border: 2px solid #334155; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <!-- <div style="margin-top: 30px; background: #020617; border: 2px solid #334155; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div style="font-family: 'Courier New', Courier, monospace;">
                 <h4 style="margin: 0; color: #64748b; font-size: 13px; text-transform: uppercase;">Live DPI-LS Projection</h4>
                 <div style="color: #38bdf8; font-size: 12px; margin-top: 5px;">(P * Q^1.5 * E) * (G^1.5 * R^2) * C * V</div>
             </div>
             <div style="font-size: 32px; font-weight: 800; color: #facc15;" id="live_dpi_score">0.00</div>
-        </div>
+        </div> -->
         <button type="submit" style="margin-top: 20px;">Save Configuration</button>
 
       <div id="status" class="status-msg"></div>
@@ -258,14 +258,100 @@
     document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
     calculateDPI();
 
-    const configForm = document.getElementById('configForm');
+    
+      
+      // Auto-save logic and Dynamic DPI-LS Calculation
+      async function updateDynamicBaselineTotal() {
+          const payload = {};
+          const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
+          let formulaParts = [];
+          
+          metrics.forEach(m => {
+              payload[m] = parseFloat(document.getElementById('base_' + m).value) || 0;
+              payload['Mult_' + m] = parseFloat(document.getElementById('mult_' + m).value) || 1.0;
+              payload['Pow_' + m] = parseFloat(document.getElementById('pow_' + m).value) || 1.0;
+              
+              let part = m;
+              if (payload['Mult_' + m] !== 1.0) part = payload['Mult_' + m] + "*" + part;
+              if (payload['Pow_' + m] !== 1.0) part = part + "^" + payload['Pow_' + m];
+              formulaParts.push(part);
+          });
+          
+          const agentId = document.getElementById('agent_id').value || 'agent-001';
+          
+          try {
+              const res = await fetch("/api/agents/" + agentId + "/score/preview", {
+                  method: 'POST',
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                  },
+                  body: JSON.stringify(payload)
+              });
+              
+              // Update formula string
+              const formulaStr = "DPI = " + formulaParts.join(" + ");
+              document.getElementById('baselineTotal').innerHTML = formulaStr;
+              
+          } catch(e) {
+              console.error(e);
+          }
+      }
+
+      const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
+      
+      async function autoSave(key, val) {
+          const agentId = document.getElementById('agent_id').value || 'agent-001';
+          try {
+              const res = await fetch("/api/agents/" + agentId + "/config", {
+                  method: 'POST',
+                  headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
+                  body: JSON.stringify({configuration_key: key, configuration_value: val, source: 'UI Config (Auto-save)'})
+              });
+              if (res.status === 401) {
+                  window.location.href = '/widget/admin-login.html';
+              }
+          } catch (err) {}
+      }
+
+      metrics.forEach(m => {
+          const types = [
+            {prefix: 'base_', key: 'Base_'}, 
+            {prefix: 'mult_', key: 'Multiplier_'}, 
+            {prefix: 'pow_', key: 'Power_'}
+          ];
+          
+          types.forEach(t => {
+              const el = document.getElementById(t.prefix + m);
+              if (el) {
+                  el.addEventListener('input', updateDynamicBaselineTotal);
+                  el.addEventListener('change', async (e) => {
+                      await autoSave(t.key + m, e.target.value);
+                      updateDynamicBaselineTotal();
+                  });
+              }
+          });
+          
+          // Also attach auto-save to weights
+          const w_el = document.getElementById('weight_' + m);
+          if (w_el) {
+              w_el.addEventListener('change', async (e) => {
+                  await autoSave('Weight_' + m, e.target.value);
+              });
+          }
+      });
+      // Run once on load
+      setTimeout(updateDynamicBaselineTotal, 1000);
+
+      const configForm = document.getElementById('configForm');
     if(configForm) {
         configForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const agentId = document.getElementById('agent_id').value || 'agent-001';
             const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
             
-            // --- Weight Validation Blocker ---
+            
+              // --- Weight Validation Blocker ---
             let checkTotal = 0;
             for (let m of metrics) {
                 checkTotal += (parseFloat(document.getElementById('weight_' + m).value) || 0);

@@ -22,6 +22,13 @@ def test_trace_recomputation_matches_final_score():
 def test_missing_trace_returns_404():
     from fastapi.testclient import TestClient
     from api.app import app
+    import jwt
+    from datetime import datetime, timedelta, timezone
     client = TestClient(app)
-    response = client.get("/trace/fake-run-id")
+    token = jwt.encode(
+        {"sub": "alice", "role": "USER", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
+        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS",
+        algorithm="HS256"
+    )
+    response = client.get("/trace/fake-run-id", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404

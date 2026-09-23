@@ -83,16 +83,14 @@ def client(tmp_path, monkeypatch):
 
 @pytest.fixture()
 def agent_id(client) -> str:
-    """Create a test agent owned by alice via POST /api/agents."""
+    """Create a test agent owned by alice."""
+    from store.repo import upsert_agent
+    from store.db import get_session_factory
     aid = f"exec-test-{uuid.uuid4().hex[:8]}"
-    r = client.post(
-        "/api/agents",
-        json={"agent_id": aid, "agent_name": "Exec Test Agent"},
-        headers=_auth("alice"),
-    )
-    assert r.status_code == 200, r.text
+    with get_session_factory()() as s:
+        upsert_agent(s, aid, "Exec Test Agent", baseline=1.0, owner_id="alice")
+        s.commit()
     return aid
-
 
 # ---------------------------------------------------------------------------
 # Standalone session factory for direct worker unit tests

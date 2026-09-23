@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>DPI-LS — Agent Scores</title>
+  <title>DPI — Agent Scores</title>
   <style>
     :root { --bg: #0f1117; --surface: #1a1d27; --text: #f1f5f9; --border: #2d3148; --accent: #facc15; }
     
@@ -86,13 +86,13 @@
   <main class="main-content">
     <header class="top-header" style="position: sticky; top: -40px; background: var(--bg); z-index: 1000; padding-top: 40px; margin-top: -40px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
       <div style="margin-right: auto; display: flex; align-items: center; gap: 20px;">
-          <h1 style="margin: 0; font-size: 22px;">DPI-LS (Digital Performance Index - Life Science)</h1>
+          <h1 style="margin: 0; font-size: 22px;">DPI (Digital Performance Index)</h1>
           <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
       <div class="search-bar" style="position: relative;">
         <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
         <span style="position: absolute; right: 12px; top: 9px; opacity: 0.6; font-size: 14px;">??</span>
       </div>
-      <button class="chatbot-btn" style="background: var(--accent); color: #000; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(250, 204, 21, 0.2);" title="DPI-LS AI Assistant">
+      <button class="chatbot-btn" style="background: var(--accent); color: #000; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(250, 204, 21, 0.2);" title="DPI AI Assistant">
         ??
       </button>
     </header>
@@ -298,12 +298,12 @@
 <!-- Chatbot Panel -->
 <div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
     <div style="background: var(--bg); padding: 15px; border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
-        <strong style="color: var(--accent);">DPI-LS AI Assistant</strong>
+        <strong style="color: var(--accent);">DPI AI Assistant</strong>
         <button id="chatbot-close" style="background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 16px;">&times;</button>
     </div>
     <div id="chatbot-messages" style="flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
         <div style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; align-self: flex-start; max-width: 85%;">
-            Hello! I am your DPI-LS Assistant. You can ask me how scores are calculated, why an agent was flagged for risk, or how to navigate the platform. How can I help you today?
+            Hello! I am your DPI Assistant. You can ask me how scores are calculated, why an agent was flagged for risk, or how to navigate the platform. How can I help you today?
         </div>
     </div>
     <div style="padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px;">
@@ -403,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setTimeout(() => {
             // Dashboard Related
             if (q.includes('dashboard') || q.includes('leaderboard') || q.includes('green') || q.includes('red') || q.includes('yellow')) {
-                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI-LS score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
+                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
             } 
             // Onboard Agent Related
             else if (q.includes('onboard') || q.includes('onboarding') || q.includes('register') || q.includes('new agent')) {
@@ -411,7 +411,7 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             // Configuration Related
             else if (q.includes('config') || q.includes('weight') || q.includes('parameter') || q.includes('baseline')) {
-                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI-LS parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
+                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
             }
             // Rating Related
             else if (q.includes('rating') || q.includes('manager') || q.includes('review') || q.includes('score')) {
@@ -423,11 +423,11 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             // Resources Related
             else if (q.includes('resource') || q.includes('manual') || q.includes('guide')) {
-                appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI-LS ecosystem and how to integrate your own custom frameworks.", false);
+                appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI ecosystem and how to integrate your own custom frameworks.", false);
             }
-            // Formula / DPI-LS Related
+            // Formula / DPI Related
             else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
-                appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
+                appendMessage("DPI is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
             } 
             else if (q.includes('hello') || q.includes('hi')) {
                 appendMessage("Hello! How can I assist you with your Digital Workforce today? You can ask me about Dashboard, Onboarding, Configuration, Rating, Profile, or Resources.", false);

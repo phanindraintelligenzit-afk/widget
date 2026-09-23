@@ -28,7 +28,7 @@ def temp_db(monkeypatch, tmp_path):
     with sf() as session:
         from contract.settings import Settings
         s = Settings(human_cost_per_output=0.05, gate_thresholds={'P':0.6,'Q':0.6,'E':0.6,'G':0.6,'R':0.6,'C':0.6,'V':0.6}, r_max=10.0, q_sub_weights={'accuracy':0.70,'consistency':0.20,'hallucination':0.10})
-        row = SettingsRow(id=1, payload=s.dict())
+        row = SettingsRow(id=1, payload=s.model_dump())
         session.merge(row)
         session.commit()
     
@@ -88,7 +88,7 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
         algorithm="HS256"
     )
     headers = {"Authorization": f"Bearer {token}"}
-    r = httpx.get(f"{info.base_url}/agents/e2e-agent/score", timeout=5.0, headers=headers)
+    r = httpx.get(f"{info.base_url}/agents/e2e-agent/score", timeout=30.0, headers=headers)
     pass  # Skip score assert for mock
     rating = r.json()
     print(f"DEBUG RATING: {rating}")

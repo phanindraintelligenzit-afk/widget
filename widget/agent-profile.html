@@ -108,7 +108,7 @@
   <main class="main-content">
     <header class="top-header" style="position: sticky; top: -40px; background: var(--bg); z-index: 1000; padding-top: 40px; margin-top: -40px; display: flex; justify-content: flex-end; align-items: center; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--border); gap: 15px;">
       <div style="margin-right: auto; display: flex; align-items: center; gap: 20px;">
-          <h1 style="margin: 0; font-size: 22px;">DPI-LS (Digital Performance Index - Life Science)</h1>
+          <h1 style="margin: 0; font-size: 22px;">DPI (Digital Performance Index)</h1>
           <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
       <div class="search-bar" style="position: relative;">
         <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
@@ -143,7 +143,7 @@
     <div class="card">
       <h2>DPI-LS Score & Runtime Metrics</h2>
       <div style="margin-bottom: 20px; margin-top: 10px;">
-        <code style="display:inline-block; font-size:14px; font-family:'Courier New',Courier,monospace; background:#1e293b; color:#38bdf8; padding:10px 16px; border-radius:6px; border:1px solid #334155; font-weight:600;">DPI-LS = (P × Q^1.5 × E) × (G^1.5 × R^2) × C × V</code>
+        <code style="display:inline-block; font-size:14px; font-family:'Courier New',Courier,monospace; background:#1e293b; color:#38bdf8; padding:10px 16px; border-radius:6px; border:1px solid #334155; font-weight:600;">DPI = (P × Q^1.5 × E) × (G^1.5 × R^2) × C × V</code>
       </div>
       <p><strong>Latest Score:</strong> <span id="agent-score" style="font-size: 2em; font-weight: bold; color: #16a34a;"></span> <span id="agent-band"></span></p>
       <p><strong>Status:</strong> <span id="agent-status"></span></p>
@@ -212,7 +212,7 @@
 
       // 1. Onboarding Info
       fetch(`/api/agents/${agentId}/onboard`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
-        if(data.detail) return;
+        if(data.detail) { if (r.status === 401) window.location.href='/widget/admin-login.html'; return; }
         document.getElementById('agent-type').innerText = data.agent_type;
         document.getElementById('agent-env').innerText = data.environment;
         document.getElementById('agent-desc').innerText = data.description;
@@ -222,7 +222,7 @@
 
       // 2. Score
       fetch(`/agents/${agentId}/score`, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).then(data => {
-        if(data.detail) return;
+        if(data.detail) { if (r.status === 401) window.location.href='/widget/admin-login.html'; return; }
         document.getElementById('agent-score').innerText = data.score.toFixed(2);
         document.getElementById('agent-band').innerText = `(${data.band})`;
         document.getElementById('agent-status').innerText = data.unsafe ? "UNSAFE" : "ACTIVE";
@@ -281,7 +281,7 @@
         if(res.ok) {
           window.location.href = '/widget/demo.html';
         } else {
-          alert('Failed to retire agent.');
+          if(res.status === 401) { alert('Session expired. Please log in again.'); window.location.href='/widget/admin-login.html'; } else { alert('Failed to retire agent.'); }
         }
       }
     }

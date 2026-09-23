@@ -5,9 +5,13 @@ from store.db import get_session_factory
 
 def test_onboarding_api(client: TestClient):
     # Setup agent
+    
     with get_session_factory()() as s:
         upsert_agent(s, "agent-task1", "Task 1 Agent")
+        from store.models import AgentOnboardingRow
+        s.add(AgentOnboardingRow(agent_id="agent-task1", business_owner_email="mgr@test.com"))
         s.commit()
+
     
     # Test Onboarding Creation
     onboard_data = {
@@ -28,9 +32,13 @@ def test_onboarding_api(client: TestClient):
     assert res.json()["description"] == "Test onboard"
 
 def test_manager_rating_api(client: TestClient):
+    
     with get_session_factory()() as s:
         upsert_agent(s, "agent-task1", "Task 1 Agent")
+        from store.models import AgentOnboardingRow
+        s.add(AgentOnboardingRow(agent_id="agent-task1", business_owner_email="mgr@test.com"))
         s.commit()
+
         
     rating_data = {
         "manager_id": "mgr@test.com",
@@ -96,9 +104,13 @@ def test_kra_api(client: TestClient):
     assert res.json()[0]["target_value"] == 4.5
 
 def test_agent_status_api(client: TestClient):
+    
     with get_session_factory()() as s:
         upsert_agent(s, "agent-task1", "Task 1 Agent")
+        from store.models import AgentOnboardingRow
+        s.add(AgentOnboardingRow(agent_id="agent-task1", business_owner_email="mgr@test.com"))
         s.commit()
+
 
     status_data = {"status": "ACTIVE"}
     res = client.put("/api/agents/agent-task1/status", json=status_data)
