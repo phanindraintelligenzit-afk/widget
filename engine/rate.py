@@ -52,6 +52,8 @@ def rate(
     weights: dict[str, float] | None = None,
     gate_thresholds: dict[str, float] | None = None,
     min_dimensions_for_full_band: int = 4,
+    powers: dict[str, float] | None = None,
+    multipliers: dict[str, float] | None = None,
 ) -> Rating:
     """Rate an agent from its 7 normalized sub-metrics.
 
@@ -59,7 +61,7 @@ def rate(
     pipeline order.
     """
     # 1. Composite — DPI-LS formula and linear weighted metrics.
-    raw, weighted_metrics, weights_used = composite(metrics, weights)
+    raw, weighted_metrics, weights_used = composite(metrics, weights, powers, multipliers)
 
     # 2. Compliance gates (G/R/V) — flag Unsafe. Score is preserved
     #    (categorical band override below, no hardcoded numeric cap).

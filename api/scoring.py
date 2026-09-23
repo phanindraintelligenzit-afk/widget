@@ -78,6 +78,28 @@ def _sync_metrics_from_sub_metrics(
             pass
 
 
+
+def _get_custom_formula_configs(s, agent_id: str):
+    powers = {}
+    multipliers = {}
+    if s:
+        try:
+            from store import repo
+            configs = repo.list_agent_configurations(s, agent_id)
+            for c in configs:
+                key = c.configuration_key
+                try:
+                    val = float(c.configuration_value)
+                    if key.startswith("Power_"):
+                        powers[key.replace("Power_", "")] = val
+                    elif key.startswith("Multiplier_"):
+                        multipliers[key.replace("Multiplier_", "")] = val
+                except ValueError:
+                    pass
+        except Exception:
+            pass
+    return powers, multipliers
+
 def score_and_persist(
     s: Session,
     obs: AgentObservation,
@@ -145,11 +167,14 @@ def score_and_persist(
     sub_metrics = _extract_sub_metrics(obs, settings, baseline_obj, s)
     _sync_metrics_from_sub_metrics(metrics, sub_metrics)
 
+    powers, multipliers = _get_custom_formula_configs(s, obs.agent_id)
     rating = rate(
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
+        powers=powers,
+        multipliers=multipliers,
     )
     # Surface RAG signals (informational — doesn't affect score math).
     rating.retrievals = obs.retrievals
@@ -200,11 +225,14 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
     metrics = metrics_from_partial(merged, settings, baseline)
     sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
     _sync_metrics_from_sub_metrics(metrics, sub_metrics)
+    powers, multipliers = _get_custom_formula_configs(s, agent_id)
     rating = rate(
         metrics,
         weights=settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
+        powers=powers,
+        multipliers=multipliers,
     )
     rating.sub_metrics = sub_metrics
 

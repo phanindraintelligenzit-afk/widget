@@ -77,7 +77,8 @@ def upsert_agent(
         except sqlalchemy.exc.IntegrityError:
             s.rollback()
             row = s.get(AgentRow, agent_id)
-    else:
+    if row is not None:
+        row.name = agent_name
         if baseline is not None:
             row.baseline_human_output = baseline
         if owner_id is not None:

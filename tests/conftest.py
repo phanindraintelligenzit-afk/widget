@@ -57,6 +57,8 @@ def client(monkeypatch):
 
         yield c
         
+        app.dependency_overrides.clear()
+        
         from dpi_ls import _state
         _state.reset_for_tests()
         from dpi_ls.enterprise_validation_evaluation_service import reset_enterprise_validation_collector
