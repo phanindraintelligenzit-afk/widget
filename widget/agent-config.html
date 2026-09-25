@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -134,7 +134,7 @@
         <input type="text" id="agent_id" required placeholder="e.g. agent-001">
       </div>
       
-      <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Baseline Parameter Values <span id="baselineTotal" style="float:right; color:#facc15; font-size:14px; font-weight:bold;">DPI = P + Q^1.5 + E + G^1.5 + R^2 + C + V</span></h3>
+      <!-- <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Baseline Parameter Values <span id="baselineTotal" style="float:right; color:#facc15; font-size:14px; font-weight:bold;">DPI = P + Q^1.5 + E + G^1.5 + R^2 + C + V</span></h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
           <div class="form-group"><label>Productivity (P)</label><input type="number" step="0.01" id="base_P" value="1.0" required></div>
           <div class="form-group"><label>Quality (Q)</label><input type="number" step="0.01" id="base_Q" value="0.99" required></div>
@@ -143,7 +143,7 @@
           <div class="form-group"><label>Risk (R)</label><input type="number" step="0.01" id="base_R" value="0.50" required></div>
           <div class="form-group"><label>Cost (C)</label><input type="number" step="0.01" id="base_C" value="0.70" required></div>
           <div class="form-group"><label>Validation (V)</label><input type="number" step="0.01" id="base_V" value="0.95" required></div>
-      </div>
+      </div> -->
 
       <h3 style="margin-top: 30px; border-bottom: 1px solid var(--border); padding-bottom: 10px;">Weightage Distribution <span id="weightTotal" style="float:right; color:var(--muted); font-size:14px;">Total: 100%</span></h3>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
@@ -157,13 +157,7 @@
       </div>
 
       
-        <!-- <div style="margin-top: 30px; background: #020617; border: 2px solid #334155; border-radius: 8px; padding: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <div style="font-family: 'Courier New', Courier, monospace;">
-                <h4 style="margin: 0; color: #64748b; font-size: 13px; text-transform: uppercase;">Live DPI-LS Projection</h4>
-                <div style="color: #38bdf8; font-size: 12px; margin-top: 5px;">(P * Q^1.5 * E) * (G^1.5 * R^2) * C * V</div>
-            </div>
-            <div style="font-size: 32px; font-weight: 800; color: #facc15;" id="live_dpi_score">0.00</div>
-        </div> -->
+        
         <button type="submit" style="margin-top: 20px;">Save Configuration</button>
 
       <div id="status" class="status-msg"></div>
@@ -176,7 +170,7 @@
 
   
 
-<!-- Chatbot Panel -->
+Chatbot Panel
 <div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
     <div style="background: var(--bg); padding: 15px; border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
         <strong style="color: var(--accent);">DPI-LS AI Assistant</strong>
@@ -208,13 +202,13 @@
     }
     
     async function calculateDPI() {
-        const P = parseFloat(document.getElementById('base_P').value) || 0;
-        const Q = parseFloat(document.getElementById('base_Q').value) || 0;
-        const E = parseFloat(document.getElementById('base_E').value) || 0;
-        const G = parseFloat(document.getElementById('base_G').value) || 0;
-        const R = parseFloat(document.getElementById('base_R').value) || 0;
-        const C = parseFloat(document.getElementById('base_C').value) || 0;
-        const V = parseFloat(document.getElementById('base_V').value) || 0;
+        const P = parseFloat(1.0) || 0;
+        const Q = parseFloat(1.0) || 0;
+        const E = parseFloat(1.0) || 0;
+        const G = parseFloat(1.0) || 0;
+        const R = parseFloat(1.0) || 0;
+        const C = parseFloat(1.0) || 0;
+        const V = parseFloat(1.0) || 0;
         const wP = parseFloat(document.getElementById('weight_P').value) || 0;
         const wQ = parseFloat(document.getElementById('weight_Q').value) || 0;
         const wE = parseFloat(document.getElementById('weight_E').value) || 0;
@@ -222,23 +216,7 @@
         const wR = parseFloat(document.getElementById('weight_R').value) || 0;
         const wC = parseFloat(document.getElementById('weight_C').value) || 0;
         const wV = parseFloat(document.getElementById('weight_V').value) || 0;
-        const agentId = new URLSearchParams(window.location.search).get('agent_id') || 'agent-001';
-        try {
-            const res = await fetch(`/api/agents/${agentId}/score/preview`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-                },
-                body: JSON.stringify({ P, Q, E, G, R, V, C, wP, wQ, wE, wG, wR, wV, wC })
-            });
-            if(res.ok) {
-                const data = await res.json();
-                document.getElementById('live_dpi_score').textContent = data.preview_score.toFixed(1);
-            }
-        } catch(e) {
-            console.error(e);
-        }
+        
         
         let wTotal = 0;
         document.querySelectorAll('.weight-input').forEach(inp => {
@@ -260,88 +238,7 @@
 
     
       
-      // Auto-save logic and Dynamic DPI-LS Calculation
-      async function updateDynamicBaselineTotal() {
-          const payload = {};
-          const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
-          let formulaParts = [];
-          
-          metrics.forEach(m => {
-              payload[m] = parseFloat(document.getElementById('base_' + m).value) || 0;
-              payload['Mult_' + m] = parseFloat(document.getElementById('mult_' + m).value) || 1.0;
-              payload['Pow_' + m] = parseFloat(document.getElementById('pow_' + m).value) || 1.0;
-              
-              let part = m;
-              if (payload['Mult_' + m] !== 1.0) part = payload['Mult_' + m] + "*" + part;
-              if (payload['Pow_' + m] !== 1.0) part = part + "^" + payload['Pow_' + m];
-              formulaParts.push(part);
-          });
-          
-          const agentId = document.getElementById('agent_id').value || 'agent-001';
-          
-          try {
-              const res = await fetch("/api/agents/" + agentId + "/score/preview", {
-                  method: 'POST',
-                  headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
-                  },
-                  body: JSON.stringify(payload)
-              });
-              
-              // Update formula string
-              const formulaStr = "DPI = " + formulaParts.join(" + ");
-              document.getElementById('baselineTotal').innerHTML = formulaStr;
-              
-          } catch(e) {
-              console.error(e);
-          }
-      }
-
-      const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
       
-      async function autoSave(key, val) {
-          const agentId = document.getElementById('agent_id').value || 'agent-001';
-          try {
-              const res = await fetch("/api/agents/" + agentId + "/config", {
-                  method: 'POST',
-                  headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                  body: JSON.stringify({configuration_key: key, configuration_value: val, source: 'UI Config (Auto-save)'})
-              });
-              if (res.status === 401) {
-                  window.location.href = '/widget/admin-login.html';
-              }
-          } catch (err) {}
-      }
-
-      metrics.forEach(m => {
-          const types = [
-            {prefix: 'base_', key: 'Base_'}, 
-            {prefix: 'mult_', key: 'Multiplier_'}, 
-            {prefix: 'pow_', key: 'Power_'}
-          ];
-          
-          types.forEach(t => {
-              const el = document.getElementById(t.prefix + m);
-              if (el) {
-                  el.addEventListener('input', updateDynamicBaselineTotal);
-                  el.addEventListener('change', async (e) => {
-                      await autoSave(t.key + m, e.target.value);
-                      updateDynamicBaselineTotal();
-                  });
-              }
-          });
-          
-          // Also attach auto-save to weights
-          const w_el = document.getElementById('weight_' + m);
-          if (w_el) {
-              w_el.addEventListener('change', async (e) => {
-                  await autoSave('Weight_' + m, e.target.value);
-              });
-          }
-      });
-      // Run once on load
-      setTimeout(updateDynamicBaselineTotal, 1000);
 
       const configForm = document.getElementById('configForm');
     if(configForm) {
@@ -362,59 +259,70 @@
             }
             // ---------------------------------
             
-            const statusEl = document.getElementById('status');
-            if (statusEl) {
-                statusEl.textContent = 'Saving Configurations & Running Telemetry...';
-                statusEl.className = 'status-msg';
-            }
-            
-            try {
-                  for (let m of metrics) {
-                      let val = document.getElementById('base_' + m).value;
-                      await fetch(`/api/agents/${agentId}/config`, {
-                          method: 'POST',
-                          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                          body: JSON.stringify({configuration_key: `Base_${m}`, configuration_value: val, source: 'UI Config'})
-                      });
+                          const statusEl = document.getElementById('status');
+              if (statusEl) {
+                  statusEl.textContent = 'Saving Configurations...';
+                  statusEl.className = 'status-msg';
+              }
+              
+              const payload = {
+                  weight_p: parseFloat(document.getElementById('weight_P').value) || 0,
+                  weight_q: parseFloat(document.getElementById('weight_Q').value) || 0,
+                  weight_e: parseFloat(document.getElementById('weight_E').value) || 0,
+                  weight_g: parseFloat(document.getElementById('weight_G').value) || 0,
+                  weight_r: parseFloat(document.getElementById('weight_R').value) || 0,
+                  weight_v: parseFloat(document.getElementById('weight_V').value) || 0,
+                  weight_c: parseFloat(document.getElementById('weight_C').value) || 0
+              };
+
+              try {
+                  const res = await fetch(`/api/agents/${agentId}/weightages`, {
+                      method: 'PUT',
+                      headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
+                      },
+                      body: JSON.stringify(payload)
+                  });
+                  
+                  if (!res.ok) {
+                      throw new Error("Failed to save. Check that totals equal exactly 100.");
                   }
                   
-                  for (let m of metrics) {
-                      let val = document.getElementById('weight_' + m).value;
-                      await fetch(`/api/agents/${agentId}/config`, {
-                          method: 'POST',
-                          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')},
-                          body: JSON.stringify({configuration_key: `Weight_${m}`, configuration_value: val, source: 'UI Config'})
-                      });
+                                    if (statusEl) {
+                      statusEl.textContent = 'Configurations saved! Generating Telemetry...';
+                      statusEl.className = 'status-msg success';
                   }
-                
-                // Trigger telemetry calculation once for all configs!
-                if (statusEl) {
-                    statusEl.textContent = 'Configurations saved! Generating Telemetry...';
-                    statusEl.className = 'status-msg success';
-                }
-                
-                await fetch(`/api/agents/${agentId}/run_telemetry`, {
-                    method: 'POST',
-                    headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
-                });
-                
-                if (statusEl) {
-                    statusEl.textContent = 'Success! Redirecting to Dashboard...';
-                }
-                
-                setTimeout(() => {
-                    window.location.href = '/widget/demo.html';
-                }, 1500);
-                
-            } catch (err) {
-                if (statusEl) {
-                    statusEl.textContent = 'Network error while saving configurations.';
-                    statusEl.className = 'status-msg error';
-                }
-            }
-        });
-    }
+                  
+                  await fetch(`/api/agents/${agentId}/run_telemetry`, {
+                      method: 'POST',
+                      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
+                  });
+                  
+                  if (statusEl) {
+                      statusEl.textContent = 'Success! Redirecting to Dashboard...';
+                  }
+                  
+                  setTimeout(() => {
+                      window.location.href = '/widget/demo.html';
+                  }, 1500);
+                  
+              } catch (err) {
+                  if (statusEl) {
+                      statusEl.textContent = err.message;
+                      statusEl.className = 'status-msg error'; } } }); }
 </script>
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+

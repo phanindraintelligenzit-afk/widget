@@ -1,18 +1,18 @@
-"""FastAPI app — the demo surface for the widget to poll.
+﻿"""FastAPI app â€” the demo surface for the widget to poll.
 
 Routes:
-    GET  /healthz                          — liveness
-    GET  /adapters                         — registered adapters
-    POST /ingest                           — canonical AgentObservation
-    POST /ingest/{adapter_name}            — raw payload via a registered adapter
-    GET  /agents                           — list agents
-    GET  /agents/{id}/score                — latest Rating
-    GET  /agents/{id}/history              — score history (Newest first)
-    GET  /ratings                          — board view: latest per agent
-    GET  /settings, PUT /settings          — tunables
-    POST /agents/{id}/sme-rating           — record an SME quality capture (M6 input)
+    GET  /healthz                          â€” liveness
+    GET  /adapters                         â€” registered adapters
+    POST /ingest                           â€” canonical AgentObservation
+    POST /ingest/{adapter_name}            â€” raw payload via a registered adapter
+    GET  /agents                           â€” list agents
+    GET  /agents/{id}/score                â€” latest Rating
+    GET  /agents/{id}/history              â€” score history (Newest first)
+    GET  /ratings                          â€” board view: latest per agent
+    GET  /settings, PUT /settings          â€” tunables
+    POST /agents/{id}/sme-rating           â€” record an SME quality capture (M6 input)
 
-The engine is never imported here directly — only via api/scoring.py.
+The engine is never imported here directly â€” only via api/scoring.py.
 Adapters are looked up by name via the ingestion registry.
 """
 from __future__ import annotations
@@ -72,6 +72,8 @@ from .schemas import (
     AgentKRAIn,
     AgentKRAOut,
     AgentStatusIn,
+    AgentWeightageIn,
+    AgentWeightageOut
 )
 from .scoring import ingest_partials, score_and_persist
 from .sme_orchestration import advance_session, start_session
@@ -96,7 +98,7 @@ async def lifespan(_: FastAPI):
         missing.append("LANGFUSE_HOST")
 
     if missing:
-        msg = f"⚠️ WARNING: The following required environment configurations are missing: {', '.join(missing)}"
+        msg = f"âš ï¸ WARNING: The following required environment configurations are missing: {', '.join(missing)}"
         logger.warning(msg)
 
     bootstrap()
@@ -169,7 +171,7 @@ from datetime import datetime, timedelta, timezone
 from store.models import UserRow
 from sqlalchemy import select
 
-SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS"
+SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
@@ -279,7 +281,7 @@ async def global_exception_handler(request, exc):
 
 # Static serving of the embeddable widget.
 # NoCacheStaticFiles overrides the response headers to prevent browsers
-# from caching the widget JS between edits — otherwise a change to
+# from caching the widget JS between edits â€” otherwise a change to
 # dpi-ls.js is invisible until the 10-minute browser cache expires.
 _WIDGET_DIR = Path(__file__).resolve().parent.parent / "widget"
 
@@ -305,6 +307,12 @@ if _WIDGET_DIR.exists():
 
 
 # Mount Prometheus metrics endpoint
+from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from fastapi import Response
+@app.get('/metrics', include_in_schema=False)
+def metrics():
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 
 @app.get("/", include_in_schema=False)
@@ -336,7 +344,7 @@ def adapters() -> list[AdapterInfo]:
 
 @app.get("/sources", response_model=list[AdapterInfo])
 def sources() -> list[AdapterInfo]:
-    """Source adapters — one per source system, each emitting partials."""
+    """Source adapters â€” one per source system, each emitting partials."""
     return [AdapterInfo(name=n) for n in list_sources()]
 
 
@@ -453,7 +461,7 @@ def ingest_via_source(
     Partials accumulate; the API re-merges latest-per-dimension and
     re-scores every agent the payload touched. An agent reported by
     only one source (e.g. AWS cost) gets a C-dominated score with the
-    other dimensions deferred — never zero.
+    other dimensions deferred â€” never zero.
     """
     try:
         adapter = get_source(source_name)
@@ -472,7 +480,7 @@ def evaluate_risk(s: Session = Depends(db_session)) -> list[dict[str, Any]]:
     from sqlalchemy import select
 
     # Integration-readiness check (SDK + registry). Flips a metric to
-    # SUCCESS whenever the SDK wiring exists in this repo — a clean
+    # SUCCESS whenever the SDK wiring exists in this repo â€” a clean
     # agent (no incidents) is not a broken resource, so we don't call
     # the legacy evaluate_all() here which would clobber SUCCESS with
     # FAILED on absence-of-incidents. Live incident evidence still
@@ -834,7 +842,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
             print(f"Body:\n{email_body}")
             print(f"-----------------------\n")
         if not smtp_user:
-            print("[DPI-LS SMTP] ⚠️  No SMTP_USER configured. Set SMTP_USER and SMTP_PASS in .env for real email sending.")
+            print("[DPI-LS SMTP] âš ï¸  No SMTP_USER configured. Set SMTP_USER and SMTP_PASS in .env for real email sending.")
 
     s.commit()
     return AgentOnboardingOut(
@@ -1177,8 +1185,8 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), curr
     if not existing:
         obs = store.models.ObservationRow(
             agent_id=agent_id,
-            period_start=datetime.datetime.utcnow(),
-            period_end=datetime.datetime.utcnow(),
+            period_start=datetime.datetime.now(datetime.timezone.utc),
+            period_end=datetime.datetime.now(datetime.timezone.utc),
             source="System",
             payload={}
         )
@@ -1267,7 +1275,7 @@ from .scoring import (
 )
 
 def _score_row_to_rating(s: Session, row) -> Rating:
-    # Persist the typed columns straight through — the DB and the
+    # Persist the typed columns straight through â€” the DB and the
     # contract use the same field types (int count, float ratio,
     # list[str] reasons). The DB column ``coverage_capped`` and the
     # contract's ``capped`` field are aliases; surface both.
@@ -1280,7 +1288,7 @@ def _score_row_to_rating(s: Session, row) -> Rating:
     active_weights = dict(row.weights_used or {})
 
     # Enrich sub_metrics live from the DB (G + R rows change between
-    # ingests) …
+    # ingests) â€¦
     settings = repo.get_settings(s)
     live_sub = dict(row.sub_metrics or {})
     live_sub = enrich_cost_sub_metrics(s, live_sub)
@@ -1290,7 +1298,7 @@ def _score_row_to_rating(s: Session, row) -> Rating:
     live_sub = enrich_risk_sub_metrics(s, live_sub, row.agent_id, settings)
     live_sub = enrich_governance_sub_metrics(s, live_sub, row.agent_id)
 
-    # … then keep metrics + weighted_metrics in lock-step with those
+    # â€¦ then keep metrics + weighted_metrics in lock-step with those
     # live values, so the per-agent card's row cells always match its
     # detail panels. Same invariant as api.scoring.
     from api.scoring import _sync_metrics_from_sub_metrics
@@ -1369,7 +1377,7 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                     weighted_metrics=empty_m.copy(),
                     weights_used=weights,
                     sub_metrics={},
-                    computed_at=__import__('datetime').datetime.utcnow(),
+                    computed_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc),
                 )
             )
             continue
@@ -2319,7 +2327,7 @@ def evaluate_governance(s: Session = Depends(db_session)) -> list[dict[str, Any]
     from store.models import GovernanceResourceEvaluationRow
     from sqlalchemy import select
 
-    # See evaluate_risk() for rationale — integration-readiness only,
+    # See evaluate_risk() for rationale â€” integration-readiness only,
     # no absence-flips-to-FAILED clobber. Live governance events still
     # surface via enrich_governance_sub_metrics().
     svc = GovernanceResourceEvaluationService(s)
@@ -2502,7 +2510,7 @@ def governance_dashboard_data(agent_id: str, s: Session = Depends(db_session)) -
 
 
 # =====================================================================
-# Enterprise Validation (V) — Guardrails AI / Pydantic AI / Instructor
+# Enterprise Validation (V) â€” Guardrails AI / Pydantic AI / Instructor
 # =====================================================================
 # Additive: parallel API namespace ``/api/enterprise-validation/*``.
 # The classic Validation dimension endpoints stay untouched.
@@ -2518,7 +2526,7 @@ def enterprise_validation_urls(s: Session = Depends(db_session)) -> dict[str, di
     for r in rows:
         out[r.name] = {
             "url": r.documentation_url or "#",
-            "online": True,  # Python libraries — no TCP dependency
+            "online": True,  # Python libraries â€” no TCP dependency
             "sdk_available": bool(r.sdk_available),
         }
     return out
@@ -2601,7 +2609,7 @@ def enterprise_validation_push(
     Body::
         {
           "adapter":  "Guardrails AI" | "Pydantic AI" | "Instructor",
-          "kind":     "json" | "schema" | "type" | "regex" | …,
+          "kind":     "json" | "schema" | "type" | "regex" | â€¦,
           "expected": <any>,
           "actual":   <any>,
           "passed":   true | false,
@@ -2611,7 +2619,7 @@ def enterprise_validation_push(
           "correlation_id": str | null
         }
 
-    Real runtime telemetry — never fabricated.
+    Real runtime telemetry â€” never fabricated.
     """
     from dpi_ls.enterprise_validation_evaluation_service import (
         ValidationEvent,
@@ -2644,11 +2652,11 @@ def enterprise_validation_push(
 def enterprise_validation_agent_dashboard(
     s: Session = Depends(db_session),
 ) -> dict[str, Any]:
-    """Normalized DPI-LS Validation view — canonical metrics + formula + gate.
+    """Normalized DPI-LS Validation view â€” canonical metrics + formula + gate.
 
     Reads the live in-process collector (never fabricated); computes
     ``V = Validated / Required`` per the DPI-LS spec; surfaces the
-    hard compliance gate (V < 0.60 → unsafe, DPI capped at 69).
+    hard compliance gate (V < 0.60 â†’ unsafe, DPI capped at 69).
     """
     from dpi_ls.enterprise_validation_evaluation_service import (
         CANONICAL_MAP,
@@ -3098,22 +3106,37 @@ def agent_profile_page(request: Request, agent_id: str):
     return FileResponse("widget/agent-profile.html")
 
 @app.delete("/agents/{agent_id}")
-def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+def delete_agent_route(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
     check_agent_ownership(agent_id, s, current_user)
-    
-    from store.models import AgentRow
+    from store.models import (AgentRow, ScoreRow, ObservationRow, PartialObservationRow,
+                              SMEFlowSessionRow, SMERatingRow, AgentOnboardingRow,
+                              AgentKRARow, AgentConfigurationRow, ManagerRatingRow,
+                              CustomerRatingRow, AgentWeightageRow)
     agent = s.get(AgentRow, agent_id)
     if agent:
+        # Manually cascade delete because SQLite foreign keys aren't enforcing CASCADE
+        s.query(ScoreRow).filter(ScoreRow.agent_id == agent_id).delete()
+        s.query(ObservationRow).filter(ObservationRow.agent_id == agent_id).delete()
+        s.query(PartialObservationRow).filter(PartialObservationRow.agent_id == agent_id).delete()
+        s.query(SMEFlowSessionRow).filter(SMEFlowSessionRow.agent_id == agent_id).delete()
+        s.query(SMERatingRow).filter(SMERatingRow.agent_id == agent_id).delete()
+        s.query(AgentOnboardingRow).filter(AgentOnboardingRow.agent_id == agent_id).delete()
+        s.query(AgentKRARow).filter(AgentKRARow.agent_id == agent_id).delete()
+        s.query(AgentConfigurationRow).filter(AgentConfigurationRow.agent_id == agent_id).delete()
+        s.query(ManagerRatingRow).filter(ManagerRatingRow.agent_id == agent_id).delete()
+        s.query(CustomerRatingRow).filter(CustomerRatingRow.agent_id == agent_id).delete()
+        s.query(AgentWeightageRow).filter(AgentWeightageRow.agent_id == agent_id).delete()
+        
         s.delete(agent)
         s.commit()
-        return {"status": "success"}
+    return {"status": "success"}
     from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Agent not found")
 
 
 
 # ---------------------------------------------------------------------------
-# Durable Execution — DB-backed task queue (Phase 2)
+# Durable Execution â€” DB-backed task queue (Phase 2)
 # ---------------------------------------------------------------------------
 # The worker runs as a separate process (uv run python -m worker.runner)
 # or as a daemon thread started at app startup.  Jobs are stored in the
@@ -3128,7 +3151,7 @@ async def execute_agent(
 ):
     """Enqueue a durable execution job and return execution_id immediately.
 
-    Lifecycle: QUEUED → RUNNING → SUCCESS | FAILED | TIMEOUT
+    Lifecycle: QUEUED â†’ RUNNING â†’ SUCCESS | FAILED | TIMEOUT
     """
     check_agent_ownership(agent_id, s, current_user)
 
@@ -3205,7 +3228,7 @@ def cancel_agent_execution(
     if not cancelled:
         raise HTTPException(
             status_code=409,
-            detail=f"Cannot cancel execution in status '{exec_data['status']}' — only QUEUED executions can be cancelled",
+            detail=f"Cannot cancel execution in status '{exec_data['status']}' â€” only QUEUED executions can be cancelled",
         )
     return {"execution_id": execution_id, "status": "CANCELLED"}
 
@@ -3308,3 +3331,59 @@ async def test_connection(
         return {"status": "FAILED", "error": "Active client required for AWS verification."}
 
     return {"status": "NOT_CONFIGURED", "error": f"Integration {resource_name} not recognized or not implemented for health check."}
+
+@app.post("/agents/{agent_id}/execute")
+def execute_agent(agent_id: str):
+    return {"status": "executing", "agent_id": agent_id}
+
+@app.get("/api/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
+def get_weightages(agent_id: str, s: Session = Depends(db_session)):
+    row = store.repo.get_agent_weightage(s, agent_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Agent weightages not found")
+    return AgentWeightageOut(
+        agent_id=row.agent_id,
+        weight_p=row.weight_p,
+        weight_q=row.weight_q,
+        weight_e=row.weight_e,
+        weight_v=row.weight_v,
+        weight_r=row.weight_r,
+        weight_g=row.weight_g,
+        weight_c=row.weight_c,
+        total_weight=row.total_weight,
+        updated_at=row.updated_at
+    )
+
+@app.put("/api/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
+def update_weightages(agent_id: str, body: AgentWeightageIn, s: Session = Depends(db_session)):
+    total = sum([
+        body.weight_p, body.weight_q, body.weight_e,
+        body.weight_v, body.weight_r, body.weight_g, body.weight_c
+    ])
+    if abs(total - 100.0) > 0.01:
+        raise HTTPException(status_code=400, detail="Total weight must equal exactly 100")
+        
+    row = store.repo.upsert_agent_weightage(
+        s, agent_id,
+        body.weight_p, body.weight_q, body.weight_e,
+        body.weight_v, body.weight_r, body.weight_g, body.weight_c,
+        total
+    )
+    s.commit()
+    return AgentWeightageOut(
+        agent_id=row.agent_id,
+        weight_p=row.weight_p,
+        weight_q=row.weight_q,
+        weight_e=row.weight_e,
+        weight_v=row.weight_v,
+        weight_r=row.weight_r,
+        weight_g=row.weight_g,
+        weight_c=row.weight_c,
+        total_weight=row.total_weight,
+        updated_at=row.updated_at
+    )
+
+
+
+
+

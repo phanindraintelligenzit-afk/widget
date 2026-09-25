@@ -620,3 +620,18 @@ class ExecutionRow(Base):
     cancelled_by = Column(String, nullable=True)    # username who cancelled
     worker_pid = Column(Integer, nullable=True)     # PID of worker that ran this
     retry_count = Column(Integer, default=0)
+
+
+class AgentWeightageRow(Base):
+    __tablename__ = "agent_weightages"
+
+    agent_id: Mapped[str] = mapped_column(String(128), ForeignKey("agents.id"), primary_key=True)
+    weight_p: Mapped[float] = mapped_column(Float)
+    weight_q: Mapped[float] = mapped_column(Float)
+    weight_e: Mapped[float] = mapped_column(Float)
+    weight_v: Mapped[float] = mapped_column(Float)
+    weight_r: Mapped[float] = mapped_column(Float)
+    weight_g: Mapped[float] = mapped_column(Float)
+    weight_c: Mapped[float] = mapped_column(Float)
+    total_weight: Mapped[float] = mapped_column(Float)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)

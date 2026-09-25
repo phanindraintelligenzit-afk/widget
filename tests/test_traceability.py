@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from dpi_ls.trace import ScoreTrace
 from store.models import ScoreTraceRow
 from store.db import get_session_factory, init_db
@@ -27,8 +27,9 @@ def test_missing_trace_returns_404():
     client = TestClient(app)
     token = jwt.encode(
         {"sub": "alice", "role": "USER", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
-        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS",
+        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32",
         algorithm="HS256"
     )
     response = client.get("/trace/fake-run-id", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
+

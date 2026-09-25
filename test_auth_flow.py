@@ -1,10 +1,10 @@
-import httpx
+﻿import httpx
 import asyncio
 import jwt
 import time
 import uuid
 
-SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS"
+SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32"
 ALGORITHM = "HS256"
 
 def create_token(username: str, role: str = "USER"):
@@ -50,3 +50,4 @@ async def test_auth():
 
 if __name__ == "__main__":
     asyncio.run(test_auth())
+

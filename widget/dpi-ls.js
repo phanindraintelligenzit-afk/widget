@@ -1,4 +1,4 @@
-/* DPI-LS embeddable widget — vanilla web components, no framework.
+﻿/* DPI-LS embeddable widget â€” vanilla web components, no framework.
  *
  * Usage on any host page:
  *   <script src="https://your-host/widget/dpi-ls.js" defer></script>
@@ -145,22 +145,22 @@
   }
 
   function fmtScore(n) {
-    return Number.isFinite(n) ? (Number.isInteger(n) ? n.toString() : n.toFixed(1)) : "—";
+    return Number.isFinite(n) ? (Number.isInteger(n) ? n.toString() : n.toFixed(1)) : "â€”";
   }
 
   function fmtMetric(v) {
-    // Display the metric as a percentage — the natural reading.
+    // Display the metric as a percentage â€” the natural reading.
     // The total score is the weighted sum of the 7 metric percentages
     // (see ``engine.score.composite``), so the user can do the math
-    // mentally: 100% × 0.15 + 82.5% × 0.20 + … = raw_score.
-    return Number.isFinite(v) ? Math.round(v * 100).toString() : "—";
+    // mentally: 100% Ã— 0.15 + 82.5% Ã— 0.20 + â€¦ = raw_score.
+    return Number.isFinite(v) ? Math.round(v * 100).toString() : "â€”";
   }
 
   function fmtWeightedMetric(v, weightPercent) {
-    // Weighted contribution to the raw score (value × weightPercent).
+    // Weighted contribution to the raw score (value Ã— weightPercent).
     // Surfaced in the metric detail panel so the user can see exactly
     // what each dim adds up to.
-    if (!Number.isFinite(v)) return "—";
+    if (!Number.isFinite(v)) return "â€”";
     const val = v * weightPercent;
     return val.toFixed(2);
   }
@@ -546,7 +546,7 @@
 
       <div class="quality-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}QUALITY TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}QUALITY TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -598,8 +598,8 @@
 
     const finalWeightedVal = (gScoreVal * (row && row.weights_used && row.weights_used["G"] !== undefined ? row.weights_used["G"]*100 : 20.0)).toFixed(2);
     const metricsMap = {
-      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
-      "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
+      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Î£ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
+      "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Î£ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
       "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "1 - (Total Actions / Policy Violations)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
     };
 
@@ -679,7 +679,7 @@
         `).join("");
     }
     const gateHtml = gScoreVal === 0.0 ? `<div style="margin-top:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:8px 12px;border-radius:6px;color:#fca5a5;font-size:11px;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:14px;">⚠️</span>
+      <span style="font-size:14px;">âš ï¸</span>
       <span>Governance Compliance Gate Fired. Score capped to 0.000 (100% Violation Rate)</span>
     </div>` : '';
 
@@ -701,7 +701,7 @@
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 − (Policy Violations / Total Actions)</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 âˆ’ (Policy Violations / Total Actions)</div>
           </div>
         </div>
         <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
@@ -717,7 +717,7 @@
 
       <div class="governance-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}GOVERNANCE TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}GOVERNANCE TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -740,7 +740,7 @@
 
       ${resourceFilter ? `
       <div style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:8px;margin-top:12px;">
-        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">▶ ${resourceFilter.toUpperCase()} RESOURCE CONTRIBUTION</div>
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">â–¶ ${resourceFilter.toUpperCase()} RESOURCE CONTRIBUTION</div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
             <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
@@ -763,14 +763,14 @@
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Formula Contribution</td>
-              <td style="padding:8px 14px;color:#e2e8f0;">1 − (${totalActions} / ${policyViolations})</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">1 âˆ’ (${totalActions} / ${policyViolations})</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Raw Contribution</td>
               <td style="padding:8px 14px;color:#38bdf8;font-weight:800;">${gScoreVal.toFixed(4)}</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
-              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Weighted Contribution (×${settings?.weights?.G || 20.0}%)</td>
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Weighted Contribution (Ã—${settings?.weights?.G || 20.0}%)</td>
               <td style="padding:8px 14px;color:#4ade80;font-weight:800;">${finalWeightedVal}</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
@@ -779,7 +779,7 @@
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Policy / Incident Logs</td>
-              <td style="padding:8px 14px;color:#cbd5e1;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml((inc.action_name || inc.category) + ' → ' + inc.name + ' (freq ' + inc.frequency + ')')).join('; ') || 'No incidents logged'}</td>
+              <td style="padding:8px 14px;color:#cbd5e1;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml((inc.action_name || inc.category) + ' â†’ ' + inc.name + ' (freq ' + inc.frequency + ')')).join('; ') || 'No incidents logged'}</td>
             </tr>
           </tbody>
         </table>
@@ -936,7 +936,7 @@
 
       <div class="risk-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}RISK TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}RISK TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1097,7 +1097,7 @@
 
       <div class="validation-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}VALIDATION TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}VALIDATION TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1242,7 +1242,7 @@
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) Ã— Utilization Factor</div>
           </div>
 </div>
 <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
@@ -1260,7 +1260,7 @@
 
 <div class="cost-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}COST TRACEABILITY & EFFICIENCY
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}COST TRACEABILITY & EFFICIENCY
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1294,10 +1294,10 @@
 
     return {
       worker_concurrency: { val: sub.worker_concurrency, calc: sub.worker_concurrency, disp: sub.worker_concurrency, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
-      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val × 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
-      api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val × 2.5", src: "Langfuse", resource: "Langfuse", dec: 2 },
+      decision_branches: { val: sub.decision_branches, calc: (sub.decision_branches || 0) * 5.0, disp: (sub.decision_branches || 0) * 5.0, formula: "val Ã— 5.0", src: "OpenTelemetry", resource: "OpenTelemetry", dec: 2 },
+      api_calls: { val: sub.api_calls, calc: (sub.api_calls || 0) * 2.5, disp: (sub.api_calls || 0) * 2.5, formula: "val Ã— 2.5", src: "Langfuse", resource: "Langfuse", dec: 2 },
       execution_duration: { val: sub.execution_duration, calc: sub.execution_duration, disp: sub.execution_duration, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
-      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val × 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
+      token_depth: { val: sub.token_depth, calc: (sub.token_depth || 0) * 0.001, disp: (sub.token_depth || 0) * 0.001, formula: "val Ã— 0.001", src: "Apache SkyWalking", resource: "Apache SkyWalking", dec: 3 },
       throughput: { val: sub.throughput, calc: sub.throughput, disp: sub.throughput, formula: "Raw Value", src: "Langfuse", resource: "Langfuse", dec: 2 },
       cpu_usage: { val: sub.cpu_usage, calc: sub.cpu_usage, disp: sub.cpu_usage, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 2 },
       memory_usage: { val: sub.memory_usage, calc: sub.memory_usage, disp: sub.memory_usage, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 2 },
@@ -1310,8 +1310,8 @@
       failed_tasks: { val: sub.failed, calc: sub.failed, disp: sub.failed, formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 0 },
       human_baseline: { val: sub.human_baseline, calc: sub.human_baseline, disp: sub.human_baseline, formula: "Raw Value", src: "Settings Layer", resource: "Settings Layer", dec: 3 },
       human_complexity: { val: sub['E[C_Human]'], calc: sub['E[C_Human]'], disp: sub['E[C_Human]'], formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
-      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "γ = E[C_AI] / E[C_Human]", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
-      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks × γ", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
+      normalization_factor: { val: sub.normalization_factor, calc: sub.normalization_factor, disp: sub.normalization_factor, formula: "Î³ = E[C_AI] / E[C_Human]", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
+      effective_output: { val: sub.effective_output, calc: sub.effective_output, disp: sub.effective_output, formula: "Completed Tasks Ã— Î³", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 },
       Productivity_Score: { val: pScoreVal, calc: pScoreVal, disp: pScoreVal, formula: "min(1, Effective Output / Baseline)", src: "Productivity Service", resource: "Workflow Layer", dec: 4 },
       AI_Complexity: { val: sub['E[C_AI]'], calc: sub['E[C_AI]'], disp: sub['E[C_AI]'], formula: "Raw Value", src: "Workflow Layer", resource: "Workflow Layer", dec: 3 }
     };
@@ -1358,7 +1358,7 @@
       failed_tasks: "Failed Tasks",
       human_baseline: "Human Baseline",
       human_complexity: "Human Complexity",
-      normalization_factor: "Normalization Factor (γ)",
+      normalization_factor: "Normalization Factor (Î³)",
       effective_output: "Effective Output",
       Productivity_Score: "Productivity Score",
       AI_Complexity: "AI Complexity"
@@ -1409,14 +1409,14 @@
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
               <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-              <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output * γ) / Human Baseline)</div>
+              <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output * Î³) / Human Baseline)</div>
             </div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;margin-bottom:12px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Productivity Calculation</div>
             <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
               <div>AI Output (Completed) : ${metricsMap.completed_tasks.val}</div>
-              <div>Normalization (γ) : ${metricsMap.normalization_factor.val}</div>
+              <div>Normalization (Î³) : ${metricsMap.normalization_factor.val}</div>
               <div>Human Baseline : ${metricsMap.human_baseline.val}</div>
               <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Productivity Score : min(1.0, (${metricsMap.completed_tasks.val} * ${metricsMap.normalization_factor.val}) / ${metricsMap.human_baseline.val == 0 ? 1 : metricsMap.human_baseline.val}) = ${pScoreVal.toFixed(4)}</div>
             </div>
@@ -1424,7 +1424,7 @@
         </div>
         <div class="productivity-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}PRODUCTIVITY TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1597,7 +1597,7 @@
 
       <div class="execution-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}EXECUTION TRACEABILITY & AUDIT
+          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}EXECUTION TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1631,12 +1631,12 @@
     const label  = METRIC_LABELS[key]  || key;
     const w_m = rating && rating.weighted_metrics ? rating.weighted_metrics : {};
     const w_u = rating && rating.weights_used ? rating.weights_used : {};
-    const weight = w_u[key] !== undefined ? (w_u[key] * 100).toFixed(1) : "—";
+    const weight = w_u[key] !== undefined ? (w_u[key] * 100).toFixed(1) : "â€”";
 
     const contrib = w_m[key] !== undefined && w_m[key] !== null 
       ? parseFloat(w_m[key]).toFixed(2) 
-      : "—";
-    const valueStr = (typeof value === 'number') ? parseFloat(value.toFixed(4)) : "—";
+      : "â€”";
+    const valueStr = (typeof value === 'number') ? parseFloat(value.toFixed(4)) : "â€”";
 
     // Sub-metric rows
     let subRows = "";
@@ -1671,7 +1671,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${valueStr}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (×${weight}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (Ã—${weight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${contrib}</div>
           </div>
         </div>
@@ -1689,7 +1689,7 @@
     const weightVal = w_u[key];
     const weightStr = weightVal !== undefined ? ` (${(weightVal * 100).toFixed(1)}%)` : "";
     const label = `${labelStr}${weightStr}`;
-    const formula = "—"; // formulas removed from frontend
+    const formula = "â€”"; // formulas removed from frontend
     let subHtml = "";
 
     if (sub && Object.keys(sub).length > 0) {
@@ -1708,7 +1708,7 @@
           const contrib = w_m[key];
           const contribStr = contrib !== undefined && contrib !== null
             ? (Number.isInteger(contrib) ? contrib.toString() : contrib.toFixed(2))
-            : "—";
+            : "â€”";
           formulaDisplay =
             `Value = ${valueStr}<br>` +
             `<span style="color:#475569">weighted contribution: ` +
@@ -1718,7 +1718,7 @@
         }
       }
 
-      // Governance panel — surface the actual violation list so an
+      // Governance panel â€” surface the actual violation list so an
       // operator can see *which* rules fired. Group by rule name and
       // show a count + the most recent timestamp for each rule. This
       // is the only place the dashboard tells you the qualitative
@@ -1754,8 +1754,8 @@
           let statusHtml = "";
           if (typeof d === 'object') {
             statusHtml = d.ok 
-              ? '<span style="color:#10b981;float:right;font-size:10px;font-weight:600">✓ success</span>' 
-              : '<span style="color:#ef4444;float:right;font-size:10px;font-weight:600">✗ failed</span>';
+              ? '<span style="color:#10b981;float:right;font-size:10px;font-weight:600">âœ“ success</span>' 
+              : '<span style="color:#ef4444;float:right;font-size:10px;font-weight:600">âœ— failed</span>';
           }
           return `<div style="padding:2px 0;border-bottom:1px solid #f1f5f9"><span style="color:#64748b;margin-right:6px">#${i+1}</span><code style="background:#f1f5f9;color:#334155;padding:1px 4px;border-radius:3px;font-size:10px">${escapeHtml(nameStr)}</code>${statusHtml}</div>`;
         }).join("");
@@ -1801,7 +1801,7 @@
     const capped = !!rating.coverage_capped;
     const fg = capped ? "#a16207" : (dim === 7 ? "#15803d" : "#374151");
     const bg = capped ? "#fef3c7" : (dim === 7 ? "#dcfce7" : "#f3f4f6");
-    return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped — below coverage floor" : ""}">measured ${dim}/7${capped ? " · capped" : ""}</span>`;
+    return `<span class="pill" style="color:${fg};background:${bg}" title="${capped ? "Band capped â€” below coverage floor" : ""}">measured ${dim}/7${capped ? " Â· capped" : ""}</span>`;
   }
 
   function agentCardHtml(rating, expandedSet = new Set(), enterpriseData = {}) {
@@ -1809,7 +1809,7 @@
       .map((k) => metricLineHtml(k, rating.metrics ? rating.metrics[k] : null, rating.sub_metrics ? rating.sub_metrics[k] : null, expandedSet.has(k), rating))
       .join("");
     const unsafeBanner = rating.unsafe
-      ? `<div class="unsafe">⚠ Unsafe — ${(rating.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(rating.gate_failures || []).length > 1 ? "s" : ""} failed</div>`
+      ? `<div class="unsafe">âš  Unsafe â€” ${(rating.gate_failures || []).map(g => (METRIC_LABELS[g] || g).toLowerCase()).join(", ")} gate${(rating.gate_failures || []).length > 1 ? "s" : ""} failed</div>`
       : "";
     const capReasons = (rating.cap_reasons || []).filter(r => !r.startsWith("compliance"));
     const capNote = (rating.coverage_capped && capReasons.length)
@@ -1820,7 +1820,7 @@
       : "";
 
     // The composite is the weighted arithmetic mean of the 7
-    // metrics × 100 — `raw_score` on the API. When no gate fires,
+    // metrics Ã— 100 â€” `raw_score` on the API. When no gate fires,
     // ``score == raw_score``. When a gate fires, ``score`` is
     // force-pinned to 69 (top of "Needs Optimization") and the
     // raw_score is preserved separately so the user can verify the
@@ -1932,7 +1932,7 @@
       const tr = ev.target.closest("tr.agent-row");
 
       if (td && tr) {
-        // — Metric column click: open/close inline detail row —
+        // â€” Metric column click: open/close inline detail row â€”
         const agentId = tr.dataset.agentId;
         const key = td.dataset.key;
         
@@ -2018,7 +2018,7 @@
       }
 
       if (tr) {
-        // — Row click (not on metric cell): select the agent —
+        // â€” Row click (not on metric cell): select the agent â€”
         this._select(tr.dataset.agentId, tr.dataset.agentName || tr.dataset.agentId);
         ev.preventDefault();
       }
@@ -2060,7 +2060,7 @@
       }
       
       if (loading) {
-        this._renderShell(`<div class="empty">Loading…</div>`);
+        this._renderShell(`<div class="empty">Loadingâ€¦</div>`);
         return;
       }
       if (error) {
@@ -2261,7 +2261,7 @@
     }
     _render({ loading, notFound, rating, onboarding, managerRatings, customerRatings, error, id }) {
       let body;
-      if (loading) body = `<div class="empty">Loading…</div>`;
+      if (loading) body = `<div class="empty">Loadingâ€¦</div>`;
       else if (error) body = `<div class="err">${escapeHtml(error)}</div>`;
       else if (notFound) body = `<div class="empty">No score yet for <code>${escapeHtml(id)}</code>.</div>`;
       else {
@@ -2370,11 +2370,11 @@
       }
       if (s.complete) {
         if (s.committed) {
-          const newScore = s.rating ? fmtScore(s.rating.score) : "—";
+          const newScore = s.rating ? fmtScore(s.rating.score) : "â€”";
           this._shell(`
             <div class="step-tag">SME Quality Capture</div>
-            <div class="ok">✓ Captured. New score: ${newScore}.</div>
-            <div class="review-list">accuracy ${(s.captured.accuracy * 100).toFixed(0)} · consistency ${(s.captured.consistency * 100).toFixed(0)} · hallucination ${(s.captured.hallucination_rate * 100).toFixed(0)}</div>
+            <div class="ok">âœ“ Captured. New score: ${newScore}.</div>
+            <div class="review-list">accuracy ${(s.captured.accuracy * 100).toFixed(0)} Â· consistency ${(s.captured.consistency * 100).toFixed(0)} Â· hallucination ${(s.captured.hallucination_rate * 100).toFixed(0)}</div>
             <button class="secondary" data-action="restart">Start another review</button>
           `);
         } else {
@@ -2388,9 +2388,9 @@
       }
       // Mid-flow rendering.
       const stepLabel = {
-        ask_accuracy: "1 of 3 · Accuracy",
-        ask_consistency: "2 of 3 · Consistency",
-        ask_hallucination: "3 of 3 · Hallucination",
+        ask_accuracy: "1 of 3 Â· Accuracy",
+        ask_consistency: "2 of 3 Â· Consistency",
+        ask_hallucination: "3 of 3 Â· Hallucination",
         review: "Review",
       }[s.step] || s.step;
       const reviewBlock = s.step === "review"
@@ -2403,10 +2403,10 @@
       const inputType = s.step === "review" ? "text" : "number";
       const inputAttrs = s.step === "review"
         ? `placeholder="yes / no" autocomplete="off"`
-        : `placeholder="0–100" min="0" max="100" step="1" autocomplete="off"`;
+        : `placeholder="0â€“100" min="0" max="100" step="1" autocomplete="off"`;
       const errBlock = s.error ? `<div class="err" style="margin-bottom:10px">${escapeHtml(s.error)}</div>` : "";
       this._shell(`
-        <div class="step-tag">SME Quality Capture · ${escapeHtml(stepLabel)}</div>
+        <div class="step-tag">SME Quality Capture Â· ${escapeHtml(stepLabel)}</div>
         <div class="prompt">${escapeHtml(s.prompt)}</div>
         ${reviewBlock}
         ${errBlock}
@@ -2481,7 +2481,7 @@
     }
     _render({ loading, error, saved }) {
       if (loading) {
-        this.shadowRoot.innerHTML = `<style>${SHARED_CSS}</style><div class="empty">Loading settings…</div>`;
+        this.shadowRoot.innerHTML = `<style>${SHARED_CSS}</style><div class="empty">Loading settingsâ€¦</div>`;
         return;
       }
       if (!this._settings) {
@@ -2495,7 +2495,7 @@
         .map(k => `<div class="field"><label>${METRIC_LABELS[k]} (${k})</label>${num(`w_${k}`, s.weights[k])}</div>`)
         .join("");
       const banner = saved
-        ? `<div class="ok" style="margin-bottom:10px">✓ Saved. New ingests use these weights.</div>`
+        ? `<div class="ok" style="margin-bottom:10px">âœ“ Saved. New ingests use these weights.</div>`
         : error
           ? `<div class="err" style="margin-bottom:10px">${escapeHtml(error)}</div>`
           : "";
@@ -2656,7 +2656,7 @@
     }
     _render({ loading, error }) {
       if (loading) {
-        this._renderShell(`<div class="empty">Evaluating and running checks…</div>`);
+        this._renderShell(`<div class="empty">Evaluating and running checksâ€¦</div>`);
         return;
       }
       if (error) {
@@ -2725,7 +2725,7 @@
       const activeResources = Array.from(new Set([...knownResources, ...apiResources]));
       const filteredResults = (this._results || []).filter(r => activeResources.includes(r.resource_name));
 
-      // Group by resource → then by C/V/Q/P/R/G
+      // Group by resource â†’ then by C/V/Q/P/R/G
       const byResource = {};
       for (const r of filteredResults) {
         if (!byResource[r.resource_name]) byResource[r.resource_name] = [];
@@ -2734,12 +2734,12 @@
 
       let rows = '';
       const GROUP_LABELS = {
-        P: { label: '⚡ Productivity (P)', color: '#38bdf8', bg: 'rgba(56,189,248,0.08)'},
-        C: { label: '💰 Cost (C)',       color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
-        V: { label: '✅ Validation (V)', color: '#22c55e', bg: 'rgba(34,197,94,0.08)'  },
-        Q: { label: '🧬 Quality (Q)',    color: '#a78bfa', bg: 'rgba(167,139,250,0.08)'},
-        R: { label: '🛡 Risk (R)',       color: '#f43f5e', bg: 'rgba(244,63,94,0.08)'  },
-        G: { label: '⚖ Governance (G)', color: '#facc15', bg: 'rgba(250,204,21,0.08)'  },
+        P: { label: 'âš¡ Productivity (P)', color: '#38bdf8', bg: 'rgba(56,189,248,0.08)'},
+        C: { label: 'ðŸ’° Cost (C)',       color: '#f97316', bg: 'rgba(249,115,22,0.08)' },
+        V: { label: 'âœ… Validation (V)', color: '#22c55e', bg: 'rgba(34,197,94,0.08)'  },
+        Q: { label: 'ðŸ§¬ Quality (Q)',    color: '#a78bfa', bg: 'rgba(167,139,250,0.08)'},
+        R: { label: 'ðŸ›¡ Risk (R)',       color: '#f43f5e', bg: 'rgba(244,63,94,0.08)'  },
+        G: { label: 'âš– Governance (G)', color: '#facc15', bg: 'rgba(250,204,21,0.08)'  },
       };
 
       for (const resourceName of activeResources) {
@@ -2766,9 +2766,9 @@
         let dashBtn = `<span style="font-size:11px;color:#6b7280">Disabled</span>`;
         if (dashUrl && isOnline) {
           if (tcpOnline) {
-            dashBtn = `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`;
+            dashBtn = `<button onclick="window.open('${dashUrl}','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(99,102,241,0.1);color:#818cf8;border:1px solid rgba(99,102,241,0.3);border-radius:6px;cursor:pointer">ðŸ”— Open ${resourceName}</button>`;
           } else {
-            dashBtn = `<button onclick="window.open('/widget/resources.html','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);border-radius:6px;cursor:pointer">🔗 Open ${resourceName}</button>`;
+            dashBtn = `<button onclick="window.open('/widget/resources.html','_blank')" style="padding:3px 10px;font-size:11px;font-weight:600;background:rgba(56,189,248,0.1);color:#38bdf8;border:1px solid rgba(56,189,248,0.3);border-radius:6px;cursor:pointer">ðŸ”— Open ${resourceName}</button>`;
           }
         }
 
@@ -2805,12 +2805,12 @@
           for (const r of grpMetrics) {
             const niceName = METRIC_NICE[r.metric] || r.metric;
             const detectedHtml = r.detected
-              ? `<span style="color:#34d399;font-weight:700">True ✓</span>`
-              : `<span style="color:#f87171;font-weight:700">False ✗</span>`;
+              ? `<span style="color:#34d399;font-weight:700">True âœ“</span>`
+              : `<span style="color:#f87171;font-weight:700">False âœ—</span>`;
             const verifiedBtn = r.dashboard_verified
-              ? `<span style="color:#34d399;font-weight:600">✓ Verified</span>`
+              ? `<span style="color:#34d399;font-weight:600">âœ“ Verified</span>`
               : `<button class="secondary verify-btn" data-resource="${escapeHtml(r.resource_name)}" data-metric="${escapeHtml(r.metric)}" style="padding:3px 8px;font-size:11px">Verify</button>`;
-            const runTimeStr = r.last_run ? new Date(r.last_run).toLocaleTimeString() : '—';
+            const runTimeStr = r.last_run ? new Date(r.last_run).toLocaleTimeString() : 'â€”';
             const statusPill = r.status === 'SUCCESS'
               ? `<span class="pill" style="color:#15803d;background:#dcfce7">SUCCESS</span>`
               : `<span class="pill" style="color:#b91c1c;background:#fee2e2">FAILED</span>`;
@@ -2836,10 +2836,10 @@
               <span style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);font-weight:600">Evaluation Matrix</span>
               <div style="font-size:11px;color:#64748b;margin-top:3px">
                 DPI-LS Observability Stack &nbsp;|&nbsp;
-                <span style="color:#f97316">C: Cost</span> &nbsp;·&nbsp;
-                <span style="color:#22c55e">V: Validation</span> &nbsp;·&nbsp;
-                <span style="color:#a78bfa">Q: Quality</span> &nbsp;·&nbsp;
-                <span style="color:#94a3b8">P · E · G · R via Agent Dashboard</span>
+                <span style="color:#f97316">C: Cost</span> &nbsp;Â·&nbsp;
+                <span style="color:#22c55e">V: Validation</span> &nbsp;Â·&nbsp;
+                <span style="color:#a78bfa">Q: Quality</span> &nbsp;Â·&nbsp;
+                <span style="color:#94a3b8">P Â· E Â· G Â· R via Agent Dashboard</span>
               </div>
             </div>
             <button data-action="run-eval">Run Full Technical Evaluation</button>
@@ -2895,6 +2895,7 @@
     customElements.define("dpi-ls-cost-evaluation", DpiLsCostEvaluation);
   }
 })();
+
 
 
 

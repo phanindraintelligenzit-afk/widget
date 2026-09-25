@@ -1,4 +1,4 @@
-"""End-to-end test: the spec's two-line integration against the real API.
+﻿"""End-to-end test: the spec's two-line integration against the real API.
 
 Boots a background server, calls ``monitor()`` on a fake "agent" object,
 runs the patched invoke twice, then finalizes (bypassing atexit) and
@@ -59,7 +59,7 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
     collector = monitor(agent, agent_id="e2e-agent", agent_name="E2E")
 
     # The two lines of the spec are done. Now exercise the patched
-    # invoke — signals should accumulate.
+    # invoke â€” signals should accumulate.
     assert isinstance(collector, SignalCollector)
     assert collector.agent_id == "e2e-agent"
 
@@ -84,7 +84,7 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
     
     token = jwt.encode(
         {"sub": "admin", "role": "ADMIN", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
-        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS",
+        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32",
         algorithm="HS256"
     )
     headers = {"Authorization": f"Bearer {token}"}
@@ -95,7 +95,7 @@ def test_monitor_two_line_integration_posts_to_dashboard(temp_db):
     if r.status_code != 200: print(f"DEBUG STATUS: {r.status_code}")
     assert rating["metrics"]["E"] is not None
     # Either the G gate fires (PII email in the output) or the
-    # observation looks fine. Both are valid scenarios — we just
+    # observation looks fine. Both are valid scenarios â€” we just
     # need the score to exist.
     assert 0.0 <= rating["score"] <= 100.0
 
@@ -185,3 +185,4 @@ def test_monitor_writes_local_copy_when_post_fails(temp_db, monkeypatch):
     assert payload["agent_id"] == "offline-agent"
     # Clean up.
     expected.unlink(missing_ok=True)
+

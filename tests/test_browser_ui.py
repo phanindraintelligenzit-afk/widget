@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from playwright.sync_api import Page, expect
 import os
 import subprocess
@@ -79,4 +79,5 @@ def test_full_user_journey(page: Page, start_server):
     # There should be an 'Execute Agent' button or similar on config or profile
     # Let's check where the execute button is. We know from Phase 2 there is POST /agents/{id}/execute
     # If UI doesn't have an execute button, we can just hit the execution page or use the API directly for this step if UI lacks it, but let's try to find it.
+
 

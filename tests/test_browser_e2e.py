@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from playwright.sync_api import Page, expect
 import os
 import subprocess
@@ -133,3 +133,4 @@ def test_full_browser_journey(page: Page, start_server):
         headers={"Authorization": f"Bearer " + page.evaluate("localStorage.getItem('token')")}
     )
     assert cfg_res.status in [403, 200]
+

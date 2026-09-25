@@ -2,7 +2,7 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS"
+SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32"
 ALGORITHM = "HS256"
 
 # Create a valid token
@@ -69,3 +69,4 @@ def run_e2e():
     print("\n--- E2E SUCCESS ---")
 
 run_e2e()
+

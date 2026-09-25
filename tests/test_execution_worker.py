@@ -1,4 +1,4 @@
-"""Phase 2 — Durable Execution Worker tests.
+﻿"""Phase 2 â€” Durable Execution Worker tests.
 
 Tests the full execution lifecycle using an in-memory DB and a mocked
 subprocess so the suite runs fast and offline.
@@ -42,7 +42,7 @@ def _make_token(username: str = "alice", role: str = "USER") -> str:
     return jwt.encode(
         {"sub": username, "role": role,
          "exp": datetime.now(timezone.utc) + timedelta(minutes=10)},
-        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS",
+        "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32",
         algorithm="HS256",
     )
 
@@ -98,7 +98,7 @@ def agent_id(client) -> str:
 
 @pytest.fixture()
 def sf(tmp_path, monkeypatch):
-    """Isolated session factory using a temp DB — no shared state."""
+    """Isolated session factory using a temp DB â€” no shared state."""
     db_url = f"sqlite:///{tmp_path}/worker_test.db"
     monkeypatch.setenv("DATABASE_URL", db_url)
 
@@ -316,3 +316,4 @@ def test_list_and_get_executions(client, agent_id):
     assert gr.status_code == 200
     assert gr.json()["execution_id"] == exec_id
     assert gr.json()["status"] == "QUEUED"
+
