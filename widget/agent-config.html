@@ -170,7 +170,7 @@
 
   
 
-Chatbot Panel
+<!-- Chatbot Panel -->
 <div id="chatbot-panel" style="position: fixed; bottom: 80px; right: 20px; width: 350px; height: 500px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; flex-direction: column; z-index: 9999;">
     <div style="background: var(--bg); padding: 15px; border-bottom: 1px solid var(--border); border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center;">
         <strong style="color: var(--accent);">DPI-LS AI Assistant</strong>
@@ -300,12 +300,26 @@ Chatbot Panel
                   });
                   
                   if (statusEl) {
-                      statusEl.textContent = 'Success! Redirecting to Dashboard...';
-                  }
-                  
-                  setTimeout(() => {
-                      window.location.href = '/widget/demo.html';
-                  }, 1500);
+                        statusEl.textContent = 'Success! Generating real-time telemetry (this takes about 2-3 minutes)...';
+                    }
+                    
+                    async function pollForScore() {
+                        try {
+                            const ratingsRes = await fetch('/ratings');
+                            if (ratingsRes.ok) {
+                                const agents = await ratingsRes.json();
+                                const me = agents.find(a => a.agent_id === agentId);
+                                if (me && me.score > 0) {
+                                    window.location.href = '/widget/demo.html';
+                                    return;
+                                }
+                            }
+                        } catch (err) {
+                            console.error(err);
+                        }
+                        setTimeout(pollForScore, 2000);
+                    }
+                    pollForScore();
                   
               } catch (err) {
                   if (statusEl) {
@@ -315,6 +329,8 @@ Chatbot Panel
 
 </body>
 </html>
+
+
 
 
 

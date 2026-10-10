@@ -1,8 +1,8 @@
-"""
-DPI-LS FinOps Agent ΓÇö Fully Dynamic Example
+﻿"""
+DPI-LS FinOps Agent Î“Ã‡Ã¶ Fully Dynamic Example
 ============================================
 
-Every config value is read from the environment (.env file) ΓÇö nothing is hardcoded.
+Every config value is read from the environment (.env file) Î“Ã‡Ã¶ nothing is hardcoded.
 
 Environment variables (set in .env):
     BEDROCK_MODEL_ID      = which Bedrock model to use      (required)
@@ -57,7 +57,7 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from dotenv import load_dotenv
 
-# ΓöÇΓöÇ Load .env FIRST so all os.getenv() calls below pick it up ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+# Î“Ã¶Ã‡Î“Ã¶Ã‡ Load .env FIRST so all os.getenv() calls below pick it up Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 load_dotenv(override=True)
 
 if os.getenv("LANGCHAIN_API_KEY") and "rotated" in os.getenv("LANGCHAIN_API_KEY"):
@@ -93,14 +93,14 @@ if os.getenv("LANGFUSE_PUBLIC_KEY") and "rotated" not in os.getenv("LANGFUSE_PUB
     litellm.failure_callback = ["langfuse"]
 
 
-import dpi_ls  # line 1 ΓÇö the installable package
+import dpi_ls  # line 1 Î“Ã‡Ã¶ the installable package
 
 from agents import Agent, function_tool, Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.tool import FunctionTool
 
 
-# ΓöÇΓöÇ Read ALL config from environment (zero hardcoding) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+# Î“Ã¶Ã‡Î“Ã¶Ã‡ Read ALL config from environment (zero hardcoding) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip().strip('"').strip("'")
@@ -114,7 +114,7 @@ def _env_int(key: str, default: int) -> int:
 # Required
 BEDROCK_MODEL_ID  = _env("BEDROCK_MODEL_ID") or _env("MODEL_NAME")
 
-# Optional ΓÇö all have sensible defaults
+# Optional Î“Ã‡Ã¶ all have sensible defaults
 AGENT_ID          = _env("AGENT_ID",       "chandra-finops")
 AGENT_NAME        = _env("AGENT_NAME",     "Chandra")
 LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
@@ -136,7 +136,7 @@ AGENT_QUESTION = _env("AGENT_QUESTION") or (
 
 
 # ===============================================================
-#  AWS Cost Explorer ΓÇö fetches real billing data
+#  AWS Cost Explorer Î“Ã‡Ã¶ fetches real billing data
 # ===============================================================
 
 class AWSCostExplorerFetcher:
@@ -332,6 +332,9 @@ async def run_agent_observation() -> None:
         from unittest.mock import patch
         import litellm
         
+        async def mock_fetch(*args, **kwargs): return {'status': 'mocked_costs'}
+        fetcher.fetch_costs_summary = mock_fetch
+        
         async def mock_acompletion(*args, **kwargs):
             # Use actual litellm objects to satisfy the strict Pydantic checks in the agents framework
             return litellm.ModelResponse(
@@ -423,6 +426,7 @@ async def run_agent_observation() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
+
 
 
 

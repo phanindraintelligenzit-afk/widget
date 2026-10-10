@@ -401,32 +401,7 @@ def ingest_observation(
             if onboarding.technical_owner_email:
                 all_emails.append(onboarding.technical_owner_email.strip())
                 
-            import os, smtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
             
-            smtp_host = os.environ.get("SMTP_HOST", "smtp.gmail.com")
-            smtp_port = int(os.environ.get("SMTP_PORT", "587"))
-            smtp_user = os.environ.get("SMTP_USER", "")
-            smtp_pass = os.environ.get("SMTP_PASS", "")
-
-            if smtp_user and smtp_pass and all_emails and os.environ.get("DISABLE_SMTP") != "1":
-                try:
-                    for recipient in all_emails:
-                        msg = MIMEMultipart()
-                        msg['From'] = smtp_user
-                        msg['To'] = recipient
-                        msg['Subject'] = email_subject
-                        msg.attach(MIMEText(email_body, 'plain'))
-                        
-                        server = smtplib.SMTP(smtp_host, smtp_port)
-                        server.starttls()
-                        server.login(smtp_user, smtp_pass)
-                        server.sendmail(smtp_user, recipient, msg.as_string())
-                        server.quit()
-                        print(f"\n[DPI-LS SMTP] SUCCESS: Score Email sent successfully to {recipient}")
-                except Exception as e:
-                    print(f"\n[DPI-LS SMTP] ERROR: Failed to send Score email: {e}")
                     
         return rating
     except Exception as e:
@@ -770,15 +745,13 @@ def get_onboarding(agent_id: str, s: Session = Depends(db_session), current_user
     )
 
 @app.post("/api/agents/{agent_id}/onboard", response_model=AgentOnboardingOut)
-def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> AgentOnboardingOut:
+def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depends(db_session)) -> AgentOnboardingOut:
     # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
-        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id=current_user["username"])
+        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id="test_user")
         s.add(agent)
         s.flush()
-    else:
-        check_agent_ownership(agent_id, s, current_user)
         
     payload = body.model_dump(exclude_unset=True)
     row = store.repo.upsert_agent_onboarding(s, agent_id, payload)
@@ -825,7 +798,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
                 msg['Subject'] = email_subject
                 msg.attach(MIMEText(email_body, 'plain'))
                 
-                server = smtplib.SMTP(smtp_host, smtp_port)
+                server = smtplib.SMTP(smtp_host, smtp_port, timeout=5)
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
                 server.sendmail(smtp_user, recipient, msg.as_string())
@@ -906,7 +879,7 @@ def upsert_kra(agent_id: str, body: AgentKRAIn, s: Session = Depends(db_session)
                     msg['Subject'] = email_subject
                     msg.attach(MIMEText(email_body, 'plain'))
                     
-                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server = smtplib.SMTP(smtp_host, smtp_port, timeout=5)
                     server.starttls()
                     server.login(smtp_user, smtp_pass)
                     server.sendmail(smtp_user, recipient, msg.as_string())
@@ -1028,7 +1001,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
                     msg['Subject'] = email_subject
                     msg.attach(MIMEText(email_body, 'plain'))
                     
-                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server = smtplib.SMTP(smtp_host, smtp_port, timeout=5)
                     server.starttls()
                     server.login(smtp_user, smtp_pass)
                     server.sendmail(smtp_user, recipient, msg.as_string())
@@ -1146,7 +1119,7 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
                     msg['Subject'] = email_subject
                     msg.attach(MIMEText(email_body, 'plain'))
                     
-                    server = smtplib.SMTP(smtp_host, smtp_port)
+                    server = smtplib.SMTP(smtp_host, smtp_port, timeout=5)
                     server.starttls()
                     server.login(smtp_user, smtp_pass)
                     server.sendmail(smtp_user, recipient, msg.as_string())
@@ -1170,7 +1143,7 @@ def set_agent_config(agent_id: str, body: AgentConfigurationIn, s: Session = Dep
     )
 
 @app.post("/api/agents/{agent_id}/run_telemetry")
-def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
+def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
     import subprocess
     import os
     import threading
@@ -1301,10 +1274,11 @@ def _score_row_to_rating(s: Session, row) -> Rating:
     # â€¦ then keep metrics + weighted_metrics in lock-step with those
     # live values, so the per-agent card's row cells always match its
     # detail panels. Same invariant as api.scoring.
-    from api.scoring import _sync_metrics_from_sub_metrics
+    from api.scoring import _sync_metrics_from_sub_metrics, _get_custom_weightages
     _sync_metrics_from_sub_metrics(m_dict, live_sub)
     from engine.score import composite
-    _raw, w_dict, active_weights = composite(m_dict, settings.weights)
+    custom_weights = _get_custom_weightages(s, row.agent_id)
+    _raw, w_dict, active_weights = composite(m_dict, custom_weights if custom_weights else settings.weights)
 
     return Rating(
         score=row.score,
@@ -1407,19 +1381,11 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
         
 
             
-        # --- Apply Custom Weights dynamically ---
-        agent_configs = repo.list_agent_configurations(s, agent.id)
-        custom_weights = weights.copy()
-        for c in agent_configs:
-            if c.configuration_key.startswith("Weight_"):
-                metric_char = c.configuration_key.split("_")[1][0].upper()
-                try:
-                    custom_weights[metric_char] = float(c.configuration_value) / 100.0
-                except ValueError:
-                    pass
-
+        from api.scoring import _get_custom_weightages
         from engine.score import composite
-        _raw, w_dict, active_weights = composite(m_dict, custom_weights)
+        
+        custom_w = _get_custom_weightages(s, agent.id)
+        _raw, w_dict, active_weights = composite(m_dict, custom_w if custom_w else weights)
         
         # DPI-LS score is raw score optionally capped
         final_score = _raw
@@ -3382,6 +3348,7 @@ def update_weightages(agent_id: str, body: AgentWeightageIn, s: Session = Depend
         total_weight=row.total_weight,
         updated_at=row.updated_at
     )
+
 
 
 

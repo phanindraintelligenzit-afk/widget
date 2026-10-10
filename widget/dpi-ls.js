@@ -2057,7 +2057,20 @@
         this._data = data;
       } else {
         this._data = [];
-      }
+        }
+        
+        // --- Added Filtering Logic ---
+        let renderData = this._data || [];
+        const selectedAgent = this.getAttribute("selected-agent");
+        if (selectedAgent && renderData.length > 0) {
+           const normFilter = selectedAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+           renderData = renderData.filter(a => {
+              const id = a.agent_id ? a.agent_id.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+              const name = a.agent_name ? a.agent_name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+              return id.includes(normFilter) || name.includes(normFilter);
+           });
+        }
+        // ------------------------------
       
       if (loading) {
         this._renderShell(`<div class="empty">Loadingâ€¦</div>`);
@@ -2168,7 +2181,7 @@
             </tr>
           </thead>
           <tbody>
-            ${data.map(boardRowHtml).join("")}
+            ${renderData.map(boardRowHtml).join("")}
           </tbody>
         </table>
       </div>`;

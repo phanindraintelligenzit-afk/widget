@@ -389,7 +389,7 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
 
         from store.models import EnterpriseQualityResourceEvaluationRow
         from sqlalchemy import select
-        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow).order_by(EnterpriseQualityResourceEvaluationRow.id.desc()).limit(100)).all()
         if eq_evals:
             q_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
 
@@ -464,11 +464,11 @@ def enrich_validation_sub_metrics(s: Session, sub_metrics: dict) -> dict:
             
         from store.models import EnterpriseValidationResourceEvaluationRow, EnterpriseQualityResourceEvaluationRow
         from sqlalchemy import select
-        ev_evals = s.scalars(select(EnterpriseValidationResourceEvaluationRow)).all()
+        ev_evals = s.scalars(select(EnterpriseValidationResourceEvaluationRow).order_by(EnterpriseValidationResourceEvaluationRow.id.desc()).limit(100)).all()
         if ev_evals:
             v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in ev_evals})
             
-        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow).order_by(EnterpriseQualityResourceEvaluationRow.id.desc()).limit(100)).all()
         if eq_evals:
             v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
 
@@ -639,7 +639,7 @@ def enrich_cost_sub_metrics(s, sub_metrics: dict) -> dict:
     if s is not None:
         from store.models import CostResourceEvaluationRow
         from sqlalchemy import select
-        evals = s.scalars(select(CostResourceEvaluationRow)).all()
+        evals = s.scalars(select(CostResourceEvaluationRow).where(CostResourceEvaluationRow.resource_name.in_(["OpenLIT", "OpenCost"])).order_by(CostResourceEvaluationRow.id.desc()).limit(100)).all()
         for r in evals:
             if r.resource_name in ("OpenLIT", "OpenCost"):
                 if r.current_value is not None and r.current_value != "Unavailable":

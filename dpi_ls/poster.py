@@ -24,7 +24,7 @@ from .collector import SignalCollector
 
 _log = logging.getLogger("dpi_ls.poster")
 
-_DEFAULT_TIMEOUT_S = 10.0
+_DEFAULT_TIMEOUT_S = 60.0
 
 
 def post_observation(
