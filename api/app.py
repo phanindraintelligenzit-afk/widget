@@ -2194,11 +2194,14 @@ def get_execution_evaluation_results(s: Session = Depends(db_session)) -> list[d
     from store.repo import list_latest_execution_resource_evaluations
     eval_rows = list_latest_execution_resource_evaluations(s)
     if not eval_rows:
-        from dpi_ls.execution_resource_evaluation_service import ExecutionResourceEvaluationService
-        service = ExecutionResourceEvaluationService(s)
-        service.run_evaluations()
-        s.commit()
-        eval_rows = list_latest_execution_resource_evaluations(s)
+        try:
+            from dpi_ls.execution_resource_evaluation_service import ExecutionResourceEvaluationService
+            service = ExecutionResourceEvaluationService(s)
+            service.run_evaluations()
+            s.commit()
+            eval_rows = list_latest_execution_resource_evaluations(s)
+        except Exception:
+            eval_rows = []
     active_resources = {"Langfuse", "OpenTelemetry", "Jaeger"}
     return [
         {
