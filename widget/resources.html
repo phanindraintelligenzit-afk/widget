@@ -1291,13 +1291,17 @@ async function loadData() {
     ];
     renderGrid();
   } catch (e) {
-    document.getElementById('resources-grid').innerHTML = `
-      <div class="empty-wrap" style="grid-column:1/-1">
-        <div class="empty-icon">⚠️</div>
-        <div class="empty-title">Could not load evaluations</div>
-        <div class="empty-sub">${escHtml(e.message)}<br><br>Make sure the DPI-LS server is running on port 8000.</div>
-        <button class="run-btn" onclick="loadData()" style="margin-top:16px">↺ Retry</button>
-      </div>`;
+    console.warn("Background auto-refresh warning:", e);
+    // Only show error placeholder if the grid was never rendered before!
+    if (!allData || allData.length === 0) {
+      document.getElementById('resources-grid').innerHTML = `
+        <div class="empty-wrap" style="grid-column:1/-1">
+          <div class="empty-icon">⚠️</div>
+          <div class="empty-title">Could not load evaluations</div>
+          <div class="empty-sub">${escHtml(e.message)}<br><br>Make sure the DPI-LS server is running on port 8000.</div>
+          <button class="run-btn" onclick="loadData()" style="margin-top:16px">↺ Retry</button>
+        </div>`;
+    }
   }
 }
 
@@ -1347,10 +1351,10 @@ const sortedNames = allNames.sort((a, b) => {
   applyFilter();
 }
 
-// Initial load + auto-refresh every 15s
+// Initial load + auto-refresh every 60s
 loadUrls().then(() => {
   loadData();
-  setInterval(loadData, 15000);
+  setInterval(loadData, 60000);
 });
 </script>
   </main>
