@@ -1,4 +1,4 @@
-﻿/* DPI-LS embeddable widget â€” vanilla web components, no framework.
+/* DPI-LS embeddable widget â€” vanilla web components, no framework.
  *
  * Usage on any host page:
  *   <script src="https://your-host/widget/dpi-ls.js" defer></script>
@@ -2049,15 +2049,19 @@
         }
         this._render({ data });
       } catch (e) {
-        this._render({ error: e && e.message ? e.message : String(e) });
+        if (!this._data || this._data.length === 0) {
+          this._render({ error: e && e.message ? e.message : String(e) });
+        } else {
+          console.warn("Background poll error ignored to preserve board:", e);
+        }
       }
     }
     _render({ loading, data, error }) {
-      if (data) {
+      if (data && Array.isArray(data) && data.length > 0) {
         this._data = data;
-      } else {
-        this._data = [];
-        }
+      } else if (!this._data) {
+        this._data = data || [];
+      }
         
         // --- Added Filtering Logic ---
         let renderData = this._data || [];
@@ -2073,14 +2077,18 @@
         // ------------------------------
       
       if (loading) {
-        this._renderShell(`<div class="empty">Loadingâ€¦</div>`);
+        if (!this._data || this._data.length === 0) {
+          this._renderShell(`<div class="empty">Loading…</div>`);
+        }
         return;
       }
       if (error) {
-        this._renderShell(`<div class="err">Cannot load board: ${escapeHtml(error)}</div>`);
+        if (!this._data || this._data.length === 0) {
+          this._renderShell(`<div class="err">Cannot load board: ${escapeHtml(error)}</div>`);
+        }
         return;
       }
-      if (!data || data.length === 0) {
+      if (!this._data || this._data.length === 0) {
         this._renderShell(`<div class="empty">No agents scored yet.</div>`);
         return;
       }
@@ -2088,7 +2096,8 @@
       const table = this.shadowRoot.querySelector("table");
       if (table) {
         let allUpdated = true;
-        for (const item of data) {
+        const targetList = renderData.length > 0 ? renderData : this._data;
+        for (const item of targetList) {
           const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
           if (!tr) {
             allUpdated = false;
@@ -2097,7 +2106,7 @@
         }
         
         if (allUpdated) {
-          for (const item of data) {
+          for (const item of targetList) {
             const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
             const scoreToUse = (item.raw_score !== undefined && item.raw_score !== null) ? item.raw_score : item.score;
             

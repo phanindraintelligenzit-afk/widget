@@ -1,4 +1,4 @@
-﻿"""FastAPI app â€” the demo surface for the widget to poll.
+"""FastAPI app â€” the demo surface for the widget to poll.
 
 Routes:
     GET  /healthz                          â€” liveness
@@ -173,7 +173,7 @@ from sqlalchemy import select
 
 SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days (24 hours x 7 days)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
@@ -183,7 +183,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
