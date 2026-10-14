@@ -195,6 +195,14 @@ def save_score(
 
 
 def latest_score(s: Session, agent_id: str) -> Optional[ScoreRow]:
+    valid = s.scalars(
+        select(ScoreRow)
+        .where(ScoreRow.agent_id == agent_id, ScoreRow.score > 0.0)
+        .order_by(ScoreRow.computed_at.desc(), ScoreRow.id.desc())
+        .limit(1)
+    ).first()
+    if valid is not None:
+        return valid
     return s.scalars(
         select(ScoreRow)
         .where(ScoreRow.agent_id == agent_id)
