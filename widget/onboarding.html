@@ -240,14 +240,17 @@
         digital_worker_role: roleVal
       };
       
-      // Fire the fetch asynchronously and DO NOT wait for it to finish
-        fetch(`/api/agents/${agentIdVal}/onboard`, {
+      try {
+        await fetch(`/api/agents/${agentIdVal}/onboard`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('token')||'') },
           body: JSON.stringify(payload)
-        }).catch(e => console.error("Backend sync failed:", e));
-        
-        // Instantly redirect to the configurations page and pass the agent ID
+        });
+      } catch (err) {
+        console.warn("Backend onboarding sync error:", err);
+      }
+      
+      // Redirect to the configurations page with the onboarded agent ID
       window.location.href = `/widget/agent-config.html?agent_id=${encodeURIComponent(agentIdVal)}`;
     });
   </script>

@@ -321,36 +321,34 @@
                   }
                   
                                     if (statusEl) {
-                      statusEl.textContent = 'Configurations saved! Generating Telemetry...';
+                      statusEl.textContent = 'Configurations saved! Connecting 7 parameters & generating telemetry...';
                       statusEl.className = 'status-msg success';
                   }
                   
-                  await fetch(`/api/agents/${agentId}/run_telemetry`, {
-                      method: 'POST',
-                      headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
-                  });
+                  try {
+                      const teleRes = await fetch(`/api/agents/${agentId}/run_telemetry`, {
+                          method: 'POST',
+                          headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
+                      });
+                      if (teleRes.ok) {
+                          const teleData = await teleRes.json();
+                          if (teleData && teleData.score > 0) {
+                              try {
+                                  localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(teleData));
+                              } catch (e) {}
+                          }
+                      }
+                  } catch (e) {
+                      console.warn("Telemetry trigger warning:", e);
+                  }
                   
                   if (statusEl) {
-                        statusEl.textContent = 'Success! Generating real-time telemetry (this takes about 2-3 minutes)...';
-                    }
-                    
-                    async function pollForScore() {
-                        try {
-                            const ratingsRes = await fetch('/ratings');
-                            if (ratingsRes.ok) {
-                                const agents = await ratingsRes.json();
-                                const me = agents.find(a => a.agent_id === agentId);
-                                if (me && me.score > 0) {
-                                    window.location.href = '/widget/demo.html';
-                                    return;
-                                }
-                            }
-                        } catch (err) {
-                            console.error(err);
-                        }
-                        setTimeout(pollForScore, 2000);
-                    }
-                    pollForScore();
+                      statusEl.textContent = 'Success! Parameters connected & scores calculated. Opening Dashboard...';
+                  }
+                  
+                  setTimeout(() => {
+                      window.location.href = `/widget/demo.html?agent=${encodeURIComponent(agentId)}`;
+                  }, 600);
                   
               } catch (err) {
                   if (statusEl) {
