@@ -219,7 +219,7 @@
     }
   }
 
-  function boardRowHtml(row) {
+  function boardRowHtml(row, selectedAgentId) {
     if (!row) return "";
     let scoreToUse = row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score;
     let w_m = row.weighted_metrics || {};
@@ -235,6 +235,13 @@
       saveCachedAgentScore(row);
     }
 
+    const isSelected = selectedAgentId && (
+      (row.agent_id && row.agent_id.toLowerCase().includes(selectedAgentId.toLowerCase())) ||
+      (row.agent_name && row.agent_name.toLowerCase().includes(selectedAgentId.toLowerCase()))
+    );
+    const rowBg = isSelected ? "rgba(250, 204, 21, 0.08)" : "#0f172a";
+    const agentTdStyle = isSelected ? "border:1px solid #facc15;color:#facc15;" : "border:1px solid #1e293b;color:#38bdf8;";
+
     const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
     let sum = 0;
     const metricCells = KEYS.map(k => {
@@ -248,8 +255,8 @@
     }).join("");
     
     return `
-      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
-        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:#38bdf8;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
+      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:${rowBg};transition:background 0.2s;">
+        <td style="padding:10px 14px;${agentTdStyle}font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:inherit;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;" title="Sum of Parameters">${sum.toFixed(1)}</td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:${getScoreColor(scoreToUse)};font-weight:800;text-align:center;font-size:15px;" title="Official Evaluated DPI-LS Score">${fmtScore(scoreToUse)}</td>
         ${metricCells}
@@ -2133,21 +2140,22 @@
         this._data = (data && data.length > 0) ? data : (chandraDefault ? [chandraDefault] : []);
       }
         
-        // --- Added Filtering Logic ---
-        let renderData = this._data || [];
+        // --- Sorting / Highlighting Logic ---
+        let renderData = this._data ? [...this._data] : [];
         const selectedAgent = this.getAttribute("selected-agent");
         if (selectedAgent && renderData.length > 0) {
            const normFilter = selectedAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-           const matched = renderData.filter(a => {
-              const id = a.agent_id ? a.agent_id.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
-              const name = a.agent_name ? a.agent_name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
-              return id.includes(normFilter) || name.includes(normFilter);
+           renderData.sort((a, b) => {
+              const idA = (a.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+              const idB = (b.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+              const matchA = idA.includes(normFilter) || ((a.agent_name || '').toLowerCase().includes(normFilter));
+              const matchB = idB.includes(normFilter) || ((b.agent_name || '').toLowerCase().includes(normFilter));
+              if (matchA && !matchB) return -1;
+              if (!matchA && matchB) return 1;
+              return 0;
            });
-           if (matched.length > 0) {
-             renderData = matched;
-           }
         }
-        // ------------------------------
+        // ------------------------------------
       
       if (loading) {
         if (!this._data || this._data.length === 0) {
@@ -2291,7 +2299,7 @@
             </tr>
           </thead>
           <tbody>
-            ${renderData.map(boardRowHtml).join("")}
+            ${renderData.map(r => boardRowHtml(r, selectedAgent)).join("")}
           </tbody>
         </table>
       </div>`;

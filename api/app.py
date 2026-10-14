@@ -1151,7 +1151,16 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
     import threading
     import datetime
     from store.models import AgentRow, ScoreRow, ObservationRow
-    from contract.models import AgentObservation, Executions, Policy, Validation, Cost
+    from contract.models import (
+        AgentObservation,
+        TaskStats,
+        Executions,
+        Policy,
+        Validation,
+        Cost,
+        Quality,
+        Incident,
+    )
     from api.scoring import score_and_persist
 
     agent = s.get(AgentRow, agent_id)
@@ -1169,16 +1178,13 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         source="telemetry_engine",
         period_start=now,
         period_end=now,
-        attempts=1,
-        successful=1,
-        failed=0,
-        outputs=[f"Telemetry evaluation completed for {agent_id}"],
-        violations=[],
-        tasks=[{"task_id": "task-telemetry-1", "status": "SUCCESS", "duration_seconds": 1.0}],
-        executions=Executions(total_runs=1, successful_runs=1, failed_runs=0, average_duration_seconds=1.0),
-        policy=Policy(violations=0, total_actions=1),
-        validation=Validation(components_validated=1, total_components=1),
-        cost=Cost(input_tokens=100, output_tokens=100, infrastructure_cost=0.0),
+        tasks=TaskStats(assigned=1, completed=1, failed=0),
+        executions=Executions(attempts=1, successful=1),
+        policy=Policy(total_actions=1, violations=[]),
+        validation=Validation(required_components=1, validated_components=1, audit_ready=True),
+        cost=Cost(input_tokens=100, output_tokens=100, model_cost=0.01, infrastructure_cost=0.0),
+        quality=Quality(accuracy=0.95, consistency=0.90, hallucination_rate=0.02),
+        incidents=[],
     )
 
     # 2. Score and persist immediately with custom weights from configuration
