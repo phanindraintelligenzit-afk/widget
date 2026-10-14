@@ -3359,6 +3359,7 @@ def execute_agent(agent_id: str):
     return {"status": "executing", "agent_id": agent_id}
 
 @app.get("/api/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
+@app.get("/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
 def get_weightages(agent_id: str, s: Session = Depends(db_session)):
     row = store.repo.get_agent_weightage(s, agent_id)
     if not row:
@@ -3377,6 +3378,7 @@ def get_weightages(agent_id: str, s: Session = Depends(db_session)):
     )
 
 @app.put("/api/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
+@app.put("/agents/{agent_id}/weightages", response_model=AgentWeightageOut)
 def update_weightages(agent_id: str, body: AgentWeightageIn, s: Session = Depends(db_session)):
     total = sum([
         body.weight_p, body.weight_q, body.weight_e,

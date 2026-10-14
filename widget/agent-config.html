@@ -222,12 +222,41 @@
     // Pre-fill Agent ID from URL or last onboarded agent so it NEVER disappears
     const urlParams = new URLSearchParams(window.location.search);
     let passedAgentId = urlParams.get('agent_id') || localStorage.getItem('onboard_agent_id') || localStorage.getItem('last_agent_id') || 'chandra-finops';
+    
+    async function loadSavedWeights(agentId) {
+        if (!agentId) return;
+        try {
+            const res = await fetch(`/api/agents/${encodeURIComponent(agentId)}/weightages`, {
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data) {
+                    if (data.weight_p !== undefined) document.getElementById('weight_P').value = data.weight_p;
+                    if (data.weight_q !== undefined) document.getElementById('weight_Q').value = data.weight_q;
+                    if (data.weight_e !== undefined) document.getElementById('weight_E').value = data.weight_e;
+                    if (data.weight_g !== undefined) document.getElementById('weight_G').value = data.weight_g;
+                    if (data.weight_r !== undefined) document.getElementById('weight_R').value = data.weight_r;
+                    if (data.weight_c !== undefined) document.getElementById('weight_C').value = data.weight_c;
+                    if (data.weight_v !== undefined) document.getElementById('weight_V').value = data.weight_v;
+                    calculateDPI();
+                }
+            }
+        } catch (err) {
+            console.warn("Could not load saved weights for", agentId, err);
+        }
+    }
+
     if (passedAgentId) {
         const agentInput = document.getElementById('agent_id');
         if (agentInput) {
             agentInput.value = passedAgentId;
+            loadSavedWeights(passedAgentId);
             agentInput.addEventListener('input', (e) => {
                 localStorage.setItem('last_agent_id', e.target.value);
+            });
+            agentInput.addEventListener('change', (e) => {
+                loadSavedWeights(e.target.value);
             });
         }
     }
