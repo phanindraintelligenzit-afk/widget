@@ -2056,8 +2056,22 @@
         }
       }
     }
-    _render({ loading, data, error }) {
       if (data && Array.isArray(data) && data.length > 0) {
+        if (this._data && this._data.length > 0) {
+          data = data.map(newItem => {
+            const incomingScore = (newItem.raw_score !== undefined && newItem.raw_score !== null) ? newItem.raw_score : newItem.score;
+            if (!incomingScore || incomingScore <= 0) {
+              const oldItem = this._data.find(o => o.agent_id === newItem.agent_id);
+              if (oldItem) {
+                const oldScore = (oldItem.raw_score !== undefined && oldItem.raw_score !== null) ? oldItem.raw_score : oldItem.score;
+                if (oldScore && oldScore > 0) {
+                  return oldItem;
+                }
+              }
+            }
+            return newItem;
+          });
+        }
         this._data = data;
       } else if (!this._data) {
         this._data = data || [];
@@ -2119,6 +2133,14 @@
               if (wm[k] !== null && wm[k] !== undefined) sum += (wm[k] * 100);
             });
             
+            // Guard: If the agent already has a valid score rendered in DOM,
+            // never overwrite it with 0.0 or 0 during polling.
+            const currentScoreNum = parseFloat((tr.cells[2].textContent || "").trim());
+            const incomingScoreNum = (scoreToUse !== null && scoreToUse !== undefined) ? Number(scoreToUse) : 0;
+            if (incomingScoreNum <= 0 && sum <= 0 && !isNaN(currentScoreNum) && currentScoreNum > 0) {
+              continue;
+            }
+
             tr.cells[1].textContent = sum.toFixed(1);
             tr.cells[2].textContent = fmtScore(scoreToUse);
             tr.cells[2].style.color = getScoreColor(scoreToUse);
