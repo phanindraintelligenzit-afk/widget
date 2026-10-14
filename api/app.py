@@ -1193,6 +1193,8 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
 
     # 3. Also run test_agent.py in background thread with non-blocking environment
     def run_eval_thread(a_id, a_name):
+        import shutil
+        import sys
         env = os.environ.copy()
         env["AGENT_ID"] = a_id
         env["AGENT_NAME"] = a_name
@@ -1201,10 +1203,18 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         env["AWS_ACCESS_KEY_ID"] = "rotated"
         env["LITELLM_DROP_PARAMS"] = "True"
         env["DPI_LS_NO_BLOCK"] = "1"
-        env["DPI_LS_URL"] = "http://127.0.0.1:8000"
+        port = os.environ.get("DPI_LS_PORT", "8000")
+        env["DPI_LS_HOST"] = "127.0.0.1"
+        env["DPI_LS_PORT"] = port
+        env["DPI_LS_URL"] = f"http://127.0.0.1:{port}"
         try:
             print(f"[Background] Running test_agent.py for {a_id}...")
-            subprocess.run(["uv", "run", "python", "examples/test_agent.py"], env=env)
+            uv_bin = shutil.which("uv")
+            if uv_bin:
+                cmd = [uv_bin, "run", "python", "examples/test_agent.py"]
+            else:
+                cmd = [sys.executable, "examples/test_agent.py"]
+            subprocess.run(cmd, env=env, shell=(sys.platform == "win32"))
         except Exception as e:
             print(f"[Background] Error in test_agent.py: {e}")
 

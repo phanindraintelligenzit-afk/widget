@@ -1,4 +1,4 @@
-﻿"""
+"""
 DPI-LS FinOps Agent Î“Ã‡Ã¶ Fully Dynamic Example
 ============================================
 
@@ -57,8 +57,8 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from dotenv import load_dotenv
 
-# Î“Ã¶Ã‡Î“Ã¶Ã‡ Load .env FIRST so all os.getenv() calls below pick it up Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
-load_dotenv(override=True)
+# Load .env without overriding explicitly provided environment variables (like AGENT_ID)
+load_dotenv(override=False)
 
 if os.getenv("LANGCHAIN_API_KEY") and "rotated" in os.getenv("LANGCHAIN_API_KEY"):
     os.environ.pop("LANGCHAIN_TRACING_V2", None)

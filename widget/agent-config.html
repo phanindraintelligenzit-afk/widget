@@ -356,54 +356,90 @@
                 weight_c: finalWeights['C']
             };
 
-              try {
-                  const res = await fetch(`/api/agents/${agentId}/weightages`, {
-                      method: 'PUT',
-                      headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
-                      },
-                      body: JSON.stringify(payload)
-                  });
-                  
-                  if (!res.ok) {
-                      throw new Error("Failed to save. Check that totals equal exactly 100.");
-                  }
-                  
-                                    if (statusEl) {
-                      statusEl.textContent = 'Configurations saved! Connecting 7 parameters & generating telemetry...';
-                      statusEl.className = 'status-msg success';
-                  }
-                  
-                  try {
-                      const teleRes = await fetch(`/api/agents/${agentId}/run_telemetry`, {
-                          method: 'POST',
-                          headers: {'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')}
-                      });
-                      if (teleRes.ok) {
-                          const teleData = await teleRes.json();
-                          if (teleData && teleData.score > 0) {
-                              try {
-                                  localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(teleData));
-                              } catch (e) {}
-                          }
-                      }
-                  } catch (e) {
-                      console.warn("Telemetry trigger warning:", e);
-                  }
-                  
-                  if (statusEl) {
-                      statusEl.textContent = 'Success! Parameters connected & scores calculated. Opening Dashboard...';
-                  }
-                  
-                  setTimeout(() => {
-                      window.location.href = `/widget/demo.html?agent=${encodeURIComponent(agentId)}`;
-                  }, 600);
-                  
-              } catch (err) {
-                  if (statusEl) {
-                      statusEl.textContent = err.message;
-                      statusEl.className = 'status-msg error'; } } }); }
+            const submitBtn = configForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving & Evaluating...';
+            }
+
+            try {
+                let res = await fetch(`/api/agents/${agentId}/weightages`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
+                    },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) {
+                    res = await fetch(`/agents/${agentId}/weightages`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                }
+                
+                if (!res.ok) {
+                    throw new Error("Failed to save. Check that totals equal exactly 100.");
+                }
+                
+                if (statusEl) {
+                    statusEl.textContent = 'Configurations saved! Connecting 7 parameters & executing telemetry...';
+                    statusEl.className = 'status-msg success';
+                }
+                
+                try {
+                    let teleRes = await fetch(`/api/agents/${agentId}/run_telemetry`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
+                        }
+                    });
+                    if (!teleRes.ok) {
+                        teleRes = await fetch(`/agents/${agentId}/run_telemetry`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': 'Bearer ' + (localStorage.getItem('token')||'')
+                            }
+                        });
+                    }
+                    if (teleRes.ok) {
+                        const teleData = await teleRes.json();
+                        if (teleData && teleData.score > 0) {
+                            try {
+                                localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(teleData));
+                            } catch (e) {}
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Telemetry trigger warning:", e);
+                }
+                
+                if (statusEl) {
+                    statusEl.textContent = 'Success! Parameters connected & scores calculated. Opening Dashboard...';
+                }
+                
+                setTimeout(() => {
+                    window.location.href = `/widget/demo.html?agent=${encodeURIComponent(agentId)}`;
+                }, 600);
+                
+            } catch (err) {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Save Configuration';
+                }
+                if (statusEl) {
+                    statusEl.textContent = err.message;
+                    statusEl.className = 'status-msg error';
+                }
+            }
+        });
+    }
 </script>
 
 </body>
