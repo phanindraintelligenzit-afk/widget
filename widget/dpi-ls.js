@@ -235,13 +235,6 @@
       saveCachedAgentScore(row);
     }
 
-    const isSelected = selectedAgentId && (
-      (row.agent_id && row.agent_id.toLowerCase().includes(selectedAgentId.toLowerCase())) ||
-      (row.agent_name && row.agent_name.toLowerCase().includes(selectedAgentId.toLowerCase()))
-    );
-    const rowBg = isSelected ? "rgba(250, 204, 21, 0.08)" : "#0f172a";
-    const agentTdStyle = isSelected ? "border:1px solid #facc15;color:#facc15;" : "border:1px solid #1e293b;color:#38bdf8;";
-
     const KEYS = ["P", "Q", "E", "G", "R", "V", "C"];
     let sum = 0;
     const metricCells = KEYS.map(k => {
@@ -255,8 +248,8 @@
     }).join("");
     
     return `
-      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:${rowBg};transition:background 0.2s;">
-        <td style="padding:10px 14px;${agentTdStyle}font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:inherit;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
+      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
+        <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:#38bdf8;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;" title="Sum of Parameters">${sum.toFixed(1)}</td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:${getScoreColor(scoreToUse)};font-weight:800;text-align:center;font-size:15px;" title="Official Evaluated DPI-LS Score">${fmtScore(scoreToUse)}</td>
         ${metricCells}
