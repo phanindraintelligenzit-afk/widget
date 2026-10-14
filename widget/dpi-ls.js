@@ -2108,14 +2108,23 @@
       if (data && Array.isArray(data) && data.length > 0) {
         data = data.map(newItem => {
           const incomingScore = (newItem.raw_score !== undefined && newItem.raw_score !== null) ? newItem.raw_score : newItem.score;
+          const oldItem = (this._data && this._data.length > 0) ? this._data.find(o => o.agent_id === newItem.agent_id) : null;
+
+          // 1. If oldItem has a newer computed timestamp than incoming newItem, keep oldItem to prevent round-robin flip/rollback
+          if (oldItem && oldItem.computed_at && newItem.computed_at) {
+            try {
+              if (new Date(oldItem.computed_at).getTime() > new Date(newItem.computed_at).getTime()) {
+                return oldItem;
+              }
+            } catch (e) {}
+          }
+
+          // 2. If incoming score is non-positive or 0, fallback to oldItem or cache
           if (!incomingScore || Number(incomingScore) <= 0) {
-            if (this._data && this._data.length > 0) {
-              const oldItem = this._data.find(o => o.agent_id === newItem.agent_id);
-              if (oldItem) {
-                const oldScore = (oldItem.raw_score !== undefined && oldItem.raw_score !== null) ? oldItem.raw_score : oldItem.score;
-                if (oldScore && Number(oldScore) > 0) {
-                  return oldItem;
-                }
+            if (oldItem) {
+              const oldScore = (oldItem.raw_score !== undefined && oldItem.raw_score !== null) ? oldItem.raw_score : oldItem.score;
+              if (oldScore && Number(oldScore) > 0) {
+                return oldItem;
               }
             }
             const fallback = getCachedAgentScore(newItem.agent_id);
@@ -2127,6 +2136,15 @@
           }
           return newItem;
         });
+
+        // 3. Preserve any valid agents already loaded that might be omitted by a stale worker
+        if (this._data && this._data.length > 0) {
+          for (const old of this._data) {
+            if (!data.some(d => d.agent_id === old.agent_id)) {
+              data.push(old);
+            }
+          }
+        }
         this._data = data;
       } else if (!this._data || this._data.length === 0) {
         const chandraDefault = getCachedAgentScore("chandra-finops");
