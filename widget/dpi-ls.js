@@ -2151,8 +2151,7 @@
         }
         this._data = data;
       } else if (!this._data || this._data.length === 0) {
-        const chandraDefault = getCachedAgentScore("chandra-finops");
-        this._data = (data && data.length > 0) ? data : (chandraDefault ? [chandraDefault] : []);
+        this._data = (data && data.length > 0) ? data : [];
       }
         
         // --- Sorting / Highlighting Logic ---
