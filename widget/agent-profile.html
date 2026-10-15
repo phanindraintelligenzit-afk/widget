@@ -282,13 +282,24 @@
     }
 
     async function deleteAgent() {
-      if(confirm('Are you sure you want to retire this agent?')) {
+      if(confirm('Are you sure you want to retire this agent? This will permanently remove it from Dashboard and Rating.')) {
         const token = localStorage.getItem('token');
-        const res = await fetch(`/agents/${agentId}`, {
+        let res = await fetch(`/api/agents/${agentId}`, {
           method: 'DELETE',
           headers: token ? { 'Authorization': `Bearer ${token}` } : {}
         });
+        if (!res.ok) {
+          res = await fetch(`/agents/${agentId}`, {
+            method: 'DELETE',
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+          });
+        }
         if(res.ok) {
+          try {
+            localStorage.setItem("dpi_retired_" + agentId, "1");
+            localStorage.removeItem("dpi_score_cache_" + agentId);
+          } catch(e) {}
+          alert(`Agent ${agentId} has been retired.`);
           window.location.href = '/widget/demo.html';
         } else {
           if(res.status === 401) { alert('Session expired. Please log in again.'); window.location.href='/widget/admin-login.html'; } else { alert('Failed to retire agent.'); }

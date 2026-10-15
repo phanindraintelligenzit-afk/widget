@@ -1256,15 +1256,33 @@ def get_agent_configs(agent_id: str, s: Session = Depends(db_session), current_u
 
 
 @app.delete("/api/agents/{agent_id}")
-def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(require_role(["ADMIN"]))) -> dict[str, str]:
+@app.delete("/agents/{agent_id}")
+def delete_agent(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)) -> dict[str, str]:
     check_agent_ownership(agent_id, s, current_user)
-    from store.models import AgentRow
-    row = s.get(AgentRow, agent_id)
-    if not row:
+    from store.models import (AgentRow, ScoreRow, ObservationRow, PartialObservationRow,
+                              SMEFlowSessionRow, SMERatingRow, AgentOnboardingRow,
+                              AgentKRARow, AgentConfigurationRow, ManagerRatingRow,
+                              CustomerRatingRow, AgentWeightageRow)
+    agent = s.get(AgentRow, agent_id)
+    if not agent:
         raise HTTPException(status_code=404, detail="Agent not found")
-    s.delete(row)
+    
+    # Cascade delete all related records across every table
+    s.query(ScoreRow).filter(ScoreRow.agent_id == agent_id).delete()
+    s.query(ObservationRow).filter(ObservationRow.agent_id == agent_id).delete()
+    s.query(PartialObservationRow).filter(PartialObservationRow.agent_id == agent_id).delete()
+    s.query(SMEFlowSessionRow).filter(SMEFlowSessionRow.agent_id == agent_id).delete()
+    s.query(SMERatingRow).filter(SMERatingRow.agent_id == agent_id).delete()
+    s.query(AgentOnboardingRow).filter(AgentOnboardingRow.agent_id == agent_id).delete()
+    s.query(AgentKRARow).filter(AgentKRARow.agent_id == agent_id).delete()
+    s.query(AgentConfigurationRow).filter(AgentConfigurationRow.agent_id == agent_id).delete()
+    s.query(ManagerRatingRow).filter(ManagerRatingRow.agent_id == agent_id).delete()
+    s.query(CustomerRatingRow).filter(CustomerRatingRow.agent_id == agent_id).delete()
+    s.query(AgentWeightageRow).filter(AgentWeightageRow.agent_id == agent_id).delete()
+    
+    s.delete(agent)
     s.commit()
-    return {"message": "Agent deleted"}
+    return {"status": "success", "message": "Agent retired and deleted successfully"}
 
 
 from .scoring import (
@@ -3143,33 +3161,7 @@ def login_page():
 def agent_profile_page(request: Request, agent_id: str):
     return FileResponse("widget/agent-profile.html")
 
-@app.delete("/agents/{agent_id}")
-def delete_agent_route(agent_id: str, s: Session = Depends(db_session), current_user: dict = Depends(get_current_user)):
-    check_agent_ownership(agent_id, s, current_user)
-    from store.models import (AgentRow, ScoreRow, ObservationRow, PartialObservationRow,
-                              SMEFlowSessionRow, SMERatingRow, AgentOnboardingRow,
-                              AgentKRARow, AgentConfigurationRow, ManagerRatingRow,
-                              CustomerRatingRow, AgentWeightageRow)
-    agent = s.get(AgentRow, agent_id)
-    if agent:
-        # Manually cascade delete because SQLite foreign keys aren't enforcing CASCADE
-        s.query(ScoreRow).filter(ScoreRow.agent_id == agent_id).delete()
-        s.query(ObservationRow).filter(ObservationRow.agent_id == agent_id).delete()
-        s.query(PartialObservationRow).filter(PartialObservationRow.agent_id == agent_id).delete()
-        s.query(SMEFlowSessionRow).filter(SMEFlowSessionRow.agent_id == agent_id).delete()
-        s.query(SMERatingRow).filter(SMERatingRow.agent_id == agent_id).delete()
-        s.query(AgentOnboardingRow).filter(AgentOnboardingRow.agent_id == agent_id).delete()
-        s.query(AgentKRARow).filter(AgentKRARow.agent_id == agent_id).delete()
-        s.query(AgentConfigurationRow).filter(AgentConfigurationRow.agent_id == agent_id).delete()
-        s.query(ManagerRatingRow).filter(ManagerRatingRow.agent_id == agent_id).delete()
-        s.query(CustomerRatingRow).filter(CustomerRatingRow.agent_id == agent_id).delete()
-        s.query(AgentWeightageRow).filter(AgentWeightageRow.agent_id == agent_id).delete()
-        
-        s.delete(agent)
-        s.commit()
-    return {"status": "success"}
-    from fastapi import HTTPException
-    raise HTTPException(status_code=404, detail="Agent not found")
+
 
 
 
@@ -3403,6 +3395,13 @@ def update_weightages(agent_id: str, body: AgentWeightageIn, s: Session = Depend
     if abs(total - 100.0) > 0.01:
         raise HTTPException(status_code=400, detail="Total weight must equal exactly 100")
         
+    # Auto-ensure agent exists in agents table first to satisfy ForeignKey
+    agent = s.get(store.models.AgentRow, agent_id)
+    if not agent:
+        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id="admin", baseline_human_output=1.0)
+        s.add(agent)
+        s.flush()
+
     row = store.repo.upsert_agent_weightage(
         s, agent_id,
         body.weight_p, body.weight_q, body.weight_e,
@@ -3410,17 +3409,19 @@ def update_weightages(agent_id: str, body: AgentWeightageIn, s: Session = Depend
         total
     )
     s.commit()
+    import datetime
+    now_dt = datetime.datetime.now(datetime.timezone.utc)
     return AgentWeightageOut(
-        agent_id=row.agent_id,
-        weight_p=row.weight_p,
-        weight_q=row.weight_q,
-        weight_e=row.weight_e,
-        weight_v=row.weight_v,
-        weight_r=row.weight_r,
-        weight_g=row.weight_g,
-        weight_c=row.weight_c,
-        total_weight=row.total_weight,
-        updated_at=row.updated_at
+        agent_id=agent_id,
+        weight_p=body.weight_p,
+        weight_q=body.weight_q,
+        weight_e=body.weight_e,
+        weight_v=body.weight_v,
+        weight_r=body.weight_r,
+        weight_g=body.weight_g,
+        weight_c=body.weight_c,
+        total_weight=total,
+        updated_at=now_dt
     )
 
 

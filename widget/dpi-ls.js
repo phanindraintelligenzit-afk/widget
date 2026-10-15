@@ -2106,6 +2106,9 @@
     }
     _render({ loading, data, error }) {
       if (data && Array.isArray(data) && data.length > 0) {
+        // Filter out retired agents
+        data = data.filter(d => !d || localStorage.getItem("dpi_retired_" + d.agent_id) !== "1");
+
         data = data.map(newItem => {
           const incomingScore = (newItem.raw_score !== undefined && newItem.raw_score !== null) ? newItem.raw_score : newItem.score;
           const oldItem = (this._data && this._data.length > 0) ? this._data.find(o => o.agent_id === newItem.agent_id) : null;
@@ -2140,6 +2143,7 @@
         // 3. Preserve any valid agents already loaded that might be omitted by a stale worker
         if (this._data && this._data.length > 0) {
           for (const old of this._data) {
+            if (old && localStorage.getItem("dpi_retired_" + old.agent_id) === "1") continue;
             if (!data.some(d => d.agent_id === old.agent_id)) {
               data.push(old);
             }

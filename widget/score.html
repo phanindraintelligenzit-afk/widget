@@ -167,9 +167,11 @@ window.addEventListener("unhandledrejection", function(e) {
   <script>
     async function fetchAgents() {
       const res = await fetch('/ratings?all=true', { cache: 'no-store' });
-      const agents = await res.json();
+      let agents = await res.json();
       const body = document.getElementById('agent-body');
       body.innerHTML = '';
+      if (!Array.isArray(agents)) return;
+      agents = agents.filter(a => !a || localStorage.getItem("dpi_retired_" + a.agent_id) !== "1");
       agents.forEach(a => {
         let scoreVal = a.score;
         let m = a.metrics || {};
