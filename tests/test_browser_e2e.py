@@ -1,4 +1,4 @@
-﻿import pytest
+import pytest
 from playwright.sync_api import Page, expect
 import os
 import subprocess
@@ -77,7 +77,7 @@ def test_full_browser_journey(page: Page, start_server):
     # 3. Configuration -> MCP/Resources -> Save
     page.fill("#agent_id", agent_id)
     page.click("button:has-text('Save Configuration')")
-#     expect(page.locator(".status-msg.success")).to_be_visible(timeout=60000)
+    time.sleep(2)
     
     # 4. Execution -> Queued -> Running
     # (Since there's no UI button for the newly built execute endpoint yet, we trigger it via API context)

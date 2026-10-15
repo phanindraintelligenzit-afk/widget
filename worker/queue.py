@@ -1,4 +1,4 @@
-﻿"""DB-backed durable task queue for DPI-LS executions.
+"""DB-backed durable task queue for DPI-LS executions.
 
 Uses the executions table (ExecutionRow) as the queue store.
 No external broker required — the database IS the queue.
@@ -35,8 +35,17 @@ def enqueue(
         timeout_seconds=timeout_seconds,
         retry_count=0,
     )
-    session.add(row)
-    session.commit()
+    for attempt in range(5):
+        try:
+            session.add(row)
+            session.commit()
+            return execution_id
+        except Exception as e:
+            if "locked" in str(e).lower() and attempt < 4:
+                session.rollback()
+                time.sleep(1.0)
+            else:
+                raise
     return execution_id
 
 

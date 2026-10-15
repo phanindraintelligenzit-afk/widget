@@ -66,7 +66,7 @@ def configure(url: str | None = None) -> Engine:
     is_sqlite = url.startswith("sqlite")
     is_memory = is_sqlite and ":memory:" in url
 
-    connect_args = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
+    connect_args = {"check_same_thread": False, "timeout": 60} if is_sqlite else {}
     kwargs = {"connect_args": connect_args, "future": True}
     if is_memory:
         # Share the same in-memory DB across sessions for the duration
@@ -86,7 +86,7 @@ def configure(url: str | None = None) -> Engine:
             cursor = dbapi_connection.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA synchronous=NORMAL")
-            cursor.execute("PRAGMA busy_timeout=5000")
+            cursor.execute("PRAGMA busy_timeout=60000")
             cursor.close()
 
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False, future=True)
