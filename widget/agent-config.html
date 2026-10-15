@@ -420,8 +420,18 @@
                     if (teleRes.ok) {
                         const teleData = await teleRes.json();
                         if (teleData && (teleData.score > 0 || teleData.raw_score > 0)) {
+                            teleData.computed_at = teleData.computed_at || new Date().toISOString();
+                            teleData.weights_used = payload;
                             try {
                                 localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(teleData));
+                                const stored = localStorage.getItem("dpi_known_agent_list");
+                                let list = stored ? JSON.parse(stored) : [];
+                                if (!Array.isArray(list)) list = [];
+                                const idx = list.findIndex(a => a.agent_id === agentId);
+                                const entry = Object.assign({}, teleData, { agent_id: agentId, agent_name: agentId });
+                                if (idx >= 0) list[idx] = Object.assign({}, list[idx], entry);
+                                else list.push(entry);
+                                localStorage.setItem("dpi_known_agent_list", JSON.stringify(list));
                             } catch (e) {}
                             teleSucceeded = true;
                         }
@@ -452,8 +462,18 @@
                         if (ingestRes.ok) {
                             const ingestData = await ingestRes.json();
                             if (ingestData && (ingestData.score > 0 || ingestData.raw_score > 0)) {
+                                ingestData.computed_at = now;
+                                ingestData.weights_used = payload;
                                 try {
                                     localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(ingestData));
+                                    const stored = localStorage.getItem("dpi_known_agent_list");
+                                    let list = stored ? JSON.parse(stored) : [];
+                                    if (!Array.isArray(list)) list = [];
+                                    const idx = list.findIndex(a => a.agent_id === agentId);
+                                    const entry = Object.assign({}, ingestData, { agent_id: agentId, agent_name: agentId });
+                                    if (idx >= 0) list[idx] = Object.assign({}, list[idx], entry);
+                                    else list.push(entry);
+                                    localStorage.setItem("dpi_known_agent_list", JSON.stringify(list));
                                 } catch (e) {}
                                 teleSucceeded = true;
                             }

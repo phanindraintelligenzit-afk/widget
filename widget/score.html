@@ -174,15 +174,21 @@ window.addEventListener("unhandledrejection", function(e) {
       agents.forEach(a => {
         let scoreVal = a.score;
         let m = a.metrics || {};
-        if (!scoreVal || scoreVal <= 0) {
-          try {
-            const cached = JSON.parse(localStorage.getItem("dpi_score_cache_" + a.agent_id));
-            if (cached && (cached.score > 0 || cached.raw_score > 0)) {
-              scoreVal = cached.score || cached.raw_score;
+        try {
+          const cached = JSON.parse(localStorage.getItem("dpi_score_cache_" + a.agent_id));
+          if (cached) {
+            const cachedScore = (cached.raw_score !== undefined && cached.raw_score !== null) ? cached.raw_score : cached.score;
+            if ((!scoreVal || Number(scoreVal) <= 0) && cachedScore && Number(cachedScore) > 0) {
+              scoreVal = cachedScore;
               if (cached.metrics) m = cached.metrics;
+            } else if (cached.computed_at && a.computed_at) {
+              if (new Date(cached.computed_at).getTime() > new Date(a.computed_at).getTime()) {
+                scoreVal = cachedScore;
+                if (cached.metrics) m = cached.metrics;
+              }
             }
-          } catch(e) {}
-        }
+          }
+        } catch(e) {}
         const row = `<tr style="border-bottom:1px solid #1e293b; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.02)'" onmouseout="this.style.background='transparent'">
             <td style="padding:12px 14px; color:#38bdf8; font-weight:700;"><a href="/widget/agent-profile.html?id=${a.agent_id}" style="color:#38bdf8; text-decoration:underline;">${a.agent_name || a.agent_id}</a></td>
             <td style="padding:12px; text-align:center; color:#e2e8f0; font-weight:700;">${Number(scoreVal || 0).toFixed(2)}</td>

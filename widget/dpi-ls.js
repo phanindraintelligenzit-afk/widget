@@ -2125,27 +2125,41 @@
         data = data.map(newItem => {
           const incomingScore = (newItem.raw_score !== undefined && newItem.raw_score !== null) ? newItem.raw_score : newItem.score;
           const oldItem = (this._data && this._data.length > 0) ? this._data.find(o => o.agent_id === newItem.agent_id) : null;
+          const cached = getCachedAgentScore(newItem.agent_id);
 
-          // 1. If oldItem has a newer computed timestamp than incoming newItem, keep oldItem to prevent round-robin flip/rollback
-          if (oldItem && oldItem.computed_at && newItem.computed_at) {
+          // Find the best known previous item (from this._data or localStorage)
+          let best = oldItem;
+          if (cached) {
+            if (!best) {
+              best = cached;
+            } else if (cached.computed_at && best.computed_at) {
+              if (new Date(cached.computed_at).getTime() > new Date(best.computed_at).getTime()) {
+                best = Object.assign({}, best, cached);
+              }
+            } else if (!best.score && cached.score) {
+              best = Object.assign({}, best, cached);
+            }
+          }
+
+          // 1. If best has a newer computed timestamp than incoming newItem, keep best to prevent round-robin flip/rollback
+          if (best && best.computed_at && newItem.computed_at) {
             try {
-              if (new Date(oldItem.computed_at).getTime() > new Date(newItem.computed_at).getTime()) {
-                return oldItem;
+              if (new Date(best.computed_at).getTime() > new Date(newItem.computed_at).getTime()) {
+                return best;
               }
             } catch (e) {}
           }
 
-          // 2. If incoming score is non-positive or 0, fallback to oldItem or cache
+          // 2. If incoming score is non-positive or 0, fallback to best or cached
           if (!incomingScore || Number(incomingScore) <= 0) {
-            if (oldItem) {
-              const oldScore = (oldItem.raw_score !== undefined && oldItem.raw_score !== null) ? oldItem.raw_score : oldItem.score;
-              if (oldScore && Number(oldScore) > 0) {
-                return oldItem;
+            if (best) {
+              const bestScore = (best.raw_score !== undefined && best.raw_score !== null) ? best.raw_score : best.score;
+              if (bestScore && Number(bestScore) > 0) {
+                return best;
               }
             }
-            const fallback = getCachedAgentScore(newItem.agent_id);
-            if (fallback) {
-              return Object.assign({}, newItem, fallback);
+            if (cached) {
+              return Object.assign({}, newItem, cached);
             }
           } else {
             saveCachedAgentScore(newItem);
