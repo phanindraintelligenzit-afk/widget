@@ -750,7 +750,7 @@ def update_onboarding(agent_id: str, body: AgentOnboardingIn, s: Session = Depen
     # Auto-create base agent if it doesn't exist
     agent = s.get(store.models.AgentRow, agent_id)
     if not agent:
-        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id="test_user")
+        agent = store.models.AgentRow(id=agent_id, name=agent_id, owner_id="test_user", baseline_human_output=1.0)
         s.add(agent)
         s.flush()
         
@@ -1168,6 +1168,9 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         agent = AgentRow(id=agent_id, name=agent_id, owner_id="test_user", baseline_human_output=1.0)
         s.add(agent)
         s.flush()
+    elif not agent.baseline_human_output or agent.baseline_human_output > 10.0:
+        agent.baseline_human_output = 1.0
+        s.flush()
     agent_name = agent.name if agent.name else agent_id
 
     # 1. Immediately create a real telemetry observation with all 7 parameters
@@ -1395,26 +1398,6 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
                 score = alt_score
 
         if score is None:
-            if agent.id == "chandra-finops":
-                default_m = {"P": 1.0, "Q": 0.9, "E": 1.0, "G": 1.0, "R": 0.7, "V": 0.714, "C": 0.5}
-                default_wm = {"P": 0.15, "Q": 0.18, "E": 0.15, "G": 0.20, "R": 0.105, "V": 0.0357, "C": 0.05}
-                out.append(
-                    BoardRow(
-                        agent_id=agent.id,
-                        agent_name=agent.name or "Chandra",
-                        score=83.0,
-                        raw_score=87.1,
-                        band="A",
-                        unsafe=False,
-                        gate_failures=[],
-                        metrics=default_m,
-                        weighted_metrics=default_wm,
-                        weights_used=weights,
-                        sub_metrics={},
-                        computed_at=__import__('datetime').datetime.now(__import__('datetime').timezone.utc),
-                    )
-                )
-                continue
             # Show new/unevaluated agents with 0 scores instead of hiding them
             empty_m = {"P": 0.0, "Q": 0.0, "E": 0.0, "G": 0.0, "R": 0.0, "C": 0.0, "V": 0.0}
             out.append(

@@ -2936,10 +2936,11 @@
         if (baseUrl && isOnline) {
           // If using the fallback backend metrics URL, just open it directly
           if (!baseUrl.includes("/metrics")) {
+            const currentAgent = this.getAttribute("selected-agent") || (this._data && this._data[0] ? this._data[0].agent_id : "") || "default";
             if (resourceName === 'Prometheus') {
-              dashUrl = `${baseUrl}/graph?g0.expr=dpi_ls_model_cost{agent_id="chandra-finops"}&g0.tab=0&g0.stacked=0&g0.range_input=1h`;
+              dashUrl = `${baseUrl}/graph?g0.expr=dpi_ls_model_cost{agent_id="${encodeURIComponent(currentAgent)}"}&g0.tab=0&g0.stacked=0&g0.range_input=1h`;
             } else if (resourceName === 'Grafana') {
-              dashUrl = `${baseUrl}/d/dpi-ls-cost-001/dpi-ls-cost-dashboard-chandra-finops?orgId=1&var-agent=chandra-finops`;
+              dashUrl = `${baseUrl}/d/dpi-ls-cost-001/dpi-ls-cost-dashboard?orgId=1&var-agent=${encodeURIComponent(currentAgent)}`;
             }
           }
         }

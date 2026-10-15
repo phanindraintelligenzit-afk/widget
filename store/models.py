@@ -24,7 +24,7 @@ class AgentRow(Base):
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256))
     status: Mapped[str] = mapped_column(String(64), default="ACTIVE")
-    baseline_human_output: Mapped[float] = mapped_column(Float, default=100.0)
+    baseline_human_output: Mapped[float] = mapped_column(Float, default=1.0)
     owner_id: Mapped[str] = mapped_column(String(256), nullable=True)  # RBAC ownership
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
