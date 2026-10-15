@@ -165,10 +165,9 @@ window.addEventListener("unhandledrejection", function(e) {
 </div>
 
   <script>
-    async function fetchAgents() {
-      const res = await fetch('/ratings?all=true', { cache: 'no-store' });
-      let agents = await res.json();
+    function renderAgents(agents) {
       const body = document.getElementById('agent-body');
+      if (!body) return;
       body.innerHTML = '';
       if (!Array.isArray(agents)) return;
       agents = agents.filter(a => !a || localStorage.getItem("dpi_retired_" + a.agent_id) !== "1");
@@ -208,6 +207,52 @@ window.addEventListener("unhandledrejection", function(e) {
         </tr>`;
         body.innerHTML += row;
       });
+    }
+
+    async function fetchAgents() {
+      // 1. Instant render from local cache so there is 0ms delay
+      try {
+        const stored = localStorage.getItem("dpi_known_agent_list");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            renderAgents(parsed);
+          }
+        }
+      } catch(e) {}
+
+      // 2. Fetch fresh data from backend
+      try {
+        const res = await fetch('/ratings?all=true', { cache: 'no-store' });
+        if (!res.ok) return;
+        let agents = await res.json();
+        if (!Array.isArray(agents)) return;
+        agents = agents.filter(a => !a || localStorage.getItem("dpi_retired_" + a.agent_id) !== "1");
+        
+        // Preserve known agents if stale worker returned partial list
+        try {
+          const stored = localStorage.getItem("dpi_known_agent_list");
+          if (stored) {
+            const known = JSON.parse(stored);
+            if (Array.isArray(known)) {
+              for (const k of known) {
+                if (k && k.agent_id && localStorage.getItem("dpi_retired_" + k.agent_id) !== "1") {
+                  if (!agents.some(a => a.agent_id === k.agent_id)) {
+                    agents.push(k);
+                  }
+                }
+              }
+            }
+          }
+          if (agents.length > 0) {
+            localStorage.setItem("dpi_known_agent_list", JSON.stringify(agents));
+          }
+        } catch(e) {}
+
+        renderAgents(agents);
+      } catch(e) {
+        console.warn("fetchAgents error:", e);
+      }
     }
     
     

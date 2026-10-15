@@ -192,20 +192,6 @@
         if (s && Number(s) > 0) return parsed;
       }
     } catch (e) {}
-    if (agentId === "chandra-finops") {
-      return {
-        agent_id: "chandra-finops",
-        agent_name: "Chandra",
-        score: 83.0,
-        raw_score: 87.1,
-        band: "A",
-        unsafe: false,
-        gate_failures: [],
-        metrics: { P: 1.0, Q: 0.9, E: 1.0, G: 1.0, R: 0.7, V: 0.714, C: 0.5 },
-        weighted_metrics: { P: 0.15, Q: 0.18, E: 0.15, G: 0.20, R: 0.105, V: 0.0357, C: 0.05 },
-        weights_used: { P: 0.15, Q: 0.20, E: 0.15, G: 0.20, R: 0.15, V: 0.10, C: 0.05 }
-      };
-    }
     return null;
   }
 
@@ -217,6 +203,29 @@
         localStorage.setItem("dpi_score_cache_" + item.agent_id, JSON.stringify(item));
       } catch (e) {}
     }
+  }
+
+  function getKnownActiveAgents() {
+    try {
+      const stored = localStorage.getItem("dpi_known_agent_list");
+      if (stored) {
+        const list = JSON.parse(stored);
+        if (Array.isArray(list)) {
+          return list.filter(item => item && item.agent_id && localStorage.getItem("dpi_retired_" + item.agent_id) !== "1");
+        }
+      }
+    } catch (e) {}
+    return [];
+  }
+
+  function saveKnownActiveAgents(items) {
+    if (!Array.isArray(items)) return;
+    try {
+      const filtered = items.filter(item => item && item.agent_id && localStorage.getItem("dpi_retired_" + item.agent_id) !== "1");
+      if (filtered.length > 0) {
+        localStorage.setItem("dpi_known_agent_list", JSON.stringify(filtered));
+      }
+    } catch (e) {}
   }
 
   function boardRowHtml(row, selectedAgentId) {
@@ -1959,6 +1968,10 @@
     static get observedAttributes() {
       return ["api-base", "poll-interval", "selected-agent"];
     }
+    constructor() {
+      super();
+      this._data = getKnownActiveAgents();
+    }
     connectedCallback() {
       super.connectedCallback();
       // Event delegation: one listener on the shadow root catches every
@@ -2140,9 +2153,11 @@
           return newItem;
         });
 
-        // 3. Preserve any valid agents already loaded that might be omitted by a stale worker
-        if (this._data && this._data.length > 0) {
-          for (const old of this._data) {
+        // 3. Preserve any valid agents already loaded or known from localStorage that might be omitted by a stale worker
+        const knownList = getKnownActiveAgents();
+        const baseList = (this._data && this._data.length > 0) ? this._data : knownList;
+        if (baseList && baseList.length > 0) {
+          for (const old of baseList) {
             if (old && localStorage.getItem("dpi_retired_" + old.agent_id) === "1") continue;
             if (!data.some(d => d.agent_id === old.agent_id)) {
               data.push(old);
@@ -2150,8 +2165,10 @@
           }
         }
         this._data = data;
+        saveKnownActiveAgents(data);
       } else if (!this._data || this._data.length === 0) {
-        this._data = (data && data.length > 0) ? data : [];
+        const fallbackKnown = getKnownActiveAgents();
+        this._data = (data && data.length > 0) ? data : fallbackKnown;
       }
         
         // --- Sorting / Highlighting Logic ---
@@ -2173,9 +2190,14 @@
       
       if (loading) {
         if (!this._data || this._data.length === 0) {
-          this._renderShell(`<div class="empty">Loading…</div>`);
+          const knownList = getKnownActiveAgents();
+          if (knownList && knownList.length > 0) {
+            this._data = knownList;
+          } else {
+            this._renderShell(`<div class="empty">Loading…</div>`);
+            return;
+          }
         }
-        return;
       }
       if (error) {
         if (!this._data || this._data.length === 0) {

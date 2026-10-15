@@ -13,7 +13,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-DEFAULT_URL = "sqlite:///./dpi_ls.db"
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dpi_ls.db").replace("\\", "/")
+DEFAULT_URL = f"sqlite:///{DEFAULT_DB_PATH}"
 import json
 import boto3
 
