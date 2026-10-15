@@ -114,9 +114,23 @@ def _env_int(key: str, default: int) -> int:
 # Required
 BEDROCK_MODEL_ID  = _env("BEDROCK_MODEL_ID") or _env("MODEL_NAME")
 
-# Optional Î“Ã‡Ã¶ all have sensible defaults
+# Optional — all have sensible defaults
 AGENT_ID          = _env("AGENT_ID",       "chandra-finops")
 AGENT_NAME        = _env("AGENT_NAME",     "Chandra")
+
+import argparse
+_parser = argparse.ArgumentParser(description="DPI-LS Agent Evaluator", add_help=False)
+_parser.add_argument("--agent-id", dest="agent_id", default=None)
+_parser.add_argument("--agent-name", dest="agent_name", default=None)
+_parsed_args, _ = _parser.parse_known_args()
+
+if _parsed_args.agent_id:
+    AGENT_ID = _parsed_args.agent_id
+    if not _parsed_args.agent_name and AGENT_NAME == "Chandra":
+        AGENT_NAME = _parsed_args.agent_id
+if _parsed_args.agent_name:
+    AGENT_NAME = _parsed_args.agent_name
+
 LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
 HUMAN_BASELINE    = _env_int("HUMAN_BASELINE", 1)
 DPI_LS_HOST       = _env("DPI_LS_HOST",    "127.0.0.1")

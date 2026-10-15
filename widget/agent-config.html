@@ -447,11 +447,28 @@
                             }
                         });
                     }
+                    const normalizedWeightsUsed = {
+                        P: finalWeights['P'] / 100.0,
+                        Q: finalWeights['Q'] / 100.0,
+                        E: finalWeights['E'] / 100.0,
+                        G: finalWeights['G'] / 100.0,
+                        R: finalWeights['R'] / 100.0,
+                        V: finalWeights['V'] / 100.0,
+                        C: finalWeights['C'] / 100.0,
+                        weight_p: finalWeights['P'],
+                        weight_q: finalWeights['Q'],
+                        weight_e: finalWeights['E'],
+                        weight_g: finalWeights['G'],
+                        weight_r: finalWeights['R'],
+                        weight_v: finalWeights['V'],
+                        weight_c: finalWeights['C']
+                    };
+
                     if (teleRes.ok) {
                         const teleData = await teleRes.json();
                         if (teleData && (teleData.score > 0 || teleData.raw_score > 0)) {
                             teleData.computed_at = teleData.computed_at || new Date().toISOString();
-                            teleData.weights_used = payload;
+                            teleData.weights_used = Object.assign({}, normalizedWeightsUsed, teleData.weights_used || {});
                             try {
                                 localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(teleData));
                                 const stored = localStorage.getItem("dpi_known_agent_list");
@@ -493,7 +510,7 @@
                             const ingestData = await ingestRes.json();
                             if (ingestData && (ingestData.score > 0 || ingestData.raw_score > 0)) {
                                 ingestData.computed_at = now;
-                                ingestData.weights_used = payload;
+                                ingestData.weights_used = Object.assign({}, normalizedWeightsUsed, ingestData.weights_used || {});
                                 try {
                                     localStorage.setItem("dpi_score_cache_" + agentId, JSON.stringify(ingestData));
                                     const stored = localStorage.getItem("dpi_known_agent_list");

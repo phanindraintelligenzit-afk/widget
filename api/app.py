@@ -1232,6 +1232,7 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         "metrics": rating.metrics,
         "weighted_metrics": rating.weighted_metrics,
         "weights_used": rating.weights_used,
+        "sub_metrics": rating.sub_metrics,
         "computed_at": now.isoformat()
     }
 

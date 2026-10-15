@@ -228,6 +228,30 @@
     } catch (e) {}
   }
 
+  function getMetricWeight(row, key, defaultVal) {
+    if (!row) return defaultVal;
+    const wu = row.weights_used;
+    if (wu) {
+      if (wu[key] !== undefined && wu[key] !== null) {
+        const v = Number(wu[key]);
+        return v <= 1.0 && v > 0 ? Math.round(v * 100) : Math.round(v);
+      }
+      const lowerKey = "weight_" + key.toLowerCase();
+      if (wu[lowerKey] !== undefined && wu[lowerKey] !== null) {
+        const v = Number(wu[lowerKey]);
+        return v <= 1.0 && v > 0 ? Math.round(v * 100) : Math.round(v);
+      }
+    }
+    if (row.weighted_metrics && row.metrics && row.metrics[key] !== undefined && row.weighted_metrics[key] !== undefined) {
+      const raw = Number(row.metrics[key]);
+      const weighted = Number(row.weighted_metrics[key]);
+      if (raw > 0 && !isNaN(weighted)) {
+        return Math.round((weighted / raw) * 100);
+      }
+    }
+    return defaultVal;
+  }
+
   function boardRowHtml(row, selectedAgentId) {
     if (!row) return "";
     let scoreToUse = row.raw_score !== null && row.raw_score !== undefined ? row.raw_score : row.score;
@@ -492,6 +516,8 @@
   }
 
   function renderQualityTableHtml(sub, row, value, resourceFilter) {
+    sub = sub || {};
+    row = row || {};
     let settings = {};
     const metricsMap = calculateQualityMetrics(sub, row, value);
     
@@ -564,17 +590,18 @@
       qScoreRaw = parseFloat(metricsMap["Quality_Score"].val);
       qScoreVal = qScoreRaw.toFixed(4);
     }
+    const qWeight = getMetricWeight(row, "Q", 20);
     let finalWeightedVal = "N/A";
     if (qScoreVal !== "Pending SME Review") {
-      finalWeightedVal = (qScoreRaw * (row && row.weights_used && row.weights_used["Q"] !== undefined ? row.weights_used["Q"]*100 : 20.0)).toFixed(2);
+      finalWeightedVal = (qScoreRaw * qWeight).toFixed(2);
     }
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">Q</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Quality (${qWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${qWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -582,7 +609,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${qScoreVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${qWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -593,10 +620,10 @@
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;margin-top:12px;margin-bottom:12px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Quality Calculation</div>
             <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
-              <div>Accuracy : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"}</div>
-              <div>Consistency : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"}</div>
-              <div>Hallucination : ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}</div>
-              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Quality Score : 0.7*${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"} + 0.2*${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"} + 0.1*(1 - ${sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}) = ${qScoreVal}</div>
+              <div>Accuracy : ${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"}</div>
+              <div>Consistency : ${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"}</div>
+              <div>Hallucination : ${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}</div>
+              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Quality Score : 0.7*${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.acc.toFixed(3) : "0.000"} + 0.2*${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.cons.toFixed(3) : "0.000"} + 0.1*(1 - ${sub && sub.Quality_Score_Calc ? sub.Quality_Score_Calc.hall.toFixed(3) : "0.000"}) = ${qScoreVal}</div>
             </div>
           </div>
       </div>
@@ -628,7 +655,8 @@
   
   function renderGovernanceTableHtml(sub, row, value, resourceFilter) {
     let settings = {};
-    if (!sub) return `<div style="padding:15px;color:#64748b;">No Governance telemetry available.</div>`;
+    sub = sub || {};
+    row = row || {};
 
     const resources = sub.runtime_resources || {};
     const opa = resources["Open Policy Agent"] || {};
@@ -651,12 +679,13 @@
 
     // The engine-derived value (when supplied) is authoritative for the
     // displayed Raw / Weighted numbers; fall back to the formula calc.
-    let gScoreVal = (value === undefined || value === null) ? formulaOutput : value;
+    let gScoreVal = (value === undefined || value === null) ? formulaOutput : Number(value);
 
-    const finalWeightedVal = (gScoreVal * (row && row.weights_used && row.weights_used["G"] !== undefined ? row.weights_used["G"]*100 : 20.0)).toFixed(2);
+    const gWeight = getMetricWeight(row, "G", 20);
+    const finalWeightedVal = (gScoreVal * gWeight).toFixed(2);
     const metricsMap = {
-      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Î£ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
-      "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Î£ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
+      "Total Actions": { val: totalActions, calc: totalActions, disp: totalActions, formula: "Σ OPA + Presidio + Detect-Secrets + Keycloak + OpenMetadata telemetry", src: "Runtime Telemetry", resource: "Open Policy Agent / Presidio / Detect-Secrets / Keycloak / OpenMetadata", dec: 0 },
+      "Policy Violations": { val: policyViolations, calc: policyViolations, disp: policyViolations, formula: "Σ Incident Frequency", src: "Runtime Telemetry", resource: "Governance Incidents", dec: 0 },
       "Governance_Score": { val: gScoreVal, calc: gScoreVal, disp: gScoreVal, formula: "1 - (Total Actions / Policy Violations)", src: "Dynamic Calculation", resource: "Calculation", dec: 4 }
     };
 
@@ -736,7 +765,7 @@
         `).join("");
     }
     const gateHtml = gScoreVal === 0.0 ? `<div style="margin-top:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);padding:8px 12px;border-radius:6px;color:#fca5a5;font-size:11px;display:flex;align-items:center;gap:8px;">
-      <span style="font-size:14px;">âš ï¸</span>
+      <span style="font-size:14px;">⚠️</span>
       <span>Governance Compliance Gate Fired. Score capped to 0.000 (100% Violation Rate)</span>
     </div>` : '';
 
@@ -744,8 +773,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">G</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["Q"] !== undefined ? Math.round(row.weights_used["Q"]*100) : 20}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Governance (${gWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${gWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -753,12 +782,12 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${gScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["G"] !== undefined ? Math.round(row.weights_used["G"]*100) : 20}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${gWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 âˆ’ (Policy Violations / Total Actions)</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">Governance = 1 − (Policy Violations / Total Actions)</div>
           </div>
         </div>
         <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
@@ -774,7 +803,7 @@
 
       <div class="governance-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}GOVERNANCE TRACEABILITY & AUDIT
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}GOVERNANCE TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -797,7 +826,7 @@
 
       ${resourceFilter ? `
       <div style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:8px;margin-top:12px;">
-        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">â–¶ ${resourceFilter.toUpperCase()} RESOURCE CONTRIBUTION</div>
+        <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">▶ ${resourceFilter.toUpperCase()} RESOURCE CONTRIBUTION</div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
             <tr style="background:#0f172a;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #334155;">
@@ -820,14 +849,14 @@
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Formula Contribution</td>
-              <td style="padding:8px 14px;color:#e2e8f0;">1 âˆ’ (${totalActions} / ${policyViolations})</td>
+              <td style="padding:8px 14px;color:#e2e8f0;">1 − (${totalActions} / ${policyViolations})</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Raw Contribution</td>
               <td style="padding:8px 14px;color:#38bdf8;font-weight:800;">${gScoreVal.toFixed(4)}</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
-              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Weighted Contribution (Ã—${settings?.weights?.G || 20.0}%)</td>
+              <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Weighted Contribution (×${gWeight}%)</td>
               <td style="padding:8px 14px;color:#4ade80;font-weight:800;">${finalWeightedVal}</td>
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
@@ -836,7 +865,7 @@
             </tr>
             <tr style="border-bottom:1px solid #1e293b;">
               <td style="padding:8px 14px;color:#38bdf8;font-weight:600;">Policy / Incident Logs</td>
-              <td style="padding:8px 14px;color:#cbd5e1;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml((inc.action_name || inc.category) + ' â†’ ' + inc.name + ' (freq ' + inc.frequency + ')')).join('; ') || 'No incidents logged'}</td>
+              <td style="padding:8px 14px;color:#cbd5e1;font-size:11px;">${(sub.incidents || []).filter(inc => !inc.source || inc.source === resourceFilter).map(inc => escapeHtml((inc.action_name || inc.category) + ' → ' + inc.name + ' (freq ' + inc.frequency + ')')).join('; ') || 'No incidents logged'}</td>
             </tr>
           </tbody>
         </table>
@@ -846,8 +875,6 @@
 
   function renderRiskTableHtml(sub, row, value, resourceFilter) {
     let settings = {};
-    if (!sub) return `<div style="padding:15px;color:#64748b;">No Risk telemetry available.</div>`;
-    
     sub = sub || {};
     row = row || {};
     
@@ -917,12 +944,14 @@
     const valMetric = metricsMap["Total Risk"] ? metricsMap["Total Risk"].val : 0;
     
     let rScoreToUse = 1.0;
-    if (metricsMap["Risk_Score"] && metricsMap["Risk_Score"].val !== undefined) {
-      rScoreToUse = metricsMap["Risk_Score"].val;
+    if (value !== undefined && value !== null) {
+      rScoreToUse = Number(value);
+    } else if (metricsMap["Risk_Score"] && metricsMap["Risk_Score"].val !== undefined) {
+      rScoreToUse = Number(metricsMap["Risk_Score"].val);
     }
-    if (value === undefined || value === null) value = rScoreToUse;
     
-    const finalWeightedVal = (rScoreToUse * (row && row.weights_used && row.weights_used["R"] !== undefined ? row.weights_used["R"]*100 : 15.0)).toFixed(2);
+    const rWeight = getMetricWeight(row, "R", 15);
+    const finalWeightedVal = (rScoreToUse * rWeight).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -964,8 +993,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">R</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Risk (${rWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${rWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -973,7 +1002,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${rScoreToUse.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["R"] !== undefined ? Math.round(row.weights_used["R"]*100) : 15}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${rWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -993,7 +1022,7 @@
 
       <div class="risk-table-wrapper" style="padding:20px;background:#090d16;font-family:'Courier New',Courier,monospace;border:1px solid #334155;border-radius:${resourceFilter ? '8px' : '0 0 8px 8px'};">
         <div style="font-size:13px;font-weight:800;color:#facc15;margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
-          â–¶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}RISK TRACEABILITY & AUDIT
+          ▶ ${resourceFilter ? resourceFilter.toUpperCase() + ' ' : ''}RISK TRACEABILITY & AUDIT
         </div>
         <table style="width:100%;border-collapse:collapse;text-align:left;">
           <thead>
@@ -1018,6 +1047,8 @@
 
   function renderValidationTableHtml(sub, row, value, resourceFilter) {
     let settings = {};
+    sub = sub || {};
+    row = row || {};
     const metricsMap = calculateValidationMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
@@ -1071,10 +1102,13 @@
     const val = metricsMap["Validated_Components"] ? metricsMap["Validated_Components"].val : 0;
     
     let vScoreVal = 1.0;
-    if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
-      vScoreVal = metricsMap["Validation_Score"].val;
+    if (value !== undefined && value !== null) {
+      vScoreVal = Number(value);
+    } else if (metricsMap["Validation_Score"] && metricsMap["Validation_Score"].val !== undefined) {
+      vScoreVal = Number(metricsMap["Validation_Score"].val);
     }
-    const finalWeightedVal = (vScoreVal * (row && row.weights_used && row.weights_used["V"] !== undefined ? row.weights_used["V"]*100 : 10.0)).toFixed(2);
+    const vWeight = getMetricWeight(row, "V", 10);
+    const finalWeightedVal = (vScoreVal * vWeight).toFixed(2);
     
     let gateHtml = "";
     if (vScoreVal < 0.60) {
@@ -1086,7 +1120,7 @@
       `;
     }
 
-    const breakdownObj = sub.Breakdown || {};
+    const breakdownObj = (sub && sub.Breakdown) || {};
     const breakdownHtml = Object.keys(breakdownObj).length > 0 ? `
       <div style="margin-top:4px;margin-bottom:4px;padding-left:10px;border-left:2px solid #334155;">
         <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:2px;">Breakdown</div>
@@ -1122,8 +1156,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">V</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Validation (${vWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${vWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1131,7 +1165,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${vScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["V"] !== undefined ? Math.round(row.weights_used["V"]*100) : 10}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${vWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1178,6 +1212,8 @@
 
   function renderCostTableHtml(sub, row, value, resourceFilter) {
     let settings = {};
+    sub = sub || {};
+    row = row || {};
     const metricsMap = calculateCostMetrics(sub, row, value);
     
     const fmt = (val, dec = 6) => {
@@ -1278,15 +1314,17 @@
 
     // Retrieve final values for the formula widget
     // Value represents the raw Cost metric (0.0 to 1.0)
-    const costScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (costScoreVal * (row && row.weights_used && row.weights_used["C"] !== undefined ? row.weights_used["C"]*100 : 5.0)).toFixed(2);
+    const costScoreVal = (value !== undefined && value !== null) ? Number(value) : 1.0;
+    const cWeight = getMetricWeight(row, "C", 5);
+    const finalWeightedVal = (costScoreVal * cWeight).toFixed(2);
+    const utilVal = (sub && sub.utilization !== undefined && sub.utilization !== null) ? sub.utilization : ((row && row.sub_metrics && row.sub_metrics.utilization) || 1.0);
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">C</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Cost (${cWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${cWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1294,12 +1332,12 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${costScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["C"] !== undefined ? Math.round(row.weights_used["C"]*100) : 5}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${cWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) Ã— Utilization Factor</div>
+            <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">C = min(1, AI Cost per Output / Human Cost per Output) × Utilization Factor</div>
           </div>
 </div>
 <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;">
@@ -1307,8 +1345,8 @@
 <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
 <div>Human Cost per Output : $200.00</div>
 <div>AI Cost per Output : $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'}</div>
-<div>Utilization Factor : ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)}</div>
-<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(sub.utilization || (row && row.sub_metrics && row.sub_metrics.utilization) || 1.0, 2)} = ${costScoreVal.toFixed(4)}</div>
+<div>Utilization Factor : ${fmt(utilVal, 2)}</div>
+<div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Cost Score : min(1, $${metricsMap.ai_cost_per_output ? fmt(metricsMap.ai_cost_per_output.calc, 4) : '0.0000'} / $200.00) * ${fmt(utilVal, 2)} = ${costScoreVal.toFixed(4)}</div>
 </div>
 </div>
 </div>
@@ -1444,15 +1482,26 @@
       `;
     }).join("");
 
-    let pScoreVal = (value !== undefined && value !== null) ? value : 1.0;
-    const finalWeightedVal = (pScoreVal * (row && row.weights_used && row.weights_used["P"] !== undefined ? row.weights_used["P"]*100 : 15.0)).toFixed(2);
+    let pScoreVal = (value !== undefined && value !== null) ? Number(value) : 1.0;
+    const pWeight = getMetricWeight(row, "P", 15);
+    const finalWeightedVal = (pScoreVal * pWeight).toFixed(2);
+    
+    const compTasks = (metricsMap.completed_tasks && metricsMap.completed_tasks.val !== undefined && metricsMap.completed_tasks.val !== null && metricsMap.completed_tasks.val !== "Unavailable")
+      ? metricsMap.completed_tasks.val
+      : (sub && (sub.completed !== undefined ? sub.completed : (sub.completed_tasks !== undefined ? sub.completed_tasks : 1))) || 1;
+    const normFactor = (metricsMap.normalization_factor && metricsMap.normalization_factor.val !== undefined && metricsMap.normalization_factor.val !== null && metricsMap.normalization_factor.val !== "Unavailable")
+      ? fmt(metricsMap.normalization_factor.val, 3)
+      : (sub && sub.gamma !== undefined ? fmt(sub.gamma, 3) : "1.000");
+    const baseLine = (metricsMap.human_baseline && metricsMap.human_baseline.val !== undefined && metricsMap.human_baseline.val !== null && metricsMap.human_baseline.val !== 0 && metricsMap.human_baseline.val !== "Unavailable")
+      ? fmt(metricsMap.human_baseline.val, 3)
+      : (row && row.baseline_human_output ? fmt(row.baseline_human_output, 3) : "1.000");
     
     return `
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">P</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Productivity (${pWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${pWeight}%</span>
         </div>
         
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
@@ -1461,21 +1510,21 @@
               <div style="color:#38bdf8;font-size:18px;font-weight:800;">${pScoreVal.toFixed(4)}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (*${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%)</div>
+              <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Weighted (*${pWeight}%)</div>
               <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
             </div>
             <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
               <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Formula</div>
-              <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output * Î³) / Human Baseline)</div>
+              <div style="color:#e2e8f0;font-size:11px;line-height:1.4;">P = min(1.0, (AI Output * γ) / Human Baseline)</div>
             </div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:12px;margin-bottom:12px;">
             <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Productivity Calculation</div>
             <div style="display:flex;flex-direction:column;gap:4px;color:#e2e8f0;font-size:12px;">
-              <div>AI Output (Completed) : ${metricsMap.completed_tasks.val}</div>
-              <div>Normalization (Î³) : ${metricsMap.normalization_factor.val}</div>
-              <div>Human Baseline : ${metricsMap.human_baseline.val}</div>
-              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Productivity Score : min(1.0, (${metricsMap.completed_tasks.val} * ${metricsMap.normalization_factor.val}) / ${metricsMap.human_baseline.val == 0 ? 1 : metricsMap.human_baseline.val}) = ${pScoreVal.toFixed(4)}</div>
+              <div>AI Output (Completed) : ${compTasks}</div>
+              <div>Normalization (γ) : ${normFactor}</div>
+              <div>Human Baseline : ${baseLine}</div>
+              <div style="margin-top:4px;font-weight:bold;color:#38bdf8;">Productivity Score : min(1.0, (${compTasks} * ${normFactor}) / ${baseLine == 0 ? 1 : baseLine}) = ${pScoreVal.toFixed(4)}</div>
             </div>
           </div>
         </div>
@@ -1526,10 +1575,13 @@
     else if (sub.execution_status === 'success') successful = attempts;
     
     let calcEScore = 0;
-    if (attempts > 0) calcEScore = successful / attempts;
+    if (attempts > 0) {
+      calcEScore = successful / attempts;
+    } else if (value !== undefined && value !== null) {
+      calcEScore = Number(value);
+    }
     
-    // Remove the display override that masks mathematical inconsistencies
-    const eScoreVal = calcEScore;
+    const eScoreVal = (value !== undefined && value !== null) ? Number(value) : calcEScore;
 
     return {
       eScoreVal: eScoreVal,
@@ -1547,6 +1599,8 @@
 
   function renderExecutionTableHtml(sub, row, value, resourceFilter) {
     let settings = {};
+    sub = sub || {};
+    row = row || {};
     const metricsMap = calculateExecutionMetrics(sub, row, value);
     
     const fmt = (val, dec = 3) => {
@@ -1597,10 +1651,13 @@
     const successful = metricsMap["Successful_Attempts"] ? metricsMap["Successful_Attempts"].val : 0;
     
     let eScoreVal = 0.0;
-    if (metricsMap["Execution_Score"] && metricsMap["Execution_Score"].val !== undefined) {
-      eScoreVal = metricsMap["Execution_Score"].val;
+    if (value !== undefined && value !== null) {
+      eScoreVal = Number(value);
+    } else if (metricsMap["Execution_Score"] && metricsMap["Execution_Score"].val !== undefined) {
+      eScoreVal = Number(metricsMap["Execution_Score"].val);
     }
-    const finalWeightedVal = (eScoreVal * (row && row.weights_used && row.weights_used["E"] !== undefined ? row.weights_used["E"]*100 : 15.0)).toFixed(2);
+    const eWeight = getMetricWeight(row, "E", 15);
+    const finalWeightedVal = (eScoreVal * eWeight).toFixed(2);
     
     const rowHtml = entries.map(([key, r]) => {
       const valStr = r.val !== null && r.val !== undefined ? r.val : "Unavailable";
@@ -1625,8 +1682,8 @@
       <div style="padding:16px 20px;background:#020617;font-family:'Courier New',Courier,monospace;border-bottom:1px solid #1e293b;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
           <span style="background:#334155;color:#facc15;font-weight:800;padding:4px 10px;border-radius:6px;font-size:14px;">E</span>
-          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</span>
-          <span style="color:#64748b;font-size:12px;">weight: ${row && row.weights_used && row.weights_used["P"] !== undefined ? Math.round(row.weights_used["P"]*100) : 15}%</span>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:700;">Execution (${eWeight}%)</span>
+          <span style="color:#64748b;font-size:12px;">weight: ${eWeight}%</span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px;">
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1634,7 +1691,7 @@
             <div style="color:#38bdf8;font-size:18px;font-weight:800;">${eScoreVal.toFixed(4)}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
-            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${row && row.weights_used && row.weights_used["E"] !== undefined ? Math.round(row.weights_used["E"]*100) : 15}%)</div>
+            <div style="color:#64748b;font-size:10px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">WEIGHTED (*${eWeight}%)</div>
             <div style="color:#4ade80;font-size:18px;font-weight:800;">${finalWeightedVal}</div>
           </div>
           <div style="background:#0f172a;border:1px solid #1e293b;border-radius:6px;padding:10px;">
@@ -1993,89 +2050,52 @@
       const tr = ev.target.closest("tr.agent-row");
 
       if (td && tr) {
-        // â€” Metric column click: open/close inline detail row â€”
+        // — Metric column click: open/close inline detail row —
         const agentId = tr.dataset.agentId;
         const key = td.dataset.key;
         
-        // Only one Cost (C) detail row should be open at any time.
-        const existingCost = this.shadowRoot.querySelector("tr.cost-detail-row");
-        const existingDetail = this.shadowRoot.querySelector("tr.detail-row");
-
-        if (key === "C") {
-          // If we click C, collapse any general detail row first
-          if (existingDetail) {
-            existingDetail.remove();
-            this._expandedKey = null;
-            this._expandedAgentId = null;
+        // Remove any open detail rows across the board
+        const existingDetail = this.shadowRoot.querySelector("tr.detail-row, tr.cost-detail-row");
+        if (existingDetail) {
+          const isSameCell = (tr.nextElementSibling === existingDetail && existingDetail.dataset.expandedKey === key);
+          existingDetail.remove();
+          this._expandedKey = null;
+          this._expandedAgentId = null;
+          if (isSameCell) {
+            ev.preventDefault();
+            return;
           }
+        }
 
-          if (existingCost) {
-            const isSelf = (tr.nextElementSibling === existingCost);
-            existingCost.remove();
-            this._expandedKey = null;
-            this._expandedAgentId = null;
-            if (isSelf) {
-              // Clicked same C cell on same row: collapsed now, return
-              ev.preventDefault();
-              return;
+        try {
+          let row = (this._data || []).find(r => r.agent_id === agentId);
+          const cached = getCachedAgentScore(agentId);
+          if (cached) {
+            row = Object.assign({}, cached, row || {});
+            if (!row.sub_metrics && cached.sub_metrics) {
+              row.sub_metrics = cached.sub_metrics;
             }
           }
-
-          const row = (this._data || []).find(r => r.agent_id === agentId);
-          if (!row) return;
-          const m = row.metrics || {};
-          const sub = row.sub_metrics || {};
-          const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
-          const detailTr = document.createElement("tr");
-          detailTr.className = "cost-detail-row";
-          detailTr.dataset.expandedKey = key;
-          detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
-          tr.parentNode.insertBefore(detailTr, tr.nextSibling);
-          
-          this._expandedAgentId = agentId;
-          this._expandedKey = key;
-          
-          ev.preventDefault();
-          return;
-        } else {
-          // For other keys
-          if (existingCost) {
-            existingCost.remove();
-            this._expandedKey = null;
-            this._expandedAgentId = null;
+          if (!row) {
+            row = { agent_id: agentId, metrics: {}, sub_metrics: {}, weights_used: {} };
           }
-
-          const existing = tr.nextElementSibling;
-          if (existing && existing.classList.contains("detail-row")) {
-            if (existing.dataset.expandedKey === key) {
-              existing.remove(); // toggle off same column
-              this._expandedKey = null;
-              this._expandedAgentId = null;
-              ev.preventDefault();
-              return;
-            }
-            existing.remove(); // replace with different column
-          } else if (existingDetail) {
-            existingDetail.remove(); // remove other agent's detail row
-          }
-
-          const row = (this._data || []).find(r => r.agent_id === agentId);
-          if (!row) return;
           const m = row.metrics || {};
           const sub = row.sub_metrics || {};
           const detailHtml = metricDetailHtml(key, m[key], sub[key], row);
           const detailTr = document.createElement("tr");
           detailTr.className = "detail-row";
           detailTr.dataset.expandedKey = key;
-          detailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+          detailTr.innerHTML = `<td colspan="10" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
           tr.parentNode.insertBefore(detailTr, tr.nextSibling);
           
           this._expandedAgentId = agentId;
           this._expandedKey = key;
-          
-          ev.preventDefault();
-          return;
+        } catch (err) {
+          console.error("Error displaying detail for " + key + ":", err);
         }
+        
+        ev.preventDefault();
+        return;
       }
 
       if (tr) {
