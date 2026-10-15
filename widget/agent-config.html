@@ -282,27 +282,69 @@
             wTotal += (parseFloat(inp.value)||0);
         });
         const wTotalEl = document.getElementById('weightTotal');
+        const submitBtn = document.querySelector('#configForm button[type="submit"]');
+        const statusEl = document.getElementById('status');
+
+        const roundedTotal = Math.round(wTotal * 100) / 100;
+        const isEqual100 = Math.abs(roundedTotal - 100) < 0.001;
+
         if (wTotalEl) {
-            wTotalEl.innerText = "Total: " + Math.round(wTotal) + "%";
-            if (Math.abs(wTotal - 100) > 0.01) {
-                wTotalEl.style.color = "#facc15";
+            wTotalEl.innerText = "Total: " + roundedTotal + "%";
+            wTotalEl.style.fontWeight = "bold";
+            wTotalEl.style.fontSize = "15px";
+            if (isEqual100) {
+                // If total weightage is exactly 100% -> Show Green indicator
+                wTotalEl.style.color = "#10b981";
             } else {
-                wTotalEl.style.color = "var(--muted)";
+                // If total weightage is greater or less than 100% -> Show Red indicator
+                wTotalEl.style.color = "#ef4444";
+            }
+        }
+
+        if (submitBtn) {
+            if (isEqual100) {
+                submitBtn.disabled = false;
+                submitBtn.style.opacity = "1.0";
+                submitBtn.style.cursor = "pointer";
+                submitBtn.style.background = "var(--accent)";
+                submitBtn.style.color = "#000";
+                if (statusEl && statusEl.dataset.isValidationError === "true") {
+                    statusEl.textContent = "";
+                    statusEl.className = "status-msg";
+                    statusEl.style.display = "none";
+                    delete statusEl.dataset.isValidationError;
+                }
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.style.opacity = "0.5";
+                submitBtn.style.cursor = "not-allowed";
+                submitBtn.style.background = "#64748b";
+                submitBtn.style.color = "#cbd5e1";
+                if (statusEl) {
+                    statusEl.textContent = `Total weightage is ${roundedTotal}%. Please adjust the values so the total equals 100%.`;
+                    statusEl.className = "status-msg error";
+                    statusEl.style.color = "#ef4444";
+                    statusEl.style.display = "block";
+                    statusEl.dataset.isValidationError = "true";
+                }
             }
         }
     }
     
-    document.querySelectorAll('input').forEach(inp => inp.addEventListener('input', calculateDPI));
+    document.querySelectorAll('.weight-input').forEach(inp => {
+        inp.addEventListener('input', calculateDPI);
+        inp.addEventListener('keyup', calculateDPI);
+        inp.addEventListener('change', calculateDPI);
+    });
     calculateDPI();
 
     const configForm = document.getElementById('configForm');
     if(configForm) {
         configForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const agentId = document.getElementById('agent_id').value || 'agent-001';
+            const agentId = (document.getElementById('agent_id').value || 'agent-001').trim();
             const metrics = ['P', 'Q', 'E', 'G', 'R', 'C', 'V'];
             
-            // --- Intelligent Weight Balancing (Auto-normalizes single-parameter or subset edits to exactly 100%) ---
             let rawWeights = {};
             let checkTotal = 0;
             for (let m of metrics) {
@@ -312,33 +354,21 @@
                 checkTotal += val;
             }
 
-            if (checkTotal <= 0) {
-                rawWeights = { P: 15, Q: 20, E: 15, G: 20, R: 15, C: 5, V: 10 };
-                checkTotal = 100;
-            }
-
-            let finalWeights = {};
-            if (Math.abs(checkTotal - 100) > 0.001) {
-                let runningSum = 0;
-                for (let i = 0; i < metrics.length; i++) {
-                    const m = metrics[i];
-                    if (i === metrics.length - 1) {
-                        finalWeights[m] = parseFloat((100 - runningSum).toFixed(2));
-                    } else {
-                        const scaled = parseFloat(((rawWeights[m] / checkTotal) * 100).toFixed(2));
-                        finalWeights[m] = scaled;
-                        runningSum += scaled;
-                    }
-                    const inp = document.getElementById('weight_' + m);
-                    if (inp) inp.value = finalWeights[m];
+            const roundedTotal = Math.round(checkTotal * 100) / 100;
+            if (Math.abs(roundedTotal - 100) > 0.001) {
+                const statusEl = document.getElementById('status');
+                if (statusEl) {
+                    statusEl.textContent = `Total weightage is ${roundedTotal}%. Please adjust the values so the total equals 100%.`;
+                    statusEl.className = 'status-msg error';
+                    statusEl.style.color = '#ef4444';
+                    statusEl.style.display = 'block';
+                    statusEl.dataset.isValidationError = "true";
                 }
-                calculateDPI();
-            } else {
-                for (let m of metrics) {
-                    finalWeights[m] = rawWeights[m];
-                }
+                alert(`Total weightage is ${roundedTotal}%. The sum of all 7 weightages must equal exactly 100% before saving.`);
+                return;
             }
-            // ---------------------------------
+            
+            const finalWeights = rawWeights;
             
             const statusEl = document.getElementById('status');
             if (statusEl) {
