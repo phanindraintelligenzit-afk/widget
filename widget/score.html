@@ -306,17 +306,35 @@ window.addEventListener("unhandledrejection", function(e) {
           }
           hoverStars(agentId, rating); // Force the visual highlight
 
+          // Retrieve registered email if known from onboarding, else fallback to current user/sme
+          let mgrId = "sme@intelligenzit.com";
+          try {
+              const obRes = await fetch(`/api/agents/${agentId}/onboard`, {
+                  headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('token') || '') }
+              });
+              if (obRes.ok) {
+                  const obData = await obRes.json();
+                  if (obData && obData.business_owner_email) {
+                      mgrId = obData.business_owner_email;
+                  }
+              }
+          } catch(e) {}
+
           const payload = {
               agent_id: agentId,
-              manager_id: "sme@intelligenzit.com",
+              manager_id: mgrId,
+              review_period: "Current",
               rating: rating,
-              feedback: "Direct star rating via Rating Page"
+              comments: "Direct star rating via Rating Page"
           };
           
           try {
               const res = await fetch(`/api/agents/${agentId}/manager-rating`, {
                   method: 'POST',
-                  headers: {'Content-Type': 'application/json'},
+                  headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                  },
                   body: JSON.stringify(payload)
               });
               

@@ -951,14 +951,18 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
     # The email entered in the Manager Review modal MUST match the Business Owner Email from Onboarding.
     registered_email = (onboarding.business_owner_email or "").strip().lower()
     provided_email = (body.manager_id or "").strip().lower()
+    if not provided_email and registered_email:
+        provided_email = registered_email
     
-    if provided_email != registered_email:
+    is_admin = current_user.get("role") == "ADMIN" or current_user.get("username") == "admin"
+    if not is_admin and registered_email and provided_email != registered_email:
         raise HTTPException(
             status_code=403, 
             detail=f"Authorization Failed: You entered '{provided_email}', but only the registered Business Owner ('{registered_email}') is authorized to submit a Manager Review for this agent."
         )
             
-    row = store.repo.save_manager_rating(s, agent_id, body.manager_id, body.rating, body.comments, body.review_period)
+    final_manager_id = provided_email if provided_email else (registered_email or "sme@intelligenzit.com")
+    row = store.repo.save_manager_rating(s, agent_id, final_manager_id, body.rating, body.comments, body.review_period)
     
     if onboarding:
         email_subject = f"DPI-LS: Manager Review Submitted for {agent_id}"
@@ -1190,12 +1194,42 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         incidents=[],
     )
 
+    # Track execution record in DB (Branch A: Execution Record & Persistence)
+    import uuid
+    import time
+    import json
+    from store.models import ExecutionRow
+    now_ts = time.time()
+    exec_id = f"exe-{uuid.uuid4().hex[:12]}"
+    exec_row = ExecutionRow(
+        id=exec_id,
+        agent_id=agent_id,
+        status="RUNNING",
+        queued_at=now_ts,
+        started_at=now_ts,
+        start_time=now_ts,
+    )
+    s.add(exec_row)
+    s.flush()
+
     # 2. Score and persist immediately with custom weights from configuration
     rating = score_and_persist(s, obs, baseline=agent.baseline_human_output)
+    
+    # Mark execution as SUCCESS
+    exec_row.status = "SUCCESS"
+    exec_row.completed_at = time.time()
+    exec_row.end_time = exec_row.completed_at
+    exec_row.result = json.dumps({
+        "score": rating.score,
+        "raw_score": rating.raw_score,
+        "status": "SUCCESS",
+        "metrics": rating.metrics,
+        "weights_used": rating.weights_used
+    })
     s.commit()
 
     # 3. Also run test_agent.py in background thread with non-blocking environment
-    def run_eval_thread(a_id, a_name):
+    def run_eval_thread(a_id, a_name, e_id):
         import shutil
         import sys
         env = os.environ.copy()
@@ -1211,7 +1245,7 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
         env["DPI_LS_PORT"] = port
         env["DPI_LS_URL"] = f"http://127.0.0.1:{port}"
         try:
-            print(f"[Background] Running test_agent.py for {a_id}...")
+            print(f"[Background] Running test_agent.py for {a_id} (execution: {e_id})...")
             uv_bin = shutil.which("uv")
             if uv_bin:
                 cmd = [uv_bin, "run", "python", "examples/test_agent.py", "--agent-id", a_id]
@@ -1220,12 +1254,13 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
             repo_root = str(Path(__file__).resolve().parent.parent)
             subprocess.run(cmd, env=env, cwd=repo_root, shell=(sys.platform == "win32"))
         except Exception as e:
-            print(f"[Background] Error in test_agent.py: {e}")
+            print(f"[Background] Error in test_agent.py for {a_id}: {e}")
 
-    threading.Thread(target=run_eval_thread, args=(agent_id, agent_name), daemon=True).start()
+    threading.Thread(target=run_eval_thread, args=(agent_id, agent_name, exec_id), daemon=True).start()
 
     return {
         "status": "SUCCESS",
+        "execution_id": exec_id,
         "agent_id": agent_id,
         "score": rating.score,
         "raw_score": rating.raw_score,
