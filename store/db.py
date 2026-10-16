@@ -13,7 +13,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-DEFAULT_URL = "sqlite:///./dpi_ls.db"
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "dpi_ls.db").replace("\\", "/")
+DEFAULT_URL = f"sqlite:///{DEFAULT_DB_PATH}"
 import json
 import boto3
 
@@ -46,8 +47,8 @@ def configure(url: str | None = None) -> Engine:
     
     # 1. Resolve connection URL
     if not url:
-        url = os.environ.get("DPI_DB_URL")
-        # In production, if DPI_DB_URL isn't explicitly set (e.g. for a proxy), fetch from Secrets Manager
+        url = os.environ.get("DATABASE_URL") or os.environ.get("DPI_DB_URL")
+        # In production, if neither is explicitly set, fetch from Secrets Manager
         if not url and dpi_env == "production":
             secret_name = os.environ.get("DPI_DB_SECRET_NAME", "dpi-ls/production/database")
             try:
@@ -57,6 +58,10 @@ def configure(url: str | None = None) -> Engine:
         elif not url:
             url = DEFAULT_URL
 
+    # Normalize relative SQLite paths to avoid creating isolated DB files across processes
+    if url and (url.startswith("sqlite:///./") or url == "sqlite:///dpi_ls.db" or url == "sqlite://./dpi_ls.db"):
+        url = DEFAULT_URL
+
     # 2. Hard production guard: Fail loud, never fall back.
     if dpi_env == "production":
         if "sqlite" in url or "localhost" in url:
@@ -65,14 +70,29 @@ def configure(url: str | None = None) -> Engine:
     is_sqlite = url.startswith("sqlite")
     is_memory = is_sqlite and ":memory:" in url
 
-    connect_args = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
+    connect_args = {"check_same_thread": False, "timeout": 60} if is_sqlite else {}
     kwargs = {"connect_args": connect_args, "future": True}
     if is_memory:
         # Share the same in-memory DB across sessions for the duration
         from sqlalchemy.pool import StaticPool
         kwargs["poolclass"] = StaticPool
+    elif is_sqlite:
+        kwargs["pool_size"] = 20
+        kwargs["max_overflow"] = 40
+        kwargs["pool_timeout"] = 60.0
 
     _engine = create_engine(url, **kwargs)
+    
+    if is_sqlite:
+        from sqlalchemy import event
+        @event.listens_for(_engine, "connect")
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=60000")
+            cursor.close()
+
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, autocommit=False, future=True)
     return _engine
 

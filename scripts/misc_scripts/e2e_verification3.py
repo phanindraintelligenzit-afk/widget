@@ -2,7 +2,7 @@
 import jwt
 from datetime import datetime, timedelta, timezone
 
-SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS"
+SECRET_KEY = "SUPER_SECRET_JWT_KEY_FOR_DPI_LS_32"
 ALGORITHM = "HS256"
 
 # Create a valid token
@@ -11,11 +11,12 @@ token = jwt.encode({"sub": "admin", "role": "admin", "exp": expire}, SECRET_KEY,
 headers = {"Authorization": f"Bearer {token}"}
 
 base_url = "http://127.0.0.1:8000"
+client = httpx.Client(timeout=30.0)
 
 def run_e2e():
     print("--- 1. Onboard Agent ---")
-    agent_id = "test-agent-e2e-001"
-    r = httpx.post(f"{base_url}/api/agents/{agent_id}/onboard", json={
+    agent_id = "test-agent-e2e-002"
+    r = client.post(f"{base_url}/api/agents/{agent_id}/onboard", json={
         "description": "E2E Test Agent",
         "agent_type": "Integration",
         "environment": "Test",
@@ -39,7 +40,7 @@ def run_e2e():
     }
     
     for k, v in configs.items():
-        r = httpx.post(f"{base_url}/api/agents/{agent_id}/config", json={
+        r = client.post(f"{base_url}/api/agents/{agent_id}/config", json={
             "configuration_key": k,
             "configuration_value": str(v),
             "source": "E2E Script"
@@ -54,12 +55,12 @@ def run_e2e():
         "executions": {"trace_captured": True},
         "policy": {"Total Actions": 10, "Policy Violations": 4},
     }
-    r = httpx.post(f"{base_url}/api/ingest/{agent_id}/telemetry", json=telemetry, headers=headers)
+    r = client.post(f"{base_url}/api/ingest/{agent_id}/telemetry", json=telemetry, headers=headers)
     print(f"Telemetry Status: {r.status_code}")
     assert r.status_code in (200, 202)
     
     print("\n--- 4. Verify Dashboard & Final Score ---")
-    r = httpx.get(f"{base_url}/ratings", headers=headers)
+    r = client.get(f"{base_url}/ratings", headers=headers)
     ratings = r.json()
     my_agent = next((a for a in ratings if a["agent_id"] == agent_id), None)
     assert my_agent is not None
@@ -69,3 +70,4 @@ def run_e2e():
     print("\n--- E2E SUCCESS ---")
 
 run_e2e()
+

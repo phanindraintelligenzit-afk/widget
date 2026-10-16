@@ -6,3 +6,5 @@
 dpi_ls.egg-info/
 testrun.txt
 dpi_ls_observation.json
+.venv/
+.pytest_cache/

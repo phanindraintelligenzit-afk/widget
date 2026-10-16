@@ -40,10 +40,7 @@ def run_telemetry(self, agent_id: str, agent_name: str, human_baseline: str = "1
             
         existing = session.query(store.models.ScoreRow).filter_by(agent_id=agent_id).first()
         if existing:
-            print(f"[Celery] Agent {agent_id} already has a rating. Deleting it to inject new dynamic dummy record.")
-            session.delete(existing)
-            session.commit()
-            existing = None
+            print(f"[Celery] Agent {agent_id} already has a rating. Preserving existing record.")
             
         if not existing:
             print(f"[Celery] Agent {agent_id} has no rating yet! Forcing a dynamic dummy record so it appears on Dashboard.")

@@ -1,8 +1,8 @@
 """
-DPI-LS FinOps Agent ΓÇö Fully Dynamic Example
+DPI-LS FinOps Agent Î“Ã‡Ã¶ Fully Dynamic Example
 ============================================
 
-Every config value is read from the environment (.env file) ΓÇö nothing is hardcoded.
+Every config value is read from the environment (.env file) Î“Ã‡Ã¶ nothing is hardcoded.
 
 Environment variables (set in .env):
     BEDROCK_MODEL_ID      = which Bedrock model to use      (required)
@@ -57,8 +57,8 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from dotenv import load_dotenv
 
-# ΓöÇΓöÇ Load .env FIRST so all os.getenv() calls below pick it up ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
-load_dotenv(override=True)
+# Load .env without overriding explicitly provided environment variables (like AGENT_ID)
+load_dotenv(override=False)
 
 if os.getenv("LANGCHAIN_API_KEY") and "rotated" in os.getenv("LANGCHAIN_API_KEY"):
     os.environ.pop("LANGCHAIN_TRACING_V2", None)
@@ -93,14 +93,14 @@ if os.getenv("LANGFUSE_PUBLIC_KEY") and "rotated" not in os.getenv("LANGFUSE_PUB
     litellm.failure_callback = ["langfuse"]
 
 
-import dpi_ls  # line 1 ΓÇö the installable package
+import dpi_ls  # line 1 Î“Ã‡Ã¶ the installable package
 
 from agents import Agent, function_tool, Runner
 from agents.extensions.models.litellm_model import LitellmModel
 from agents.tool import FunctionTool
 
 
-# ΓöÇΓöÇ Read ALL config from environment (zero hardcoding) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+# Î“Ã¶Ã‡Î“Ã¶Ã‡ Read ALL config from environment (zero hardcoding) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡
 
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip().strip('"').strip("'")
@@ -114,9 +114,23 @@ def _env_int(key: str, default: int) -> int:
 # Required
 BEDROCK_MODEL_ID  = _env("BEDROCK_MODEL_ID") or _env("MODEL_NAME")
 
-# Optional ΓÇö all have sensible defaults
+# Optional — all have sensible defaults
 AGENT_ID          = _env("AGENT_ID",       "chandra-finops")
 AGENT_NAME        = _env("AGENT_NAME",     "Chandra")
+
+import argparse
+_parser = argparse.ArgumentParser(description="DPI-LS Agent Evaluator", add_help=False)
+_parser.add_argument("--agent-id", dest="agent_id", default=None)
+_parser.add_argument("--agent-name", dest="agent_name", default=None)
+_parsed_args, _ = _parser.parse_known_args()
+
+if _parsed_args.agent_id:
+    AGENT_ID = _parsed_args.agent_id
+    if not _parsed_args.agent_name and AGENT_NAME == "Chandra":
+        AGENT_NAME = _parsed_args.agent_id
+if _parsed_args.agent_name:
+    AGENT_NAME = _parsed_args.agent_name
+
 LOOKBACK_DAYS     = _env_int("LOOKBACK_DAYS", 3)
 HUMAN_BASELINE    = _env_int("HUMAN_BASELINE", 1)
 DPI_LS_HOST       = _env("DPI_LS_HOST",    "127.0.0.1")
@@ -136,7 +150,7 @@ AGENT_QUESTION = _env("AGENT_QUESTION") or (
 
 
 # ===============================================================
-#  AWS Cost Explorer ΓÇö fetches real billing data
+#  AWS Cost Explorer Î“Ã‡Ã¶ fetches real billing data
 # ===============================================================
 
 class AWSCostExplorerFetcher:
@@ -332,6 +346,9 @@ async def run_agent_observation() -> None:
         from unittest.mock import patch
         import litellm
         
+        async def mock_fetch(*args, **kwargs): return {'status': 'mocked_costs'}
+        fetcher.fetch_costs_summary = mock_fetch
+        
         async def mock_acompletion(*args, **kwargs):
             # Use actual litellm objects to satisfy the strict Pydantic checks in the agents framework
             return litellm.ModelResponse(
@@ -423,6 +440,7 @@ async def run_agent_observation() -> None:
 
 if __name__ == "__main__":
     asyncio.run(run_agent_observation())
+
 
 
 

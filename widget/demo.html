@@ -148,11 +148,21 @@
           <h1 style="margin: 0; font-size: 22px;">DPI (Digital Performance Index)</h1>
           <span id="login-time-display" style="display: none; color: var(--muted); font-size: 13px; font-weight: 500; background: rgba(255,255,255,0.05); padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);"></span></div>
       <div class="search-bar" style="position: relative;">
-        <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
-        <span style="position: absolute; right: 12px; top: 9px; opacity: 0.6; font-size: 14px;">??</span>
+        <input type="text" placeholder="Search agents or metrics..." style="padding: 8px 36px 8px 16px; border-radius: 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text); outline: none; width: 240px; font-size: 13px;">
+        <span style="position: absolute; right: 12px; top: 10px; opacity: 0.6; display: flex; align-items: center; pointer-events: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </span>
       </div>
-      <button class="chatbot-btn" style="background: var(--accent); color: #000; border: none; border-radius: 50%; width: 38px; height: 38px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 10px rgba(250, 204, 21, 0.2);" title="DPI-LS AI Assistant">
-        ??
+      <button class="chatbot-btn" style="background: var(--accent); color: #000; border: none; border-radius: 50%; width: 38px; height: 38px; min-width: 38px; min-height: 38px; padding: 0 !important; margin: 0 !important; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(250, 204, 21, 0.2);" title="DPI-LS AI Assistant">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block; width:20px; height:20px;">
+          <rect x="4" y="8" width="16" height="12" rx="3"></rect>
+          <circle cx="9" cy="13" r="1.5" fill="#000"></circle>
+          <circle cx="15" cy="13" r="1.5" fill="#000"></circle>
+          <path d="M12 2v6"></path>
+          <path d="M2 14h2"></path>
+          <path d="M20 14h2"></path>
+          <path d="M9 17h6"></path>
+        </svg>
       </button>
     </header>
 
@@ -184,20 +194,70 @@
 
 
   <script>
-    // Board: highlight row on select-agent event
+    // Board: highlight row on select-agent event, reset on reload and sidebar click
     (function () {
       const board = document.querySelector("dpi-ls-board");
       if (!board) return;
-      const urlAgent = new URLSearchParams(window.location.search).get("agent");
-      if (urlAgent) board.setAttribute("selected-agent", urlAgent);
+
+      const navEntry = (window.performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null;
+      const isReload = (navEntry && navEntry.type === 'reload') || (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+      if (isReload) {
+        try {
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch (e) {}
+      }
+
+      const urlParams = isReload ? new URLSearchParams() : new URLSearchParams(window.location.search);
+      const urlAgent = urlParams.get("agent") || urlParams.get("id") || "";
+      const updateRatingNav = (aid) => {
+        const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+        if (ratingLink) {
+          if (aid) {
+            ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(aid)}`;
+          } else {
+            ratingLink.href = `/widget/score.html`;
+          }
+        }
+      };
+      if (urlAgent) {
+        board.setAttribute("selected-agent", urlAgent);
+        updateRatingNav(urlAgent);
+      }
+
+      // After displaying in Dashboard, erase onboarding and configuration form details
+      const onboardKeys = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+      onboardKeys.forEach(f => {
+        try {
+          localStorage.removeItem('onboard_' + f);
+          sessionStorage.removeItem('onboard_' + f);
+        } catch(e) {}
+      });
+      try {
+        localStorage.removeItem('onboard_agent_id');
+        sessionStorage.removeItem('onboard_agent_id');
+        sessionStorage.removeItem('pending_config_agent_id');
+        localStorage.removeItem('last_agent_id');
+        localStorage.setItem('dpi_erase_onboarding_form', 'true');
+      } catch(e) {}
+
       board.addEventListener("dpi-ls-select-agent", (ev) => {
         const { agentId } = ev.detail || {};
         if (!agentId) return;
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set("agent", agentId);
-          window.history.replaceState({}, "", url);
-        } catch (e) {}
+        updateRatingNav(agentId);
+      });
+
+      // Clicking "Dashboard" in sidebar resets the board to show all agents
+      const dashLinks = document.querySelectorAll('a.sidebar-link[href*="demo.html"]');
+      dashLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          board.removeAttribute("selected-agent");
+          updateRatingNav("");
+          const searchInps = document.querySelectorAll('.search-bar input');
+          searchInps.forEach(i => i.value = '');
+          try {
+            window.history.replaceState({}, "", "/widget/demo.html");
+          } catch(err) {}
+        });
       });
     })();
   </script>
@@ -247,17 +307,39 @@ document.addEventListener("DOMContentLoaded", () => {
                     }
 
                     // Find if the query matches an agent ID or name exactly or partially
-                    const matchedAgent = agents.find(a => 
-                        (a.agent_id && a.agent_id.toLowerCase().includes(query)) || 
-                        (a.agent_name && a.agent_name.toLowerCase().includes(query))
-                    );
+                    const normQuery = query.replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+                    const matchedAgent = agents.find(a => {
+                        const id = a.agent_id ? a.agent_id.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+                        const name = a.agent_name ? a.agent_name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+                        return id.includes(normQuery) || name.includes(normQuery);
+                    });
 
                     if (matchedAgent) {
-                        window.location.href = `/widget/agent-profile.html?id=${matchedAgent.agent_id}`;
+                        const board = document.querySelector("dpi-ls-board");
+                        if (board) {
+                            board.setAttribute("selected-agent", matchedAgent.agent_id);
+                            const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+                            if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(matchedAgent.agent_id)}`;
+                            try {
+                                window.history.replaceState({}, "", "/widget/demo.html");
+                            } catch (e) {}
+                            document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
+                        } else {
+                            window.location.href = `/widget/demo.html?agent=${encodeURIComponent(matchedAgent.agent_id)}`;
+                        }
                     } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
                         window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
                     } else {
-                        alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+                        const board = document.querySelector("dpi-ls-board");
+                        if (board) {
+                            board.setAttribute("selected-agent", query);
+                            try {
+                                window.history.replaceState({}, "", "/widget/demo.html");
+                            } catch (e) {}
+                            document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
+                        } else {
+                            alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+                        }
                     }
                 } catch (err) {
                     console.error(err);
@@ -316,48 +398,85 @@ document.addEventListener("DOMContentLoaded", () => {
             }, speed);
         }
     }
-
     function processQuery(query) {
-        const q = query.toLowerCase();
+        // Keep raw query for some basic checks
+        const rawQ = query.toLowerCase();
+        // Remove all spaces, dashes, and punctuation for super robust matching against typos
+        const q = rawQ.replace(/[^a-z0-9]/g, '');
+        
+        // Helper function: if any of the provided words are closely found in the stripped query
+        const match = (...words) => {
+            return words.some(w => {
+                const strippedW = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return q.includes(strippedW);
+            });
+        };
+
         setTimeout(() => {
-            // Dashboard Related
-            if (q.includes('dashboard') || q.includes('leaderboard') || q.includes('green') || q.includes('red') || q.includes('yellow')) {
-                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI-LS score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
+            // 1. Dashboard
+            if (match('dashboard', 'leaderboard', 'green', 'red', 'yellow')) {
+                appendMessage("The Dashboard is the central command center. It shows all AI agents ranked by their DPI score. Scores >= 80 are Green, 51-79 are Yellow, and <= 50 are Red.", false);
             } 
-            // Onboard Agent Related
-            else if (q.includes('onboard') || q.includes('onboarding') || q.includes('register') || q.includes('new agent')) {
-                appendMessage("The Onboard Agent section allows you to register a new Digital Worker. You must provide an Agent ID, description, business owner details, and technical owner details. Upon submission, the platform tracks this agent globally.", false);
+            // 2. Onboard Agent
+            else if (match('onboard', 'register', 'newagent', 'agentid', 'agenttype', 'fillup', 'on boarding')) {
+                appendMessage("To Onboard an Agent, fill out the required fields: Agent ID (unique identifier), Description, Agent Type (e.g. Finance), Environment (Production/Dev), Business & Technical Owner emails, and Role. This registers the digital worker in our global tracking database.", false);
             }
-            // Configuration Related
-            else if (q.includes('config') || q.includes('weight') || q.includes('parameter') || q.includes('baseline')) {
-                appendMessage("The Configuration section lets you adjust the baseline requirements and the percentage weight for each of the 7 DPI-LS parameters (Productivity, Quality, Execution, Governance, Risk, Cost, Validation). Note: The total sum of all weights must equal exactly 100%.", false);
+            // 3. Configuration
+            else if (match('config', 'weight', 'parameter', 'baseline')) {
+                appendMessage("In the Configuration section, you allocate exactly 100% weightage across the 7 DPI parameters (Productivity, Quality, Efficiency, Governance, Risk, Cost, Validation). This allows dynamic, custom scoring logic for each specific agent type.", false);
             }
-            // Rating Related
-            else if (q.includes('rating') || q.includes('manager') || q.includes('review') || q.includes('score')) {
-                appendMessage("The Rating section is where human managers can submit a 1 to 5 star rating for an agent. This Subjective Matter Expert (SME) feedback is injected directly into the agent's telemetry matrix to influence the overall Quality and Execution score.", false);
+            // 4. Rating
+            else if (match('rating', 'review', 'sme', 'stars')) {
+                appendMessage("The Rating page allows Subject Matter Experts (SMEs) to evaluate agents on a 1-5 star scale. Submitting a review instantly updates the Governance (G) and Execution (E) multipliers in the database.", false);
             }
-            // Profile Related
-            else if (q.includes('profile') || q.includes('history') || q.includes('details')) {
-                appendMessage("The Profile section provides a detailed view of a specific agent. It displays their exact score breakdown and metadata over time. You can search for an agent ID to jump directly to their profile.", false);
+            // 5. Profile
+            else if (match('profile', 'history', 'details')) {
+                appendMessage("The Profile section provides a detailed, historical view of a specific agent. It displays their exact score breakdown and telemetry history over time.", false);
             }
-            // Resources Related
-            else if (q.includes('resource') || q.includes('manual') || q.includes('guide')) {
+            // 6. Resources
+            else if (match('resource', 'manual', 'guide')) {
                 appendMessage("The Resources tab provides operational manuals, architectural guidelines, and whitepapers explaining the full DPI-LS ecosystem and how to integrate your own custom frameworks.", false);
             }
-            // Formula / DPI-LS Related
-            else if (q.includes('calculate') || q.includes('formula') || q.includes('dpi-ls')) {
+            // 7. Formula / DPI-LS
+            else if (match('calculate', 'formula', 'dpils', 'dpi ls', 'math')) {
                 appendMessage("DPI-LS is calculated as: (P * Q^1.5 * E) * (G^1.5 * R^2) * C * V. This ensures compliance (G, R, V) acts as a strict multiplier, while performance (P, Q, E, C) drives the baseline.", false);
+            }
+            // 8. Technical: OpenTelemetry (Handles typos like 'open telementry', 'open telmetry')
+            else if (match('opentelemetry', 'telemetry', 'telementry', 'opentelementry', 'opentel')) {
+                appendMessage("OpenTelemetry is used in our platform for real-time observability. We use it to ingest latency, success rates, and efficiency metrics directly from the AI agents executing in production. It provides vendor-agnostic traces and metrics to calculate the 'E' (Efficiency) parameter.", false);
+            }
+            // 9. Technical: MCP (Model Context Protocol)
+            else if (match('mcp', 'modelcontext', 'model context protocol')) {
+                appendMessage("MCP (Model Context Protocol) is utilized to standardise how our evaluation engine communicates with different AI models. It ensures that when we evaluate Governance (G) or Quality (Q), the context and prompts are securely and consistently delivered across various LLM backends.", false);
+            }
+            // 10. Technical: REST API & FastAPI
+            else if (match('restapi', 'api', 'fastapi', 'backend endpoint')) {
+                appendMessage("Our REST API is built with FastAPI (Python). It handles endpoints like `GET /ratings` to populate the dashboard, and `POST /api/agents/{id}/execute` to trigger background asynchronous evaluations. It uses SQLite for fast, lightweight data persistence.", false);
+            }
+            // 11. Project History, Architecture, & Code Wise (From Start to Now)
+            else if (match('history', 'architecture', 'codewise', 'code wise', 'from starting', 'what we did', 'functionality', 'everything', 'codebase', 'deep research')) {
+                appendMessage("Here is the complete architectural history from start to now:\n\n" +
+                              "1. Database Architecture: We migrated from mocked JSON data to a fully persistent SQLite database (`dpi_ls.db`) using SQLAlchemy ORM (models.py/repo.py).\n" + 
+                              "2. API Layer: We built a high-performance Python FastAPI backend (`api/app.py`) with full CORS support and asynchronous endpoint routing.\n" +
+                              "3. Scoring Engine: We engineered a mathematical DPI-LS scoring engine (`api/scoring.py`) that strictly enforces the P*Q*E*G*R*C*V baseline multipliers without frontend manipulation.\n" +
+                              "4. Telemetry Pipeline: We built an ingestion script (`test_agent.py`) that generates realistic mock telemetry using ThreadPoolExecutors and saves it directly to the database.\n" +
+                              "5. System Stability: We solved critical backend crashes (Uvicorn deadlocks) by removing blocking SMTP code, and built a robust frontend Search Bar with Javascript Promises and version tracking to fix async race conditions.\n" + 
+                              "6. UI Integration: We fully wired the Dashboard, Configuration (100% weight validations), Profile, Rating, and Onboarding screens into the Live APIs using Fetch calls.\n\n" +
+                              "We have successfully built a full-stack, enterprise-grade AI monitoring platform!", false);
+            }
+            // 12. Technical: Resources per Parameter & Stack
+            else if (match('resourcesused', 'parameter resource', 'stack', 'tech stack', 'python', 'javascript')) {
+                appendMessage("Our technical stack relies on Python/FastAPI for the backend and HTML/JS/CSS for the frontend. For parameters: Productivity (P) uses AgentOps; Quality (Q) uses DeepEval/Ragas; Efficiency (E) uses OpenTelemetry; Governance (G) uses MCP; Risk (R) uses security scanners; Cost (C) integrates AWS Cost Explorer APIs; and Validation (V) uses our custom algorithms.", false);
+            }
+            else if (match('hello', 'hi ', 'hey ', 'greetings')) {
+                appendMessage("Hello! I am your DPI-LS Technical Assistant. You can ask me about any of the 6 platform sections, deep technical questions (OpenTelemetry, MCP, APIs), or even ask for the full architectural code history of what we built from the start!", false);
             } 
-            else if (q.includes('hello') || q.includes('hi')) {
-                appendMessage("Hello! How can I assist you with your Digital Workforce today? You can ask me about Dashboard, Onboarding, Configuration, Rating, Profile, or Resources.", false);
-            } 
-            // Fallback
+            // Fallback (Exact phrasing requested)
             else {
-                appendMessage("I am fully integrated into all 6 platform sections (Dashboard, Onboarding, Configuration, Rating, Profile, Resources). Just ask me how any section works, or ask how to calculate a score, and I'll explain its exact functionality!", false);
+                appendMessage("its a out of questions and it is not related to our dpi-ls related also so so sryyy . meet you soons for asking thankyou.", false);
             }
         }, 600);
     }
-
     function handleSend() {
         const text = chatInput.value.trim();
         if (!text) return;
@@ -401,6 +520,9 @@ document.addEventListener("DOMContentLoaded", () => {
         dropdown.style.zIndex = '10000';
         bar.appendChild(dropdown);
 
+        let agentsPromise = null;
+        let searchVersion = 0;
+        
         inp.addEventListener('input', async (e) => {
             const query = e.target.value.trim().toLowerCase();
             if (!query) {
@@ -408,13 +530,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
+            searchVersion++;
+            const currentVersion = searchVersion;
+
             try {
-                // Fetch live agents
-                const res = await fetch('/ratings');
-                let agents = [];
-                if (res.ok) {
-                    agents = await res.json();
+                if (!agentsPromise) {
+                    agentsPromise = fetch('/ratings').then(res => res.ok ? res.json() : []);
                 }
+                const agents = await agentsPromise;
+                
+                // If the user typed another letter while we were waiting, discard this render!
+                if (currentVersion !== searchVersion) return;
 
                 // Hardcode sections and metrics
                 const metrics = ['Risk', 'Productivity', 'Quality', 'Efficiency', 'Governance', 'Cost', 'Validation'];
@@ -462,7 +588,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
 
                 // Filter Agents
-                const matchedAgents = agents.filter(a => (a.agent_id && a.agent_id.toLowerCase().includes(query)) || (a.agent_name && a.agent_name.toLowerCase().includes(query)));
+                const normQuery = query.replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
+                const matchedAgents = agents.filter(a => {
+                    const id = a.agent_id ? a.agent_id.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+                    const name = a.agent_name ? a.agent_name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ') : '';
+                    return id.includes(normQuery) || name.includes(normQuery);
+                });
                 const uniqueAgents = [];
                 const seen = new Set();
                 for(let a of matchedAgents) {
@@ -496,7 +627,18 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = `/widget/agent-profile.html?id=${a.agent_id}`;
+                            const board = document.querySelector("dpi-ls-board");
+                            if (board) {
+                                board.setAttribute("selected-agent", a.agent_id);
+                                const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+                                if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(a.agent_id)}`;
+                                try {
+                                    window.history.replaceState({}, "", "/widget/demo.html");
+                                } catch (e) {}
+                                dropdown.style.display = 'none';
+                            } else {
+                                window.location.href = `/widget/demo.html?agent=${encodeURIComponent(a.agent_id)}`;
+                            }
                         };
                         dropdown.appendChild(item);
                     });

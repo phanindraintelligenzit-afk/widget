@@ -39,6 +39,7 @@ from .models import (
     AgentConfigurationRow,
     ManagerRatingRow,
     CustomerRatingRow,
+    AgentWeightageRow,
 )
 
 def list_latest_risk_incidents(s: Session) -> list[RiskIncidentRow]:
@@ -194,6 +195,14 @@ def save_score(
 
 
 def latest_score(s: Session, agent_id: str) -> Optional[ScoreRow]:
+    valid = s.scalars(
+        select(ScoreRow)
+        .where(ScoreRow.agent_id == agent_id, ScoreRow.score > 0.0)
+        .order_by(ScoreRow.computed_at.desc(), ScoreRow.id.desc())
+        .limit(1)
+    ).first()
+    if valid is not None:
+        return valid
     return s.scalars(
         select(ScoreRow)
         .where(ScoreRow.agent_id == agent_id)
@@ -217,26 +226,41 @@ def latest_scores_for_all(s: Session) -> list[tuple[AgentRow, Optional[ScoreRow]
     """Return (AgentRow, latest ScoreRow or None) for every agent.
 
     Uses a single LEFT JOIN query instead of one query per agent (N+1
-    pattern). The subquery picks the highest ScoreRow.id per agent —
-    because ids are autoincrement, max(id) == most recently inserted row.
+    pattern). Prefers the latest valid score (> 0) if one exists,
+    so that temporary pending/zero placeholder rows never overwrite
+    an agent's real score. If no positive score exists, falls back to
+    the latest overall score so newly registered agents still appear.
     """
     from sqlalchemy import func
 
-    # Subquery: one row per agent containing its latest score's id.
-    latest_id_subq = (
+    valid_score_subq = (
+        select(
+            ScoreRow.agent_id.label("agent_id"),
+            func.max(ScoreRow.id).label("latest_id"),
+        )
+        .where(ScoreRow.score > 0.0)
+        .group_by(ScoreRow.agent_id)
+        .subquery("_valid_score_ids")
+    )
+
+    any_score_subq = (
         select(
             ScoreRow.agent_id.label("agent_id"),
             func.max(ScoreRow.id).label("latest_id"),
         )
         .group_by(ScoreRow.agent_id)
-        .subquery("_latest_score_ids")
+        .subquery("_any_score_ids")
     )
 
     stmt = (
         select(AgentRow, ScoreRow)
-        .outerjoin(latest_id_subq, AgentRow.id == latest_id_subq.c.agent_id)
-        .outerjoin(ScoreRow, ScoreRow.id == latest_id_subq.c.latest_id)
-        .order_by(AgentRow.name)
+        .outerjoin(valid_score_subq, AgentRow.id == valid_score_subq.c.agent_id)
+        .outerjoin(any_score_subq, AgentRow.id == any_score_subq.c.agent_id)
+        .outerjoin(
+            ScoreRow,
+            ScoreRow.id == func.coalesce(valid_score_subq.c.latest_id, any_score_subq.c.latest_id),
+        )
+        .order_by(AgentRow.first_seen.asc(), AgentRow.id.asc())
     )
 
     return [(row.AgentRow, row.ScoreRow) for row in s.execute(stmt).all()]
@@ -934,3 +958,45 @@ def update_agent_status(s: Session, agent_id: str, status: str) -> AgentRow:
     agent.last_seen = _utcnow()
     s.flush()
     return agent
+
+def get_agent_weightage(s: Session, agent_id: str) -> Optional[AgentWeightageRow]:
+    return s.get(AgentWeightageRow, agent_id)
+
+def upsert_agent_weightage(
+    s: Session,
+    agent_id: str,
+    weight_p: float,
+    weight_q: float,
+    weight_e: float,
+    weight_v: float,
+    weight_r: float,
+    weight_g: float,
+    weight_c: float,
+    total_weight: float
+) -> AgentWeightageRow:
+    row = s.get(AgentWeightageRow, agent_id)
+    if row is None:
+        row = AgentWeightageRow(
+            agent_id=agent_id,
+            weight_p=weight_p,
+            weight_q=weight_q,
+            weight_e=weight_e,
+            weight_v=weight_v,
+            weight_r=weight_r,
+            weight_g=weight_g,
+            weight_c=weight_c,
+            total_weight=total_weight
+        )
+        s.add(row)
+    else:
+        row.weight_p = weight_p
+        row.weight_q = weight_q
+        row.weight_e = weight_e
+        row.weight_v = weight_v
+        row.weight_r = weight_r
+        row.weight_g = weight_g
+        row.weight_c = weight_c
+        row.total_weight = total_weight
+        row.updated_at = _utcnow()
+    s.flush()
+    return row

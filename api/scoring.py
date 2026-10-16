@@ -100,7 +100,24 @@ def _get_custom_formula_configs(s, agent_id: str):
             pass
     return powers, multipliers
 
+
+def _get_custom_weightages(s: Session, agent_id: str):
+    from store import repo
+    row = repo.get_agent_weightage(s, agent_id)
+    if row:
+        return {
+            "P": row.weight_p,
+            "Q": row.weight_q,
+            "E": row.weight_e,
+            "V": row.weight_v,
+            "R": row.weight_r,
+            "G": row.weight_g,
+            "C": row.weight_c
+        }
+    return None
+
 def score_and_persist(
+
     s: Session,
     obs: AgentObservation,
     *,
@@ -168,9 +185,10 @@ def score_and_persist(
     _sync_metrics_from_sub_metrics(metrics, sub_metrics)
 
     powers, multipliers = _get_custom_formula_configs(s, obs.agent_id)
+    custom_weights = _get_custom_weightages(s, obs.agent_id)
     rating = rate(
         metrics,
-        weights=settings.weights,
+        weights=custom_weights if custom_weights else settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
         powers=powers,
@@ -226,9 +244,10 @@ def rescore_from_partials(s: Session, agent_id: str) -> Rating | None:
     sub_metrics = _extract_sub_metrics(merged, settings, baseline, s)
     _sync_metrics_from_sub_metrics(metrics, sub_metrics)
     powers, multipliers = _get_custom_formula_configs(s, agent_id)
+    custom_weights = _get_custom_weightages(s, agent_id)
     rating = rate(
         metrics,
-        weights=settings.weights,
+        weights=custom_weights if custom_weights else settings.weights,
         gate_thresholds=settings.gate_thresholds,
         min_dimensions_for_full_band=settings.min_dimensions_for_full_band,
         powers=powers,
@@ -370,7 +389,7 @@ def enrich_quality_sub_metrics(s: Session, sub_metrics: dict) -> dict:
 
         from store.models import EnterpriseQualityResourceEvaluationRow
         from sqlalchemy import select
-        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow).order_by(EnterpriseQualityResourceEvaluationRow.id.desc()).limit(100)).all()
         if eq_evals:
             q_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
 
@@ -445,11 +464,11 @@ def enrich_validation_sub_metrics(s: Session, sub_metrics: dict) -> dict:
             
         from store.models import EnterpriseValidationResourceEvaluationRow, EnterpriseQualityResourceEvaluationRow
         from sqlalchemy import select
-        ev_evals = s.scalars(select(EnterpriseValidationResourceEvaluationRow)).all()
+        ev_evals = s.scalars(select(EnterpriseValidationResourceEvaluationRow).order_by(EnterpriseValidationResourceEvaluationRow.id.desc()).limit(100)).all()
         if ev_evals:
             v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in ev_evals})
             
-        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow)).all()
+        eq_evals = s.scalars(select(EnterpriseQualityResourceEvaluationRow).order_by(EnterpriseQualityResourceEvaluationRow.id.desc()).limit(100)).all()
         if eq_evals:
             v_eval_map.update({f"{r.resource_name}:{r.metric}": r.current_value for r in eq_evals})
 
@@ -620,7 +639,7 @@ def enrich_cost_sub_metrics(s, sub_metrics: dict) -> dict:
     if s is not None:
         from store.models import CostResourceEvaluationRow
         from sqlalchemy import select
-        evals = s.scalars(select(CostResourceEvaluationRow)).all()
+        evals = s.scalars(select(CostResourceEvaluationRow).where(CostResourceEvaluationRow.resource_name.in_(["OpenLIT", "OpenCost"])).order_by(CostResourceEvaluationRow.id.desc()).limit(100)).all()
         for r in evals:
             if r.resource_name in ("OpenLIT", "OpenCost"):
                 if r.current_value is not None and r.current_value != "Unavailable":
