@@ -1217,7 +1217,8 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
                 cmd = [uv_bin, "run", "python", "examples/test_agent.py", "--agent-id", a_id]
             else:
                 cmd = [sys.executable, "examples/test_agent.py", "--agent-id", a_id]
-            subprocess.run(cmd, env=env, shell=(sys.platform == "win32"))
+            repo_root = str(Path(__file__).resolve().parent.parent)
+            subprocess.run(cmd, env=env, cwd=repo_root, shell=(sys.platform == "win32"))
         except Exception as e:
             print(f"[Background] Error in test_agent.py: {e}")
 

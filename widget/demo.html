@@ -198,11 +198,19 @@
     (function () {
       const board = document.querySelector("dpi-ls-board");
       if (!board) return;
-      const urlAgent = new URLSearchParams(window.location.search).get("agent");
-      if (urlAgent) board.setAttribute("selected-agent", urlAgent);
+      const updateRatingNav = (aid) => {
+        if (!aid) return;
+        const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+        if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(aid)}`;
+      };
+      if (urlAgent) {
+        board.setAttribute("selected-agent", urlAgent);
+        updateRatingNav(urlAgent);
+      }
       board.addEventListener("dpi-ls-select-agent", (ev) => {
         const { agentId } = ev.detail || {};
         if (!agentId) return;
+        updateRatingNav(agentId);
         try {
           const url = new URL(window.location.href);
           url.searchParams.set("agent", agentId);
