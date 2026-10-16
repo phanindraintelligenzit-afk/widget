@@ -196,14 +196,14 @@ window.addEventListener("unhandledrejection", function(e) {
             if ((!scoreVal || Number(scoreVal) <= 0) && cachedScore && Number(cachedScore) > 0) {
               scoreVal = cachedScore;
               if (cached.metrics) m = cached.metrics;
-            } else if (cached.computed_at && a.computed_at) {
-              if (new Date(cached.computed_at).getTime() > new Date(a.computed_at).getTime()) {
-                scoreVal = cachedScore;
-                if (cached.metrics) m = cached.metrics;
-              }
             }
           }
         } catch(e) {}
+        if (scoreVal && Number(scoreVal) > 0) {
+          try {
+            localStorage.setItem("dpi_score_cache_" + a.agent_id, JSON.stringify(a));
+          } catch(e) {}
+        }
         const isSelected = urlAgent && (
           (a.agent_id && a.agent_id.toLowerCase() === urlAgent.toLowerCase()) ||
           (a.agent_name && a.agent_name.toLowerCase() === urlAgent.toLowerCase())
@@ -272,6 +272,13 @@ window.addEventListener("unhandledrejection", function(e) {
           }
           if (agents.length > 0) {
             localStorage.setItem("dpi_known_agent_list", JSON.stringify(agents));
+            for (const a of agents) {
+              if (a && a.agent_id && a.score && Number(a.score) > 0) {
+                try {
+                  localStorage.setItem("dpi_score_cache_" + a.agent_id, JSON.stringify(a));
+                } catch(e) {}
+              }
+            }
           }
         } catch(e) {}
 

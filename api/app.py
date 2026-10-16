@@ -1484,21 +1484,27 @@ def ratings(all: bool = False, s: Session = Depends(db_session)) -> list[BoardRo
         from engine.score import composite
         
         custom_w = _get_custom_weightages(s, agent.id)
-        _raw, w_dict, active_weights = composite(m_dict, custom_w if custom_w else weights)
+        _composite_raw, comp_w_dict, comp_weights = composite(m_dict, custom_w if custom_w else weights)
         
-        # DPI-LS score is raw score optionally capped
-        final_score = _raw
-        if final_score > 100.0:
-            final_score = 100.0
-
-        # Protect against composite recalculation returning 0 when stored score was valid:
-        if (final_score <= 0.0 or _raw <= 0.0) and score.score and score.score > 0.0:
+        # Authoritative single source of truth:
+        # If score.score is stored in the database, it was computed by the authoritative DPI-LS scoring engine (rate())
+        # and must be preserved verbatim across polls and page reloads. Never overwrite it with linear composite sum.
+        if score.score is not None and score.score > 0.0:
             final_score = score.score
-            _raw = score.raw_score or score.score
+            _raw = score.raw_score if (score.raw_score is not None and score.raw_score > 0.0) else score.score
             if not any((v or 0) > 0 for v in w_dict.values()):
-                w_dict = dict(score.weighted_metrics or {})
+                w_dict = comp_w_dict if any((v or 0) > 0 for v in comp_w_dict.values()) else dict(score.weighted_metrics or {})
             if not any((v or 0) > 0 for v in m_dict.values()):
                 m_dict = dict(score.metrics or {})
+            if not any((v or 0) > 0 for v in active_weights.values()):
+                active_weights = comp_weights if any((v or 0) > 0 for v in comp_weights.values()) else dict(score.weights_used or {})
+        else:
+            final_score = _composite_raw
+            _raw = _composite_raw
+            if final_score > 100.0:
+                final_score = 100.0
+            w_dict = comp_w_dict
+            active_weights = comp_weights
 
         out.append(
             BoardRow(

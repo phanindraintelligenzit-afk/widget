@@ -2172,28 +2172,21 @@
             }
           }
 
-          // 1. If best has a newer computed timestamp than incoming newItem, keep best to prevent round-robin flip/rollback
-          if (best && best.computed_at && newItem.computed_at) {
-            try {
-              if (new Date(best.computed_at).getTime() > new Date(newItem.computed_at).getTime()) {
-                return best;
-              }
-            } catch (e) {}
+          // 1. If incoming score is positive, accept newItem as canonical source of truth and update cache
+          if (incomingScore && Number(incomingScore) > 0) {
+            saveCachedAgentScore(newItem);
+            return newItem;
           }
 
           // 2. If incoming score is non-positive or 0, fallback to best or cached
-          if (!incomingScore || Number(incomingScore) <= 0) {
-            if (best) {
-              const bestScore = (best.raw_score !== undefined && best.raw_score !== null) ? best.raw_score : best.score;
-              if (bestScore && Number(bestScore) > 0) {
-                return best;
-              }
+          if (best) {
+            const bestScore = (best.raw_score !== undefined && best.raw_score !== null) ? best.raw_score : best.score;
+            if (bestScore && Number(bestScore) > 0) {
+              return best;
             }
-            if (cached) {
-              return Object.assign({}, newItem, cached);
-            }
-          } else {
-            saveCachedAgentScore(newItem);
+          }
+          if (cached) {
+            return Object.assign({}, newItem, cached);
           }
           return newItem;
         });

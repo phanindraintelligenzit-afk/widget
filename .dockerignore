@@ -72,5 +72,6 @@ iac/
 # Large binary / data files
 *.sqlite
 *.db
+!dpi_ls.db
 evals/reports/
 sandbox_*

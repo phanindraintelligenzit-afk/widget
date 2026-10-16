@@ -47,8 +47,8 @@ def configure(url: str | None = None) -> Engine:
     
     # 1. Resolve connection URL
     if not url:
-        url = os.environ.get("DPI_DB_URL")
-        # In production, if DPI_DB_URL isn't explicitly set (e.g. for a proxy), fetch from Secrets Manager
+        url = os.environ.get("DATABASE_URL") or os.environ.get("DPI_DB_URL")
+        # In production, if neither is explicitly set, fetch from Secrets Manager
         if not url and dpi_env == "production":
             secret_name = os.environ.get("DPI_DB_SECRET_NAME", "dpi-ls/production/database")
             try:
@@ -57,6 +57,10 @@ def configure(url: str | None = None) -> Engine:
                 raise RuntimeError(f"Failed to fetch DB credentials from Secrets Manager: {e}")
         elif not url:
             url = DEFAULT_URL
+
+    # Normalize relative SQLite paths to avoid creating isolated DB files across processes
+    if url and (url.startswith("sqlite:///./") or url == "sqlite:///dpi_ls.db" or url == "sqlite://./dpi_ls.db"):
+        url = DEFAULT_URL
 
     # 2. Hard production guard: Fail loud, never fall back.
     if dpi_env == "production":

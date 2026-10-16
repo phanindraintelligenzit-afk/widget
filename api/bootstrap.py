@@ -113,6 +113,26 @@ def bootstrap() -> None:
 
 
             from store import repo
+            # Auto-seed baseline agents on fresh server deployment so Dashboard and Rating sections never disappear
+            if not os.environ.get("TESTING") and not repo.list_agents(session):
+                print("[bootstrap] Fresh database detected — auto-seeding baseline agents...")
+                import json
+                from contract import AgentObservation
+                from api.scoring import score_and_persist
+                repo_root = Path(__file__).resolve().parent.parent
+                for fname in ["obs_strong.json", "obs_baseline.json", "obs_unsafe.json"]:
+                    fpath = repo_root / "fixtures" / fname
+                    if fpath.exists():
+                        try:
+                            with open(fpath, "r", encoding="utf-8") as f:
+                                data = json.load(f)
+                                data.pop("_label", None)
+                                obs = AgentObservation.model_validate(data)
+                                score_and_persist(session, obs)
+                        except Exception as seed_err:
+                            print(f"[bootstrap] Failed to seed {fname}: {seed_err}")
+                session.commit()
+
             for agent_row, score_row in repo.latest_scores_for_all(session):
                 if score_row:
                     from contract import Rating
