@@ -280,8 +280,14 @@
       return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details" data-weight="${(w_m[k] !== null && w_m[k] !== undefined) ? Math.round(w_m[k]*100) : ''}">${display}</td>`;
     }).join("");
     
+    const isSelected = selectedAgentId && (
+      (row.agent_id && row.agent_id.toLowerCase() === selectedAgentId.toLowerCase()) ||
+      (row.agent_name && row.agent_name.toLowerCase() === selectedAgentId.toLowerCase())
+    );
+    const rowBgStyle = isSelected ? "background:#1e293b;border-left:4px solid #facc15;" : "background:#0f172a;";
+
     return `
-      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="background:#0f172a;transition:background 0.2s;">
+      <tr class="agent-row" data-agent-id="${escapeHtml(row.agent_id)}" data-agent-name="${escapeHtml(row.agent_name || row.agent_id)}" tabindex="0" role="row" style="${rowBgStyle}transition:background 0.2s;">
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#38bdf8;font-weight:700;white-space:nowrap;"><a href="/widget/agent-profile.html?id=${encodeURIComponent(row.agent_id)}" target="_blank" style="color:#38bdf8;text-decoration:underline;" onclick="event.stopPropagation();">${escapeHtml(row.agent_name || row.agent_id)}</a></td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:#facc15;font-weight:800;text-align:center;font-size:15px;" title="Sum of Parameters">${sum.toFixed(1)}</td>
         <td style="padding:10px 14px;border:1px solid #1e293b;color:${getScoreColor(scoreToUse)};font-weight:800;text-align:center;font-size:15px;" title="Official Evaluated DPI-LS Score">${fmtScore(scoreToUse)}</td>
@@ -2257,8 +2263,14 @@
         }
         
         if (allUpdated) {
+          const tbody = this.shadowRoot.querySelector("tbody");
           for (const item of targetList) {
             const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
+            if (tbody && tr) {
+              const detailTr = (tr.nextElementSibling && (tr.nextElementSibling.classList.contains("detail-row") || tr.nextElementSibling.classList.contains("cost-detail-row"))) ? tr.nextElementSibling : null;
+              tbody.appendChild(tr);
+              if (detailTr) tbody.appendChild(detailTr);
+            }
             const scoreToUse = (item.raw_score !== undefined && item.raw_score !== null) ? item.raw_score : item.score;
             
             const wm = item.weighted_metrics || {};
@@ -2334,7 +2346,7 @@
                 const newDetailTr = document.createElement("tr");
                 newDetailTr.className = expectedClass;
                 newDetailTr.dataset.expandedKey = this._expandedKey;
-                newDetailTr.innerHTML = `<td colspan="9" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
+                newDetailTr.innerHTML = `<td colspan="10" style="padding:0;border:1px solid #334155;background:#020617;">${detailHtml}</td>`;
                 tr.parentNode.insertBefore(newDetailTr, tr.nextSibling);
               }
             } else {

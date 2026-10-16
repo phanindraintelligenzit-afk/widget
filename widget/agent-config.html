@@ -466,7 +466,7 @@
 
                     if (teleRes.ok) {
                         const teleData = await teleRes.json();
-                        if (teleData && (teleData.score > 0 || teleData.raw_score > 0)) {
+                        if (teleData && (teleData.score !== undefined || teleData.status === "SUCCESS")) {
                             teleData.computed_at = teleData.computed_at || new Date().toISOString();
                             teleData.weights_used = Object.assign({}, normalizedWeightsUsed, teleData.weights_used || {});
                             try {

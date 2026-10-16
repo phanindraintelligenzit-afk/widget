@@ -1214,9 +1214,9 @@ def run_telemetry_endpoint(agent_id: str, s: Session = Depends(db_session)):
             print(f"[Background] Running test_agent.py for {a_id}...")
             uv_bin = shutil.which("uv")
             if uv_bin:
-                cmd = [uv_bin, "run", "python", "examples/test_agent.py"]
+                cmd = [uv_bin, "run", "python", "examples/test_agent.py", "--agent-id", a_id]
             else:
-                cmd = [sys.executable, "examples/test_agent.py"]
+                cmd = [sys.executable, "examples/test_agent.py", "--agent-id", a_id]
             subprocess.run(cmd, env=env, shell=(sys.platform == "win32"))
         except Exception as e:
             print(f"[Background] Error in test_agent.py: {e}")
