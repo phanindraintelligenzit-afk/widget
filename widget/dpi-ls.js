@@ -2040,6 +2040,14 @@
       super();
       this._data = getKnownActiveAgents();
     }
+    attributeChangedCallback(name, oldVal, newVal) {
+      if (name === "selected-agent") {
+        if (this.shadowRoot && this._data && this._data.length > 0) {
+          this._render({ data: this._data });
+        }
+      }
+      super.attributeChangedCallback(name, oldVal, newVal);
+    }
     connectedCallback() {
       super.connectedCallback();
       // Event delegation: one listener on the shadow root catches every
@@ -2209,22 +2217,21 @@
         this._data = (data && data.length > 0) ? data : fallbackKnown;
       }
         
-        // --- Sorting / Highlighting Logic ---
+        // --- Filtering Logic ---
         let renderData = this._data ? [...this._data] : [];
-        const selectedAgent = this.getAttribute("selected-agent");
+        const selectedAgent = (this.getAttribute("selected-agent") || "").trim();
         if (selectedAgent && renderData.length > 0) {
-           const normFilter = selectedAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-           renderData.sort((a, b) => {
-              const idA = (a.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-              const idB = (b.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-              const matchA = idA.includes(normFilter) || ((a.agent_name || '').toLowerCase().includes(normFilter));
-              const matchB = idB.includes(normFilter) || ((b.agent_name || '').toLowerCase().includes(normFilter));
-              if (matchA && !matchB) return -1;
-              if (!matchA && matchB) return 1;
-              return 0;
+           const normFilter = selectedAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+           const filtered = renderData.filter(a => {
+              const id = (a.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+              const name = (a.agent_name || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+              return id === normFilter || name === normFilter || id.includes(normFilter) || name.includes(normFilter);
            });
+           if (filtered.length > 0) {
+              renderData = filtered;
+           }
         }
-        // ------------------------------------
+        // ------------------------
       
       if (loading) {
         if (!this._data || this._data.length === 0) {
@@ -2250,13 +2257,16 @@
 
       const table = this.shadowRoot.querySelector("table");
       if (table) {
-        let allUpdated = true;
-        const targetList = renderData.length > 0 ? renderData : this._data;
-        for (const item of targetList) {
-          const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
-          if (!tr) {
-            allUpdated = false;
-            break;
+        const currentRows = this.shadowRoot.querySelectorAll("tr.agent-row");
+        const targetList = renderData.length > 0 ? renderData : (this._data || []);
+        let allUpdated = (currentRows.length === targetList.length);
+        if (allUpdated) {
+          for (const item of targetList) {
+            const tr = this.shadowRoot.querySelector(`tr.agent-row[data-agent-id="${cssEscape(item.agent_id)}"]`);
+            if (!tr) {
+              allUpdated = false;
+              break;
+            }
           }
         }
         

@@ -165,28 +165,58 @@ window.addEventListener("unhandledrejection", function(e) {
 </div>
 
   <script>
+    let _allFetchedAgents = [];
+    let _activeFilterAgent = "";
+
+    // On page reload (F5 / browser refresh), clear any lingering agent query param so all agents are restored
+    const navEntry = (window.performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null;
+    const isReload = (navEntry && navEntry.type === 'reload') || (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+    if (isReload) {
+      try {
+        window.history.replaceState({}, "", window.location.pathname);
+      } catch (e) {}
+    }
+    const initialParams = isReload ? new URLSearchParams() : new URLSearchParams(window.location.search);
+    _activeFilterAgent = initialParams.get("agent") || initialParams.get("id") || "";
+
+    // Erase onboarding and configuration form details when showing in Rating
+    const onboardKeys = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+    onboardKeys.forEach(f => {
+      try {
+        localStorage.removeItem('onboard_' + f);
+        sessionStorage.removeItem('onboard_' + f);
+      } catch(e) {}
+    });
+    try {
+      localStorage.removeItem('onboard_agent_id');
+      sessionStorage.removeItem('onboard_agent_id');
+      sessionStorage.removeItem('pending_config_agent_id');
+      localStorage.removeItem('last_agent_id');
+      localStorage.setItem('dpi_erase_onboarding_form', 'true');
+    } catch(e) {}
+
     function renderAgents(agents) {
       const body = document.getElementById('agent-body');
       if (!body) return;
       body.innerHTML = '';
       if (!Array.isArray(agents)) return;
       agents = agents.filter(a => !a || localStorage.getItem("dpi_retired_" + a.agent_id) !== "1");
+      _allFetchedAgents = agents;
       
-      const urlAgent = new URLSearchParams(window.location.search).get("agent") || new URLSearchParams(window.location.search).get("id") || localStorage.getItem("last_agent_id") || "";
-      if (urlAgent && agents.length > 0) {
-        const normFilter = urlAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-        agents.sort((a, b) => {
-          const idA = (a.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-          const idB = (b.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ');
-          const matchA = idA.includes(normFilter) || ((a.agent_name || '').toLowerCase().includes(normFilter));
-          const matchB = idB.includes(normFilter) || ((b.agent_name || '').toLowerCase().includes(normFilter));
-          if (matchA && !matchB) return -1;
-          if (!matchA && matchB) return 1;
-          return 0;
+      let displayAgents = [...agents];
+      if (_activeFilterAgent && displayAgents.length > 0) {
+        const normFilter = _activeFilterAgent.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+        const filtered = displayAgents.filter(a => {
+          const id = (a.agent_id || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+          const name = (a.agent_name || '').toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
+          return id === normFilter || name === normFilter || id.includes(normFilter) || name.includes(normFilter);
         });
+        if (filtered.length > 0) {
+          displayAgents = filtered;
+        }
       }
 
-      agents.forEach(a => {
+      displayAgents.forEach(a => {
         let scoreVal = a.score;
         let m = a.metrics || {};
         try {
@@ -204,9 +234,9 @@ window.addEventListener("unhandledrejection", function(e) {
             localStorage.setItem("dpi_score_cache_" + a.agent_id, JSON.stringify(a));
           } catch(e) {}
         }
-        const isSelected = urlAgent && (
-          (a.agent_id && a.agent_id.toLowerCase() === urlAgent.toLowerCase()) ||
-          (a.agent_name && a.agent_name.toLowerCase() === urlAgent.toLowerCase())
+        const isSelected = _activeFilterAgent && (
+          (a.agent_id && a.agent_id.toLowerCase() === _activeFilterAgent.toLowerCase()) ||
+          (a.agent_name && a.agent_name.toLowerCase() === _activeFilterAgent.toLowerCase())
         );
         const rowBgStyle = isSelected ? "background:#1e293b; border-left:4px solid #facc15;" : "";
         const row = `<tr style="border-bottom:1px solid #1e293b; transition:background 0.2s; ${rowBgStyle}" onmouseover="this.style.background='rgba(255,255,255,0.04)'" onmouseout="this.style.background='${isSelected ? '#1e293b' : 'transparent'}'">
@@ -484,7 +514,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
                     if (matchedAgent) {
-                        window.location.href = '/widget/demo.html?agent=' + encodeURIComponent(matchedAgent.agent_id);
+                        _activeFilterAgent = matchedAgent.agent_id;
+                        renderAgents(_allFetchedAgents.length > 0 ? _allFetchedAgents : agents);
+                        try {
+                            window.history.replaceState({}, "", "/widget/score.html");
+                        } catch(e) {}
+                        document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
                     } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
                         window.location.href = '/widget/demo.html?filter=' + encodeURIComponent(query);
                     } else {
@@ -493,6 +528,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 } catch (err) {
                     console.error(err);
                 }
+            }
+        });
+    });
+
+    // Clicking "Rating" in sidebar resets table to show all agents
+    const ratingLinks = document.querySelectorAll('a.sidebar-link[href*="score.html"]');
+    ratingLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            _activeFilterAgent = "";
+            const searchInps = document.querySelectorAll('.search-bar input');
+            searchInps.forEach(i => i.value = '');
+            try {
+                window.history.replaceState({}, "", "/widget/score.html");
+            } catch(err) {}
+            if (_allFetchedAgents && _allFetchedAgents.length > 0) {
+                renderAgents(_allFetchedAgents);
+            } else {
+                fetchAgents();
             }
         });
     });
@@ -771,7 +824,12 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = `/widget/demo.html?agent=${encodeURIComponent(a.agent_id)}`;
+                            _activeFilterAgent = a.agent_id;
+                            renderAgents(_allFetchedAgents.length > 0 ? _allFetchedAgents : agents);
+                            try {
+                                window.history.replaceState({}, "", "/widget/score.html");
+                            } catch(e) {}
+                            dropdown.style.display = 'none';
                         };
                         dropdown.appendChild(item);
                     });

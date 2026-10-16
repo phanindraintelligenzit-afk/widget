@@ -260,7 +260,7 @@ def latest_scores_for_all(s: Session) -> list[tuple[AgentRow, Optional[ScoreRow]
             ScoreRow,
             ScoreRow.id == func.coalesce(valid_score_subq.c.latest_id, any_score_subq.c.latest_id),
         )
-        .order_by(AgentRow.name)
+        .order_by(AgentRow.first_seen.asc(), AgentRow.id.asc())
     )
 
     return [(row.AgentRow, row.ScoreRow) for row in s.execute(stmt).all()]

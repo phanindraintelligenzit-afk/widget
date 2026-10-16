@@ -186,18 +186,41 @@
       }
     });
 
-    // --- Form Persistence ---
+    // --- Form Persistence & Clearing Lifecycle ---
     const formFields = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
-    
-    // Restore saved data so it never disappears on refresh
+
+    // If an agent was saved to dashboard, erase the onboarding form details
+    if (localStorage.getItem('dpi_erase_onboarding_form') === 'true') {
+        formFields.forEach(field => {
+            try {
+                localStorage.removeItem('onboard_' + field);
+                sessionStorage.removeItem('onboard_' + field);
+            } catch(e) {}
+        });
+        try {
+            localStorage.removeItem('onboard_agent_id');
+            sessionStorage.removeItem('onboard_agent_id');
+            sessionStorage.removeItem('pending_config_agent_id');
+            localStorage.removeItem('last_agent_id');
+            localStorage.removeItem('dpi_erase_onboarding_form');
+        } catch(e) {}
+        const fEl = document.getElementById('onboardingForm');
+        if (fEl) fEl.reset();
+        const envEl = document.getElementById('environment');
+        if (envEl) envEl.value = 'Production';
+    } else {
+        // Restore saved in-progress data before submit/dashboard display
+        formFields.forEach(field => {
+            const savedVal = localStorage.getItem('onboard_' + field) || sessionStorage.getItem('onboard_' + field);
+            if (savedVal) {
+                const inputEl = document.getElementById(field);
+                if (inputEl) inputEl.value = savedVal;
+            }
+        });
+    }
+
+    // Save in-progress data as user types (preserved before completion)
     formFields.forEach(field => {
-        const savedVal = localStorage.getItem('onboard_' + field) || sessionStorage.getItem('onboard_' + field);
-        if (savedVal) {
-            const inputEl = document.getElementById(field);
-            if (inputEl) inputEl.value = savedVal;
-        }
-        
-        // Save data on change
         const inputEl = document.getElementById(field);
         if (inputEl) {
             inputEl.addEventListener('input', (e) => {
@@ -205,18 +228,18 @@
                 localStorage.setItem('onboard_' + field, e.target.value);
                 if (field === 'agent_id') {
                     localStorage.setItem('onboard_agent_id', e.target.value);
-                    localStorage.setItem('last_agent_id', e.target.value);
+                    sessionStorage.setItem('onboard_agent_id', e.target.value);
                 }
             });
         }
     });
-    // -------------------------
+    // ---------------------------------------------
 
     document.getElementById('onboardingForm').addEventListener('submit', async (e) => {
 
       e.preventDefault();
       
-      const agentIdVal = document.getElementById('agent_id').value;
+      const agentIdVal = document.getElementById('agent_id').value.trim();
       const descVal = document.getElementById('description').value;
       const typeVal = document.getElementById('agent_type').value;
       const envVal = document.getElementById('environment').value;
@@ -227,7 +250,8 @@
       const roleVal = document.getElementById('digital_worker_role').value;
       
       localStorage.setItem('onboard_agent_id', agentIdVal);
-      localStorage.setItem('last_agent_id', agentIdVal);
+      sessionStorage.setItem('onboard_agent_id', agentIdVal);
+      sessionStorage.setItem('pending_config_agent_id', agentIdVal);
 
       const statusEl = document.getElementById('status');
       statusEl.textContent = 'Submitting...';

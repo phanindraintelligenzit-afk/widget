@@ -954,8 +954,7 @@ def add_manager_rating(agent_id: str, body: ManagerRatingIn, s: Session = Depend
     if not provided_email and registered_email:
         provided_email = registered_email
     
-    is_admin = current_user.get("role") == "ADMIN" or current_user.get("username") == "admin"
-    if not is_admin and registered_email and provided_email != registered_email:
+    if registered_email and provided_email != registered_email:
         raise HTTPException(
             status_code=403, 
             detail=f"Authorization Failed: You entered '{provided_email}', but only the registered Business Owner ('{registered_email}') is authorized to submit a Manager Review for this agent."

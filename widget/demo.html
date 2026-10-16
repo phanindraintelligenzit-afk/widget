@@ -194,30 +194,70 @@
 
 
   <script>
-    // Board: highlight row on select-agent event
+    // Board: highlight row on select-agent event, reset on reload and sidebar click
     (function () {
       const board = document.querySelector("dpi-ls-board");
       if (!board) return;
-      const urlParams = new URLSearchParams(window.location.search);
+
+      const navEntry = (window.performance && performance.getEntriesByType) ? performance.getEntriesByType('navigation')[0] : null;
+      const isReload = (navEntry && navEntry.type === 'reload') || (window.performance && window.performance.navigation && window.performance.navigation.type === 1);
+      if (isReload) {
+        try {
+          window.history.replaceState({}, "", window.location.pathname);
+        } catch (e) {}
+      }
+
+      const urlParams = isReload ? new URLSearchParams() : new URLSearchParams(window.location.search);
       const urlAgent = urlParams.get("agent") || urlParams.get("id") || "";
       const updateRatingNav = (aid) => {
-        if (!aid) return;
         const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
-        if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(aid)}`;
+        if (ratingLink) {
+          if (aid) {
+            ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(aid)}`;
+          } else {
+            ratingLink.href = `/widget/score.html`;
+          }
+        }
       };
       if (urlAgent) {
         board.setAttribute("selected-agent", urlAgent);
         updateRatingNav(urlAgent);
       }
+
+      // After displaying in Dashboard, erase onboarding and configuration form details
+      const onboardKeys = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+      onboardKeys.forEach(f => {
+        try {
+          localStorage.removeItem('onboard_' + f);
+          sessionStorage.removeItem('onboard_' + f);
+        } catch(e) {}
+      });
+      try {
+        localStorage.removeItem('onboard_agent_id');
+        sessionStorage.removeItem('onboard_agent_id');
+        sessionStorage.removeItem('pending_config_agent_id');
+        localStorage.removeItem('last_agent_id');
+        localStorage.setItem('dpi_erase_onboarding_form', 'true');
+      } catch(e) {}
+
       board.addEventListener("dpi-ls-select-agent", (ev) => {
         const { agentId } = ev.detail || {};
         if (!agentId) return;
         updateRatingNav(agentId);
-        try {
-          const url = new URL(window.location.href);
-          url.searchParams.set("agent", agentId);
-          window.history.replaceState({}, "", url);
-        } catch (e) {}
+      });
+
+      // Clicking "Dashboard" in sidebar resets the board to show all agents
+      const dashLinks = document.querySelectorAll('a.sidebar-link[href*="demo.html"]');
+      dashLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+          board.removeAttribute("selected-agent");
+          updateRatingNav("");
+          const searchInps = document.querySelectorAll('.search-bar input');
+          searchInps.forEach(i => i.value = '');
+          try {
+            window.history.replaceState({}, "", "/widget/demo.html");
+          } catch(err) {}
+        });
       });
     })();
   </script>
@@ -281,9 +321,7 @@ document.addEventListener("DOMContentLoaded", () => {
                             const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
                             if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(matchedAgent.agent_id)}`;
                             try {
-                                const url = new URL(window.location.href);
-                                url.searchParams.set("agent", matchedAgent.agent_id);
-                                window.history.replaceState({}, "", url);
+                                window.history.replaceState({}, "", "/widget/demo.html");
                             } catch (e) {}
                             document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
                         } else {
@@ -296,9 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (board) {
                             board.setAttribute("selected-agent", query);
                             try {
-                                const url = new URL(window.location.href);
-                                url.searchParams.set("agent", query);
-                                window.history.replaceState({}, "", url);
+                                window.history.replaceState({}, "", "/widget/demo.html");
                             } catch (e) {}
                             document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
                         } else {
@@ -597,9 +633,7 @@ document.addEventListener("DOMContentLoaded", () => {
                                 const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
                                 if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(a.agent_id)}`;
                                 try {
-                                    const url = new URL(window.location.href);
-                                    url.searchParams.set("agent", a.agent_id);
-                                    window.history.replaceState({}, "", url);
+                                    window.history.replaceState({}, "", "/widget/demo.html");
                                 } catch (e) {}
                                 dropdown.style.display = 'none';
                             } else {

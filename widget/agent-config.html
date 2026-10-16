@@ -226,9 +226,9 @@
       }
     });
 
-    // Pre-fill Agent ID from URL or last onboarded agent so it NEVER disappears
+    // Pre-fill Agent ID from URL or pending onboarded agent
     const urlParams = new URLSearchParams(window.location.search);
-    let passedAgentId = urlParams.get('agent_id') || localStorage.getItem('onboard_agent_id') || localStorage.getItem('last_agent_id') || 'chandra-finops';
+    let passedAgentId = urlParams.get('agent_id') || sessionStorage.getItem('pending_config_agent_id') || localStorage.getItem('onboard_agent_id') || '';
     
     async function loadSavedWeights(agentId) {
         if (!agentId) return;
@@ -259,12 +259,15 @@
         if (passedAgentId) {
             agentInput.value = passedAgentId;
             loadSavedWeights(passedAgentId);
+        } else {
+            agentInput.value = '';
+            resetDefaults();
         }
-        agentInput.addEventListener('input', (e) => {
-            localStorage.setItem('last_agent_id', e.target.value);
-        });
         agentInput.addEventListener('change', (e) => {
-            loadSavedWeights(e.target.value);
+            const val = e.target.value.trim();
+            if (val) {
+                loadSavedWeights(val);
+            }
         });
     }
     
@@ -557,12 +560,28 @@
                     console.warn("Telemetry trigger warning:", e);
                 }
                 
+                // Erase onboarding and temporary config data now that configurations are saved and scores calculated
+                const formFields = ['agent_id', 'description', 'agent_type', 'environment', 'business_owner_name', 'business_owner_email', 'technical_owner_name', 'technical_owner_email', 'digital_worker_role'];
+                formFields.forEach(f => {
+                    try {
+                        localStorage.removeItem('onboard_' + f);
+                        sessionStorage.removeItem('onboard_' + f);
+                    } catch(e) {}
+                });
+                try {
+                    localStorage.removeItem('onboard_agent_id');
+                    sessionStorage.removeItem('onboard_agent_id');
+                    sessionStorage.removeItem('pending_config_agent_id');
+                    localStorage.removeItem('last_agent_id');
+                    localStorage.setItem('dpi_erase_onboarding_form', 'true');
+                } catch(e) {}
+
                 if (statusEl) {
                     statusEl.textContent = 'Success! Parameters connected & scores calculated. Opening Dashboard...';
                 }
                 
                 setTimeout(() => {
-                    window.location.href = `/widget/demo.html?agent=${encodeURIComponent(agentId)}`;
+                    window.location.href = '/widget/demo.html';
                 }, 600);
                 
             } catch (err) {
