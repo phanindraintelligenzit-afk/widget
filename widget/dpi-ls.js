@@ -280,9 +280,14 @@
       return `<td class="metric-cell" data-key="${k}" style="padding:8px 12px;border:1px solid #1e293b;color:#4ade80;text-align:center;cursor:pointer;font-weight:600;" title="Click to see ${METRIC_LABELS[k] || k} details" data-weight="${(w_m[k] !== null && w_m[k] !== undefined) ? Math.round(w_m[k]*100) : ''}">${display}</td>`;
     }).join("");
     
-    const isSelected = selectedAgentId && (
-      (row.agent_id && row.agent_id.toLowerCase() === selectedAgentId.toLowerCase()) ||
-      (row.agent_name && row.agent_name.toLowerCase() === selectedAgentId.toLowerCase())
+    const normSelected = selectedAgentId ? selectedAgentId.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const normRowId = row.agent_id ? row.agent_id.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const normRowName = row.agent_name ? row.agent_name.toLowerCase().replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim() : '';
+    const isSelected = normSelected && (
+      normRowId === normSelected ||
+      normRowName === normSelected ||
+      normRowId.includes(normSelected) ||
+      normRowName.includes(normSelected)
     );
     const rowBgStyle = isSelected ? "background:#1e293b;border-left:4px solid #facc15;" : "background:#0f172a;";
 

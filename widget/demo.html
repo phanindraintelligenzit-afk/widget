@@ -198,6 +198,8 @@
     (function () {
       const board = document.querySelector("dpi-ls-board");
       if (!board) return;
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlAgent = urlParams.get("agent") || urlParams.get("id") || "";
       const updateRatingNav = (aid) => {
         if (!aid) return;
         const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
@@ -273,11 +275,35 @@ document.addEventListener("DOMContentLoaded", () => {
                     });
 
                     if (matchedAgent) {
-                        window.location.href = `/widget/agent-profile.html?id=${matchedAgent.agent_id}`;
+                        const board = document.querySelector("dpi-ls-board");
+                        if (board) {
+                            board.setAttribute("selected-agent", matchedAgent.agent_id);
+                            const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+                            if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(matchedAgent.agent_id)}`;
+                            try {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set("agent", matchedAgent.agent_id);
+                                window.history.replaceState({}, "", url);
+                            } catch (e) {}
+                            document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
+                        } else {
+                            window.location.href = `/widget/demo.html?agent=${encodeURIComponent(matchedAgent.agent_id)}`;
+                        }
                     } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
                         window.location.href = `/widget/demo.html?filter=${encodeURIComponent(query)}`;
                     } else {
-                        alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+                        const board = document.querySelector("dpi-ls-board");
+                        if (board) {
+                            board.setAttribute("selected-agent", query);
+                            try {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set("agent", query);
+                                window.history.replaceState({}, "", url);
+                            } catch (e) {}
+                            document.querySelectorAll('.search-bar div').forEach(d => { if (d.style) d.style.display = 'none'; });
+                        } else {
+                            alert(`No direct match found for "${query}". Try searching an Agent ID (e.g., 'agent-001') or a Metric (e.g. 'Risk').`);
+                        }
                     }
                 } catch (err) {
                     console.error(err);
@@ -565,7 +591,20 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = `/widget/demo.html?agent=${a.agent_id}`;
+                            const board = document.querySelector("dpi-ls-board");
+                            if (board) {
+                                board.setAttribute("selected-agent", a.agent_id);
+                                const ratingLink = document.querySelector('a.sidebar-link[href*="score.html"]');
+                                if (ratingLink) ratingLink.href = `/widget/score.html?agent=${encodeURIComponent(a.agent_id)}`;
+                                try {
+                                    const url = new URL(window.location.href);
+                                    url.searchParams.set("agent", a.agent_id);
+                                    window.history.replaceState({}, "", url);
+                                } catch (e) {}
+                                dropdown.style.display = 'none';
+                            } else {
+                                window.location.href = `/widget/demo.html?agent=${encodeURIComponent(a.agent_id)}`;
+                            }
                         };
                         dropdown.appendChild(item);
                     });

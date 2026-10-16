@@ -477,7 +477,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     );
 
                     if (matchedAgent) {
-                        window.location.href = '/widget/agent-profile.html?id=' + matchedAgent.agent_id;
+                        window.location.href = '/widget/demo.html?agent=' + encodeURIComponent(matchedAgent.agent_id);
                     } else if (['risk', 'productivity', 'quality', 'efficiency', 'governance', 'cost', 'validation'].some(k => query.includes(k))) {
                         window.location.href = '/widget/demo.html?filter=' + encodeURIComponent(query);
                     } else {
@@ -764,7 +764,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         item.onmouseover = () => item.style.background = 'rgba(255,255,255,0.1)';
                         item.onmouseout = () => item.style.background = 'transparent';
                         item.onclick = () => {
-                            window.location.href = `/widget/agent-profile.html?id=${a.agent_id}`;
+                            window.location.href = `/widget/demo.html?agent=${encodeURIComponent(a.agent_id)}`;
                         };
                         dropdown.appendChild(item);
                     });
